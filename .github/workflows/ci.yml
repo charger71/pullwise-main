@@ -1,18 +1,17 @@
-# Runs on every pull request and on main: the unit tests and migration rules (npm test), and a fresh install of
-# every migration on a blank Supabase database, the same way a new shop's project is set up.
+# Runs on every pull request, and as the first step of every deploy (deploy.yml): the unit tests and migration rules
+# (npm test), and a fresh install of every migration on a blank Supabase database, the way a new shop is set up.
 name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
