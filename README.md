@@ -1,7 +1,7 @@
 # Pullwise
 
 Website for an independent comic shop: pull lists, pre-orders, reservations, events and a staff admin.
-One codebase serves every shop (see [One codebase, many shops](#one-codebase-many-shops)). **New shop? Start with [SETUP.md](SETUP.md).**
+One codebase serves every shop (see [One codebase, many shops](#one-codebase-many-shops)). **New shop? `npm run add-shop`; see [SETUP.md](SETUP.md).**
 
 Static HTML/CSS/JS served by one Cloudflare Worker for all shops (`worker/`), plus a Supabase project per shop
 (database, auth, storage, Edge Functions). No build step.
@@ -150,7 +150,7 @@ Edge Functions (deploy with `supabase functions deploy <name>`):
 | `admin/` | Staff admin: `admin.js` (sign-in, routing), `lib.js` (shared helpers), `filters.js` (safe `.or()` search filters), `backup.js` (backup/restore/customer export logic), `sections/*.js`, `pull-list-pdf.js` and `order-sheet-pdf.js` (printable PDFs, built in the browser) |
 | `worker/` | The site Worker: serves every shop, generates `js/config.js` per domain and writes page titles, icons and the home banner into the HTML (`shop-page.js`, with tests) |
 | `shops.json` | Every shop: id, domains, Supabase URL, anon key (public), project ref |
-| `tools/` | `deploy-plan.mjs` and `smoke-site.mjs` (the deploy workflow), `check-migrations.js`, `test-migrations.sh`, `restore.mjs` (backup file → SQL, for the terminal), `stamp-version.js` |
+| `tools/` | `add-shop.mjs` (`npm run add-shop`: set up a new shop end to end), `deploy-plan.mjs` and `smoke-site.mjs` (the deploy workflow), `check-migrations.js`, `test-migrations.sh`, `restore.mjs` (backup file → SQL, for the terminal), `stamp-version.js` |
 | `js/import/apply.js` | Import database logic shared by the CLI and admin |
 | `js/catalog.js` | Filter/search listing shared by Pre-Orders and New Arrivals |
 | `js/pages/*.js` | Per-page scripts |
