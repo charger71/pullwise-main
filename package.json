@@ -4,7 +4,6 @@
   "type": "module",
   "description": "Comic shop website template. The site itself has no build step and no dependencies.",
   "scripts": {
-    "test": "node js/dates.test.js && node js/discount.test.js && node supabase/functions/weekly-pull-list/email.test.js && node supabase/functions/staff-admin/rules.test.js && node js/import/exclusions.test.js && node tools/restore.test.js && node admin/backup.test.js && node js/errors.test.js && node admin/filters.test.js",
-    "apply-seo": "node tools/apply-seo.js"
+    "test": "node js/dates.test.js && node js/discount.test.js && node supabase/functions/weekly-pull-list/email.test.js && node supabase/functions/staff-admin/rules.test.js && node js/import/exclusions.test.js && node tools/restore.test.js && node admin/backup.test.js && node js/errors.test.js && node admin/filters.test.js && node worker/shop-page.test.js"
   }
 }

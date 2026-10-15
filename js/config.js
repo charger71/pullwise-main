@@ -1,8 +1,9 @@
-// Per-shop deployment config. The only file that changes between shops —
-// everything else (name, hours, colors, logo…) lives in the Supabase
-// `settings` row and is edited from the Shop Settings admin page.
+// Site config: which Supabase project the browser talks to.
 //
-// Leave SUPABASE_URL empty to run the site in demo mode on sample data.
+// On the live sites this file is generated per shop by the Worker (worker/index.js) from shops.json, so it
+// never changes between shops. This copy is what you get locally (python3 -m http.server) and on any domain
+// that isn't in shops.json: SUPABASE_URL empty = demo mode on sample data. To try the site against a real
+// project locally, put its URL and anon key here, but don't commit them.
 
 export const SUPABASE_URL = '';
 // Public anon key — safe in browser code; row-level security protects the data.
@@ -12,4 +13,4 @@ export const SUPABASE_ANON_KEY = '';
 export const GA_MEASUREMENT_ID = '';
 
 // Public site origin, used for canonical links and the calendar feed.
-export const SITE_URL = '';
+export const SITE_URL = globalThis.location?.origin ?? '';

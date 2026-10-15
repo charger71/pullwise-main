@@ -5,7 +5,7 @@ import { renderGrid, enableReservations } from '../components.js';
 import * as pull from '../customer.js';
 import { readCache, writeCache, sameData } from '../cache.js';
 
-// Banner headline and photo from settings (tools/apply-seo.js bakes the same into index.html so the banner
+// Banner headline and photo from settings (the site Worker writes the same into index.html so the banner
 // paints before any script runs; this keeps it right if staff have changed it since).
 function paintHero(s) {
   $('#hero-title').innerHTML = heroHeadlineHtml(s);
