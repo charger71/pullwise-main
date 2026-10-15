@@ -55,6 +55,4 @@ exception when others then
 end;
 $$;
 
--- Hourly instead of daily (unschedule the old job first if you scheduled it):
--- select cron.unschedule('flip-item-statuses');
--- select cron.schedule('flip-item-statuses', '0 * * * *', 'select public.flip_item_statuses()');
+-- Runs hourly: scheduled in 20270104000000_schedule_status_flip.sql.

@@ -3,6 +3,10 @@
 -- single settings row, which staff edit from the Shop Settings admin page.
 
 create extension if not exists pg_trgm;
+-- Scheduled jobs (status flip, emails) and the HTTP calls they make. Turned on here so a fresh project needs
+-- nothing switched on in the dashboard first.
+create extension if not exists pg_cron with schema pg_catalog;
+create extension if not exists pg_net with schema extensions;
 
 -- ---------------------------------------------------------------------------
 -- Staff
@@ -354,9 +358,7 @@ exception when others then
 end;
 $$;
 
--- Schedule it (requires the pg_cron extension, enabled in the dashboard under
--- Database → Extensions). 10:00 UTC ≈ early morning US time.
--- select cron.schedule('flip-item-statuses', '0 10 * * *', 'select public.flip_item_statuses()');
+-- Scheduled hourly in 20270104000000_schedule_status_flip.sql.
 
 -- ---------------------------------------------------------------------------
 -- Row-level security
