@@ -12,6 +12,10 @@ import { addDays, weekStart } from '../dates.js';
 // Distributor fields refreshed on every import. Staff-owned fields (status,
 // hidden, staff pick, category) are never overwritten on titles already imported.
 const SYNCED = ['title', 'issue_number', 'variant', 'publisher', 'price', 'foc_date', 'release_date', 'upc', 'isbn', 'creators', 'mature', 'description'];
+// Sheet field → items column where they differ. A sheet's price is the retail price; the shop's own price
+// (shop_price) is set by staff and wins over it (items.price is kept as whichever applies, by a trigger).
+const COLUMN = { price: 'retail_price' };
+const col = (k) => COLUMN[k] ?? k;
 
 function* chunks(arr, n) {
   for (let i = 0; i < arr.length; i += n) yield arr.slice(i, i + n);
@@ -172,12 +176,12 @@ export async function applyImport(sb, parsed, opts) {
 
   // undefined = the sheet doesn't provide this field: leave the stored value
   // alone (null still clears it). New rows just get NULL for it.
-  const synced = (i) => Object.fromEntries(SYNCED.filter((k) => i[k] !== undefined).map((k) => [k, i[k] ?? null]));
+  const synced = (i) => Object.fromEntries(SYNCED.filter((k) => i[k] !== undefined).map((k) => [col(k), i[k] ?? null]));
 
   progress('Saving titles…');
   // New rows share one column set, so a bulk insert never NULLs anything by accident.
   const newRows = fresh.map((i) => ({
-    ...Object.fromEntries(SYNCED.map((k) => [k, i[k] ?? null])),
+    ...Object.fromEntries(SYNCED.map((k) => [col(k), i[k] ?? null])),
     mature: i.mature ?? false, // NOT NULL; sheets without a rating column leave it undefined
     distributor,
     sku: i.sku,
