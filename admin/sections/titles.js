@@ -288,7 +288,9 @@ async function edit(listEl, id) {
         <div class="field span-2"><label for="e-variant">Variant / edition</label><input id="e-variant" name="variant" value="${esc(item.variant)}"></div>
         <div class="field"><label for="e-status">Status</label><select id="e-status" name="status">${Object.entries(STATUS_LABELS).map(([v, l]) => opt(v, l, item.status)).join('')}</select></div>
         <div class="field"><label for="e-category">Category</label><select id="e-category" name="category_id">${opt('', 'None', item.category_id)}${categories.map((c) => opt(c.id, c.name, item.category_id)).join('')}</select></div>
-        <div class="field"><label for="e-price">Price ($)</label><input id="e-price" name="price" type="number" step="0.01" min="0" value="${item.price ?? ''}"></div>
+        <div class="field"><label for="e-retail">Retail price ($)</label><input id="e-retail" name="retail_price" type="number" step="0.01" min="0" value="${item.retail_price ?? item.price ?? ''}"></div>
+        <div class="field"><label for="e-shop-price">Shop price ($)</label><input id="e-shop-price" name="shop_price" type="number" step="0.01" min="0" value="${item.shop_price ?? ''}" placeholder="Blank = sell at retail">
+          <p class="field__hint">What customers are charged instead of retail. Kept when the title is re-imported.</p></div>
         <div class="field"><label for="e-foc">Order cutoff (FOC)</label><input id="e-foc" name="foc_date" type="date" value="${item.foc_date ?? ''}"></div>
         <div class="field"><label for="e-release">Release date</label><input id="e-release" name="release_date" type="date" value="${item.release_date ?? ''}"></div>
         <div class="field"><label for="e-creators">Creators</label><input id="e-creators" name="creators" value="${esc(item.creators)}"></div>
@@ -306,7 +308,7 @@ async function edit(listEl, id) {
         </fieldset>
         <div class="field span-2" data-cover></div>
       </div>
-      ${item.distributor && item.distributor !== 'other' ? `<p class="admin-hint">Imported from ${item.distributor === 'lunar' ? 'Lunar' : 'PRH'} (${esc(item.sku)}). Re-importing its sheet refreshes title, price, dates and description, but never status, category, badges, staff pick, homepage or hidden.</p>` : ''}
+      ${item.distributor && item.distributor !== 'other' ? `<p class="admin-hint">Imported from ${item.distributor === 'lunar' ? 'Lunar' : 'PRH'} (${esc(item.sku)}). Re-importing its sheet refreshes title, retail price, dates and description, but never the shop price, status, category, badges, staff pick, homepage or hidden.</p>` : ''}
       <div class="admin-actions">
         <button class="btn btn--primary" type="submit">${id ? 'Save' : 'Add title'}</button>
         ${id && isOwner ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
@@ -325,7 +327,7 @@ async function edit(listEl, id) {
     const row = {
       title: text('title'), issue_number: text('issue_number'), variant: text('variant'), publisher: text('publisher'),
       status: f.get('status'), category_id: f.get('category_id') ? Number(f.get('category_id')) : null,
-      price: f.get('price') ? Number(f.get('price')) : null, foc_date: f.get('foc_date') || null, release_date: f.get('release_date') || null,
+      retail_price: f.get('retail_price') ? Number(f.get('retail_price')) : null, shop_price: f.get('shop_price') ? Number(f.get('shop_price')) : null, foc_date: f.get('foc_date') || null, release_date: f.get('release_date') || null,
       creators: text('creators'), upc: text('upc'), isbn: text('isbn'), description: text('description'),
       badges: f.getAll('badges'), staff_pick: f.has('staff_pick'), featured: f.has('featured'), hidden: f.has('hidden'), mature: f.has('mature'), cover_url: cover.get(), cover_thumb_url: cover.getThumb(),
     };
