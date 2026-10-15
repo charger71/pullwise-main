@@ -15,6 +15,12 @@ inputs:
   access-token:
     description: Supabase personal access token
     required: true
+  catalog-url:
+    description: The master catalog's Supabase URL (empty for the catalog itself)
+    required: false
+  catalog-key:
+    description: The master catalog's public anon key
+    required: false
 runs:
   using: composite
   steps:
@@ -27,6 +33,8 @@ runs:
         SUPABASE_DB_PASSWORD: ${{ inputs.db-password }}
         SHOP: ${{ inputs.shop }}
         REF: ${{ inputs.project-ref }}
+        CATALOG_URL: ${{ inputs.catalog-url }}
+        CATALOG_KEY: ${{ inputs.catalog-key }}
       run: |
         set -euo pipefail
         # Without SUPABASE_DB_PASSWORD the CLI mints a temporary login role through the access token.
@@ -37,4 +45,8 @@ runs:
         echo "::endgroup::"
         echo "::group::Edge Functions for $SHOP"
         supabase functions deploy --project-ref "$REF" --use-api
+        if [ -n "$CATALOG_URL" ]; then
+          supabase secrets set --project-ref "$REF" CATALOG_URL="$CATALOG_URL" CATALOG_ANON_KEY="$CATALOG_KEY" >/dev/null
+          echo "$SHOP syncs titles from the master catalog ($CATALOG_URL)"
+        fi
         echo "::endgroup::"

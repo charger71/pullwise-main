@@ -41,10 +41,20 @@ const p = plan(data, { hasSupabase: true, hasCloudflare: true });
 assert.equal(p.ready, true);
 assert.deepEqual(p.canary.map((s) => s.id), ['demo']);
 assert.deepEqual(p.shops.map((s) => s.id), ['main-street']);
-assert.deepEqual(p.shops[0], { id: 'main-street', projectRef: REF_A, secret: 'SUPABASE_DB_PASSWORD_MAIN_STREET', url: 'https://mainstreet.com', supabaseUrl: `https://${REF_A}.supabase.co`, domains: ['mainstreet.com', 'www.mainstreet.com'] });
+assert.deepEqual(p.shops[0], { id: 'main-street', projectRef: REF_A, secret: 'SUPABASE_DB_PASSWORD_MAIN_STREET', url: 'https://mainstreet.com', supabaseUrl: `https://${REF_A}.supabase.co`, domains: ['mainstreet.com', 'www.mainstreet.com'], catalogUrl: '', catalogKey: '' });
 assert.match(plan(data, { hasSupabase: false, hasCloudflare: true }).reason, /SUPABASE_ACCESS_TOKEN/);
 assert.equal(plan(data, { hasSupabase: true, hasCloudflare: false }).ready, false);
 assert.match(plan({ shops: [] }, { hasSupabase: true, hasCloudflare: true }).reason, /no shops/);
+
+// Master catalog: everyone else gets its address and key; the catalog itself doesn't sync from itself
+one({ catalog: 'yes' }, /catalog must be/);
+const two = { shops: [shop({ catalog: true }), shop({ id: 'b', domains: ['b.com'], projectRef: REF_B, supabaseUrl: `https://${REF_B}.supabase.co`, catalog: true })] };
+assert.match(validate(two).join(), /only one shop can be the master catalog \(main-street, b\)/);
+const withCatalog = { shops: [shop({ id: 'catalog', domains: ['catalog.example.com'], catalog: true, anonKey: 'cat-anon' }), shop({ id: 'b', domains: ['b.com'], projectRef: REF_B, supabaseUrl: `https://${REF_B}.supabase.co`, canary: true })] };
+assert.deepEqual(validate(withCatalog), []);
+const pc = plan(withCatalog, { hasSupabase: true, hasCloudflare: true });
+assert.deepEqual([pc.shops[0].id, pc.shops[0].catalogUrl, pc.shops[0].catalogKey], ['catalog', '', '']);
+assert.deepEqual([pc.canary[0].id, pc.canary[0].catalogUrl, pc.canary[0].catalogKey], ['b', `https://${REF_A}.supabase.co`, 'cat-anon']);
 
 // Smoke check against a fake site
 const site = (cfg, home) => async (u) => ({

@@ -65,6 +65,8 @@ jobs:
           project-ref: ${{ matrix.shop.projectRef }}
           db-password: ${{ secrets[matrix.shop.secret] }}
           access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          catalog-url: ${{ matrix.shop.catalogUrl }}
+          catalog-key: ${{ matrix.shop.catalogKey }}
 
   canary-worker:
     needs: [plan, canary-database]
@@ -108,6 +110,8 @@ jobs:
           project-ref: ${{ matrix.shop.projectRef }}
           db-password: ${{ secrets[matrix.shop.secret] }}
           access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          catalog-url: ${{ matrix.shop.catalogUrl }}
+          catalog-key: ${{ matrix.shop.catalogKey }}
 
   worker:
     needs: [plan, shops-database]

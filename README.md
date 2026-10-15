@@ -213,6 +213,25 @@ Rules that keep it that way:
 - **Migrations must work with the code that's already live**, because each shop's database is updated before its site.
   Add a column in one release and stop using an old one in a later release.
 
+## Master catalog
+
+One shop in `shops.json` is the master catalog (`"catalog": true`): a Pullwise install whose staff import the week's
+Lunar, PRH and Funko sheets on the normal Admin → Import page. Every other shop copies its titles in hourly
+(`supabase/functions/catalog-sync`, rules in `public.catalog_apply()`), so a shop doesn't have to import anything,
+though it still can for things the catalog doesn't carry.
+
+- **New titles** arrive with the status a first import would give them, the catalog's category and badges, and a link
+  to the catalog's cover (covers aren't copied).
+- **Changes** to a title's name, retail price, dates, description, creators or cover follow the catalog. A shop's own
+  **shop price**, status, category, badges, staff pick, homepage and hidden are never touched.
+- Titles are matched by catalog id, then distributor + SKU, UPC and ISBN, so titles a shop imported before joining are
+  linked rather than duplicated. Nothing is ever deleted; a title hidden in the catalog stops syncing.
+- The deploy gives every shop the catalog's address (`CATALOG_URL`, `CATALOG_ANON_KEY` function secrets). Progress
+  is in `catalog_sync_state`; runs that changed something show in Import → Recent Runs as "Master catalog sync".
+
+**Shop price:** `items.retail_price` comes from imports and the catalog, `items.shop_price` is set by staff, and a
+trigger keeps `items.price` (what everything shows and totals) as the shop price if set, else retail.
+
 ## Style guide
 
 - **Titles are in Title Case.** Every title — comic/item titles, page titles, post and event titles,
