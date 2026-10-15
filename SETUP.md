@@ -35,6 +35,28 @@ Until the first three exist (or while `shops.json` is empty) the workflow deploy
 **Rolling back the site:** `npx wrangler rollback --name pullwise` (or `pullwise-canary`) puts the previous Worker
 version back in seconds. Migrations aren't rolled back; fix forward with a new migration.
 
+## Adding a shop: the quick way
+
+`npm run add-shop` does steps 2–6 below in one go (about 5 minutes, mostly waiting for Supabase to create the project):
+
+```bash
+SUPABASE_ACCESS_TOKEN=<your token> npm run add-shop -- \
+  --id main-street --name "Main Street Comics" \
+  --domain mainstreetcomics.com --domain www.mainstreetcomics.com \
+  --owner-email owner@mainstreetcomics.com --owner-name "Pat Smith" \
+  --phone "(555) 555-0100" --timezone America/Chicago
+```
+
+It creates the Supabase project `pullwise-<id>`, applies the migrations and seed, sets up sign-in (redirect URLs and
+the Magic Link code), sets the function and vault secrets (add `RESEND_API_KEY=… RESEND_FROM=…` in front to include
+email), fills in the shop's name and contact details, creates the owner's login (printed once: send it privately) and
+adds the shop to `shops.json`. Other options: `--org <slug>` if you're in several Supabase organizations,
+`--region`, `--project-ref` to use a project you already made, `--canary` for a demo shop, `--super` to make the
+owner Super Admin. Every step is skipped when already done, so after a failure just run it again.
+
+Then commit `shops.json` in a pull request; merging deploys the site (step 7), and the owner continues at step 8.
+The numbered steps below are the same thing by hand.
+
 ## 1. Try it locally (optional, 2 minutes)
 
 ```bash
