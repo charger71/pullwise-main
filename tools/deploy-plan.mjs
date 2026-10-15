@@ -5,7 +5,8 @@
 //   node tools/deploy-plan.mjs           # in the workflow: print GitHub step outputs (canary=…, shops=…, ready=…)
 //
 // Shops marked "canary": true are deployed first, to their own Worker (pullwise-canary), and checked before the
-// rest. Each shop's database password is the GitHub secret SUPABASE_DB_PASSWORD_<ID> (id upper-cased, - → _).
+// rest. A shop's database password, if you set one, is the GitHub secret SUPABASE_DB_PASSWORD_<ID> (id upper-cased,
+// - → _); without it the Supabase CLI logs in with a temporary role through SUPABASE_ACCESS_TOKEN.
 
 import fs from 'node:fs';
 import path from 'node:path';
