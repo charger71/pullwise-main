@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-seo data-default="Search">Search</title>
+  <link rel="preload" href="css/site.css" as="style">
+  <link rel="modulepreload" href="js/pages/search.js">
+  <link rel="modulepreload" href="js/site.js">
+  <link rel="modulepreload" href="js/data.js">
+  <link rel="preload" href="fonts/archivo-black-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/source-sans-3-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+  <script>try{var p=JSON.parse(localStorage.getItem('pc-preload')||'{}'),h=/^\/(index\.html)?$/.test(location.pathname);[p.logo,h&&p.hero].forEach(function(u){if(u&&/^https:/.test(u)){var l=document.createElement('link');l.rel='preload';l.as='image';l.href=u;document.head.appendChild(l)}})}catch(e){}</script>
+  <script type="module" src="js/pages/search.js"></script>
+</head>
+<body data-page="search">
+  <header id="site-header"></header>
+
+  <main id="main">
+    <section class="section">
+      <div class="container">
+        <h1>Search</h1>
+        <section id="series" hidden>
+          <h2>Series</h2>
+          <div id="series-list" class="grid"></div>
+        </section>
+        <script>if (/[?&]q=[^&\s]/.test(location.search)) document.getElementById('series').hidden = false; // reserve the row before scripts load</script>
+        <p id="results-count" class="results-count" role="status"></p>
+        <div id="results" class="grid"></div>
+        <button id="more" class="btn btn--ghost show-more" type="button" hidden></button>
+        <section id="pages" hidden>
+          <h2>Pages</h2>
+          <ul id="pages-list" class="search-hits"></ul>
+        </section>
+        <section id="faq" hidden>
+          <h2>FAQ</h2>
+          <ul id="faq-list" class="search-hits"></ul>
+        </section>
+        <section id="events" hidden>
+          <h2>Upcoming events</h2>
+          <ul id="events-list" class="search-hits"></ul>
+        </section>
+        <section id="news" hidden>
+          <h2>News</h2>
+          <ul id="news-list" class="post-list"></ul>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+</body>
+</html>

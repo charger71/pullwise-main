@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>One Moment…</title>
+  <style>body{font:18px/1.5 system-ui,sans-serif;text-align:center;margin:20vh 20px 0}</style>
+</head>
+<body>
+  <p id="msg">One moment…</p>
+  <script type="module">
+    import { SUPABASE_URL, SUPABASE_ANON_KEY } from './js/config.js';
+    // Shop QR links: go.html?c=<code> forwards to the address saved in Admin → QR Codes.
+    const msg = document.getElementById('msg');
+    const code = (new URLSearchParams(location.search).get('c') || '').toLowerCase();
+    try {
+      if (!/^[a-z0-9]{6,20}$/.test(code)) throw new Error('bad code');
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/qr_target`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_slug: code }),
+      });
+      const url = res.ok ? await res.json() : null;
+      if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) throw new Error('unknown code');
+      location.replace(url);
+    } catch {
+      msg.innerHTML = 'Sorry, that link isn’t active anymore. <a href="index.html">Go to Pop’s Comics</a>';
+    }
+  </script>
+</body>
+</html>

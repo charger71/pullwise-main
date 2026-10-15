@@ -1,0 +1,4 @@
+-- Pre-Orders "how it works" steps and the New Arrivals notice become editable
+-- body text. Only filled in where staff haven't written a body already.
+update public.pages set body_html = '<ol><li>Tap <strong>Add to reservation</strong> on as many titles as you like.</li><li>Open your list, set quantities, and leave your name and a phone number or email.</li><li>We''ll hold each title for a month after it arrives. Pay when you pick it up.</li></ol><p>Limit {max_copies_per_title} copies per customer per title. To change or cancel, call the shop. See our <a href="terms.html">terms</a>.</p>' where slug = 'pre-orders' and body_html is null;
+update public.pages set body_html = '<blockquote>In-store stock can''t be held or reserved: first to pay gets it. Want a guaranteed copy of something upcoming? <a href="pre-orders.html">Pre-order it</a>.</blockquote>' where slug = 'new-arrivals' and body_html is null;

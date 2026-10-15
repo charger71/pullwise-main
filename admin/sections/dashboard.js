@@ -1,0 +1,502 @@
+// Dashboard: the staff landing page. Reservation headlines (new orders, what's
+// waiting to be ordered or picked up), the latest orders, a 30-day order
+// chart, and product stats (titles by status, next order cutoff, most-reserved
+// titles, titles needing attention). Read-only; links out to the sections
+// where things get changed.
+
+import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs } from '../lib.js';
+import { lastReserveDay } from '../../js/site.js';
+import { lastBackup } from '../backup.js';
+import { LINE_STATUS_SHORT } from '../../js/labels.js';
+import { addDays, todayIn, dayIn } from '../../js/dates.js';
+
+const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
+const DAYS = 30;
+let sb;
+let settings;
+let isOwner = false;
+
+const today = () => todayIn(settings.timezone);
+const dayKey = (iso) => dayIn(iso, settings.timezone);
+const plural = (n, one, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+
+/** All rows of a query, 1000 at a time. */
+async function all(makeQuery) {
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const data = await must(makeQuery().range(from, from + 999));
+    rows.push(...data);
+    if (data.length < 1000) return rows;
+  }
+}
+const count = (q) => must(q);
+const items = () => sb.from('items').select('id', { count: 'exact', head: true });
+
+export async function mount(el, ctx) {
+  isOwner = ctx.isOwner === true;
+  sb = ctx.sb;
+  settings = await must(sb.from('settings').select('hold_days,timezone,announcement,pull_list_email_enabled,pull_list_email_day,pull_list_email_hour,pull_list_email_last_sent,arrival_email_enabled').eq('id', 1).single());
+  el.innerHTML = `
+    <div class="admin-title-row">
+      <h1>Dashboard</h1>
+      <p class="card__meta" data-asof></p>
+    </div>
+    <details class="fold toorder dash-announce-fold">
+      <summary class="fold__head"><h2 id="dash-announce-title">Special Announcement<span class="toorder__count" data-announce-sum>${esc(settings.announcement || 'None showing')}</span></h2></summary>
+      <div class="fold__body">
+    <form class="dash-announce" data-announce novalidate>
+      <p class="admin-hint" id="dash-announce-hint">Shown in the bar at the very top of every public page — store closed, hours changed, etc. Add a link with [text](https://…) or [text](events.html); a bare https:// address also becomes a link. Use **bold** and *italics*. Leave blank for no announcement.</p>
+      <div class="dash-announce__row">
+        <input id="dash-announcement" name="announcement" aria-labelledby="dash-announce-title" aria-describedby="dash-announce-hint" maxlength="300" value="${esc(settings.announcement)}">
+        <button class="btn btn--primary" type="submit">Save</button>
+      </div>
+      <p class="admin-status" role="status" data-announce-status></p>
+    </form>
+      </div>
+    </details>
+    <div class="admin-tabs" role="tablist">
+      <button type="button" class="admin-tab" role="tab" data-tab="today">Today</button>
+      <button type="button" class="admin-tab" role="tab" data-tab="trends">Trends</button>
+      <button type="button" class="admin-tab" role="tab" data-tab="system">System</button>
+    </div>
+    <div data-tabpane="today">
+    <ul class="dash-tiles" data-tiles aria-busy="true"><li class="dash-tile"><p class="admin-hint loading">Loading…</p></li></ul>
+    <div class="dash-grid">
+      <section class="dash-card" aria-labelledby="dash-attn">
+        <h2 id="dash-attn">Needs Attention</h2>
+        <div data-attn aria-busy="true"></div>
+      </section>
+      <section class="dash-card" aria-labelledby="dash-cutoff">
+        <div class="admin-title-row"><h2 id="dash-cutoff">Next Order Cutoff</h2><a class="btn btn--small btn--green" href="#reservations">Place Order →</a></div>
+        <div data-cutoff aria-busy="true"></div>
+      </section>
+      <section class="dash-card dash-card--wide" aria-labelledby="dash-latest">
+        <div class="admin-title-row"><h2 id="dash-latest">Latest Orders</h2><a class="btn btn--small btn--green" href="#reservations">All reservations →</a></div>
+        <div data-latest aria-busy="true"></div>
+      </section>
+    </div>
+    </div>
+    <div data-tabpane="trends">
+    <div class="dash-grid">
+      <section class="dash-card dash-card--wide" aria-labelledby="dash-trend">
+        <h2 id="dash-trend">Orders per Day · Last ${DAYS} days</h2>
+        <div data-trend aria-busy="true"></div>
+      </section>
+      <section class="dash-card" aria-labelledby="dash-top">
+        <h2 id="dash-top">Top 50</h2>
+        <p class="admin-hint">Copies on open, ordered or arrived reservations.</p>
+        <div data-top aria-busy="true"></div>
+      </section>
+      <section class="dash-card" aria-labelledby="dash-status">
+        <div class="admin-title-row"><h2 id="dash-status">Titles by Status</h2><a class="btn btn--small btn--green" href="#titles">Titles →</a></div>
+        <div data-status aria-busy="true"></div>
+      </section>
+    </div>
+    </div>
+    <div data-tabpane="system">
+    <div class="dash-grid">
+      <section class="dash-card dash-card--wide" aria-labelledby="dash-health">
+        <h2 id="dash-health">System Health</h2>
+        <p class="admin-hint" data-health-summary>Checking the scheduled jobs…</p>
+        <div data-health aria-busy="true"></div>
+      </section>
+    </div>
+    </div>`;
+  $('[data-announce]', el).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = $('[data-announce-status]', el);
+    setStatus(status, 'Saving…');
+    try {
+      const announcement = new FormData(e.target).get('announcement').toString().trim() || null;
+      await must(sb.from('settings').update({ announcement }).eq('id', 1));
+      $('[data-announce-sum]', el).textContent = announcement || 'None showing';
+      setStatus(status, announcement ? `Saved ${new Date().toLocaleTimeString()} — showing on the site now.` : 'Saved — no announcement is showing.', 'ok');
+    } catch (err) {
+      setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
+    }
+  });
+  setupTabs(el, 'admin-dashboard-tab', 'today');
+  $('[data-asof]', el).textContent = `As of ${fmtDateTime(new Date().toISOString())}`;
+
+  // Each panel loads on its own so one slow or failing query doesn't blank the page.
+  const panel = async (sel, fn) => {
+    const box = $(sel, el);
+    try {
+      await fn(box);
+    } catch (err) {
+      console.error(err);
+      box.innerHTML = `<p class="form-error">Couldn’t load: ${esc(friendlyError(err))}</p>`;
+    }
+    box.removeAttribute('aria-busy');
+  };
+  const lines = all(() =>
+    sb.from('reservations').select('id,order_id,quantity,status,arrived_on,item:items(id,title,issue_number,variant,publisher,foc_date,release_date,cover_url)').in('status', ACTIVE).order('id'),
+  );
+  const since = addDays(today(), -(DAYS - 1));
+  const recent = all(() => sb.from('reservation_orders').select('id,created_at').gte('created_at', new Date(`${since}T00:00:00`).toISOString()).order('id'));
+  lines.catch(() => {});
+  recent.catch(() => {});
+
+  await Promise.all([
+    panel('[data-tiles]', async (box) => renderTiles(box, await lines, await recent)),
+    panel('[data-latest]', renderLatest),
+    panel('[data-trend]', async (box) => renderTrend(box, await recent, since)),
+    panel('[data-status]', renderStatus),
+    panel('[data-cutoff]', async (box) => renderCutoff(box, await lines)),
+    panel('[data-top]', async (box) => renderTop(box, await lines)),
+    panel('[data-attn]', renderAttention),
+    panel('[data-health]', renderHealth),
+  ]);
+}
+
+// ---------------------------------------------------------------------------
+
+function renderTiles(box, lines, recent) {
+  const t = today();
+  const weekStart = addDays(t, -6);
+  const prevStart = addDays(t, -13);
+  const days = recent.map((o) => dayKey(o.created_at));
+  const thisWeek = days.filter((d) => d >= weekStart).length;
+  const lastWeek = days.filter((d) => d >= prevStart && d < weekStart).length;
+  const copies = (status) => lines.filter((l) => l.status === status).reduce((n, l) => n + l.quantity, 0);
+  const overdueBefore = addDays(t, -(settings.hold_days ?? 30));
+  const overdue = lines.filter((l) => l.status === 'arrived' && l.arrived_on && l.arrived_on < overdueBefore);
+  const pickupOrders = new Set(lines.filter((l) => l.status === 'arrived').map((l) => l.order_id)).size;
+  const diff = thisWeek - lastWeek;
+
+  const tile = (label, value, note, href, kind = '') =>
+    `<li class="dash-tile${kind ? ` dash-tile--${kind}` : ''}">
+      <a href="${href}">
+        <span class="dash-tile__label">${label}</span>
+        <span class="dash-tile__value">${value.toLocaleString()}</span>
+        <span class="dash-tile__note">${note}</span>
+      </a>
+    </li>`;
+  box.innerHTML = [
+    tile('New orders · 7 days', thisWeek, diff === 0 ? `Same as the week before` : `${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)} vs. the week before (${lastWeek})`, '#reservations'),
+    tile('Copies to order', copies('open'), 'Reserved, not yet ordered from the distributor', '#reservations'),
+    tile('Ready for pickup', copies('arrived'), `Waiting on ${plural(pickupOrders, 'customer')}`, '#reservations'),
+    tile('Past pickup window', overdue.length, overdue.length ? `${plural(overdue.length, 'title')} held over ${settings.hold_days ?? 30} days` : 'Nothing overdue', '#reservations', overdue.length ? 'alert' : ''),
+  ].join('');
+}
+
+async function renderLatest(box) {
+  const orders = await must(sb.from('reservation_orders').select('id,name,phone,email,customer_id,created_at,customer:customers(id,name,phone,email),reservations(quantity,status)').order('created_at', { ascending: false }).limit(10));
+  await withCustomers(sb, orders);
+  if (!orders.length) {
+    box.innerHTML = '<p class="empty">No reservations yet.</p>';
+    return;
+  }
+  box.innerHTML = `<div class="admin-table-wrap"><table class="admin-table">
+    <thead><tr><th scope="col" data-sort="text">Customer</th><th scope="col" data-sort="num" data-first="desc">Order</th><th scope="col" data-sort="text" data-first="desc">Placed</th><th scope="col" data-sort="num" data-first="desc">Titles</th><th scope="col" data-sort="text">Status</th><th scope="col"><span class="visually-hidden">View</span></th></tr></thead>
+    <tbody>${orders
+      .map((o) => {
+        const lines = o.reservations ?? [];
+        const copies = lines.reduce((n, l) => n + l.quantity, 0);
+        const byStatus = Object.entries(lines.reduce((m, l) => ((m[l.status] = (m[l.status] ?? 0) + 1), m), {}));
+        return `<tr>
+          <td><strong>${esc(o.name)}</strong></td>
+          <td class="nowrap" data-sort="${o.id}">#${o.id}</td>
+          <td class="nowrap" data-sort="${esc(o.created_at)}">${fmtDateTime(o.created_at)}</td>
+          <td class="center" data-sort="${lines.length}">${lines.length}${copies !== lines.length ? `<span class="card__meta"> (${copies} copies)</span>` : ''}</td>
+          <td>${byStatus.map(([s, n]) => `<span class="dash-pill dash-pill--${s}">${n > 1 || byStatus.length > 1 ? `${n} ` : ''}${LINE_STATUS_SHORT[s]}</span>`).join(' ')}</td>
+          <td class="nowrap">${o.customer_id ? `<a class="btn btn--ghost btn--small" href="#customers" data-customer="${o.customer_id}">View customer</a>` : `<a class="btn btn--ghost btn--small" href="#reservations" data-guest="${o.id}">View order</a>`}</td>
+        </tr>`;
+      })
+      .join('')}</tbody>
+  </table></div>`;
+  sortableTable($('table', box));
+  // The destination screens read these on load: a customer id for Customers, a guest order id for Reservations.
+  box.addEventListener('click', (e) => {
+    const link = e.target.closest('[data-customer], [data-guest]');
+    if (!link) return;
+    try {
+      if (link.dataset.customer) sessionStorage.setItem('admin-open-customer', link.dataset.customer);
+      else sessionStorage.setItem('admin-open-guest', link.dataset.guest);
+    } catch {
+      /* the link still opens the screen */
+    }
+  });
+}
+
+function renderTrend(box, recent, since) {
+  const perDay = new Map();
+  for (let i = 0; i < DAYS; i++) perDay.set(addDays(since, i), 0);
+  for (const o of recent) {
+    const k = dayKey(o.created_at);
+    if (perDay.has(k)) perDay.set(k, perDay.get(k) + 1);
+  }
+  const days = [...perDay];
+  const max = Math.max(1, ...days.map(([, n]) => n));
+  const total = days.reduce((n, [, c]) => n + c, 0);
+  const label = ([d, n]) => `${fmtDate(d, { weekday: 'short', month: 'short', day: 'numeric' })}: ${plural(n, 'order')}`;
+  // Gridline at a round number near the top so the bars have a scale.
+  const step = max <= 5 ? 1 : max <= 10 ? 2 : max <= 25 ? 5 : 10;
+  const top = Math.ceil(max / step) * step;
+  const t = today();
+  box.innerHTML = `
+    <p class="card__meta">${plural(total, 'order')} in the last ${DAYS} days · busiest day ${esc(label(days.reduce((a, b) => (b[1] > a[1] ? b : a))))}</p>
+    <div class="dash-chart" role="img" aria-label="Bar chart of orders per day, ${plural(total, 'order')} in total. The table below has each day’s count.">
+      <div class="dash-chart__axis" aria-hidden="true"><span>${top}</span><span>${top / 2 === Math.round(top / 2) ? top / 2 : ''}</span><span>0</span></div>
+      <div class="dash-chart__plot">
+        ${days.map(([d, n]) => `<div class="dash-chart__col" data-tip="${esc(label([d, n]))}"><span class="dash-chart__bar${d === t ? ' is-today' : ''}" style="height:${(n / top) * 100}%"></span></div>`).join('')}
+      </div>
+      <div class="dash-chart__tip" hidden></div>
+    </div>
+    <div class="dash-chart__x" aria-hidden="true"><span>${fmtDate(days[0][0], { month: 'short', day: 'numeric' })}</span><span>Today</span></div>
+    <details class="dash-details"><summary>Show as table</summary>
+      <table class="admin-table"><thead><tr><th scope="col">Day</th><th scope="col">Orders</th></tr></thead>
+      <tbody>${days.slice().reverse().map(([d, n]) => `<tr><td>${fmtDate(d, { weekday: 'short', month: 'short', day: 'numeric' })}</td><td>${n}</td></tr>`).join('')}</tbody></table>
+    </details>`;
+
+  const chart = $('.dash-chart', box);
+  const tip = $('.dash-chart__tip', box);
+  $$('.dash-chart__col', box).forEach((col) => {
+    col.addEventListener('pointerenter', () => {
+      tip.textContent = col.dataset.tip;
+      tip.hidden = false;
+      const c = chart.getBoundingClientRect(), r = col.getBoundingClientRect();
+      tip.style.left = `${Math.min(Math.max(r.left - c.left + r.width / 2, 70), c.width - 70)}px`;
+    });
+    col.addEventListener('pointerleave', () => (tip.hidden = true));
+  });
+}
+
+async function renderStatus(box) {
+  const statuses = Object.keys(STATUS_LABELS);
+  const [total, ...counts] = await Promise.all([count(items()), ...statuses.map((s) => count(items().eq('status', s)))]);
+  const max = Math.max(1, ...counts);
+  box.innerHTML = `
+    <p class="dash-big">${total.toLocaleString()} <span>titles</span></p>
+    <ul class="dash-bars">${statuses
+      .map((s, i) => `<li>
+        <span class="dash-bars__label"><span class="badge badge--${s}">${STATUS_LABELS[s]}</span></span>
+        <span class="dash-bars__track"><span class="dash-bars__fill" style="width:${(counts[i] / max) * 100}%"></span></span>
+        <span class="dash-bars__value">${counts[i].toLocaleString()}</span>
+      </li>`)
+      .join('')}</ul>`;
+}
+
+async function renderCutoff(box, lines) {
+  const t = today();
+  const next = await must(sb.from('items').select('foc_date').eq('status', 'pre_order').gte('foc_date', t).order('foc_date').limit(1));
+  if (!next.length) {
+    box.innerHTML = '<p class="empty">No upcoming order cutoffs.</p>';
+    return;
+  }
+  const foc = next[0].foc_date;
+  const titles = await count(items().eq('status', 'pre_order').eq('foc_date', foc).eq('hidden', false));
+  const onFoc = lines.filter((l) => l.status === 'open' && l.item?.foc_date === foc);
+  const copies = onFoc.reduce((n, l) => n + l.quantity, 0);
+  const daysLeft = Math.round((new Date(`${foc}T12:00:00`) - new Date(`${t}T12:00:00`)) / 86400000);
+  box.innerHTML = `
+    <p class="dash-big">${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })} <span>${daysLeft === 0 ? 'today' : daysLeft === 1 ? 'tomorrow' : `in ${daysLeft} days`}</span></p>
+    <ul class="dash-facts">
+      <li>Customer reservations close <strong>${fmtDate(lastReserveDay(foc), { weekday: 'short', month: 'short', day: 'numeric' })}</strong> at midnight</li>
+      <li><strong>${titles.toLocaleString()}</strong> pre-order ${titles === 1 ? 'title' : 'titles'} on this cutoff</li>
+      <li><strong>${copies.toLocaleString()}</strong> reserved ${copies === 1 ? 'copy' : 'copies'} to order, for ${plural(new Set(onFoc.map((l) => l.order_id)).size, 'customer')}</li>
+    </ul>`;
+}
+
+const TOP_TOTAL = 50;
+const TOP_PAGE = 10;
+
+/** Most Reserved: up to 50 titles with at least one copy reserved, numbered by rank (most copies first), sortable by any column, ten rows a page. */
+function renderTop(box, lines) {
+  const byItem = new Map();
+  for (const l of lines) {
+    if (!l.item) continue;
+    const row = byItem.get(l.item.id) ?? { item: l.item, copies: 0 };
+    row.copies += l.quantity;
+    byItem.set(l.item.id, row);
+  }
+  const ranked = [...byItem.values()]
+    .filter((r) => r.copies > 0)
+    .sort((a, b) => b.copies - a.copies || itemName(a.item).localeCompare(itemName(b.item)))
+    .slice(0, TOP_TOTAL)
+    .map((r, i) => ({ ...r, rank: i + 1 }));
+  if (!ranked.length) {
+    box.innerHTML = '<p class="empty">No active reservations.</p>';
+    return;
+  }
+  const pages = Math.ceil(ranked.length / TOP_PAGE);
+  const state = { sort: 'rank', dir: 'asc', page: 0 };
+  const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+  const SORTS = {
+    rank: (a, b) => a.rank - b.rank,
+    title: (a, b) => collator.compare(itemName(a.item), itemName(b.item)),
+    release: (a, b) => (!a.item.release_date !== !b.item.release_date ? (a.item.release_date ? -1 : 1) : (a.item.release_date ?? '').localeCompare(b.item.release_date ?? '')),
+    copies: (a, b) => a.copies - b.copies,
+  };
+
+  box.innerHTML = `<div class="admin-table-wrap"><table class="admin-table dash-top">
+      <thead><tr><th scope="col" data-sort="rank" aria-label="Rank">#</th><th scope="col" colspan="2" data-sort="title">Title</th><th scope="col" data-sort="release" data-first="asc">Out</th><th scope="col" data-sort="copies" data-first="desc">Copies</th></tr></thead>
+      <tbody></tbody></table></div>
+    <div class="admin-pager" data-top-pager><button class="btn btn--ghost btn--small" type="button" data-top-prev>← Previous</button><span></span><button class="btn btn--ghost btn--small" type="button" data-top-next>Next →</button></div>`;
+  const body = $('tbody', box);
+  const pager = $('[data-top-pager]', box);
+  pager.hidden = pages < 2;
+
+  const draw = () => {
+    const sign = state.dir === 'asc' ? 1 : -1;
+    const rows = [...ranked].sort((a, b) => sign * SORTS[state.sort](a, b) || a.rank - b.rank);
+    const start = state.page * TOP_PAGE;
+    body.innerHTML = rows
+      .slice(start, start + TOP_PAGE)
+      .map((r) => `<tr>
+        <td class="dash-top__rank">${r.rank}</td>
+        <td class="dash-top__cover">${r.item.cover_url ? `<img class="thumb thumb--sm" src="${esc(r.item.cover_url)}" alt="" loading="lazy">` : '<span class="thumb thumb--sm thumb--none" aria-hidden="true"></span>'}</td>
+        <td><strong>${esc(itemName(r.item))}</strong>${r.item.publisher ? `<br><span class="card__meta">${esc(r.item.publisher)}</span>` : ''}</td>
+        <td class="nowrap">${r.item.release_date ? fmtDate(r.item.release_date, { month: 'short', day: 'numeric' }) : ''}</td>
+        <td class="dash-top__n">${r.copies}</td></tr>`)
+      .join('');
+    $('span', pager).textContent = `${start + 1}–${Math.min(start + TOP_PAGE, ranked.length)} of ${ranked.length}`;
+    $('[data-top-prev]', pager).disabled = state.page === 0;
+    $('[data-top-next]', pager).disabled = state.page >= pages - 1;
+  };
+  sortableTable($('table', box), {
+    sort: state.sort,
+    dir: state.dir,
+    onSort: (key, dir) => {
+      Object.assign(state, { sort: key, dir, page: 0 });
+      draw();
+    },
+  });
+  $('[data-top-prev]', pager).addEventListener('click', () => (state.page--, draw()));
+  $('[data-top-next]', pager).addEventListener('click', () => (state.page++, draw()));
+  draw();
+}
+
+async function renderAttention(box) {
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+  const customers = () => sb.from('customers').select('id', { count: 'exact', head: true });
+  const heldBefore = addDays(today(), -(settings.hold_days ?? 30));
+  const [guestMatches, overdue, failedEmails, signups, noEmail, noCover, noCategory, hidden, noPrice] = await Promise.all([
+    findGuestMatches(sb).then((m) => m.length),
+    count(sb.from('reservations').select('id', { count: 'exact', head: true }).eq('status', 'arrived').lt('arrived_on', heldBefore)),
+    count(sb.from('email_log').select('id', { count: 'exact', head: true }).eq('status', 'failed').gte('created_at', weekAgo)),
+    count(customers().not('user_id', 'is', null).gte('created_at', weekAgo)),
+    count(customers().is('email', null)),
+    count(items().is('cover_url', null).eq('hidden', false)),
+    count(items().is('category_id', null).eq('hidden', false)),
+    count(items().eq('hidden', true)),
+    count(items().is('price', null).eq('hidden', false)),
+  ]);
+  // Each row with something to fix links to the screen that fixes it, already filtered (the destination reads the hand-off).
+  // `go.view` marks an item that is information rather than a problem: a quieter "View" button instead of "Fix".
+  const row = (n, text, go) => {
+    const btn = go.view ? { cls: 'btn--ghost', icon: 'view', word: 'View' } : { cls: 'btn--primary', icon: 'fix', word: 'Fix' };
+    return `<li class="${n ? 'has-fix' : 'is-zero'}"><span class="dash-facts__text"><strong>${n.toLocaleString()}</strong> <span>${text}</span></span>${n ? `<a class="btn ${btn.cls} btn--small" href="#${go.page}" data-go-page="${go.page}" data-go-key="${go.key}" data-go="${esc(JSON.stringify(go.filter))}" aria-label="${btn.word}: ${n.toLocaleString()} ${esc(text)}">${solidIcon(btn.icon, 16)} ${btn.word}</a>` : ''}</li>`;
+  };
+  // Owners: nag when the last backup download is more than a week old (or there never was one).
+  const backup = isOwner ? await lastBackup(sb).catch(() => undefined) : undefined;
+  const backupRow = backup === undefined || (backup && backup.days <= 7) ? '' : `<li class="has-fix"><span class="dash-facts__text"><strong>${backup ? `${backup.days} days` : 'Never'}</strong> <span>${backup ? 'since the last backup' : 'backed up: download a backup'}</span></span><a class="btn btn--primary btn--small" href="#backup">${solidIcon('fix', 16)} Back up</a></li>`;
+  const visible = { visibility: 'visible' };
+  box.innerHTML = `<ul class="dash-facts">
+    ${backupRow}
+    ${row(overdue, `${overdue === 1 ? 'title is' : 'titles are'} past the pickup window`, { page: 'reservations', key: 'admin-reservations-status', filter: 'overdue' })}
+    ${row(failedEmails, `${failedEmails === 1 ? 'email' : 'emails'} failed to send in the last 7 days`, { page: 'emails', key: 'admin-emails-failed', filter: '1' })}
+    ${row(guestMatches, `guest ${guestMatches === 1 ? 'order matches' : 'orders match'} an existing customer`, { page: 'customers', key: 'admin-customers-show', filter: 'link_guests' })}
+    ${row(signups, `${signups === 1 ? 'customer' : 'customers'} signed up this week`, { page: 'customers', key: 'admin-customers-show', filter: 'new_week', view: true })}
+    ${row(noEmail, `${noEmail === 1 ? 'customer has' : 'customers have'} no email`, { page: 'customers', key: 'admin-customers-show', filter: 'no_email' })}
+    ${row(noCover, `visible ${noCover === 1 ? 'title has' : 'titles have'} no cover`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'no_cover', ...visible } })}
+    ${row(noCategory, `visible ${noCategory === 1 ? 'title has' : 'titles have'} no category`, { page: 'titles', key: 'admin-titles-filter', filter: { category: 'none', ...visible } })}
+    ${row(noPrice, `visible ${noPrice === 1 ? 'title has' : 'titles have'} no price`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'no_price', ...visible } })}
+    ${row(hidden, `${hidden === 1 ? 'title is' : 'titles are'} hidden from customers`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'hidden' } })}
+  </ul>
+  <p class="admin-hint">Fix and View open the list already filtered to those titles or customers.</p>`;
+  box.onclick = (e) => {
+    const link = e.target.closest('[data-go]');
+    if (!link) return;
+    try {
+      const filter = JSON.parse(link.dataset.go);
+      sessionStorage.setItem(link.dataset.goKey, typeof filter === 'string' ? filter : JSON.stringify(filter));
+    } catch {
+      /* the link still opens the screen, just unfiltered */
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// System Health: are the scheduled jobs running, and did the last run work?
+// ---------------------------------------------------------------------------
+
+const JOB_NAMES = {
+  'flip-item-statuses': 'Title statuses',
+  'apply-subscriptions': 'Pull list follows',
+  'weekly-pull-list': 'Weekly pull list email',
+  'arrival-email': '“Your books are in” email',
+};
+const JOB_HINTS = {
+  'flip-item-statuses': 'moves titles to New This Wednesday, Just Arrived and in-store on their dates',
+  'apply-subscriptions': 'adds new issues to the pull lists of customers who follow a series',
+};
+const STALE_MINUTES = 150; // every job runs hourly
+
+/** "12 minutes ago", "3 hours ago", "2 days ago". */
+function ago(iso) {
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000));
+  if (min < 2) return 'just now';
+  if (min < 90) return `${min} minutes ago`;
+  if (min < 48 * 60) return `${Math.round(min / 60)} hours ago`;
+  return `${Math.round(min / 1440)} days ago`;
+}
+const daysSince = (day) => Math.round((Date.parse(`${today()}T00:00:00Z`) - Date.parse(`${day}T00:00:00Z`)) / 86400000);
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const hourLabel = (h) => `${h % 12 || 12} ${h < 12 ? 'am' : 'pm'}`;
+
+/** One scheduled job → { level: ok | warn | bad, text } from its last run. */
+function jobStatus(j) {
+  if (!j.active) return { level: 'warn', text: 'Switched off' };
+  if (!j.last_start) return { level: 'warn', text: 'Has not run yet' };
+  if (j.last_status === 'failed') return { level: 'bad', text: `Last run failed ${ago(j.last_start)}${j.last_message ? `: ${j.last_message}` : ''}` };
+  if (Date.now() - new Date(j.last_start) > STALE_MINUTES * 60000) return { level: 'warn', text: `Last ran ${ago(j.last_start)} (it should run every hour)` };
+  return { level: 'ok', text: `Ran ${ago(j.last_start)}${j.failed_7d ? `; ${j.failed_7d} ${j.failed_7d === 1 ? 'run' : 'runs'} failed this week` : ''}` };
+}
+
+async function renderHealth(box) {
+  const [health, imports, arrivals] = await Promise.all([
+    must(sb.rpc('staff_health')),
+    must(sb.from('job_log').select('ok,message,created_at').eq('job', 'import').order('id', { ascending: false }).limit(1)),
+    must(sb.from('email_log').select('created_at,status').eq('kind', 'arrival').order('id', { ascending: false }).limit(1)),
+  ]);
+  const rows = [];
+  for (const j of health.jobs) {
+    const st = jobStatus(j);
+    let { level, text } = st;
+    const parts = [text];
+    if (j.name === 'weekly-pull-list') {
+      if (!settings.pull_list_email_enabled) (level = 'off'), (parts[0] = 'Switched off in Emails');
+      else {
+        const sent = settings.pull_list_email_last_sent;
+        parts.push(sent ? `Last sent ${fmtDate(sent, { month: 'short', day: 'numeric' })}${daysSince(sent) > 8 ? ` (${daysSince(sent)} days ago)` : ''}` : 'No email sent yet');
+        parts.push(`goes out ${DAY_NAMES[settings.pull_list_email_day]}s at ${hourLabel(settings.pull_list_email_hour)}`);
+        if (sent && daysSince(sent) > 8 && level === 'ok') level = 'warn';
+      }
+    } else if (j.name === 'arrival-email') {
+      if (!settings.arrival_email_enabled) (level = 'off'), (parts[0] = 'Switched off in Emails');
+      else {
+        parts.push(arrivals[0] ? `Last sent ${ago(arrivals[0].created_at)}` : 'No arrival email sent yet');
+        if (health.arrival_waiting) parts.push(`${plural(health.arrival_waiting, 'title')} waiting to be emailed`);
+      }
+    } else if (JOB_HINTS[j.name] && level === 'ok') {
+      parts.push(JOB_HINTS[j.name]);
+    }
+    rows.push({ level, label: JOB_NAMES[j.name] ?? j.name, text: parts.join(' · ') });
+  }
+  const imp = imports[0];
+  rows.push(
+    imp
+      ? { level: imp.ok ? 'ok' : 'bad', label: 'Last import', text: `${imp.ok ? 'Worked' : 'Failed'} ${ago(imp.created_at)}${imp.message ? `: ${imp.message.length > 140 ? `${imp.message.slice(0, 140)}…` : imp.message}` : ''}` }
+      : { level: 'off', label: 'Last import', text: 'No imports yet' },
+  );
+  if (health.http_errors_24h) rows.push({ level: 'bad', label: 'Email service', text: `${plural(health.http_errors_24h, 'call')} to send email failed in the last 24 hours: check the Emails log and the function logs` });
+
+  const problems = rows.filter((r) => r.level === 'bad').length;
+  const checks = rows.filter((r) => r.level === 'warn').length;
+  $('[data-health-summary]').textContent = problems ? `${plural(problems, 'problem')} to look at${checks ? `, and ${checks} more to check` : ''}.` : checks ? `Nothing failed, but ${checks === 1 ? 'one item needs' : `${checks} items need`} a look.` : 'Everything scheduled is running.';
+  const WORD = { ok: 'OK', warn: 'Check', bad: 'Problem', off: 'Off' };
+  box.innerHTML = `<ul class="dash-health">${rows
+    .map((r) => `<li class="is-${r.level}"><span class="dash-health__dot" aria-hidden="true"></span><span><strong>${esc(r.label)}</strong> <span class="visually-hidden">(${WORD[r.level]})</span><br><span class="card__meta">${esc(r.text)}</span></span></li>`)
+    .join('')}</ul>`;
+}

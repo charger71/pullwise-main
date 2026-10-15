@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>News</title>
+  <meta name="description" content="New-release roundups and news from the shop.">
+  <link rel="preload" href="css/site.css" as="style">
+  <link rel="modulepreload" href="js/pages/post.js">
+  <link rel="modulepreload" href="js/site.js">
+  <link rel="modulepreload" href="js/data.js">
+  <link rel="preload" href="fonts/archivo-black-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/source-sans-3-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+  <script>try{var p=JSON.parse(localStorage.getItem('pc-preload')||'{}'),h=/^\/(index\.html)?$/.test(location.pathname);[p.logo,h&&p.hero].forEach(function(u){if(u&&/^https:/.test(u)){var l=document.createElement('link');l.rel='preload';l.as='image';l.href=u;document.head.appendChild(l)}})}catch(e){}</script>
+  <script type="module" src="js/pages/post.js"></script>
+</head>
+<body data-page="blog">
+  <header id="site-header"></header>
+
+  <main id="main">
+    <article class="section">
+      <div class="container prose" id="post"></div>
+    </article>
+  </main>
+
+  <footer id="site-footer"></footer>
+</body>
+</html>

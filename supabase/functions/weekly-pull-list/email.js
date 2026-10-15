@@ -1,0 +1,317 @@
+// Builds one customer's weekly pull-list email. Pure functions (no network, no Deno
+// APIs) so they can be tested with plain Node:  node supabase/functions/weekly-pull-list/email.test.js
+
+import { seriesCount, discountFor, totals, tiersFrom } from './discount.js';
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+// YYYY-MM-DD helpers (calendar dates, no time zones)
+const parse = (iso) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+};
+const fmt = (d) => d.toISOString().slice(0, 10);
+export const addDays = (iso, n) => fmt(new Date(parse(iso).getTime() + n * 86400000));
+const dow = (iso) => parse(iso).getUTCDay(); // 0 = Sunday
+
+/** Last day a customer can still change a title whose FOC is `foc`: the Saturday before it (as on the site). */
+export const lastChangeDay = (foc) => addDays(foc, -(dow(foc) === 6 ? 7 : dow(foc) + 1));
+
+export const dayLabel = (iso, opts = { weekday: 'short', month: 'short', day: 'numeric' }) =>
+  parse(iso).toLocaleDateString('en-US', { ...opts, timeZone: 'UTC' });
+
+const titleOf = (item) => [item.title, item.issue_number && `#${item.issue_number}`].filter(Boolean).join(' ');
+
+const SOURCE_NOTE = { variant: 'all covers', series: 'from a series you follow', artist: 'from an artist you follow' };
+
+/**
+ * Sort a customer's active lines into the email's sections.
+ * `lines`: [{ quantity, status, arrived_on, source, created_at, item: { title, issue_number, variant, release_date, foc_date, price, cover_url } }]
+ * Returns null when there is nothing worth emailing about.
+ */
+export function sections(lines, { today, holdDays = 30 }) {
+  const ready = [];
+  const soon = [];
+  const later = [];
+  const weekAhead = addDays(today, 6); // Thursday through next Wednesday
+  const weekAgo = addDays(today, -7);
+  for (const l of lines) {
+    if (!l.item) continue;
+    const entry = {
+      title: titleOf(l.item),
+      variant: l.item.variant,
+      quantity: l.quantity,
+      price: l.item.price,
+      out: l.item.release_date,
+      note: SOURCE_NOTE[l.source] ?? null,
+      isNew: ['series', 'artist', 'variant', 'staff'].includes(l.source) && String(l.created_at ?? '').slice(0, 10) >= weekAgo,
+    };
+    if (l.status === 'arrived') {
+      entry.holdUntil = l.arrived_on ? addDays(l.arrived_on, holdDays) : null;
+      ready.push(entry);
+    } else if (['open', 'ordered', 'reordered'].includes(l.status)) {
+      const changeBy = l.status === 'open' && l.item.foc_date ? lastChangeDay(l.item.foc_date) : null;
+      entry.changeBy = changeBy && changeBy >= today ? changeBy : null;
+      if (l.status !== 'reordered' && l.item.release_date && l.item.release_date <= weekAhead) soon.push(entry);
+      else later.push(entry);
+    }
+  }
+  if (!ready.length && !soon.length && !later.length) return null;
+  const series = seriesCount(lines);
+  const byTitle = (a, b) => a.title.localeCompare(b.title) || (a.variant ?? '').localeCompare(b.variant ?? '');
+  ready.sort((a, b) => (a.holdUntil ?? '9').localeCompare(b.holdUntil ?? '9') || byTitle(a, b));
+  soon.sort((a, b) => (a.out ?? '9').localeCompare(b.out ?? '9') || byTitle(a, b));
+  later.sort((a, b) => (a.out ?? '9').localeCompare(b.out ?? '9') || byTitle(a, b));
+  return { ready, soon, later, series };
+}
+
+/** Discount tier for a series count: { pct, line } where line says what they have and what the next tier needs ('' when no series). */
+export function tierNote(series, tiers) {
+  const { pct, next } = discountFor(series, tiers);
+  if (!series || !tiers.length) return { pct, line: '' };
+  const have = `You have ${plural(series, 'series', 'series')} on your pull list: ${pct}% off.`;
+  return { pct, line: next ? `${have} Add ${next.more} more to get ${next.pct}% off.` : `${have} That's our top discount!` };
+}
+
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** The shop logo as a small (96px) copy for email: Supabase Storage resizes it on the fly, so the 800px original isn't downloaded. */
+function logoSrc(url) {
+  if (!/^https:\/\//.test(url ?? '')) return null;
+  return url.includes('/storage/v1/object/public/') ? `${url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')}?width=96&height=96&resize=contain` : url;
+}
+
+const HEX = /^#[0-9a-f]{6}$/i;
+const luminance = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrast = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+/** White or near-black, whichever reads better on `bg`. */
+const textOn = (bg) => (contrast(bg, '#ffffff') >= contrast(bg, '#161616') ? '#ffffff' : '#161616');
+
+/**
+ * Logo and colors for the emails (Admin → Emails → Look). Anything left blank follows the site:
+ * the site logo and its main color. Text colors are picked automatically so they stay readable.
+ */
+export function emailLook(shop) {
+  const site = HEX.test(shop.colors?.primary ?? '') ? shop.colors.primary : '#c8102e';
+  const header = HEX.test(shop.email_header_color ?? '') ? shop.email_header_color : site;
+  const button = HEX.test(shop.email_button_color ?? '') ? shop.email_button_color : site;
+  return {
+    logo: logoSrc(shop.email_logo_url || shop.logo_url),
+    header,
+    headerText: textOn(header),
+    button,
+    buttonText: textOn(button),
+    // Section titles sit on white, so a pale button color falls back to dark text.
+    title: contrast(button, '#ffffff') >= 3 ? button : '#161616',
+  };
+}
+
+/** The coloured band at the top of every email: logo (when there is one) and the shop name. */
+function header(shop, look) {
+  const name = esc(shop.shop_name);
+  return `<tr><td style="background:${look.header};padding:14px 24px;border-radius:6px 6px 0 0">
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>${look.logo ? `<td style="padding-right:12px"><img src="${esc(look.logo)}" width="48" height="48" alt="" style="display:block;border:0;border-radius:6px"></td>` : ''}
+        <td style="font:bold 20px Arial,Helvetica,sans-serif;color:${look.headerText}">${name}</td></tr></table></td></tr>`;
+}
+
+export function subject(sec, shopName) {
+  const parts = [];
+  if (sec.ready.length) parts.push(`${sec.ready.length} ready for pickup`);
+  if (sec.soon.length) parts.push(`${sec.soon.length} coming this week`);
+  if (!parts.length) parts.push(`${plural(sec.later.length, 'title')} coming up`);
+  return `Your ${shopName} pull list: ${parts.join(', ')}`;
+}
+
+const line = (e, kind) => {
+  const bits = [
+    e.variant,
+    e.quantity > 1 && `${e.quantity} copies`,
+    kind === 'ready' && e.holdUntil && `held until ${dayLabel(e.holdUntil, { month: 'short', day: 'numeric' })}`,
+    kind !== 'ready' && e.out && `out ${dayLabel(e.out)}`,
+    e.changeBy && `change by ${dayLabel(e.changeBy)}`,
+    e.note,
+  ].filter(Boolean);
+  return { head: e.title + (e.isNew ? '  [NEW]' : ''), bits: bits.join(' · '), isNew: e.isNew };
+};
+
+const SECTION_TITLES = {
+  ready: 'Ready for pickup',
+  soon: 'Coming this week',
+  later: 'Coming up',
+};
+
+/** @returns {{ subject: string, html: string, text: string }} */
+export function build({ customer, sections: sec, shop, today, manageUrl, unsubscribeUrl }) {
+  const look = emailLook(shop);
+  const accent = /^#[0-9a-f]{6}$/i.test(shop.colors?.accent ?? '') ? shop.colors.accent : '#ffd100';
+  const subj = subject(sec, shop.shop_name);
+  const hello = customer.first_name ? `Hi ${customer.first_name},` : 'Hi,';
+  const addr = [shop.street, [shop.city, shop.region].filter(Boolean).join(', ') + (shop.postal_code ? ` ${shop.postal_code}` : '')].filter((l) => l && l.trim());
+  const tier = tierNote(sec.series ?? 0, tiersFrom(shop));
+  const shipNote = customer.ship_arrivals ? 'We’ll ship your ready books to the address on your profile.' : null;
+
+  const block = (key) => {
+    if (!sec[key].length) return '';
+    const rows = sec[key]
+      .map((e) => {
+        const l = line(e, key);
+        return `<tr><td style="padding:8px 0;border-bottom:1px solid #eee;font:15px/1.4 Arial,Helvetica,sans-serif;color:#161616">
+          <strong>${esc(e.title)}</strong>${e.isNew ? ` <span style="background:${accent};color:#161616;font-size:11px;font-weight:bold;padding:1px 6px;border-radius:3px">NEW</span>` : ''}
+          ${l.bits ? `<br><span style="color:#5b5b5b;font-size:13px">${esc(l.bits)}</span>` : ''}</td></tr>`;
+      })
+      .join('');
+    return `<h2 style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${look.title}">${SECTION_TITLES[key]} (${sec[key].length})</h2>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>`;
+  };
+
+  const html = `<!doctype html><html><body style="margin:0;background:#f4f1ea">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ea"><tr><td align="center" style="padding:16px">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:6px">
+      ${header(shop, look)}
+      <tr><td style="padding:24px">
+        <p style="margin:0 0 8px;font:16px/1.5 Arial,Helvetica,sans-serif;color:#161616">${esc(hello)}</p>
+        <p style="margin:0;font:16px/1.5 Arial,Helvetica,sans-serif;color:#161616">Here’s your pull list for the week of ${esc(dayLabel(today, { month: 'long', day: 'numeric' }))}.${shipNote ? ` ${esc(shipNote)}` : ''}</p>
+        ${block('ready')}${block('soon')}${block('later')}
+        ${tier.line ? `<p style="margin:20px 0 0;font:14px/1.4 Arial,Helvetica,sans-serif;color:#161616"><strong>${esc(tier.line)}</strong></p>` : ''}
+        <p style="margin:28px 0 0;text-align:center"><a href="${esc(manageUrl)}" style="display:inline-block;background:${look.button};color:${look.buttonText};text-decoration:none;font:bold 16px Arial,Helvetica,sans-serif;padding:12px 22px;border-radius:4px">Log in to edit your pull list</a></p>
+        <p style="margin:12px 0 0;text-align:center;font:13px/1.4 Arial,Helvetica,sans-serif;color:#5b5b5b">Change quantities, remove titles, or follow a series or artist. Changes close at midnight the Saturday before each order cutoff.</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-top:1px solid #eee;font:12px/1.5 Arial,Helvetica,sans-serif;color:#5b5b5b">
+        ${esc(shop.shop_name)}${addr.length ? ` · ${esc(addr.join(', '))}` : ''}${shop.phone ? ` · ${esc(shop.phone)}` : ''}<br>
+        You’re getting this because you have a pull list at ${esc(shop.shop_name)}. <a href="${esc(unsubscribeUrl)}" style="color:#5b5b5b">Unsubscribe</a> from this weekly email (you can also turn it off in your profile).
+      </td></tr>
+    </table>
+  </td></tr></table></body></html>`;
+
+  const textBlock = (key) =>
+    sec[key].length
+      ? `${SECTION_TITLES[key].toUpperCase()} (${sec[key].length})\n${sec[key].map((e) => { const l = line(e, key); return `- ${l.head}${l.bits ? `\n  ${l.bits}` : ''}`; }).join('\n')}\n\n`
+      : '';
+  const text = `${hello}\n\nHere’s your pull list for the week of ${dayLabel(today, { month: 'long', day: 'numeric' })}.${shipNote ? ` ${shipNote}` : ''}\n\n${textBlock('ready')}${textBlock('soon')}${textBlock('later')}${tier.line ? `${tier.line}\n\n` : ''}Log in to edit your pull list: ${manageUrl}\n\n--\n${shop.shop_name}${addr.length ? `, ${addr.join(', ')}` : ''}${shop.phone ? `, ${shop.phone}` : ''}\nUnsubscribe: ${unsubscribeUrl}\n`;
+
+  return { subject: subj, html, text };
+}
+
+// ---------------------------------------------------------------------------
+// "Your books are in": sent when titles on a customer's pull list become ready for pickup.
+// ---------------------------------------------------------------------------
+
+/**
+ * Split a customer's lines into titles that just arrived (no email sent yet) and ones still waiting from
+ * earlier. Returns null when nothing new has arrived.
+ * `lines`: all the customer's active lines { quantity, status, arrived_on, arrival_notified_at, item: { title, issue_number, variant, price, series_key } }; only arrived ones are listed, the rest set the discount tier.
+ */
+export function arrivalSections(lines, { holdDays = 30 }) {
+  const entry = (l) => ({
+    title: titleOf(l.item),
+    variant: l.item.variant,
+    quantity: l.quantity,
+    price: l.item.price,
+    holdUntil: l.arrived_on ? addDays(l.arrived_on, holdDays) : null,
+  });
+  const arrived = lines.filter((l) => l.item && l.status === 'arrived');
+  const byTitle = (a, b) => a.title.localeCompare(b.title) || (a.variant ?? '').localeCompare(b.variant ?? '');
+  const fresh = arrived.filter((l) => !l.arrival_notified_at).map(entry).sort(byTitle);
+  const waiting = arrived.filter((l) => l.arrival_notified_at).map(entry).sort((a, b) => (a.holdUntil ?? '9').localeCompare(b.holdUntil ?? '9') || byTitle(a, b));
+  return fresh.length ? { fresh, waiting, series: seriesCount(lines) } : null;
+}
+
+export const arrivalSubject = (n, shopName) => `Your books are in at ${shopName}: ${plural(n, 'title')} ready for pickup`;
+
+const DAY_CODES = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const DAY_NAMES = { Su: 'Sun', Mo: 'Mon', Tu: 'Tue', We: 'Wed', Th: 'Thu', Fr: 'Fri', Sa: 'Sat' };
+const time12 = (hhmm) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, '0')}` : ''} ${h < 12 ? 'AM' : 'PM'}`;
+};
+/** "Tue–Sat 11 AM – 7 PM", one line per row of the shop's opening hours. */
+export function hoursLines(hours = []) {
+  return hours
+    .filter((h) => h.days?.length && h.open && h.close)
+    .map((h) => {
+      const idx = h.days.map((d) => DAY_CODES.indexOf(d)).filter((i) => i >= 0).sort((a, b) => a - b);
+      const contiguous = idx.every((v, i) => i === 0 || v === idx[i - 1] + 1);
+      const label = idx.length > 2 && contiguous ? `${DAY_NAMES[DAY_CODES[idx[0]]]}–${DAY_NAMES[DAY_CODES[idx.at(-1)]]}` : idx.map((i) => DAY_NAMES[DAY_CODES[i]]).join(', ');
+      return `${label} ${time12(h.open)} – ${time12(h.close)}`;
+    });
+}
+
+const money = (n) => `$${Number(n).toFixed(2)}`;
+
+/** @returns {{ subject: string, html: string, text: string }} */
+export function buildArrival({ customer, arrival, shop, manageUrl, unsubscribeUrl, sample = false }) {
+  const look = emailLook(shop);
+  const accent = /^#[0-9a-f]{6}$/i.test(shop.colors?.accent ?? '') ? shop.colors.accent : '#ffd100';
+  const { fresh, waiting } = arrival;
+  const hello = customer.first_name ? `Hi ${customer.first_name},` : 'Hi,';
+  const intro = customer.ship_arrivals
+    ? `${plural(fresh.length, 'title')} on your pull list ${fresh.length === 1 ? 'has' : 'have'} arrived. We'll ship ${fresh.length === 1 ? 'it' : 'them'} to the address on your profile.`
+    : `${plural(fresh.length, 'title')} on your pull list ${fresh.length === 1 ? 'is' : 'are'} in and ready for pickup. Pay when you pick ${fresh.length === 1 ? 'it' : 'them'} up.`;
+  const addr = [shop.street, [shop.city, shop.region].filter(Boolean).join(', ') + (shop.postal_code ? ` ${shop.postal_code}` : '')].filter((l) => l && l.trim());
+  const hours = hoursLines(shop.hours);
+  const tier = tierNote(arrival.series ?? 0, tiersFrom(shop));
+  const { subtotal, discount, total: estimate } = totals(fresh.map((e) => ({ status: 'open', quantity: e.quantity, item: { price: e.price } })), tier.pct);
+  const off = tier.pct ? ` Less your ${tier.pct}% pull list discount (−${money(discount)}) from ${money(subtotal)}.` : '';
+  const priced = fresh.filter((e) => e.price != null).length;
+
+  const bits = (e) => [e.variant, e.quantity > 1 && `${e.quantity} copies`, e.holdUntil && `held until ${dayLabel(e.holdUntil, { month: 'short', day: 'numeric' })}`].filter(Boolean).join(' · ');
+  const rows = (list) =>
+    list
+      .map((e) => `<tr><td style="padding:8px 0;border-bottom:1px solid #eee;font:15px/1.4 Arial,Helvetica,sans-serif;color:#161616"><strong>${esc(e.title)}</strong>${bits(e) ? `<br><span style="color:#5b5b5b;font-size:13px">${esc(bits(e))}</span>` : ''}</td></tr>`)
+      .join('');
+  const block = (title, list, color) =>
+    list.length ? `<h2 style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${color}">${esc(title)} (${list.length})</h2><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows(list)}</table>` : '';
+
+  const subj = `${sample ? '[Sample] ' : ''}${arrivalSubject(fresh.length, shop.shop_name)}`;
+  const html = `<!doctype html><html><body style="margin:0;background:#f4f1ea">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ea"><tr><td align="center" style="padding:16px">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:6px">
+      ${header(shop, look)}
+      <tr><td style="padding:24px">
+        <p style="margin:0 0 8px;font:16px/1.5 Arial,Helvetica,sans-serif;color:#161616">${esc(hello)}</p>
+        <p style="margin:0;font:16px/1.5 Arial,Helvetica,sans-serif;color:#161616"><strong>Your books are in!</strong> ${esc(intro)}</p>
+        ${block(customer.ship_arrivals ? 'Just arrived' : 'Ready for pickup', fresh, look.title)}
+        ${priced ? `<p style="margin:12px 0 0;font:14px/1.4 Arial,Helvetica,sans-serif;color:#161616"><strong>Estimated total ${money(estimate)}</strong> <span style="color:#5b5b5b">at cover price${priced < fresh.length ? ` (${fresh.length - priced} without a price not counted)` : ''}, before tax.${esc(off)}</span></p>` : ''}
+        ${tier.line ? `<p style="margin:8px 0 0;font:14px/1.4 Arial,Helvetica,sans-serif;color:#161616">${esc(tier.line)}</p>` : ''}
+        ${block('Still waiting for you', waiting, '#5b5b5b')}
+        ${hours.length ? `<p style="margin:24px 0 4px;font:bold 14px Arial,Helvetica,sans-serif;color:#161616">Come by</p><p style="margin:0;font:14px/1.5 Arial,Helvetica,sans-serif;color:#161616">${hours.map(esc).join('<br>')}${addr.length ? `<br>${esc(addr.join(', '))}` : ''}</p>` : ''}
+        <p style="margin:28px 0 0;text-align:center"><a href="${esc(manageUrl)}" style="display:inline-block;background:${look.button};color:${look.buttonText};text-decoration:none;font:bold 16px Arial,Helvetica,sans-serif;padding:12px 22px;border-radius:4px">View my pull list</a></p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-top:1px solid #eee;font:12px/1.5 Arial,Helvetica,sans-serif;color:#5b5b5b">
+        ${esc(shop.shop_name)}${addr.length ? ` · ${esc(addr.join(', '))}` : ''}${shop.phone ? ` · ${esc(shop.phone)}` : ''}<br>
+        You get this when titles on your pull list arrive. <a href="${esc(unsubscribeUrl)}" style="color:#5b5b5b">Stop these “your books are in” emails</a> (you can also turn them off in your profile).
+      </td></tr>
+    </table>
+  </td></tr></table></body></html>`;
+
+  const textList = (title, list) => (list.length ? `${title.toUpperCase()} (${list.length})\n${list.map((e) => `- ${e.title}${bits(e) ? `\n  ${bits(e)}` : ''}`).join('\n')}\n\n` : '');
+  const text = `${hello}\n\nYour books are in! ${intro}\n\n${textList(customer.ship_arrivals ? 'Just arrived' : 'Ready for pickup', fresh)}${priced ? `Estimated total ${money(estimate)} at cover price, before tax.${off}\n\n` : ''}${tier.line ? `${tier.line}\n\n` : ''}${textList('Still waiting for you', waiting)}${hours.length ? `Come by:\n${hours.join('\n')}${addr.length ? `\n${addr.join(', ')}` : ''}\n\n` : ''}View my pull list: ${manageUrl}\n\n--\n${shop.shop_name}${shop.phone ? `, ${shop.phone}` : ''}\nStop these emails: ${unsubscribeUrl}\n`;
+  return { subject: subj, html, text };
+}
+
+/** A one-to-one message from staff: the shop header (logo and colors), the text they wrote, and the shop's details. */
+export function buildMessage({ shop, subject, message }) {
+  const look = emailLook(shop);
+  const addr = [shop.street, [shop.city, shop.region].filter(Boolean).join(', '), shop.postal_code].filter(Boolean);
+  const paragraphs = String(message).trim().split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px;font:16px/1.5 Arial,Helvetica,sans-serif;color:#161616">${esc(p).replace(/\n/g, '<br>')}</p>`).join('');
+  const html = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#f4f1ea">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ea"><tr><td align="center" style="padding:16px">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:6px">
+      ${header(shop, look)}
+      <tr><td style="padding:24px">
+        ${paragraphs}
+        <p style="margin:24px 0 0;border-top:1px solid #eee;padding-top:14px;font:13px/1.5 Arial,Helvetica,sans-serif;color:#5b5b5b">
+          ${esc(shop.shop_name)}${addr.length ? ` · ${esc(addr.join(', '))}` : ''}${shop.phone ? ` · ${esc(shop.phone)}` : ''}<br>Just reply to this email to reach us.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr></table></body></html>`;
+  const text = `${String(message).trim()}\n\n--\n${shop.shop_name}${addr.length ? `, ${addr.join(', ')}` : ''}${shop.phone ? `, ${shop.phone}` : ''}\nJust reply to this email to reach us.\n`;
+  return { subject, html, text };
+}

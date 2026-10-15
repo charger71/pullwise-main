@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-seo data-default="">Your Comic Shop — Comics, collectibles &amp; more</title>
+  <meta name="description" content="Your local comic shop: new comics every week, trades, omnibuses, records, toys and Funko Pops. Build a pull list of upcoming comics online and pay at pickup.">
+  <meta property="og:title" content="Your Comic Shop — Comics, collectibles &amp; more">
+  <link rel="preload" href="css/site.css" as="style">
+  <link rel="modulepreload" href="js/pages/home.js">
+  <link rel="modulepreload" href="js/site.js">
+  <link rel="modulepreload" href="js/data.js">
+  <link rel="modulepreload" href="js/cache.js">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preload" href="fonts/archivo-black-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/source-sans-3-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+  <script>try{var p=JSON.parse(localStorage.getItem('pc-preload')||'{}'),h=/^\/(index\.html)?$/.test(location.pathname);[p.logo,h&&p.hero].forEach(function(u){if(u&&/^https:/.test(u)){var l=document.createElement('link');l.rel='preload';l.as='image';l.href=u;document.head.appendChild(l)}})}catch(e){}</script>
+  <script type="module" src="js/pages/home.js"></script>
+</head>
+<body data-page="home">
+  <header id="site-header"></header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="container">
+        <h1 id="hero-title">Comics. Collectibles. <span>Community.</span></h1>
+        <p data-setting="tagline">Comics, collectibles &amp; more</p>
+        <div class="hero__actions">
+          <a class="btn btn--primary" href="pre-orders.html">Start your pull list</a>
+          <a class="btn btn--ghost" href="new-arrivals.html">See what's new</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="container home-text" data-content="home-top:body"></div>
+
+    <section class="section" id="staff-picks-section" hidden>
+      <div class="container">
+        <div class="section__head">
+          <h2>Staff Picks</h2>
+        </div>
+        <div id="staff-picks" class="grid"></div>
+      </div>
+    </section>
+
+    <section class="section section--alt">
+      <div class="container">
+        <div class="section__head">
+          <h2>Closing Soon for Pre-Order</h2>
+          <a href="pre-orders.html">All pre-orders →</a>
+        </div>
+        <div class="lede" data-content="home-preorders:lede"></div>
+        <div id="foc-soon" class="grid" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section__head">
+          <h2>New This Week</h2>
+          <a href="new-arrivals.html">All new arrivals →</a>
+        </div>
+        <div id="new-releases" class="grid"></div>
+      </div>
+    </section>
+
+    <section class="section section--alt" id="funko-section" hidden>
+      <div class="container">
+        <div class="section__head">
+          <h2>Funko Pops</h2>
+          <p class="section__links"><a id="funko-arrivals-link" href="new-arrivals.html">In the shop →</a> <a id="funko-preorders-link" href="pre-orders.html">Pre-order →</a></p>
+        </div>
+        <div class="lede" data-content="home-funko:lede"></div>
+        <div id="funko" class="grid"></div>
+      </div>
+    </section>
+
+    <section class="section" id="figures-section" hidden>
+      <div class="container">
+        <div class="section__head">
+          <h2>Action Figures</h2>
+          <p class="section__links"><a id="figures-arrivals-link" href="new-arrivals.html">In the shop →</a> <a id="figures-preorders-link" href="pre-orders.html">Pre-order →</a></p>
+        </div>
+        <div class="lede" data-content="home-figures:lede"></div>
+        <div id="figures" class="grid"></div>
+      </div>
+    </section>
+
+    <section class="section section--alt" id="records-section" hidden>
+      <div class="container">
+        <div class="section__head">
+          <h2>Records</h2>
+          <p class="section__links"><a id="records-arrivals-link" href="new-arrivals.html">In the shop →</a> <a id="records-preorders-link" href="pre-orders.html">Pre-order →</a></p>
+        </div>
+        <div class="lede" data-content="home-records:lede"></div>
+        <div id="records" class="grid"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container info-grid">
+        <div>
+          <h2>Come Visit</h2>
+          <div id="visit"></div>
+          <p><a class="btn btn--ghost" href="contact.html">Directions &amp; contact</a></p>
+        </div>
+        <div>
+          <h2>Coming Up at the Shop</h2>
+          <div id="upcoming-events"></div>
+          <p><a href="calendar.html">Full calendar →</a></p>
+          <div id="news-block" class="home-news" hidden>
+            <h2>Shop News</h2>
+            <ul id="latest-news" class="post-list"></ul>
+            <p><a href="blog.html">All news →</a></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="container home-text" data-content="home-bottom:body" hidden></div>
+  </main>
+
+  <footer id="site-footer"></footer>
+</body>
+</html>

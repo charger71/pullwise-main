@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Admin smoke test</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="admin.css">
+  <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+  <script type="module" src="smoke.js"></script>
+</head>
+<body>
+  <main class="container admin-main">
+    <h1>Admin smoke test</h1>
+    <p class="admin-hint">Opens every admin screen against made-up data (nothing here touches the real database) and reports any screen that fails to load. Run it after changing the admin: <code>python3 -m http.server 8080</code>, then open <code>/admin/smoke.html</code>. Add <code>?break=1</code> to make every database call fail: most screens should then report failures (a check that this test itself works).</p>
+    <p id="summary" class="admin-status" role="status">Running…</p>
+    <table class="admin-table"><thead><tr><th scope="col">Screen</th><th scope="col">Result</th><th scope="col">Details</th></tr></thead><tbody id="results"></tbody></table>
+    <div id="stage" hidden></div>
+  </main>
+</body>
+</html>

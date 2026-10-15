@@ -1,0 +1,3 @@
+#!/bin/sh
+# Stamp the admin footer version, and include it in this commit.
+node tools/stamp-version.js && git add admin/version.js

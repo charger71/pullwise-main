@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Staff · Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css">
+  <script>try{var t=localStorage.getItem('admin-theme');document.documentElement.dataset.theme=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'}catch(e){}</script>
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="admin.css">
+  <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+  <script type="module" src="admin.js"></script>
+</head>
+<body>
+  <p class="admin-notice" id="admin-notice" role="status" hidden></p>
+  <header class="admin-header">
+    <div class="container admin-header__bar">
+      <a class="brand" href="../index.html"><span class="brand__name" id="admin-shop">Staff</span></a>
+      <div class="admin-header__user" id="admin-user" hidden>
+        <span id="admin-email"></span>
+        <button class="btn btn--ghost btn--small" type="button" id="sign-out">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="container admin-main">
+    <section id="login" class="panel admin-login" hidden>
+      <h1>Staff Sign In</h1>
+      <form id="login-form">
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input id="login-email" type="email" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" autocomplete="current-password" required>
+        </div>
+        <p class="form-error" role="alert" id="login-error"></p>
+        <button class="btn btn--primary" type="submit">Sign in</button>
+      </form>
+    </section>
+
+    <div id="app" class="admin-layout" hidden>
+      <nav class="admin-nav" aria-label="Admin sections">
+        <button class="admin-nav__toggle" type="button" aria-expanded="false" aria-controls="admin-nav-list"><span class="admin-nav__icon" aria-hidden="true"></span><span data-nav-label>Dashboard</span></button>
+        <ul id="admin-nav-list">
+          <li><a href="#dashboard"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"/></svg><span>Dashboard</span></a></li>
+          <li class="admin-nav__group">
+            <button class="admin-nav__heading" type="button" aria-expanded="true" aria-controls="nav-pull"><span>Pull List</span><svg class="admin-nav__chev" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path d="M7 10l5 5 5-5z"/></svg></button>
+            <ul id="nav-pull" class="admin-nav__items">
+            <li><a href="#reservations"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M9 2h6a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3a1 1 0 0 1 1-1zM9.5 3.5V5h5V3.5zM8 10h8v1.6H8zM8 13.5h8v1.6H8zM8 17h5v1.6H8z"/></svg><span>Ordering</span></a></li>
+            <li><a href="#customers"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg><span>Customers</span></a></li>
+            <li><a href="#titles"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 3h12a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2zM8 7h8v1.6H8zM8 10.5h8v1.6H8z"/></svg><span>Titles</span></a></li>
+            <li><a href="#series"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M11 7h11v15H11zM8 4h11v1.8H9.8V19H8zM5 1h11v1.8H6.8V16H5z"/></svg><span>Series</span></a></li>
+            <li><a href="#import"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><mask id="import-cut"><rect width="24" height="24" fill="#fff"/><g fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4v6.4M14.1 13.6 16.5 16l2.4-2.4" stroke-width="1.6"/><path d="M14.5 19.4h4" stroke-width="2.4"/></g></mask><path mask="url(#import-cut)" d="M11 7h11v15H11zM8 4h11v1.8H9.8V19H8zM5 1h11v1.8H6.8V16H5z"/></svg><span>Import Titles</span></a></li>
+            <li><a href="#emails"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM4 5.4 12 11l8-5.6v2L12 13 4 7.4z"/></svg><span>Emails</span></a></li>
+            </ul>
+          </li>
+          <li class="admin-nav__group">
+            <button class="admin-nav__heading" type="button" aria-expanded="true" aria-controls="nav-web"><span>Website</span><svg class="admin-nav__chev" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path d="M7 10l5 5 5-5z"/></svg></button>
+            <ul id="nav-web" class="admin-nav__items">
+            <li><a href="#pages"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M3 4h18v16H3zM5 9.5h14V18H5z"/></svg><span>Pages</span></a></li>
+            <li><a href="#news"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M3 4h13v14a2 2 0 0 0 2 2H5a2 2 0 0 1-2-2zM5.5 6.5h8v2.4h-8zM5.5 10.6h8v1.4h-8zM5.5 13.6h8v1.4h-8zM5.5 16.6h5v1.4h-5zM18 8h3v10a2 2 0 0 1-2 2h-1z"/></svg><span>News</span></a></li>
+            <li><a href="#events"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M7.5 2h2v3h-2zM14.5 2h2v3h-2zM5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM5 9.5h14V11H5z"/></svg><span>Events</span></a></li>
+            <li><a href="#media"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M3 4h18v16H3zM5.5 17.5h13l-4-5.5-3 4-2-2.5zM8.5 7.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z"/></svg><span>Media</span></a></li>
+            <li><a href="#faq"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 16.4a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zM12 6.5a3.2 3.2 0 0 0-3.2 3.2h1.8a1.4 1.4 0 1 1 2.4 1c-.9.8-1.8 1.4-1.8 3v.3h1.8v-.2c0-1 .6-1.5 1.4-2.2A3.2 3.2 0 0 0 12 6.5z"/></svg><span>FAQ</span></a></li>
+            <li><a href="#qr"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M3 3h8v8H3zM5 5v4h4V5zM13 3h8v8h-8zM15 5v4h4V5zM3 13h8v8H3zM5 15v4h4v-4zM13 13h3v3h-3zM18 13h3v3h-3zM13 18h3v3h-3zM18 18h3v3h-3z"/></svg><span>QR Codes</span></a></li>
+            <li><a href="#surveys"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 13h4v8H4zM10 3h4v18h-4zM16 9h4v12h-4z"/></svg><span>Surveys</span></a></li>
+            </ul>
+          </li>
+          <li class="admin-nav__group">
+            <button class="admin-nav__heading" type="button" aria-expanded="true" aria-controls="nav-util"><span>Utilities</span><svg class="admin-nav__chev" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path d="M7 10l5 5 5-5z"/></svg></button>
+            <ul id="nav-util" class="admin-nav__items">
+            <li><a href="#settings"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M3 9l1.5-5h15L21 9v1.5a2.5 2.5 0 0 1-4.5 1.5 2.5 2.5 0 0 1-4.5 0 2.5 2.5 0 0 1-4.5 0A2.5 2.5 0 0 1 3 10.5zM5 14h14v7H5zM10 16.5h4V21h-4z"/></svg><span>Shop Settings</span></a></li>
+            <li><a href="#staff"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 4h16v16H4zM12 7.5a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6zM8 17c0-2 1.8-3.2 4-3.2s4 1.2 4 3.2z"/></svg><span>Staff</span></a></li>
+            <li><a href="#backup"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M12 3C7.6 3 4 4.3 4 6v2c0 1.7 3.6 3 8 3s8-1.3 8-3V6c0-1.7-3.6-3-8-3zM4 10.2V13c0 1.7 3.6 3 8 3s8-1.3 8-3v-2.8c-1.7 1.3-4.8 2-8 2s-6.3-.7-8-2zM4 15.2V18c0 1.7 3.6 3 8 3s8-1.3 8-3v-2.8c-1.7 1.3-4.8 2-8 2s-6.3-.7-8-2z"/></svg><span>Backup</span></a></li>
+            <li><a href="#restore"><svg class="solid-icon nav-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M13 3a9 9 0 0 0-9 9H1l3.9 3.9.1.1L9 12H6a7 7 0 1 1 2.1 5l-1.4 1.4A9 9 0 1 0 13 3zm-1 5v5l4.3 2.5.7-1.2-3.5-2.1V8z"/></svg><span>Restore</span></a></li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <section id="section" class="admin-section" tabindex="-1" aria-live="polite"></section>
+    </div>
+
+    <p id="not-configured" class="panel" hidden>This site isn't connected to a database (demo mode), so there's nothing to edit.</p>
+  </main>
+  <footer class="admin-footer"><span class="admin-footer__name">Powered by Pullwise</span> <span aria-hidden="true">·</span> <span id="admin-version"></span></footer>
+  <div class="admin-update" id="admin-update" role="status" hidden>
+    <span>The site was updated while this page was open.</span>
+    <button class="btn btn--primary btn--small" type="button" id="admin-update-reload">Reload</button>
+    <button class="btn btn--ghost btn--small" type="button" id="admin-update-later">Later</button>
+  </div>
+</body>
+</html>

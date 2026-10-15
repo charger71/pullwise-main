@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-seo data-default="Community Calendar">Community Calendar</title>
+  <meta name="description" content="Signings, release parties, tournaments and other events at the shop.">
+  <meta property="og:title" content="Community Calendar">
+  <link rel="preload" href="css/site.css" as="style">
+  <link rel="modulepreload" href="js/pages/calendar.js">
+  <link rel="modulepreload" href="js/site.js">
+  <link rel="modulepreload" href="js/data.js">
+  <link rel="preload" href="fonts/archivo-black-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/source-sans-3-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+  <script>try{var p=JSON.parse(localStorage.getItem('pc-preload')||'{}'),h=/^\/(index\.html)?$/.test(location.pathname);[p.logo,h&&p.hero].forEach(function(u){if(u&&/^https:/.test(u)){var l=document.createElement('link');l.rel='preload';l.as='image';l.href=u;document.head.appendChild(l)}})}catch(e){}</script>
+  <script type="module" src="js/pages/calendar.js"></script>
+</head>
+<body data-page="calendar">
+  <header id="site-header"></header>
+
+  <main id="main">
+    <section class="section">
+      <div class="container">
+        <div class="section__head">
+          <h1>Community Calendar</h1>
+          <a id="subscribe" class="btn btn--ghost" hidden>Subscribe to calendar</a>
+        </div>
+        <div class="lede" data-content="calendar:lede"></div>
+        <form id="filters" class="filters" aria-label="Filter events">
+          <div class="field">
+            <label for="f-type">Event type</label>
+            <select id="f-type" name="type">
+              <option value="">All events</option>
+              <option value="release_party">Release parties</option>
+              <option value="signing">Signings</option>
+              <option value="tournament">Tournaments</option>
+              <option value="livestream">Livestreams</option>
+              <option value="comic_con">Comic Cons</option>
+              <option value="sale">Sales</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="f-range">When</label>
+            <select id="f-range" name="range">
+              <option value="upcoming">Upcoming</option>
+              <option value="past">Past events</option>
+            </select>
+          </div>
+        </form>
+        <div id="events" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+</body>
+</html>

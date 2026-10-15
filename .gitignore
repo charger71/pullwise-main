@@ -1,0 +1,11 @@
+# Distributor order sheets — source data, not committed
+imports/
+node_modules/
+.env
+# Supabase CLI local state (project link)
+supabase/.temp/
+# macOS folder metadata
+.DS_Store
+
+# Database backup downloads hold customer details: never commit them
+shop-backup-*.json.gz
