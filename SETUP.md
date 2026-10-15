@@ -19,20 +19,15 @@ so you can look around before connecting anything. `npm test` runs the test suit
 
 1. Create a new Supabase project. Note the **project ref**, the **Project URL** and the **anon public key**
    (Project Settings → API).
-2. **Before applying any migrations**, turn on these extensions (Database → Extensions): **pg_cron** and **pg_net**.
-   (Several migrations schedule jobs with `cron.schedule`, so they fail if pg_cron is off. **supabase_vault** is on by default.)
-3. Apply the schema and starting data:
+2. Apply the schema and starting data:
 
    ```bash
    supabase link --project-ref <project ref>
-   supabase db push                          # runs supabase/migrations/*.sql in order
-   psql "<connection string>" -f supabase/seed.sql   # or paste seed.sql into the SQL editor
+   supabase db push --include-seed   # every migration in order, then supabase/seed.sql
    ```
-4. Turn on the daily status flip (Pre-Order → New This Wednesday → Just Arrived → Available) in the SQL editor:
 
-   ```sql
-   select cron.schedule('flip-item-statuses', '0 * * * *', 'select public.flip_item_statuses()');
-   ```
+   That's all the database needs: the migrations turn on pg_cron and pg_net and schedule the hourly jobs
+   (status flip, subscriptions, weekly and arrival emails).
 
 ## 3. Auth
 
@@ -65,11 +60,7 @@ Further staff are added from **Admin → Staff** (see `ADMIN-ONBOARDING.md`).
 ## 5. Edge Functions
 
 ```bash
-supabase functions deploy calendar-feed --no-verify-jwt
-supabase functions deploy sell-inquiry --no-verify-jwt
-supabase functions deploy weekly-pull-list --no-verify-jwt
-supabase functions deploy fetch-cover
-supabase functions deploy staff-admin
+supabase functions deploy   # all of them; supabase/config.toml says which ones are public
 ```
 
 Secrets (`supabase secrets set NAME=value …`; never put these in code):
@@ -139,7 +130,7 @@ Sign in at `https://<your site>/admin/` as the owner, then:
 
 ## Checklist
 
-- [ ] pg_cron + pg_net on, migrations applied, seed run, status flip scheduled
+- [ ] Migrations and seed applied (`supabase db push --include-seed`)
 - [ ] Auth redirect URLs and Magic Link template set
 - [ ] Owner added to `public.staff`
 - [ ] Edge Functions deployed, secrets and vault secrets set

@@ -1,0 +1,14 @@
+# Supabase CLI settings shared by every shop's project (which project is chosen per command with --project-ref).
+
+project_id = "pullwise"
+
+# Functions called without a signed-in user: the calendar app, the public "We Buy Comics" form, and the
+# database's hourly email jobs (which send CRON_SECRET instead). The others check the caller is staff.
+[functions.calendar-feed]
+verify_jwt = false
+
+[functions.sell-inquiry]
+verify_jwt = false
+
+[functions.weekly-pull-list]
+verify_jwt = false

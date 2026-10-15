@@ -20,15 +20,15 @@ runs in **demo mode** on sample data from `js/demo-data.js`.
 Full step-by-step instructions are in [SETUP.md](SETUP.md). In short:
 
 1. Create a Supabase project (one project per shop).
-2. Enable the `pg_cron` and `pg_net` extensions **first**, then apply `supabase/migrations/*.sql` and `supabase/seed.sql`.
-3. Run the `cron.schedule('flip-item-statuses', …)` line from SETUP.md to turn on the daily status flip (Pre-Order → New This Wednesday → Just Arrived → Available).
+2. `supabase db push --include-seed` applies every migration and the seed; the migrations turn on pg_cron and pg_net.
+3. The migrations also schedule the hourly jobs, including the daily status flip (Pre-Order → New This Wednesday → Just Arrived → Available).
 4. Auth → customers sign in with an emailed link/code (`account.html`), so leave **email sign-ups on**
    and the **Email** provider enabled (Auth → Providers). Add `https://<your site>/account.html` (and
    `http://localhost:8080/account.html` for local testing) under Auth → URL Configuration → Redirect URLs.
    In Auth → Email Templates → Magic Link, include `{{ .Token }}` so customers can type the 6-digit code
    as well as click the link. Staff are invited individually and then added to `public.staff`; being
    signed in never makes someone staff, only a row in `public.staff` does.
-5. `supabase functions deploy calendar-feed --no-verify-jwt`
+5. `supabase functions deploy` (all functions; `supabase/config.toml` marks the public ones)
 6. Add the shop (domains, project URL, anon key) to `shops.json`; see SETUP.md.
 
 ## Weekly pull list email
@@ -166,7 +166,14 @@ npm test
 
 Runs the date helpers (`js/dates.test.js`), the email tests (`supabase/functions/weekly-pull-list/email.test.js`), the
 staff-management rules, import exclusions, the error-message translator (`js/errors.test.js`), the admin search filters
-(`admin/filters.test.js`), backup/restore logic (`admin/backup.test.js`, `tools/restore.test.js`).
+(`admin/filters.test.js`), backup/restore logic (`admin/backup.test.js`, `tools/restore.test.js`), the site Worker's page
+logic (`worker/shop-page.test.js`), and the migration rules (`tools/check-migrations.js` and its tests).
+
+**Migrations on a blank database:** `tools/test-migrations.sh` (needs Docker and the Supabase CLI) starts Supabase's own
+Postgres image, runs `supabase db push --include-seed` the way a new shop is installed, checks a second push changes
+nothing and that the hourly jobs are scheduled.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs both on every pull request and on `main`.
 
 **Admin smoke test:** with the local server running (`python3 -m http.server 8080`), open
 http://localhost:8080/admin/smoke.html. It opens every admin screen against made-up data and reports any that fail to
@@ -199,6 +206,8 @@ Rules that keep it that way:
 - **Never put shop details in code.** Anything a shop might change belongs in its database (`settings`, `pages`…).
 - **Migrations change the schema, not shop content.** To add new default text, insert it only where it's missing
   (`on conflict do nothing`); never `update` or `delete` rows in `pages`, `faqs` or `settings`.
+- **Every new migration is checked** by `tools/check-migrations.js` (part of `npm test` and CI). A data fix every shop
+  truly needs can pass by saying why on a line of its own: `-- content-change-ok: <reason>`.
 - **Migrations must work with the code that's already live**, because each shop's database is updated before its site.
   Add a column in one release and stop using an old one in a later release.
 
