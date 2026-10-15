@@ -18,3 +18,17 @@ node_modules/
 *.idx
 *.rev
 *.bitmap
+
+# Not part of the website: the Worker's own source and config, the database, tools and docs
+.assetsignore
+.github
+.githooks
+worker
+wrangler.jsonc
+shops.json
+supabase
+tools
+package.json
+package-lock.json
+*.md
+**/*.test.js

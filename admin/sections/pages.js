@@ -2,7 +2,6 @@
 
 import { PAGE_BLOCKS } from '../../js/page-defaults.js';
 import { PLACEHOLDERS } from '../../js/content.js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../js/config.js';
 import { $, esc, must, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, setupTabs } from '../lib.js';
 
 // Where each block shows on the public site, for the "View page" link.
@@ -58,7 +57,6 @@ export async function mount(el, { sb, isOwner: owner }, selectKey) {
     <p class="admin-hint">Placeholders are filled in from shop settings: ${PLACEHOLDERS.map((p) => `<code>{${p}}</code>`).join(' ')}. The <strong>quote</strong> button makes a highlighted callout box.</p>
     <div class="admin-actions">
       <button class="btn btn--primary" type="button" id="page-save">Save</button>
-      <button class="btn btn--ghost" type="button" id="page-publish" title="Save, then write titles and descriptions into the site’s pages now instead of waiting up to 30 minutes">Save &amp; publish titles now</button>
       <span class="admin-status" id="page-status" role="status"></span>
     </div>`;
 
@@ -102,7 +100,6 @@ export async function mount(el, { sb, isOwner: owner }, selectKey) {
     await mount(el, { sb, isOwner: owner });
   });
   $('#page-save', el).addEventListener('click', () => save(el, sb, select.value));
-  $('#page-publish', el).addEventListener('click', () => publish(el, sb, select.value));
   await load(el, sb, key);
 }
 
@@ -128,7 +125,7 @@ async function load(el, sb, key) {
   const seoHtml = (block, row) => `
       <div class="field"><label for="seo-title">Page title</label>
         <input id="seo-title" maxlength="120" value="${esc(row?.meta_title)}" placeholder="Leave blank to use the standard title">
-        <p class="field__hint">Shown in the browser tab and as the headline in Google results. The shop name is added in front, followed by an em dash (“Shop name — Your title”), so leave it out. Aim for about 60 characters. Written into the page’s HTML by the site publisher: within 30 minutes of saving, or right away with “Save &amp; publish titles now”. <span data-count="seo-title"></span></p></div>
+        <p class="field__hint">Shown in the browser tab and as the headline in Google results. The shop name is added in front, followed by an em dash (“Shop name — Your title”), so leave it out. Aim for about 60 characters. Live on the site about a minute after you save. <span data-count="seo-title"></span></p></div>
       <div class="field"><label for="seo-desc">Description</label>
         <textarea id="seo-desc" rows="3" maxlength="320" placeholder="Leave blank to use the standard description">${esc(row?.meta_description)}</textarea>
         <p class="field__hint">The summary under your link in Google results. Aim for 120–155 characters. <span data-count="seo-desc"></span></p></div>
@@ -200,28 +197,6 @@ async function load(el, sb, key) {
   if (saved) setStatus(status, `Last saved ${new Date(saved).toLocaleString()}`);
 }
 
-/** Save, then ask the publish-seo Edge Function to run the workflow that writes titles into the HTML. */
-async function publish(el, sb, key) {
-  if (!(await save(el, sb, key))) return;
-  const status = $('#page-status', el); // re-read: saving under a new address redraws the screen
-  const button = $('#page-publish', el);
-  button.disabled = true;
-  setStatus(status, 'Saved. Starting the publish…');
-  try {
-    const { data: { session } } = await sb.auth.getSession();
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/publish-seo`, {
-      method: 'POST',
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${session?.access_token}` },
-    });
-    if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? `publish service returned ${res.status}`);
-    setStatus(status, `Saved ${new Date().toLocaleTimeString()} — publishing. The new title and description should be live in about a minute or two.`, 'ok');
-  } catch (err) {
-    setStatus(status, `Saved, but not published yet: ${friendlyError(err)} It will still go out automatically within 30 minutes.`, 'error');
-  } finally {
-    button.disabled = false;
-  }
-}
-
 async function save(el, sb, key) {
   const screen = screenOf(key);
   const status = $('#page-status', el);
@@ -274,7 +249,7 @@ async function save(el, sb, key) {
       setStatus($('#page-status', el), `Saved ${new Date().toLocaleTimeString()} — the page is now at page.html?slug=${newSlug}.`, 'ok');
       return true;
     }
-    setStatus(status, `Saved ${new Date().toLocaleTimeString()} — titles reach the site within 30 minutes, or use “Save & publish titles now”.`, 'ok');
+    setStatus(status, `Saved ${new Date().toLocaleTimeString()} — page titles and descriptions are live on the site in about a minute.`, 'ok');
     return true;
   } catch (err) {
     setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');

@@ -61,7 +61,7 @@ export async function mount(el, { sb }) {
         <div class="field"><label><input type="checkbox" name="show_name_with_logo"${s.show_name_with_logo ? ' checked' : ''}> Show the shop name next to the logo</label>
         <p class="field__hint">Unticked, the logo replaces the name in the header. Without a logo, the name is always shown.</p></div>
         <div data-favicon></div>
-        <p class="field__hint">The small icon in the browser tab. Use a simple square picture (it's shown at 64 px or less). Blank uses the logo. Written into the pages by the site publisher, so it can take up to 30 minutes to appear.</p>
+        <p class="field__hint">The small icon in the browser tab. Use a simple square picture (it's shown at 64 px or less). Blank uses the logo. It can take about a minute to appear on the site.</p>
         <div data-hero></div>
         <p class="field__hint">Shown behind the home page headline, darkened so the text stays readable. Cropped wide; a landscape photo of the shop works best. Without one, the banner uses the page background.</p>
         <div class="form-grid color-grid">${COLORS.map(([k, label]) => `<div class="field"><label for="c-${k}">${label}</label><input id="c-${k}" data-color="${k}" type="color" value="${esc(s.colors?.[k] ?? COLOR_DEFAULTS[k])}"></div>`).join('')}</div>

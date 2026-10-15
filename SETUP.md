@@ -70,7 +70,6 @@ supabase functions deploy sell-inquiry --no-verify-jwt
 supabase functions deploy weekly-pull-list --no-verify-jwt
 supabase functions deploy fetch-cover
 supabase functions deploy staff-admin
-supabase functions deploy publish-seo
 ```
 
 Secrets (`supabase secrets set NAME=value …`; never put these in code):
@@ -82,7 +81,6 @@ Secrets (`supabase secrets set NAME=value …`; never put these in code):
 | `RESEND_FROM` | emails (fallback) | e.g. `Your Shop <hello@yourshop.com>`; Shop Settings' From address wins when set |
 | `CRON_SECRET` | weekly / arrival / event emails | A long random string |
 | `STAFF_CC` | optional | Comma-separated extra addresses that get copies of sell inquiries and event signups (the shop email in Shop Settings always does) |
-| `GITHUB_TOKEN`, `GITHUB_REPO` | "Save & publish titles now" | Fine-grained token with **Actions: Read and write** on this repo; repo as `owner/name` |
 
 Then give the database the email function's address and the same `CRON_SECRET` (SQL editor):
 
@@ -91,30 +89,42 @@ select vault.create_secret('https://<project ref>.supabase.co/functions/v1/weekl
 select vault.create_secret('<the same CRON_SECRET>', 'weekly_email_secret');
 ```
 
-## 6. Point the site at the project
+## 6. Add the shop to `shops.json`
 
-Edit `js/config.js` (the only per-shop code file):
+All shops share this repo; the site Worker picks the shop by domain. Add an entry (the anon key is public: row-level
+security protects the data):
 
-```js
-export const SUPABASE_URL = 'https://<project ref>.supabase.co';
-export const SUPABASE_ANON_KEY = '<anon public key>';   // safe in the browser; row-level security protects the data
-export const GA_MEASUREMENT_ID = '';                    // optional, 'G-XXXXXXXXXX'
-export const SITE_URL = 'https://<your site>';
+```json
+{
+  "shops": [
+    {
+      "id": "main-street",
+      "domains": ["mainstreetcomics.com", "www.mainstreetcomics.com"],
+      "supabaseUrl": "https://<project ref>.supabase.co",
+      "anonKey": "<anon public key>",
+      "projectRef": "<project ref>",
+      "gaMeasurementId": ""
+    }
+  ]
+}
 ```
 
-Optional, for faster first paint: add `<link rel="preconnect" href="https://<project ref>.supabase.co" crossorigin>`
-to the `<head>` of the public `*.html` pages.
+The first domain is the shop's main address (used for links in emails, the calendar feed and canonical URLs). Don't put
+the keys in `js/config.js`: that file is the local / demo version.
 
 Enable the version-stamping pre-commit hook once per clone: `git config core.hooksPath .githooks`.
 
 ## 7. Host it
 
-Cloudflare → Workers & Pages → Create → import this GitHub repo. No build command; the output directory is the repo
-root. Pushes to `main` go live in about a minute. Add your custom
-domain there.
+The whole fleet is one Cloudflare Worker (`wrangler.jsonc`). Deploy it, then attach the shop's domain:
 
-GitHub → this repo → Actions: make sure workflows are enabled. `apply-seo.yml` runs every 30 minutes and writes the
-page titles, favicon and hero image from the admin into the HTML (it reads `js/config.js`, so do step 6 first).
+```bash
+npx wrangler deploy
+```
+
+Cloudflare → Workers & Pages → **pullwise** → Settings → Domains & Routes → **Add → Custom domain** → the shop's
+domain (it must be a zone in the same Cloudflare account). Page titles, the tab icon and the home banner are written
+in by the Worker from the shop's settings, and update within about a minute of a change in the admin.
 
 ## 8. Make it yours (in the admin)
 
@@ -133,6 +143,6 @@ Sign in at `https://<your site>/admin/` as the owner, then:
 - [ ] Auth redirect URLs and Magic Link template set
 - [ ] Owner added to `public.staff`
 - [ ] Edge Functions deployed, secrets and vault secrets set
-- [ ] `js/config.js` filled in and pushed
-- [ ] Cloudflare deploy and domain working; Actions enabled
+- [ ] Shop added to `shops.json` and pushed
+- [ ] Worker deployed and the shop's domain attached
 - [ ] Shop Settings, About page and email sender filled in; test email received

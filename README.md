@@ -1,10 +1,10 @@
 # Pullwise
 
 Website for an independent comic shop: pull lists, pre-orders, reservations, events and a staff admin.
-Each shop runs its own copy. **New shop? Start with [SETUP.md](SETUP.md).**
+One codebase serves every shop (see [One codebase, many shops](#one-codebase-many-shops)). **New shop? Start with [SETUP.md](SETUP.md).**
 
-Static HTML/CSS/JS (served from the `main` branch by Cloudflare Workers Builds; a push goes live in about a minute) +
-Supabase (database, auth, storage, Edge Functions). No build step.
+Static HTML/CSS/JS served by one Cloudflare Worker for all shops (`worker/`), plus a Supabase project per shop
+(database, auth, storage, Edge Functions). No build step.
 
 ## Run locally
 
@@ -29,7 +29,7 @@ Full step-by-step instructions are in [SETUP.md](SETUP.md). In short:
    as well as click the link. Staff are invited individually and then added to `public.staff`; being
    signed in never makes someone staff, only a row in `public.staff` does.
 5. `supabase functions deploy calendar-feed --no-verify-jwt`
-6. Put the project URL and anon key in `js/config.js`.
+6. Add the shop (domains, project URL, anon key) to `shops.json`; see SETUP.md.
 
 ## Weekly pull list email
 
@@ -126,7 +126,6 @@ select id, 'Their name', true from auth.users where email = 'them@example.com';
 Edge Functions (deploy with `supabase functions deploy <name>`):
 `fetch-cover` fetches PRH/Funko cover images for the admin importer (staff only);
 `staff-admin` creates and removes staff logins and resets passwords (owners only);
-`publish-seo` triggers the title/description workflow (staff only);
 `calendar-feed` serves the subscribable calendar (`--no-verify-jwt`).
 
 ## Layout
@@ -134,7 +133,7 @@ Edge Functions (deploy with `supabase functions deploy <name>`):
 | Path | What |
 | --- | --- |
 | `*.html` | One file per page; content that isn't shop-specific lives here |
-| `js/config.js` | Per-deployment config (Supabase keys, GA ID, site URL) |
+| `js/config.js` | Local / demo config; on live sites the Worker serves a generated one per shop |
 | `js/data.js` | All data access; Supabase or demo data |
 | `js/site.js` | Header/footer/theme/schema.org markup from shop settings, shared helpers |
 | `js/util.js` | `esc`, `must`, `tally`, `itemTitle`; no dependencies, used by the site, admin and tools |
@@ -149,7 +148,9 @@ Edge Functions (deploy with `supabase functions deploy <name>`):
 | `js/content.js` | Loads, sanitizes and shows staff-edited page text (`pages`, `faqs` tables) |
 | `js/page-defaults.js` | Starting page text and FAQ (demo mode, new shops) and the list of editable blocks |
 | `admin/` | Staff admin: `admin.js` (sign-in, routing), `lib.js` (shared helpers), `filters.js` (safe `.or()` search filters), `backup.js` (backup/restore/customer export logic), `sections/*.js`, `pull-list-pdf.js` and `order-sheet-pdf.js` (printable PDFs, built in the browser) |
-| `tools/` | `apply-seo.js` (page titles), `restore.mjs` (backup file → SQL, for the terminal), `stamp-version.js` |
+| `worker/` | The site Worker: serves every shop, generates `js/config.js` per domain and writes page titles, icons and the home banner into the HTML (`shop-page.js`, with tests) |
+| `shops.json` | Every shop: id, domains, Supabase URL, anon key (public), project ref |
+| `tools/` | `restore.mjs` (backup file → SQL, for the terminal), `stamp-version.js` |
 | `js/import/apply.js` | Import database logic shared by the CLI and admin |
 | `js/catalog.js` | Filter/search listing shared by Pre-Orders and New Arrivals |
 | `js/pages/*.js` | Per-page scripts |
@@ -180,12 +181,26 @@ guide is [ADMIN-ONBOARDING.md](ADMIN-ONBOARDING.md).
 
 ## Page titles & descriptions
 
-Staff set these per page on the admin's Pages screen (stored in `pages.meta_title` /
-`meta_description`). Because the site is static, `tools/apply-seo.js` writes them into the HTML
-files (title, description, and `og:` preview tags): `npm run apply-seo`. The GitHub Action
-`.github/workflows/apply-seo.yml` runs it every 30 minutes and on demand (Actions tab → Run
-workflow) and commits any change, which redeploys Pages. The shop name is put in front of custom titles (`Shop name — title`). **Save & publish titles now** on that screen calls the `publish-seo` Edge Function, which triggers the workflow immediately (staff only; needs a `GITHUB_TOKEN` secret with Actions write access — see the header of `supabase/functions/publish-seo/index.ts`). Clearing a field restores the original
-text kept in `data-default`.
+Staff set these per page on the admin's Pages screen (stored in `pages.meta_title` / `meta_description`). The site
+Worker (`worker/`) writes them into each page's HTML as it serves it (title, description and `og:` preview tags), along
+with the tab icon, the logo and banner preloads and the home page banner, so browsers and Google get them without
+running any script. It caches each shop's settings for a minute, so a change in the admin is live within about a
+minute. The shop name is put in front of titles (`Shop name — title`); clearing a field goes back to the page's own
+name (`data-default` in its HTML).
+
+## One codebase, many shops
+
+Every shop runs the same code from this repo. `shops.json` lists each shop's domains and Supabase project; the Worker
+looks up the request's domain and serves that shop's `js/config.js`. Everything shop-specific (name, colors, pages,
+titles, customers, media) lives in the shop's own database, so deploying new code never touches it.
+
+Rules that keep it that way:
+
+- **Never put shop details in code.** Anything a shop might change belongs in its database (`settings`, `pages`…).
+- **Migrations change the schema, not shop content.** To add new default text, insert it only where it's missing
+  (`on conflict do nothing`); never `update` or `delete` rows in `pages`, `faqs` or `settings`.
+- **Migrations must work with the code that's already live**, because each shop's database is updated before its site.
+  Add a column in one release and stop using an old one in a later release.
 
 ## Style guide
 

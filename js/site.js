@@ -312,10 +312,10 @@ function fillSettings(s) {
     const v = s[el.dataset.setting];
     if (v != null) el.textContent = v;
   });
-  // Pages carry just their own name in <title>; the shop name is appended here.
-  // A title staff set on the Pages screen is baked into the HTML (tools/apply-seo.js) and used as-is.
-  if (document.querySelector('title[data-seo]')) return;
+  // Pages carry just their own name in <title>; the shop name is added in front here. On the live sites the
+  // Worker has already written the full title (including any staff-set one) into the HTML, so it's kept as is.
   pageTitle ??= document.title; // fillSettings can run again when fresh settings replace the saved ones
+  if (s.shop_name && pageTitle.includes(s.shop_name)) return;
   document.title = pageTitle.trim() ? `${s.shop_name} — ${pageTitle}` : `${s.shop_name} — ${s.tagline ?? ''}`;
 }
 
