@@ -1,0 +1,132 @@
+# Deploys every shop listed in shops.json when main changes (or on demand: Actions → Deploy → Run workflow).
+#
+#   1. CI (tests, migration rules, blank-database install).
+#   2. Canary shops ("canary": true): database + functions, then their own Worker (pullwise-canary), then a
+#      live check of each canary site.
+#   3. Every other shop's database + functions.
+#   4. The main Worker (pullwise), serving every other shop's domain, then a live check of each site.
+#
+# Databases are always updated before the code that uses them. If any shop's database step fails, the main Worker
+# isn't deployed, so no shop gets code its database isn't ready for. Shop data is never touched: see README →
+# "One codebase, many shops". Until the GitHub secrets exist (SETUP.md → Deploys) this does nothing and says why.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  WRANGLER: npx --yes wrangler@4.151.0
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  plan:
+    needs: ci
+    runs-on: ubuntu-latest
+    outputs:
+      canary: ${{ steps.plan.outputs.canary }}
+      shops: ${{ steps.plan.outputs.shops }}
+      ready: ${{ steps.plan.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - id: plan
+        env:
+          HAS_SUPABASE: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+          HAS_CLOUDFLARE: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+        run: node tools/deploy-plan.mjs >> "$GITHUB_OUTPUT"
+
+  canary-database:
+    needs: plan
+    if: needs.plan.outputs.ready == 'true' && needs.plan.outputs.canary != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shop: ${{ fromJSON(needs.plan.outputs.canary) }}
+    name: canary database (${{ matrix.shop.id }})
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/deploy-database
+        with:
+          shop: ${{ matrix.shop.id }}
+          project-ref: ${{ matrix.shop.projectRef }}
+          db-password: ${{ secrets[matrix.shop.secret] }}
+          access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+  canary-worker:
+    needs: [plan, canary-database]
+    if: needs.plan.outputs.ready == 'true' && needs.plan.outputs.canary != '[]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Deploy the canary Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHOPS: ${{ needs.plan.outputs.canary }}
+        run: |
+          domains=$(node -e 'for (const s of JSON.parse(process.env.SHOPS)) for (const d of s.domains) console.log(`--domain=${d}`)')
+          $WRANGLER deploy --name pullwise-canary $domains
+      - name: Check the canary sites
+        env:
+          SHOPS: ${{ needs.plan.outputs.canary }}
+        run: node tools/smoke-site.mjs "$SHOPS"
+
+  shops-database:
+    needs: [plan, canary-database, canary-worker]
+    if: >-
+      always() && needs.plan.result == 'success' && needs.plan.outputs.ready == 'true' && needs.plan.outputs.shops != '[]' &&
+      contains(fromJSON('["success","skipped"]'), needs.canary-database.result) &&
+      contains(fromJSON('["success","skipped"]'), needs.canary-worker.result)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shop: ${{ fromJSON(needs.plan.outputs.shops) }}
+    name: database (${{ matrix.shop.id }})
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/deploy-database
+        with:
+          shop: ${{ matrix.shop.id }}
+          project-ref: ${{ matrix.shop.projectRef }}
+          db-password: ${{ secrets[matrix.shop.secret] }}
+          access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+  worker:
+    needs: [plan, shops-database]
+    if: always() && needs.plan.result == 'success' && needs.shops-database.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Deploy the Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHOPS: ${{ needs.plan.outputs.shops }}
+        run: |
+          domains=$(node -e 'for (const s of JSON.parse(process.env.SHOPS)) for (const d of s.domains) console.log(`--domain=${d}`)')
+          $WRANGLER deploy --name pullwise $domains
+      - name: Check every site
+        env:
+          SHOPS: ${{ needs.plan.outputs.shops }}
+        run: node tools/smoke-site.mjs "$SHOPS"

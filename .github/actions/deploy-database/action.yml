@@ -1,0 +1,40 @@
+# One shop's backend: apply new migrations (and the seed, which only adds missing rows), then deploy the Edge
+# Functions. Used by .github/workflows/deploy.yml for every shop.
+name: Deploy a shop's database and functions
+description: supabase db push --include-seed, then supabase functions deploy, for one project
+inputs:
+  shop:
+    description: Shop id (for messages)
+    required: true
+  project-ref:
+    description: Supabase project ref
+    required: true
+  db-password:
+    description: The project's database password (optional; without it the CLI logs in with a temporary role)
+    required: false
+  access-token:
+    description: Supabase personal access token
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: supabase/setup-cli@v1
+      with:
+        version: 2.121.0
+    - shell: bash
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ inputs.access-token }}
+        SUPABASE_DB_PASSWORD: ${{ inputs.db-password }}
+        SHOP: ${{ inputs.shop }}
+        REF: ${{ inputs.project-ref }}
+      run: |
+        set -euo pipefail
+        # Without SUPABASE_DB_PASSWORD the CLI mints a temporary login role through the access token.
+        [ -n "$SUPABASE_DB_PASSWORD" ] || unset SUPABASE_DB_PASSWORD
+        supabase link --project-ref "$REF"
+        echo "::group::Migrations for $SHOP"
+        supabase db push --linked --include-seed --yes
+        echo "::endgroup::"
+        echo "::group::Edge Functions for $SHOP"
+        supabase functions deploy --project-ref "$REF" --use-api
+        echo "::endgroup::"

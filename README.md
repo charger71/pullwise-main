@@ -150,7 +150,7 @@ Edge Functions (deploy with `supabase functions deploy <name>`):
 | `admin/` | Staff admin: `admin.js` (sign-in, routing), `lib.js` (shared helpers), `filters.js` (safe `.or()` search filters), `backup.js` (backup/restore/customer export logic), `sections/*.js`, `pull-list-pdf.js` and `order-sheet-pdf.js` (printable PDFs, built in the browser) |
 | `worker/` | The site Worker: serves every shop, generates `js/config.js` per domain and writes page titles, icons and the home banner into the HTML (`shop-page.js`, with tests) |
 | `shops.json` | Every shop: id, domains, Supabase URL, anon key (public), project ref |
-| `tools/` | `restore.mjs` (backup file → SQL, for the terminal), `stamp-version.js` |
+| `tools/` | `deploy-plan.mjs` and `smoke-site.mjs` (the deploy workflow), `check-migrations.js`, `test-migrations.sh`, `restore.mjs` (backup file → SQL, for the terminal), `stamp-version.js` |
 | `js/import/apply.js` | Import database logic shared by the CLI and admin |
 | `js/catalog.js` | Filter/search listing shared by Pre-Orders and New Arrivals |
 | `js/pages/*.js` | Per-page scripts |
@@ -198,7 +198,9 @@ name (`data-default` in its HTML).
 ## One codebase, many shops
 
 Every shop runs the same code from this repo. `shops.json` lists each shop's domains and Supabase project; the Worker
-looks up the request's domain and serves that shop's `js/config.js`. Everything shop-specific (name, colors, pages,
+looks up the request's domain and serves that shop's `js/config.js`. Merging to `main` deploys to every shop
+(`.github/workflows/deploy.yml`: canary shops first, then every shop's database, then the Worker; see SETUP.md →
+"Deploys"). Everything shop-specific (name, colors, pages,
 titles, customers, media) lives in the shop's own database, so deploying new code never touches it.
 
 Rules that keep it that way:

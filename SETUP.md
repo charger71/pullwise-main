@@ -1,10 +1,39 @@
 # Fresh Install
 
-Step-by-step setup for a new shop. Every shop gets its own copy of this repo, its own Supabase project and its own
-site. After setup, nearly everything (name, hours, colors, logo, page text) is edited in the admin, not in code.
+Every shop runs from this one repo: it gets its own Supabase project and its own domain, and one entry in
+`shops.json`. Code changes merged to `main` deploy to every shop automatically ("Deploys" below); a shop's own
+information (name, hours, colors, logo, page text, customers) lives in its database and is never touched by a deploy.
 
-Allow about an hour. You need accounts at GitHub, [Supabase](https://supabase.com), [Cloudflare](https://cloudflare.com)
-and (for email) [Resend](https://resend.com), plus the [Supabase CLI](https://supabase.com/docs/guides/cli) and Node 20+.
+Setting up a shop takes about an hour. You need accounts at GitHub, [Supabase](https://supabase.com),
+[Cloudflare](https://cloudflare.com) and (for email) [Resend](https://resend.com), plus the
+[Supabase CLI](https://supabase.com/docs/guides/cli) and Node 20+.
+
+## Deploys (one-time setup for the whole fleet)
+
+`.github/workflows/deploy.yml` runs on every push to `main` (and from Actions → Deploy → **Run workflow**):
+
+1. CI: the tests, the migration rules and a fresh install of every migration on a blank database.
+2. **Canary** shops (`"canary": true` in `shops.json`, e.g. a demo shop you own): their database and Edge Functions,
+   then their own Worker (`pullwise-canary`), then a live check of each canary site.
+3. Every other shop's database and Edge Functions (`supabase db push --include-seed`, `supabase functions deploy`).
+4. The main Worker (`pullwise`) with every other shop's domain, then a live check of each site.
+
+Databases are always updated before the code that needs them. If the canary or **any** shop's database step fails,
+the main Worker isn't deployed (so no shop gets code its database isn't ready for); fix it and re-run the workflow.
+
+Add these in GitHub → the repo → Settings → Secrets and variables → **Actions** (never in code or chat):
+
+| Secret | What |
+| --- | --- |
+| `SUPABASE_ACCESS_TOKEN` | Supabase → Account → Access Tokens → **Generate new token**. Works for every project in your organization. |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens → **Create Token** → the "Edit Cloudflare Workers" template, plus **Zone → DNS → Edit**, for your account and the zones of the shops' domains. |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare → Workers & Pages → the account ID on the right. |
+| `SUPABASE_DB_PASSWORD_<ID>` | **Optional**, one per shop: its database password. Without it the Supabase CLI logs in to the shop's database with a temporary role made through `SUPABASE_ACCESS_TOKEN`, so you normally don't need it. `<ID>` is the shop's `id` upper-cased with `-` → `_`, e.g. `SUPABASE_DB_PASSWORD_MAIN_STREET`. |
+
+Until the first three exist (or while `shops.json` is empty) the workflow deploys nothing and says why in its summary.
+
+**Rolling back the site:** `npx wrangler rollback --name pullwise` (or `pullwise-canary`) puts the previous Worker
+version back in seconds. Migrations aren't rolled back; fix forward with a new migration.
 
 ## 1. Try it locally (optional, 2 minutes)
 
@@ -17,9 +46,10 @@ so you can look around before connecting anything. `npm test` runs the test suit
 
 ## 2. Create the Supabase project
 
-1. Create a new Supabase project. Note the **project ref**, the **Project URL** and the **anon public key**
-   (Project Settings → API).
-2. Apply the schema and starting data:
+1. Create a new Supabase project in your organization. Note the **project ref**, the **Project URL**, the
+   **anon public key** (Project Settings → API) and the **database password** you chose.
+2. Apply the schema and starting data (the deploy does this too, once the shop is in `shops.json`; doing it now lets
+   you finish steps 3–4 before the shop goes live):
 
    ```bash
    supabase link --project-ref <project ref>
@@ -59,9 +89,8 @@ Further staff are added from **Admin → Staff** (see `ADMIN-ONBOARDING.md`).
 
 ## 5. Edge Functions
 
-```bash
-supabase functions deploy   # all of them; supabase/config.toml says which ones are public
-```
+Deploys install them for every shop. To do it by hand: `supabase functions deploy` (all of them;
+`supabase/config.toml` says which ones are public).
 
 Secrets (`supabase secrets set NAME=value …`; never put these in code):
 
@@ -82,8 +111,8 @@ select vault.create_secret('<the same CRON_SECRET>', 'weekly_email_secret');
 
 ## 6. Add the shop to `shops.json`
 
-All shops share this repo; the site Worker picks the shop by domain. Add an entry (the anon key is public: row-level
-security protects the data):
+All shops share this repo; the site Worker picks the shop by domain. Add an entry in a pull request (the anon key is
+public: row-level security protects the data). `npm test` checks the file.
 
 ```json
 {
@@ -94,28 +123,29 @@ security protects the data):
       "supabaseUrl": "https://<project ref>.supabase.co",
       "anonKey": "<anon public key>",
       "projectRef": "<project ref>",
-      "gaMeasurementId": ""
+      "gaMeasurementId": "",
+      "canary": false
     }
   ]
 }
 ```
 
 The first domain is the shop's main address (used for links in emails, the calendar feed and canonical URLs). Don't put
-the keys in `js/config.js`: that file is the local / demo version.
+the keys in `js/config.js`: that file is the local / demo version. `"canary": true` deploys the shop first, on its own
+Worker; use it for a demo or test shop, not a real one.
+
 
 Enable the version-stamping pre-commit hook once per clone: `git config core.hooksPath .githooks`.
 
-## 7. Host it
+## 7. Go live
 
-The whole fleet is one Cloudflare Worker (`wrangler.jsonc`). Deploy it, then attach the shop's domain:
+Merge the pull request. The Deploy workflow updates the shop's database and functions, deploys the Worker with the
+shop's domains attached as custom domains (each must be a zone in the same Cloudflare account), and checks the site
+answers with the right shop's settings. Page titles, the tab icon and the home banner are written in by the Worker
+from the shop's settings, and update within about a minute of a change in the admin.
 
-```bash
-npx wrangler deploy
-```
-
-Cloudflare → Workers & Pages → **pullwise** → Settings → Domains & Routes → **Add → Custom domain** → the shop's
-domain (it must be a zone in the same Cloudflare account). Page titles, the tab icon and the home banner are written
-in by the Worker from the shop's settings, and update within about a minute of a change in the admin.
+Removing a shop's domain from `shops.json` doesn't detach it from the Worker: do that in Cloudflare → Workers & Pages →
+the Worker → Settings → Domains & Routes.
 
 ## 8. Make it yours (in the admin)
 
@@ -134,6 +164,6 @@ Sign in at `https://<your site>/admin/` as the owner, then:
 - [ ] Auth redirect URLs and Magic Link template set
 - [ ] Owner added to `public.staff`
 - [ ] Edge Functions deployed, secrets and vault secrets set
-- [ ] Shop added to `shops.json` and pushed
-- [ ] Worker deployed and the shop's domain attached
+- [ ] Shop added to `shops.json` in a pull request
+- [ ] Merged; the Deploy run is green and the site answers on its domain
 - [ ] Shop Settings, About page and email sender filled in; test email received
