@@ -6,14 +6,15 @@
 //
 // Options: --owner-name "Pat Smith"  --shop-email hello@…  --phone "(555) 555-0100"  --timezone America/Chicago
 //          --region us-east-1  --org <organization slug>  --project-ref <use an existing project>  --canary
-//          --super (make the owner Super Admin)
+//          --super (make the owner Super Admin)  --catalog (this is the master catalog the other shops sync from)
 // Optional env: RESEND_API_KEY, RESEND_FROM, STAFF_CC (set as the shop's function secrets).
 //
 // What it does, each step skipped when already done, so it's safe to run again after a failure:
 //   1. Creates the Supabase project "pullwise-<id>" (or uses --project-ref) and waits for it to come up.
 //   2. Applies every migration and the seed (supabase db push --include-seed).
 //   3. Auth: site URL, sign-in redirect URLs, and the Magic Link email with its 6-digit code.
-//   4. Function secrets (SITE_URL, CRON_SECRET, Resend) and the matching vault secrets for the hourly email jobs.
+//   4. Function secrets (SITE_URL, CRON_SECRET, Resend, the master catalog's address) and the matching vault secrets
+//      for the hourly jobs.
 //   5. Shop Settings: name, email, phone, timezone (only while they're still the starting values).
 //   6. The owner's login and staff row (Super Admin with --super).
 //   7. Deploys the Edge Functions.
@@ -37,7 +38,7 @@ export const lit = (v) => (v == null || v === '' ? 'null' : `'${String(v).replac
 const randomSecret = (bytes = 32) => crypto.randomBytes(bytes).toString('base64url');
 
 export function parseArgs(argv) {
-  const o = { domains: [], canary: false, super: false, timezone: 'America/New_York', region: 'us-east-1' };
+  const o = { domains: [], canary: false, super: false, catalog: false, timezone: 'America/New_York', region: 'us-east-1' };
   const names = { '--id': 'id', '--name': 'name', '--owner-email': 'ownerEmail', '--owner-name': 'ownerName', '--shop-email': 'shopEmail',
     '--phone': 'phone', '--timezone': 'timezone', '--region': 'region', '--org': 'org', '--project-ref': 'projectRef' };
   for (let i = 0; i < argv.length; i++) {
@@ -46,6 +47,7 @@ export function parseArgs(argv) {
     if (flag === '--domain') o.domains.push(String(value()).toLowerCase());
     else if (flag === '--canary') o.canary = true;
     else if (flag === '--super') o.super = true;
+    else if (flag === '--catalog') o.catalog = true;
     else if (names[flag]) o[names[flag]] = value();
     else throw new Error(`Unknown option ${argv[i]}`);
   }
@@ -100,7 +102,7 @@ update public.staff set is_super = true, is_owner = true where user_id = ${lit(u
 }
 
 export function shopEntry(o, ref, anonKey) {
-  return { id: o.id, domains: o.domains, supabaseUrl: `https://${ref}.supabase.co`, anonKey, projectRef: ref, gaMeasurementId: '', ...(o.canary ? { canary: true } : {}) };
+  return { id: o.id, domains: o.domains, supabaseUrl: `https://${ref}.supabase.co`, anonKey, projectRef: ref, gaMeasurementId: '', ...(o.canary ? { canary: true } : {}), ...(o.catalog ? { catalog: true } : {}) };
 }
 
 /**
@@ -164,6 +166,9 @@ export async function addShop(o, deps) {
     { name: 'CRON_SECRET', value: cronSecret },
     ...['RESEND_API_KEY', 'RESEND_FROM', 'STAFF_CC'].filter((k) => deps.env[k]).map((k) => ({ name: k, value: deps.env[k] })),
   ];
+  // Every shop except the catalog itself copies titles in from the master catalog (catalog-sync).
+  const catalog = shops.shops.find((s) => s.catalog && s.id !== o.id);
+  if (catalog && !o.catalog) secrets.push({ name: 'CATALOG_URL', value: catalog.supabaseUrl }, { name: 'CATALOG_ANON_KEY', value: catalog.anonKey });
   await api('POST', `/projects/${ref}/secrets`, secrets);
   await sql(ref, vaultSql(ref, cronSecret));
 

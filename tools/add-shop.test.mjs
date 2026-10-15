@@ -96,4 +96,24 @@ function fakes({ shops = { shops: [] }, orgs = [{ id: 'org' }], projects = [], u
 await assert.rejects(addShop(o, fakes({ orgs: [{ id: 'a' }, { id: 'b' }] }).deps), /--org \(a, b\)/);
 await assert.rejects(addShop(o, fakes({ shops: { shops: [shopEntry({ ...o, id: 'other' }, REF, 'x')] } }).deps), /Already used by another shop: mainstreet\.com \(other\)/);
 
+{
+  // With a master catalog in shops.json, a new shop gets its address and key; the catalog itself doesn't
+  const cat = shopEntry({ ...o, id: 'catalog', domains: ['catalog.example.com'], catalog: true }, 'cccccccccccccccccccc', 'cat-anon');
+  assert.equal(cat.catalog, true);
+  const sent = [];
+  const f = fakes({ shops: { shops: [cat] } });
+  const api = f.deps.api;
+  f.deps.api = async (m, p, body) => { if (p.endsWith('/secrets')) sent.push(...body); return api(m, p, body); };
+  await addShop(o, f.deps);
+  assert.deepEqual(sent.filter((s) => s.name.startsWith('CATALOG')), [
+    { name: 'CATALOG_URL', value: 'https://cccccccccccccccccccc.supabase.co' }, { name: 'CATALOG_ANON_KEY', value: 'cat-anon' }]);
+  const g = fakes();
+  const sent2 = [];
+  const api2 = g.deps.api;
+  g.deps.api = async (m, p, body) => { if (p.endsWith('/secrets')) sent2.push(...body); return api2(m, p, body); };
+  await addShop({ ...o, catalog: true }, g.deps);
+  assert.equal(sent2.some((s) => s.name.startsWith('CATALOG')), false);
+  assert.equal(g.written().shops[0].catalog, true);
+}
+
 console.log('add-shop tests passed');

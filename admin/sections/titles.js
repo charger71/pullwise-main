@@ -308,7 +308,8 @@ async function edit(listEl, id) {
         </fieldset>
         <div class="field span-2" data-cover></div>
       </div>
-      ${item.distributor && item.distributor !== 'other' ? `<p class="admin-hint">Imported from ${item.distributor === 'lunar' ? 'Lunar' : 'PRH'} (${esc(item.sku)}). Re-importing its sheet refreshes title, retail price, dates and description, but never the shop price, status, category, badges, staff pick, homepage or hidden.</p>` : ''}
+      ${item.catalog_id ? `<p class="admin-hint">From the master catalog. Its title, retail price, dates, description, creators and cover follow the catalog (checked hourly); your shop price, status, category, badges, staff pick, homepage and hidden are yours and never change.</p>` : ''}
+      ${!item.catalog_id && item.distributor && item.distributor !== 'other' ? `<p class="admin-hint">Imported from ${item.distributor === 'lunar' ? 'Lunar' : 'PRH'} (${esc(item.sku)}). Re-importing its sheet refreshes title, retail price, dates and description, but never the shop price, status, category, badges, staff pick, homepage or hidden.</p>` : ''}
       <div class="admin-actions">
         <button class="btn btn--primary" type="submit">${id ? 'Save' : 'Add title'}</button>
         ${id && isOwner ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}

@@ -47,16 +47,25 @@ export function validate(data) {
     if (typeof s.anonKey !== 'string' || !s.anonKey.trim()) problems.push(`${at}: anonKey is missing`);
     if (s.gaMeasurementId != null && !/^(G-[A-Z0-9]+)?$/.test(s.gaMeasurementId)) problems.push(`${at}: gaMeasurementId looks wrong (G-XXXXXXXXXX)`);
     if (s.canary != null && typeof s.canary !== 'boolean') problems.push(`${at}: canary must be true or false`);
+    if (s.catalog != null && typeof s.catalog !== 'boolean') problems.push(`${at}: catalog must be true or false`);
   });
+  const catalogs = data.shops.filter((s) => s?.catalog === true).map((s) => s.id);
+  if (catalogs.length > 1) problems.push(`only one shop can be the master catalog (${catalogs.join(', ')})`);
   return problems;
 }
 
 /** What each deploy job needs to know about a shop. */
-const target = (s) => ({ id: s.id, projectRef: s.projectRef, secret: secretName(s.id), url: `https://${s.domains[0]}`, supabaseUrl: s.supabaseUrl, domains: s.domains });
+// catalogUrl / catalogKey: the master catalog every other shop syncs titles from (empty for the catalog itself,
+// or when there's no catalog yet); the deploy sets them as the shop's CATALOG_URL / CATALOG_ANON_KEY secrets.
+const target = (catalog) => (s) => ({
+  id: s.id, projectRef: s.projectRef, secret: secretName(s.id), url: `https://${s.domains[0]}`, supabaseUrl: s.supabaseUrl, domains: s.domains,
+  catalogUrl: catalog && catalog.id !== s.id ? catalog.supabaseUrl : '', catalogKey: catalog && catalog.id !== s.id ? catalog.anonKey : '',
+});
 
 export function plan(data, { hasSupabase, hasCloudflare }) {
-  const canary = data.shops.filter((s) => s.canary).map(target);
-  const shops = data.shops.filter((s) => !s.canary).map(target);
+  const t = target(data.shops.find((s) => s.catalog));
+  const canary = data.shops.filter((s) => s.canary).map(t);
+  const shops = data.shops.filter((s) => !s.canary).map(t);
   const missing = [!hasSupabase && 'SUPABASE_ACCESS_TOKEN', !hasCloudflare && 'CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID'].filter(Boolean);
   let reason = '';
   if (!data.shops.length) reason = 'shops.json has no shops yet';

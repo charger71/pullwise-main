@@ -57,6 +57,19 @@ owner Super Admin. Every step is skipped when already done, so after a failure j
 Then commit `shops.json` in a pull request; merging deploys the site (step 7), and the owner continues at step 8.
 The numbered steps below are the same thing by hand.
 
+## The master catalog (once, for the whole fleet)
+
+Create the catalog like any shop, with `--catalog` (and a domain for its admin, e.g. `catalog.yourdomain.com`):
+
+```bash
+SUPABASE_ACCESS_TOKEN=… npm run add-shop -- --id catalog --name "Pullwise Catalog" \
+  --domain catalog.yourdomain.com --owner-email you@yourdomain.com --catalog
+```
+
+Merge its `shops.json` change; from then on every deploy gives each shop the catalog's address and each shop copies
+new and changed titles in hourly. Import the week's sheets in the catalog's admin (Admin → Import) instead of in
+each shop. See README → "Master catalog" for exactly what syncs.
+
 ## 1. Try it locally (optional, 2 minutes)
 
 ```bash
