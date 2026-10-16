@@ -359,8 +359,6 @@ async function renderCustomer(el) {
             <div class="cust-follow-row">
               <label class="visually-hidden" for="cf-q">Series or artist name</label>
               <input id="cf-q" type="search" placeholder="Search series or artist" autocomplete="off">
-              <label class="visually-hidden" for="cf-kind">Search for</label>
-              <select id="cf-kind"><option value="series">Series</option><option value="artist">Artist</option></select>
             </div>
           </form>
           <div data-follow-results></div>
@@ -733,23 +731,27 @@ function setupFollows(el, c) {
     }
   });
 
+  // One box for both: series and artists are searched together and listed under their own headings.
+  let lastQuery = '';
   const search = async () => {
     const q = $('#cf-q', el).value.trim();
-    const kind = $('#cf-kind', el).value;
+    lastQuery = q;
     if (q.length < 2) return void (results.innerHTML = '');
-    const { data, error } = await sb.rpc(kind === 'series' ? 'search_series' : 'search_artists', { p_q: q });
+    const [series, artists] = await Promise.all([sb.rpc('search_series', { p_q: q }), sb.rpc('search_artists', { p_q: q })]);
+    if (lastQuery !== q) return; // a newer search is already running
+    const error = series.error ?? artists.error;
     if (error) return void (results.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
-    results.innerHTML = data.length
-      ? `<ul class="cust-results">${data
-          .map((r) => (kind === 'series'
-            ? `<li><span><strong>${esc(r.label)}</strong> <span class="card__meta">${r.issues ? `${r.issues} ${r.issues === 1 ? 'issue' : 'issues'}` : 'on the active list, no issues yet'}</span></span>
-                <span class="cust-results__act"><button class="btn btn--add btn--small" type="button" data-fs="${esc(r.key)}" aria-label="Follow ${esc(r.label)}">${solidIcon('follow', 16)} Follow</button></span></li>`
-            : `<li><span><strong>${esc(r.name)}</strong> <span class="card__meta">${r.covers} covers · ${r.issues} books</span></span>
-                <span class="cust-results__act">
-                  <button class="btn btn--add btn--small" type="button" data-fa="${esc(r.name)}" data-role="cover">${solidIcon('follow', 16)} Follow covers</button>
-                  <button class="btn btn--add btn--small" type="button" data-fa="${esc(r.name)}" data-role="creator">${solidIcon('follow', 16)} Follow books</button></span></li>`))
-          .join('')}</ul>`
-      : '<p class="empty">No matches.</p>';
+    const seriesRows = series.data.map((r) => `<li><span><strong>${esc(r.label)}</strong> <span class="card__meta">${r.issues ? `${r.issues} ${r.issues === 1 ? 'issue' : 'issues'}` : 'on the active list, no issues yet'}</span></span>
+        <span class="cust-results__act"><button class="btn btn--add btn--small" type="button" data-fs="${esc(r.key)}" aria-label="Follow ${esc(r.label)}">${solidIcon('follow', 16)} Follow</button></span></li>`);
+    // issues = 0: named only in cover text (a variant cover artist), so there are no books to follow.
+    const artistRows = artists.data.map((r) => `<li><span><strong>${esc(r.name)}</strong> <span class="card__meta">${r.covers} covers${r.issues ? ` · ${r.issues} books` : ' (named in cover text)'}</span></span>
+        <span class="cust-results__act">
+          <button class="btn btn--add btn--small" type="button" data-fa="${esc(r.name)}" data-role="cover">${solidIcon('follow', 16)} Follow covers</button>
+          ${r.issues ? `<button class="btn btn--add btn--small" type="button" data-fa="${esc(r.name)}" data-role="creator">${solidIcon('follow', 16)} Follow books</button>` : ''}</span></li>`);
+    results.innerHTML = seriesRows.length || artistRows.length
+      ? `${seriesRows.length ? `<h3 class="cust-results__head">Series</h3><ul class="cust-results">${seriesRows.join('')}</ul>` : ''}
+         ${artistRows.length ? `<h3 class="cust-results__head">Artists &amp; writers</h3><ul class="cust-results">${artistRows.join('')}</ul>` : ''}`
+      : '<p class="empty">No series or artists match.</p>';
   };
   form.addEventListener('input', debounce(search, 300));
   form.addEventListener('submit', (e) => (e.preventDefault(), search()));

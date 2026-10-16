@@ -483,7 +483,7 @@ td.dash-top__n { text-align: center; font: 1.1rem var(--font-display); }
 }
 .cust-follow-row { display: flex; gap: var(--sp-8); flex-wrap: wrap; margin-bottom: var(--sp-8); }
 .cust-follow-row input { flex: 1 1 200px; }
-.cust-follow-row select { width: auto; min-width: 110px; }
+.cust-results__head { margin: var(--sp-10) 0 var(--sp-4); font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .cust-follows li { grid-template-columns: 1fr auto; display: flex; justify-content: space-between; align-items: center; gap: var(--sp-10); }
 
 /* Profile / messages / changes: folds whose header shows a one-line summary while closed. */

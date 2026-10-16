@@ -143,8 +143,6 @@ async function signedIn(sb, user) {
             <div class="follow-form__row">
               <label class="visually-hidden" for="f-q">Search for a series or artist to follow</label>
               <input id="f-q" type="search" placeholder="Search for a series or artist to follow" autocomplete="off">
-              <label class="visually-hidden" for="f-kind">Search for</label>
-              <select id="f-kind"><option value="series">Series</option><option value="artist">Artist</option></select>
             </div>
           </form>
           <div data-follow-results></div>
@@ -463,28 +461,28 @@ function setupFollowing(sb, customerId, seenBefore) {
     }
   });
 
+  // One box for both: series and artists are searched together and listed under their own headings.
+  const seriesRow = (r) => `<li><span class="follow-item">${r.cover_url ? `<img class="follow-thumb" src="${esc(thumbOf(r.cover_url))}" ${thumbFallback(r.cover_url)} alt="Cover of ${esc(r.label)}" loading="lazy">` : ''}<span><strong>${esc(r.label)}</strong><br><span class="card__meta">${r.issues ? `${r.issues} ${r.issues === 1 ? 'issue' : 'issues'}` : 'Ongoing series · new issues are added as they’re announced'}</span></span></span>
+      <span class="follow-results__act"><button class="btn btn--primary btn--small" type="button" data-fs="${esc(r.key)}">Follow</button></span></li>`;
+  // issues = 0: named only in cover text (a variant cover artist), so there are no books to follow.
+  const artistRow = (r) => `<li><span><strong>${esc(r.name)}</strong><br><span class="card__meta">${r.covers} ${r.covers === 1 ? 'cover' : 'covers'}${r.issues ? ` · ${r.issues} ${r.issues === 1 ? 'book' : 'books'}` : ''}</span></span>
+      <span class="follow-results__act">
+        <button class="btn btn--primary btn--small" type="button" data-fa="${esc(r.name)}" data-role="cover">Follow covers</button>
+        ${r.issues ? `<button class="btn btn--ghost btn--small" type="button" data-fa="${esc(r.name)}" data-role="creator">Follow books</button>` : ''}</span></li>`;
+
   const search = async () => {
     const q = $('#f-q', form).value.trim();
-    const kind = $('#f-kind', form).value;
-    lastQuery = `${kind}:${q}`;
+    lastQuery = q;
     status.innerHTML = '';
     if (q.length < 2) return void (results.innerHTML = '');
     try {
-      const rows = kind === 'series' ? await searchSeries(q) : await searchArtists(q);
-      if (lastQuery !== `${kind}:${q}`) return; // a newer search is already running
-      results.innerHTML = rows.length
-        ? `<ul class="follow-results">${rows
-            .map((r) =>
-              kind === 'series'
-                ? `<li><span class="follow-item">${r.cover_url ? `<img class="follow-thumb" src="${esc(thumbOf(r.cover_url))}" ${thumbFallback(r.cover_url)} alt="Cover of ${esc(r.label)}" loading="lazy">` : ''}<span><strong>${esc(r.label)}</strong><br><span class="card__meta">${r.issues ? `${r.issues} ${r.issues === 1 ? 'issue' : 'issues'}` : 'Ongoing series · new issues are added as they’re announced'}</span></span></span>
-                    <span class="follow-results__act"><button class="btn btn--primary btn--small" type="button" data-fs="${esc(r.key)}">Follow</button></span></li>`
-                : `<li><span><strong>${esc(r.name)}</strong><br><span class="card__meta">${r.covers} ${r.covers === 1 ? 'cover' : 'covers'} · ${r.issues} ${r.issues === 1 ? 'book' : 'books'}</span></span>
-                    <span class="follow-results__act">
-                      <button class="btn btn--primary btn--small" type="button" data-fa="${esc(r.name)}" data-role="cover">Follow covers</button>
-                      <button class="btn btn--ghost btn--small" type="button" data-fa="${esc(r.name)}" data-role="creator">Follow books</button></span></li>`,
-            )
-            .join('')}</ul>${kind === 'artist' ? '<p class="field__hint">Covers = every cover they draw. Books = one cover of each issue they write or draw.</p>' : ''}`
-        : '<p class="empty">No matches.</p>';
+      const [series, artists] = await Promise.all([searchSeries(q), searchArtists(q)]);
+      if (lastQuery !== q) return; // a newer search is already running
+      results.innerHTML = series.length || artists.length
+        ? `${series.length ? `<h3 class="follow-results__head">Series</h3><ul class="follow-results">${series.map(seriesRow).join('')}</ul>` : ''}
+           ${artists.length ? `<h3 class="follow-results__head">Artists &amp; writers</h3><ul class="follow-results">${artists.map(artistRow).join('')}</ul>
+             <p class="field__hint">Covers = every cover they draw. Books = one cover of each issue they write or draw.</p>` : ''}`
+        : '<p class="empty">No series or artists match.</p>';
     } catch (err) {
       note(err.message, true);
     }
