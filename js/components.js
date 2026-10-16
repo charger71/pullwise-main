@@ -201,6 +201,47 @@ export function seriesCards(rows) {
     .join('');
 }
 
+/**
+ * Artists and writers from searchArtists(), as a short list with follow buttons (site search).
+ * issues = 0 means the name only appears in cover text (a variant cover artist): covers only, no books to follow.
+ */
+export function artistRows(rows) {
+  const btn = (r, role, label) => {
+    const on = pull.findSubscription('artist', pull.personKey(r.name), role);
+    return on
+      ? `<span class="btn btn--ghost btn--small is-on" aria-disabled="true">✓ Following ${role === 'cover' ? 'covers' : 'books'}</span>`
+      : `<button class="btn ${role === 'cover' ? 'btn--primary' : 'btn--ghost'} btn--small" type="button" data-follow-artist="${esc(r.name)}" data-role="${role}">${label}<span class="visually-hidden"> by ${esc(r.name)}</span></button>`;
+  };
+  return `<ul class="follow-results">${rows
+    .map(
+      (r) => `<li><span><strong>${esc(r.name)}</strong><br><span class="card__meta">${r.covers} ${r.covers === 1 ? 'cover' : 'covers'}${r.issues ? ` · ${r.issues} ${r.issues === 1 ? 'book' : 'books'}` : ''}</span></span>
+        <span class="follow-results__act">${pull.isSignedIn()
+          ? `${btn(r, 'cover', 'Follow covers')}${r.issues ? btn(r, 'creator', 'Follow books') : ''}`
+          : `<a class="btn btn--ghost btn--small" href="account.html">Sign in to follow<span class="visually-hidden"> ${esc(r.name)}</span></a>`}</span></li>`,
+    )
+    .join('')}</ul>
+    ${pull.isSignedIn() ? '<p class="field__hint">Covers = every cover they draw. Books = one cover of each issue they write or draw. New ones are added to your pull list automatically.</p>' : ''}
+    <p class="card__meta" role="status" data-msg></p>`;
+}
+
+/** Make the Follow buttons from artistRows() work (call once per container; `render` redraws it after a follow). */
+export function enableArtistFollow(root, render) {
+  root.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-follow-artist]');
+    if (!btn) return;
+    btn.disabled = true;
+    const say = (text) => ($('[data-msg]', root) ?? {}).textContent = text;
+    try {
+      const { added } = await pull.followArtist(btn.dataset.followArtist, btn.dataset.role);
+      render();
+      say(`Following ${btn.dataset.followArtist}. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New ones will be added to your pull list automatically.'}`);
+    } catch (err) {
+      btn.disabled = false;
+      say(err.message);
+    }
+  });
+}
+
 /** Make the Follow buttons inside series cards work (call once per container). */
 export function enableSeriesFollow(root) {
   root.addEventListener('click', async (e) => {

@@ -1,15 +1,17 @@
 import { initPage, $, esc, fmtDate } from '../site.js';
-import { getItems, getPosts, getSearchablePages, getFaqs, searchSeries, getEvents } from '../data.js';
+import { getItems, getPosts, getSearchablePages, getFaqs, searchSeries, searchArtists, getEvents } from '../data.js';
 import { PAGE_BLOCKS } from '../page-defaults.js';
-import { renderGrid, itemCard, enableReservations, seriesCards, enableSeriesFollow } from '../components.js';
+import { renderGrid, itemCard, enableReservations, seriesCards, enableSeriesFollow, artistRows, enableArtistFollow } from '../components.js';
 
 // The searches don't need the page chrome, so they start now, alongside it.
 const q = (new URLSearchParams(location.search).get('q') ?? '').trim();
 const PAGE = 48;
 const firstItems = q ? getItems({ q, order: 'title', limit: PAGE, offset: 0, withCount: true }) : null;
 const firstSeries = q ? searchSeries(q) : null;
+const firstArtists = q ? searchArtists(q) : null;
 firstItems?.catch(() => {}); // reported where it's used; this keeps an early failure from logging twice
 firstSeries?.catch(() => {});
+firstArtists?.catch(() => {});
 
 await initPage();
 
@@ -87,12 +89,23 @@ if (!q) {
     else $('#series').hidden = true;
     enableSeriesFollow($('#series-list'));
   });
+  // Artists and writers to follow (cover artists named only in variant text included), a short list under the series.
+  const artistsDone = quiet(firstArtists).then((artists) => {
+    const rows = artists.slice(0, 6);
+    if (!rows.length) return;
+    const box = $('#artists-list');
+    const render = () => (box.innerHTML = artistRows(rows));
+    render();
+    $('#artists').hidden = false;
+    enableArtistFollow(box, render);
+  });
   const [posts, pages, faqs, events] = await Promise.all([
     quiet(getPosts()),
     quiet(getSearchablePages()),
     quiet(getFaqs()),
     quiet(getEvents({ from: new Date().toISOString() })),
     seriesDone,
+    artistsDone,
     load(false),
   ]);
 
