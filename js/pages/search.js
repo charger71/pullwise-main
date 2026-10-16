@@ -1,12 +1,14 @@
-import { initPage, $, esc, fmtDate } from '../site.js';
-import { getItems, getPosts, getSearchablePages, getFaqs, searchSeries, searchArtists, getEvents } from '../data.js';
+import { initPage, $, esc, fmtDate, openFocFrom } from '../site.js';
+import { getItems, getPosts, getSearchablePages, getFaqs, searchSeries, searchArtists, getEvents, getSettings } from '../data.js';
 import { PAGE_BLOCKS } from '../page-defaults.js';
 import { renderGrid, itemCard, enableReservations, seriesCards, enableSeriesFollow, artistRows, enableArtistFollow } from '../components.js';
 
 // The searches don't need the page chrome, so they start now, alongside it.
+// Titles that can still go on a pull list come first, then everything else.
 const q = (new URLSearchParams(location.search).get('q') ?? '').trim();
 const PAGE = 48;
-const firstItems = q ? getItems({ q, order: 'title', limit: PAGE, offset: 0, withCount: true }) : null;
+// (The cutoff date follows the shop's timezone, which initPage hasn't set yet, so it comes from the settings here.)
+const firstItems = q ? getSettings().then((s) => getItems({ q, openFirst: openFocFrom(s.timezone), limit: PAGE, offset: 0, withCount: true })) : null;
 const firstSeries = q ? searchSeries(q) : null;
 const firstArtists = q ? searchArtists(q) : null;
 firstItems?.catch(() => {}); // reported where it's used; this keeps an early failure from logging twice
@@ -54,7 +56,7 @@ if (!q) {
   const load = async (append) => {
     more.disabled = true;
     try {
-      const { rows, count: n } = await (append ? getItems({ q, order: 'title', limit: PAGE, offset: items.length, withCount: true }) : firstItems);
+      const { rows, count: n } = await (append ? getItems({ q, openFirst: openFocFrom(), limit: PAGE, offset: items.length, withCount: true }) : firstItems);
       total = n;
       if (append) {
         const first = items.length;
