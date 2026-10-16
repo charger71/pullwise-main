@@ -1,6 +1,7 @@
 import { initPage, $, esc, fmtDate, openFocFrom } from '../site.js';
 import { getItems, getPosts, getSearchablePages, getFaqs, searchSeries, searchArtists, getEvents, getSettings } from '../data.js';
 import { PAGE_BLOCKS } from '../page-defaults.js';
+import { squash, searchWords } from '../util.js';
 import { renderGrid, itemCard, enableReservations, seriesCards, enableSeriesFollow, artistRows, enableArtistFollow } from '../components.js';
 
 // The searches don't need the page chrome, so they start now, alongside it.
@@ -22,6 +23,12 @@ const PAGE_LINKS = {
   'pre-orders': ['Pre-Orders', 'pre-orders.html'], 'new-arrivals': ['New Arrivals', 'new-arrivals.html'], calendar: ['Calendar', 'calendar.html'],
   news: ['News', 'blog.html'], about: ['About', 'about.html'], visit: ['Visit Us', 'contact.html'], 'we-buy-comics': ['We Buy Comics', 'we-buy-comics.html'], 'gift-cards': ['Gift Cards', 'gift-cards.html'],
   faq: ['FAQ', 'faq.html'], privacy: ['Privacy', 'privacy.html'], terms: ['Terms', 'terms.html'],
+};
+// Pages, FAQ, events and news match like the titles: every word, in any order, case/accents/punctuation ignored.
+const words = searchWords(q);
+const matches = (text) => {
+  const s = squash(text);
+  return words.length > 0 && words.every((w) => s.includes(w));
 };
 const plain = (html) => new DOMParser().parseFromString(html ?? '', 'text/html').body.textContent.replace(/\s+/g, ' ').trim();
 /** A short piece of `text` around the first match, with the match highlighted. */
@@ -79,7 +86,7 @@ if (!q) {
     }
   };
   more.addEventListener('click', () => load(true));
-  needle = q.toLowerCase();
+  needle = words[0] ?? ''; // the snippet highlights the first word
   const quiet = (p) => p.catch((err) => (console.error(err), []));
   // Each part fills in as its own answer arrives. The series row starts as a skeleton (see site.css) so the
   // titles below it don't jump when it fills.
@@ -117,15 +124,15 @@ if (!q) {
   for (const p of pages) {
     const text = plain(`${p.lede_html ?? ''} ${p.body_html ?? ''}`);
     const named = p.custom ? p.title : (PAGE_LINKS[p.slug]?.[0] ?? (p.slug.startsWith('home') ? 'Home' : labels[p.slug]));
-    if (!`${named} ${text}`.toLowerCase().includes(needle)) continue;
+    if (!matches(`${named} ${text}`)) continue;
     const href = p.custom ? `page.html?slug=${encodeURIComponent(p.slug)}` : (PAGE_LINKS[p.slug]?.[1] ?? 'index.html');
     if (!found.has(href)) found.set(href, { title: named, href, text });
   }
   hitList('pages', [...found.values()]);
-  hitList('faq', faqs.filter((f) => `${f.question} ${plain(f.answer_html)}`.toLowerCase().includes(needle)).map((f) => ({ title: f.question, href: 'faq.html', text: plain(f.answer_html) })));
-  hitList('events', events.filter((e) => `${e.title} ${e.location ?? ''} ${plain(e.description_html ?? e.description)}`.toLowerCase().includes(needle)).map((e) => ({ title: `${e.title} · ${fmtDate(e.starts_at, { month: 'short', day: 'numeric' })}`, href: `event.html?id=${e.id}`, text: plain(e.description_html ?? e.description) })));
+  hitList('faq', faqs.filter((f) => matches(`${f.question} ${plain(f.answer_html)}`)).map((f) => ({ title: f.question, href: 'faq.html', text: plain(f.answer_html) })));
+  hitList('events', events.filter((e) => matches(`${e.title} ${e.location ?? ''} ${plain(e.description_html ?? e.description)}`)).map((e) => ({ title: `${e.title} · ${fmtDate(e.starts_at, { month: 'short', day: 'numeric' })}`, href: `event.html?id=${e.id}`, text: plain(e.description_html ?? e.description) })));
 
-  const hits = posts.filter((p) => `${p.title} ${p.excerpt ?? ''}`.toLowerCase().includes(needle));
+  const hits = posts.filter((p) => matches(`${p.title} ${p.excerpt ?? ''}`));
   if (hits.length) {
     $('#news').hidden = false;
     $('#news-list').innerHTML = hits

@@ -3,7 +3,7 @@
 import { supabase } from '../js/data.js';
 import { esc, must, formatPhone } from '../js/util.js';
 import { friendlyError, fromError } from '../js/errors.js';
-import { searchTerm, customerFilter, emailMatch, digitsMatch, anyOf } from './filters.js';
+import { searchTerm, customerFilter, titleFilter, emailMatch, digitsMatch, anyOf } from './filters.js';
 import { ITEM_STATUS } from '../js/labels.js';
 import { fmtDate as siteFmtDate } from '../js/site.js';
 
@@ -15,7 +15,7 @@ export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 export const db = () => supabase();
 
-export { searchTerm, customerFilter, emailMatch, digitsMatch, anyOf };
+export { searchTerm, customerFilter, titleFilter, emailMatch, digitsMatch, anyOf };
 
 /** Text input for a column of the settings row `s`: `<input name=…>` with label and optional hint. */
 export const settingsField = (s) => (name, label, attrs = '', hint = '') =>

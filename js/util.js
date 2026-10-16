@@ -9,6 +9,9 @@ export const esc = (v) =>
 /** Lower-case with accents removed: "Pokémon" → "pokemon". */
 const plainText = (v) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 's').toLowerCase();
 
+/** A person's name as a key: "José García-López" → "jose garcia lopez". Matches the database's person_key(). */
+export const nameKey = (v) => plainText(v).replace(/[^a-z0-9]+/g, ' ').trim();
+
 /** Letters and digits only, so "Spider-Man", "spider man" and "SPIDERMAN" all become "spiderman". Matches the database's _squash(). */
 export const squash = (v) => plainText(v).replace(/[^a-z0-9]/g, '');
 

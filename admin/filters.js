@@ -2,6 +2,8 @@
 // record goes into a filter string like "email.ilike.x,phone_digits.eq.y", so a comma, bracket or quote in it
 // could change what the filter means. Everything here makes values safe, or leaves the clause out.
 
+import { searchWords } from '../js/util.js';
+
 /** A search box's text made safe to put inside a filter. */
 export const searchTerm = (q) => String(q ?? '').trim().replace(/[%_,()"\\]/g, ' ').trim();
 
@@ -32,3 +34,18 @@ export const digitsMatch = (column, digits) => (/^\d+$/.test(String(digits ?? ''
 
 /** Join clauses into one `.or()` string, dropping the empty ones. Returns '' when nothing is left. */
 export const anyOf = (...clauses) => clauses.flat().filter(Boolean).join(',');
+
+/**
+ * Filter for a title search, matched like the site search: every word of the search (case, accents and punctuation
+ * ignored, any order) in the title, cover, creators or issue number, so "spiderman 7" finds SPIDER-MAN #7.
+ * `codes` also matches the search as typed against SKU, UPC and ISBN.
+ */
+export function titleFilter(q, { codes = false } = {}) {
+  const words = searchWords(q);
+  const text = searchTerm(q);
+  const byWords = words.map((w) => `search_norm.like.%${w}%`); // letters and digits only, nothing to escape
+  const clauses = [];
+  if (byWords.length) clauses.push(byWords.length === 1 ? byWords[0] : `and(${byWords.join(',')})`);
+  if (codes && text) clauses.push(...['sku', 'upc', 'isbn'].map((c) => `${c}.ilike.%${text}%`));
+  return clauses.join(',');
+}

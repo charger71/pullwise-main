@@ -4,6 +4,7 @@
 // pull_list_* database functions, which enforce cutoffs and copy limits.
 
 import { DEMO, supabase } from './data.js';
+import { nameKey } from './util.js';
 
 const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
 let customer = null; // the customers row, once signed in
@@ -29,7 +30,7 @@ export const getSubscriptions = () => subs;
 export const findSubscription = (kind, key, role = null) => subs.find((s) => s.kind === kind && s.key === key && (s.role ?? null) === role);
 
 /** Same normalising as person_key() in the database. */
-export const personKey = (name) => String(name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+export const personKey = nameKey;
 
 export const onChange = (fn) => listeners.add(fn);
 const notify = () => listeners.forEach((fn) => fn());

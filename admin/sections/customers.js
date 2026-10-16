@@ -4,7 +4,7 @@
 // adding titles goes through staff_pull_list_add(), which can also add past the cutoff.
 // Every change is recorded in pull_list_log and shown under "Recent changes".
 
-import { $, $$, esc, must, toast, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm } from '../lib.js';
+import { $, $$, esc, must, toast, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm } from '../lib.js';
 import { cutoffPassed } from '../../js/site.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { whenIn, todayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
@@ -616,13 +616,14 @@ async function findUnlinked(c) {
 
 async function searchTitles(el, c, text) {
   const box = $('[data-results]', el);
-  const q = text.trim().replace(/[%_,()"\\]/g, ' ').trim();
-  if (q.length < 2) return void (box.innerHTML = '');
+  const match = titleFilter(text);
+  if (text.trim().length < 2 || !match) return void (box.innerHTML = '');
+  // Same matching as the site search ("spiderman 7" finds SPIDER-MAN #7).
   const { data, error } = await sb
     .from('items')
     .select(ITEM_FIELDS)
     .eq('status', 'pre_order').eq('hidden', false)
-    .or(`title.ilike.%${q}%,variant.ilike.%${q}%,creators.ilike.%${q}%`)
+    .or(match)
     .order('title').order('issue_number').order('variant')
     .limit(30);
   if (error) return void (box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
