@@ -334,6 +334,7 @@ input[type='checkbox'], input[type='radio'] {
   color: var(--on-primary);
 }
 .nav a[aria-current='page'] .nav-badge { background: var(--gold); color: var(--paper); }
+.nav-badge--new, .nav a[aria-current='page'] .nav-badge--new { background: var(--gold); color: var(--paper); font-weight: 700; }
 /* Eight menu links plus the logo need ~1000px; below 1100px the menu stays behind the button. */
 @media (min-width: 1100px) {
   .nav-toggle { display: none; }
@@ -890,6 +891,10 @@ details > div { padding: 0 16px 14px; }
 .account-line__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .account-line__info .card__variant { margin: 0; }
 .account-line__qty { flex: none; font-size: .9rem; }
+/* Titles a follow added since the last visit */
+.new-badge { align-self: flex-start; display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--gold); color: var(--paper); font-size: .75rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+.account-line--new { box-shadow: inset 4px 0 0 var(--gold); padding-left: 12px; background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.account-new .new-badge { margin-right: 6px; vertical-align: 1px; }
 .account-summary { background: var(--raised); border-radius: var(--radius); padding: 14px 16px; margin: 0 0 8px; }
 .account-summary p { margin: 0 0 8px; }
 .account-summary__totals { margin: 0 0 6px; }

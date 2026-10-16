@@ -358,17 +358,24 @@ function announce(msg) {
 // ---------------------------------------------------------------------------
 
 /** Count badge on the "My Pull List" nav link (signed in only; 0 removes it). */
-function renderNavBadge(n) {
+/** Pull-list count on the "My Pull List" nav link, plus a gold "N new" when follows have added titles since the last visit. */
+function renderNavBadge(n, fresh = 0) {
   const link = $('.nav a[href="account.html"]');
   if (!link) return;
-  let badgeEl = $('.nav-badge', link);
-  if (!n) return badgeEl?.remove(), link.removeAttribute('aria-label');
+  let badgeEl = $('.nav-badge:not(.nav-badge--new)', link);
+  let newEl = $('.nav-badge--new', link);
+  if (!n) return badgeEl?.remove(), newEl?.remove(), link.removeAttribute('aria-label');
   if (!badgeEl) {
     badgeEl = Object.assign(document.createElement('span'), { className: 'nav-badge' });
     link.append(' ', badgeEl);
   }
   badgeEl.textContent = n;
-  link.setAttribute('aria-label', `My Pull List, ${n} ${n === 1 ? 'title' : 'titles'}`);
+  if (fresh) {
+    newEl ??= Object.assign(document.createElement('span'), { className: 'nav-badge nav-badge--new' });
+    if (!newEl.isConnected) badgeEl.after(' ', newEl);
+    newEl.textContent = `${fresh} new`;
+  } else newEl?.remove();
+  link.setAttribute('aria-label', `My Pull List, ${n} ${n === 1 ? 'title' : 'titles'}${fresh ? `, ${fresh} new from what you follow` : ''}`);
 }
 
 export function initReservationBar() {
@@ -388,7 +395,7 @@ export function initReservationBar() {
     const copies = signedIn ? n : list.getLines().reduce((sum, l) => sum + l.quantity, 0);
     // Signed in, the pull list lives on the account page and the nav link carries the count, so the bar is guests only.
     bar.hidden = n === 0 || signedIn;
-    renderNavBadge(signedIn ? n : 0);
+    renderNavBadge(signedIn ? n : 0, signedIn ? pull.newCount() : 0);
     document.body.classList.toggle('has-list-bar', !bar.hidden);
     button.textContent = 'Review my pull list';
     $('.list-bar__text', bar).innerHTML = `<strong>Your Pull List</strong> · ${n} ${n === 1 ? 'title' : 'titles'}${copies > n ? `, ${copies} copies` : ''}`;

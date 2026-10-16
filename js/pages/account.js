@@ -215,8 +215,10 @@ async function signedIn(sb, user) {
     else saved.textContent = 'Saved.';
   });
 
-  loadOrders(sb, customer.id);
-  setupFollowing(sb, customer.id);
+  // When they last looked, so titles their follows added since then are badged "New" (and the nav count resets).
+  const seenBefore = await pull.markSeen().catch(() => null);
+  loadOrders(sb, customer.id, seenBefore);
+  setupFollowing(sb, customer.id, seenBefore);
 }
 
 /** First sign-in: collect the details orders need (first name, last name, phone) before showing the account. */
@@ -264,14 +266,14 @@ const SOURCE_NOTE = { variant: 'Added with all covers', series: 'You follow this
 // Open lines can be changed until the order cutoff (the Saturday before FOC); after that, call the shop.
 const canEdit = (r) => r.status === 'open' && !cutoffPassed(r.item);
 
-async function loadOrders(sb, customerId) {
+async function loadOrders(sb, customerId, seenBefore = null) {
   const el = $('[data-orders]', root);
   const settings = await getSettings();
   // `!inner` + the customer filter keeps this to the customer's own lines even for staff, whose
   // row-level security would otherwise let them read everyone's.
   const { data, error } = await sb
     .from('reservations')
-    .select('id,quantity,status,source,arrived_on,updated_at,updated_via,item:items(id,title,issue_number,variant,publisher,price,series_key,release_date,foc_date,cover_url,cover_thumb_url),order:reservation_orders!inner(customer_id)')
+    .select('id,quantity,status,source,arrived_on,created_at,updated_at,updated_via,item:items(id,title,issue_number,variant,publisher,price,series_key,release_date,foc_date,cover_url,cover_thumb_url),order:reservation_orders!inner(customer_id)')
     .eq('order.customer_id', customerId)
     .neq('status', 'cancelled')
     .order('created_at', { ascending: false })
@@ -317,13 +319,22 @@ async function loadOrders(sb, customerId) {
       </div>`
     : '';
 
+  // Titles a follow added since the last visit (the hourly sweep, or just now on follow).
+  const isNew = (r) => pull.isNewAuto(r, seenBefore);
+  const fresh = active.filter(isNew);
+  const freshNote = fresh.length
+    ? `<p class="notice account-new"><span class="new-badge">New</span> ${fresh.length} ${fresh.length === 1 ? 'title was' : 'titles were'} added from what you follow${seenBefore ? ' since your last visit' : ''}. Remove any you don’t want.</p>`
+    : '';
+
   const row = (r) => {
     const editable = canEdit(r);
     const note = SOURCE_NOTE[r.source];
+    const added = isNew(r);
     return `
-      <li class="account-line">
+      <li class="account-line${added ? ' account-line--new' : ''}">
         ${cover(r.item)}
         <div class="account-line__info">
+          ${added ? '<span class="new-badge" title="Added automatically from something you follow">New · added for you</span>' : ''}
           <strong>${esc(itemTitle(r.item))}</strong>
           ${r.item.variant ? `<span class="card__variant">${esc(r.item.variant)}</span>` : ''}
           <span class="card__meta">${esc([r.item.publisher, price(r.item.price), note].filter(Boolean).join(' · '))}</span>
@@ -345,6 +356,7 @@ async function loadOrders(sb, customerId) {
     ${last ? `<p class="card__meta account-lastupdate">Last updated ${esc(whenLabel(last.updated_at, settings.timezone))} ${esc(BY[last.updated_via] ?? '')}</p>` : ''}
     ${waiting.length ? `<p class="notice account-move">You have ${waiting.length} ${waiting.length === 1 ? 'title' : 'titles'} on a guest pull list on this device. <button class="btn btn--primary" type="button" data-move>Add ${waiting.length === 1 ? 'it' : 'them'} to my pull list</button></p>` : ''}
     <p class="form-error" role="alert" data-error></p>
+    ${freshNote}
     ${summary}
     ${section('Ready for pickup', ready)}
     ${[...groups].map(([date, rows]) => section(date ? `Out ${fmtDate(date, { weekday: 'short', month: 'short', day: 'numeric' })}` : 'Release date to be announced', rows)).join('')}
@@ -353,7 +365,7 @@ async function loadOrders(sb, customerId) {
     ${past.length ? `<details class="account-past"><summary>Past (${past.length})</summary>${section('', past)}</details>` : ''}`;
 
   const showError = (err) => ($('[data-error]', el).textContent = err.message);
-  const reload = () => loadOrders(sb, customerId);
+  const reload = () => loadOrders(sb, customerId, seenBefore);
   el.onchange = async (e) => {
     const input = e.target.closest('[data-qty]');
     if (!input) return;
@@ -401,7 +413,7 @@ async function moveGuestList(el) {
 
 const ROLE_LABEL = { cover: 'Cover artist', creator: 'Writer / artist' };
 
-function setupFollowing(sb, customerId) {
+function setupFollowing(sb, customerId, seenBefore) {
   const list = $('[data-follows]', root);
   const results = $('[data-follow-results]', root);
   const form = $('[data-follow-search]', root);
@@ -489,7 +501,7 @@ function setupFollowing(sb, customerId) {
       const { added } = btn.dataset.fs ? await pull.followSeries(btn.dataset.fs) : await pull.followArtist(btn.dataset.fa, btn.dataset.role);
       btn.textContent = 'Following ✓';
       note(`Following. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added automatically.'}`);
-      loadOrders(sb, customerId);
+      loadOrders(sb, customerId, seenBefore);
     } catch (err) {
       btn.disabled = false;
       note(err.message, true);
