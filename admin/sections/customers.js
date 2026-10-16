@@ -525,6 +525,9 @@ async function loadOrders(el, c) {
 
 const ACTIVE_STATUSES = ['open', 'ordered', 'reordered', 'arrived'];
 
+/** Open titles a series/artist follow added in the last week (the hourly sweep, or when the follow was made). */
+const autoAddedRecently = (l) => ['series', 'artist'].includes(l.source) && l.status === 'open' && Date.now() - new Date(l.created_at) < 7 * 864e5;
+
 /** "1 ready for pickup · 3 open · 1 ordered · 2 past": the state of the list at a glance. */
 function summaryChips(lines) {
   const n = (fn) => lines.filter(fn).length;
@@ -537,6 +540,7 @@ function summaryChips(lines) {
     chip(n((l) => l.status === 'reordered'), 'reordered', 'reordered'),
     chip(n((l) => l.status === 'not_ordered'), 'not ordered', 'not_ordered'),
     chip(n((l) => !ACTIVE_STATUSES.includes(l.status) && l.status !== 'not_ordered'), 'past', 'released'),
+    chip(n(autoAddedRecently), 'new from follows this week', 'new'),
   ].join(' ');
   return `<p class="cust-chips">${chips}${copies ? ` <span class="card__meta">${copies} ${copies === 1 ? 'copy' : 'copies'} active</span>` : ''}</p>`;
 }
@@ -558,8 +562,8 @@ function lineRow(l, c, staffNames, alt = false) {
   const closed = cutoffPassed(l.item) && l.status === 'open';
   const tip = `Last updated ${whenLabel(l.updated_at)}${l.updated_via ? ` by ${whoLabel(l, c, staffNames)}` : ''}`;
   const rowClass = [l.status === 'cancelled' && 'is-hidden', alt && 'is-alt'].filter(Boolean).join(' ');
-  return `<tr${rowClass ? ` class="${rowClass}"` : ''} title="${esc(tip)}">
-    <td class="cl-title">${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}${l.updated_via && l.updated_via !== 'customer' ? `<br><span class="cust-updated">Updated ${esc(whenLabel(l.updated_at))} by ${esc(whoLabel(l, c, staffNames))}</span>` : ''}${closed ? '<br><span class="cust-warn">Order cutoff has passed — the order may already be in</span>' : ''}</td>
+  return `<tr${rowClass ? ` class="${rowClass}"` : ''}${autoAddedRecently(l) ? ' data-auto-new' : ''} title="${esc(tip)}">
+    <td class="cl-title">${autoAddedRecently(l) ? `<span class="dash-pill dash-pill--new" title="Added automatically by a follow on ${esc(whenLabel(l.created_at))}">New</span> ` : ''}${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}${l.updated_via && l.updated_via !== 'customer' ? `<br><span class="cust-updated">Updated ${esc(whenLabel(l.updated_at))} by ${esc(whoLabel(l, c, staffNames))}</span>` : ''}${closed ? '<br><span class="cust-warn">Order cutoff has passed — the order may already be in</span>' : ''}</td>
     <td class="nowrap cl-out">${fmtDate(l.item?.release_date, { month: 'short', day: 'numeric' })}</td>
     <td class="cl-qty"><label class="visually-hidden" for="cq-${l.id}">Copies of ${esc(l.item?.title ?? '')}</label>
       <input id="cq-${l.id}" class="cust-qty" type="number" inputmode="numeric" min="1" max="100" value="${l.quantity}" data-qty="${l.id}"></td>

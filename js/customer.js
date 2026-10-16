@@ -7,7 +7,9 @@ import { DEMO, supabase } from './data.js';
 
 const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
 let customer = null; // the customers row, once signed in
-let lines = new Map(); // item_id → { id, quantity, status } for active lines
+let lines = new Map(); // item_id → { id, quantity, status, source, created_at } for active lines
+let seenAt = null; // when the customer last opened My Pull List (null: not since the "new" highlight shipped)
+let viewing = false; // on My Pull List itself, where new titles are badged in the list instead
 let subs = []; // follows: { id, kind: 'series' | 'artist', key, label, role, quantity }
 const listeners = new Set();
 
@@ -15,6 +17,14 @@ export const isSignedIn = () => customer != null;
 export const has = (itemId) => lines.has(itemId);
 export const lineFor = (itemId) => lines.get(itemId);
 export const count = () => lines.size;
+
+/** Titles a follow added (by the hourly sweep or on follow) count as new after `since`; with no visit on record, the last 7 days. */
+const AUTO = ['series', 'artist'];
+const NEW_DAYS = 7;
+export const isNewAuto = (line, since = seenAt) =>
+  AUTO.includes(line.source) && line.status === 'open' &&
+  new Date(line.created_at) > (since ? new Date(since) : new Date(Date.now() - NEW_DAYS * 864e5));
+export const newCount = () => (viewing ? 0 : [...lines.values()].filter((l) => isNewAuto(l)).length);
 export const getSubscriptions = () => subs;
 export const findSubscription = (kind, key, role = null) => subs.find((s) => s.kind === kind && s.key === key && (s.role ?? null) === role);
 
@@ -53,11 +63,13 @@ export async function refresh(sb) {
   sb ??= await supabase();
   const { data, error } = await sb
     .from('reservations')
-    .select('id,item_id,quantity,status,order:reservation_orders!inner(customer_id)')
+    .select('id,item_id,quantity,status,source,created_at,order:reservation_orders!inner(customer_id)')
     .eq('order.customer_id', customer.id)
     .in('status', ACTIVE);
   if (error) throw error;
-  lines = new Map(data.map((r) => [r.item_id, { id: r.id, quantity: r.quantity, status: r.status }]));
+  lines = new Map(data.map((r) => [r.item_id, { id: r.id, quantity: r.quantity, status: r.status, source: r.source, created_at: r.created_at }]));
+  const { data: seen } = await sb.from('pull_list_seen').select('seen_at').eq('customer_id', customer.id).maybeSingle();
+  seenAt = seen?.seen_at ?? null;
   const { data: follows, error: followError } = await sb.from('subscriptions').select('id,kind,key,label,role,quantity').eq('customer_id', customer.id).order('label');
   if (followError) throw followError;
   subs = follows;
@@ -68,6 +80,31 @@ export async function refresh(sb) {
     subs = follows.map((f) => (f.kind === 'series' ? { ...f, cover: byKey.get(f.key) ?? null } : f));
   }
   notify();
+}
+
+/**
+ * The customer is looking at My Pull List: records the visit (so the nav's "new" count starts over) and
+ * resolves when they last looked before this browser session, so the page can badge what's new. Reloads in
+ * the same session keep the badges (the first answer is kept in sessionStorage).
+ */
+export async function markSeen() {
+  const sb = await supabase();
+  const key = `pull-seen:${customer.id}`;
+  let kept;
+  try {
+    kept = sessionStorage.getItem(key);
+  } catch {}
+  const { data, error } = await sb.rpc('pull_list_mark_seen');
+  if (error) fail(error);
+  if (kept == null) {
+    kept = data ?? '';
+    try {
+      sessionStorage.setItem(key, kept);
+    } catch {}
+  }
+  viewing = true;
+  notify();
+  return kept || null;
 }
 
 export async function add(itemId, quantity = 1) {
