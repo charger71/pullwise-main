@@ -83,7 +83,13 @@ export function getTopReserved() {
   return topPromise;
 }
 
+/**
+ * f.openFirst (an ISO date, the first FOC still open, from openFocFrom()): titles that can still go on a pull list
+ * (pre-order, order cutoff not passed) come first, then everything else, each part in the usual order. Paging
+ * (offset/limit) runs across both parts as one list.
+ */
 async function fetchItems(f) {
+  if (f.openFirst && !DEMO) return fetchOpenFirst(f);
   if (DEMO) {
     const { items, categories } = await demo();
     const words = searchWords(f.q);
@@ -105,6 +111,10 @@ async function fetchItems(f) {
         words.every((w) => text(i).includes(w)),
     );
     rows = [...rows].sort(sorter(f.order));
+    if (f.openFirst) {
+      const open = (i) => i.status === 'pre_order' && (!i.foc_date || i.foc_date >= f.openFirst);
+      rows = [...rows.filter(open), ...rows.filter((i) => !open(i))];
+    }
     const count = rows.length;
     const start = f.offset ?? 0;
     rows = f.limit ? rows.slice(start, start + f.limit) : rows.slice(start);
@@ -118,7 +128,10 @@ async function fetchItems(f) {
   // Row-level security already hides these from customers, but staff signed in
   // to the admin share this session — keep the public pages showing what customers see.
   const columns = f.categorySlug ? '*, cat:categories!inner(slug)' : '*';
-  let query = sb.from('items').select(columns, f.withCount ? { count: 'exact' } : undefined).eq('hidden', false);
+  let query = sb
+    .from('items')
+    .select(columns, f.countOnly ? { count: 'exact', head: true } : f.withCount ? { count: 'exact' } : undefined)
+    .eq('hidden', false);
   if (f.categorySlug) query = query.eq('cat.slug', f.categorySlug);
   if (f.statuses) query = query.in('status', f.statuses);
   if (f.excludeStatuses) query = query.not('status', 'in', `(${f.excludeStatuses.join(',')})`);
@@ -127,6 +140,8 @@ async function fetchItems(f) {
   if (f.publishers?.length) query = query.in('publisher', f.publishers);
   if (f.focFrom) query = query.or(`foc_date.is.null,foc_date.gte.${f.focFrom}`);
   if (f.focBefore) query = query.lte('foc_date', f.focBefore);
+  // Everything that can't go on a pull list any more: not a pre-order, or its order cutoff has passed.
+  if (f.closedBefore) query = query.or(`status.neq.pre_order,foc_date.lt.${f.closedBefore}`);
   if (f.badges?.length) query = query.overlaps('badges', f.badges);
   if (f.featured) query = query.eq('featured', true);
   if (f.staffPick) query = query.eq('staff_pick', true);
@@ -140,7 +155,29 @@ async function fetchItems(f) {
   if (f.limit) query = query.range(f.offset ?? 0, (f.offset ?? 0) + f.limit - 1);
   const { data, error, count } = await query;
   if (error) throw error;
+  if (f.countOnly) return count;
   return f.withCount ? { rows: data, count } : data;
+}
+
+/** fetchItems with f.openFirst: the open part, then the rest, paged as one list. */
+async function fetchOpenFirst({ openFirst, ...f }) {
+  const open = { ...f, statuses: ['pre_order'], focFrom: openFirst };
+  const rest = { ...f, closedBefore: openFirst };
+  const start = f.offset ?? 0;
+  const openCount = await fetchItems({ ...open, countOnly: true });
+  const rows = [];
+  if (start < openCount) {
+    rows.push(...(await fetchItems({ ...open, withCount: false, offset: start, limit: f.limit ? Math.min(f.limit, openCount - start) : undefined })));
+  }
+  const left = f.limit ? f.limit - rows.length : undefined;
+  let restCount;
+  if (left === 0) restCount = await fetchItems({ ...rest, countOnly: true });
+  else {
+    const page = await fetchItems({ ...rest, withCount: true, offset: Math.max(0, start - openCount), limit: left });
+    rows.push(...page.rows);
+    restCount = page.count;
+  }
+  return f.withCount ? { rows, count: openCount + restCount } : rows;
 }
 
 function sorter(order) {

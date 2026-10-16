@@ -76,9 +76,10 @@ let shopTimeZone;
 /** Today's date in the shop's timezone, as YYYY-MM-DD. */
 export const shopToday = () => todayIn(shopTimeZone);
 
-/** Earliest FOC date still open for reservations today (shop time): the day after this Saturday. */
-export const openFocFrom = () => {
-  const today = shopToday();
+/** Earliest FOC date still open for reservations today (shop time): the day after this Saturday. Pass the
+ *  shop's timezone when calling before initPage has set it. */
+export const openFocFrom = (timeZone = shopTimeZone) => {
+  const today = todayIn(timeZone);
   return addDays(today, 7 - localDate(today).getDay());
 };
 
