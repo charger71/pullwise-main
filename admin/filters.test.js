@@ -1,6 +1,6 @@
 // Run: node admin/filters.test.js
 import assert from 'node:assert/strict';
-import { searchTerm, customerFilter, emailMatch, digitsMatch, anyOf } from './filters.js';
+import { searchTerm, customerFilter, titleFilter, emailMatch, digitsMatch, anyOf } from './filters.js';
 
 // Search text: characters that could change the filter become spaces.
 assert.equal(searchTerm('  Jane,(Smith)  '), 'Jane  Smith');
@@ -29,3 +29,11 @@ assert.equal(anyOf('', null, undefined), '');
 assert.equal(anyOf(['a.eq.1', 'b.eq.2'], 'c.eq.3'), 'a.eq.1,b.eq.2,c.eq.3');
 
 console.log('filter tests passed');
+
+// Title search: every word in search_norm (like the site search), codes as typed.
+assert.equal(titleFilter(''), '');
+assert.equal(titleFilter('Spider-Man'), 'and(search_norm.like.%spider%,search_norm.like.%man%)');
+assert.equal(titleFilter('spiderman'), 'search_norm.like.%spiderman%');
+assert.equal(titleFilter('Pokémon 7'), 'and(search_norm.like.%pokemon%,search_norm.like.%7%)');
+assert.equal(titleFilter('75960620', { codes: true }), 'search_norm.like.%75960620%,sku.ilike.%75960620%,upc.ilike.%75960620%,isbn.ilike.%75960620%');
+assert.ok(!titleFilter('x,evil.eq.1', { codes: true }).includes(',evil'), 'a comma in the search cannot add a clause');

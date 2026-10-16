@@ -1,7 +1,7 @@
 // Titles: every item (pre-orders and in-store stock). Search and filter, quick
 // changes in the list (status, staff pick, hidden), and a full edit form.
 
-import { $, $$, esc, must, toast, openDialog, imageField, fmtDate, STATUS_LABELS, setStatus, sortableTable, searchTerm, solidIcon, friendlyError } from '../lib.js';
+import { $, $$, esc, must, toast, openDialog, imageField, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError } from '../lib.js';
 import { ITEM_BADGES } from '../../js/site.js';
 import { addDays, weekStart } from '../../js/dates.js';
 
@@ -230,8 +230,9 @@ async function load(el) {
   const tbody = $('tbody', el);
   tbody.setAttribute('aria-busy', 'true');
   let q = sb.from('items').select('id,title,issue_number,variant,publisher,upc,isbn,status,foc_date,release_date,staff_pick,featured,hidden,cover_url,sku,distributor,category_id', { count: 'exact' });
-  const text = searchTerm(state.q);
-  if (text) q = q.or(['title', 'variant', 'creators', 'sku', 'upc', 'isbn'].map((c) => `${c}.ilike.%${text}%`).join(','));
+  // Same matching as the site search ("spiderman 7" finds SPIDER-MAN #7), plus SKU, UPC and ISBN as typed.
+  const match = titleFilter(state.q, { codes: true });
+  if (match) q = q.or(match);
   if (state.status) q = q.eq('status', state.status);
   if (state.category === 'none') q = q.is('category_id', null);
   else if (state.category) q = q.eq('category_id', Number(state.category));
