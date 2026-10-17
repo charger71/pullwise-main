@@ -85,7 +85,7 @@
 .table-tools button:hover { background: var(--hover-bg); }
 .table-tools button.is-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
 .ql-snow .ql-toolbar button, .ql-snow.ql-toolbar button { width: 30px; }
-.ql-editor blockquote { border: 0 !important; padding: var(--sp-10) var(--sp-12) !important; font-weight: 700; background: var(--brand-accent); border-radius: var(--radius); }
+.ql-editor blockquote { border: 0 !important; padding: var(--sp-10) var(--sp-12) !important; font-weight: 700; background: var(--brand-accent); color: var(--on-accent); border-radius: var(--radius); }
 
 .admin-hint { font-size: .9rem; color: var(--muted); }
 .admin-hint code { background: var(--code-bg); padding: 1px 5px; border-radius: var(--radius-sm); font-size: .85rem; }
@@ -137,7 +137,7 @@
 .admin-nav__chev { flex: none; fill: currentColor; transition: transform .15s; }
 .admin-nav__heading[aria-expanded='false'] .admin-nav__chev { transform: rotate(-90deg); }
 .admin-nav a:hover { background: var(--hover-bg); color: var(--ink); }
-.admin-nav a[aria-current='page'] { background: var(--brand-accent); color: var(--ink); }
+.admin-nav a[aria-current='page'], .admin-nav a[aria-current='page']:hover { background: var(--brand-accent); color: var(--on-accent); }
 @media (min-width: 900px) {
   .admin-layout { grid-template-columns: 190px minmax(0, 1fr); align-items: start; }
   .admin-nav { position: sticky; top: 76px; } /* clears the 60px sticky header */
@@ -361,11 +361,11 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .dash-pill { display: inline-block; padding: var(--sp-2) var(--sp-8); border-radius: var(--radius-pill); font-size: .78rem; font-weight: 700; white-space: nowrap; background: var(--neutral-bg); }
 .dash-pill--open { background: var(--pill-open); }
 .dash-pill--ordered, .dash-pill--reordered { background: var(--pill-ordered); }
-.dash-pill--arrived { background: var(--brand-accent); }
+.dash-pill--arrived { background: var(--brand-accent); color: var(--on-accent); }
 .dash-pill--picked_up { background: var(--pill-done); }
 .dash-pill--not_ordered { background: var(--pill-warn); }
 .dash-pill--released, .dash-pill--cancelled { background: var(--pill-off); color: var(--pill-off-text); }
-.dash-pill--new { background: var(--brand-accent); color: #1a1a1a; text-transform: uppercase; letter-spacing: .02em; }
+.dash-pill--new { background: var(--brand-accent); color: var(--on-accent); text-transform: uppercase; letter-spacing: .02em; }
 
 /* Titles by status: one hue, magnitude only; the badge carries the status. */
 .dash-bars { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--sp-6); }
@@ -587,7 +587,7 @@ tr.is-clickable { cursor: pointer; }
 }
 /* ---------- Reservations: order badge, To order headings ---------- */
 .order__badge { display: inline-block; padding: 1px var(--sp-8); border-radius: var(--radius-pill); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: var(--neutral-bg); color: var(--ink); }
-.order__badge--pull { background: var(--brand-accent); }
+.order__badge--pull { background: var(--brand-accent); color: var(--on-accent); }
 .toorder h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-4) var(--sp-12); }
 .toorder__count { font-family: var(--font-body); font-size: .85rem; font-weight: 400; color: var(--muted); }
 
@@ -693,7 +693,7 @@ tr.is-clickable { cursor: pointer; }
 .staff-table .st-last svg { margin-right: var(--sp-2); }
 .role-badge { display: inline-flex; align-items: center; gap: 5px; padding: 1px 9px; border-radius: var(--radius-pill); font-size: .78rem; font-weight: 700; background: var(--neutral-bg); color: var(--ink); white-space: nowrap; }
 .role-badge--super { background: #161616; color: #f6d365; }
-.role-badge--owner { background: var(--brand-accent); }
+.role-badge--owner { background: var(--brand-accent); color: var(--on-accent); }
 .staff-cred { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-6) var(--sp-14); margin: var(--sp-14) 0; }
 .staff-cred dt { font-weight: 700; }
 .staff-cred dd { margin: 0; overflow-wrap: anywhere; }
