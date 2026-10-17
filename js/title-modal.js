@@ -3,7 +3,7 @@
 // to, and the browser's back button closes it.
 
 import { getItem, getVariants, getTopReserved } from './data.js';
-import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed } from './site.js';
+import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shopToday } from './site.js';
 import { enableReservations, seenItems, focLabel, reserveButton, variantsButton, followButton, creatorNames, collectorBadges, topBadge } from './components.js';
 
 let dialog;
@@ -39,7 +39,7 @@ function details(item) {
     <h2 id="tm-title" class="title-modal__title">${esc(itemTitle(item))}</h2>
     ${item.variant ? `<p class="card__variant">${esc(item.variant)}</p>` : ''}
     <p class="card__meta">${meta.map(esc).join(' · ')}</p>
-    ${when ? `<p class="title-modal__when"><strong>${item.release_date > new Date().toISOString().slice(0, 10) ? 'Out' : 'Released'}</strong> ${esc(when)}</p>` : ''}
+    ${when ? `<p class="title-modal__when"><strong>${item.release_date > shopToday() ? 'Out' : 'Released'}</strong> ${esc(when)}</p>` : ''}
     ${item.status === 'pre_order' ? focLabel(item) : ''}
     ${open ? `<div class="card__foot">${reserveButton(item)}${variantsButton(item)}</div>${followButton(item)}` : ''}
     ${item.status !== 'pre_order' ? '<p class="notice">In-store titles can’t be held or reserved: first to pay gets it. Want a guaranteed copy of something upcoming? <a href="pre-orders.html">Pre-order it</a>.</p>' : ''}

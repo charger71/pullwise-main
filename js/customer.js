@@ -5,7 +5,9 @@
 
 import { DEMO, supabase } from './data.js';
 import { nameKey } from './util.js';
+import { friendlyError } from './errors.js';
 
+// "Not ordered" lines are left out: they don't count toward the list, and adding the title again reopens the line.
 const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
 let customer = null; // the customers row, once signed in
 let lines = new Map(); // item_id → { id, quantity, status, source, created_at } for active lines
@@ -35,16 +37,78 @@ export const personKey = nameKey;
 export const onChange = (fn) => listeners.add(fn);
 const notify = () => listeners.forEach((fn) => fn());
 
-// Messages raised by the pull_list_* functions with errcode P0001 are written for customers.
+const GENERIC = 'Something went wrong. Please try again or call the shop.';
+export const SIGN_IN_AGAIN = 'Your sign-in has expired. Please sign in again.';
+
+/** An expired or missing sign-in: the token was refused, or the request went out signed out and was denied. */
+export const isAuthError = (error) =>
+  !!error &&
+  (error.status === 401 || error.code === 'PGRST301' || error.code === 'PGRST302' ||
+    /\bJWT\b|token is expired|not authenticated|Invalid Refresh Token|Auth session missing/i.test(error.message ?? '') ||
+    (error.code === '42501' && /permission denied|Please sign in/i.test(error.message ?? '')) ||
+    (error.code === 'P0001' && /^Please sign in\.$/.test(error.message ?? '')));
+
+/**
+ * A message a customer can act on, for any Supabase / PostgREST error. Messages raised by the pull_list_* functions
+ * with errcode P0001 are written for customers; database internals never are.
+ */
+export function customerMessage(error) {
+  if (!error) return GENERIC;
+  if (isAuthError(error)) return SIGN_IN_AGAIN;
+  if (error.code === 'P0001') return error.message;
+  // friendlyError() is written for the admin: keep only the answers that make sense to a customer.
+  const msg = friendlyError(error);
+  return /^(Couldn’t reach the server|Too many attempts|.* is too long|“.*” is required|A required field|One of the values isn’t in the right format)/.test(msg) ? msg : GENERIC;
+}
+
+/** An Error with the customer-safe message; `.signIn` is set when signing in again will fix it. */
+export function customerError(error) {
+  const e = new Error(customerMessage(error));
+  e.signIn = isAuthError(error);
+  e.raw = error;
+  return e;
+}
+
 const fail = (error) => {
-  throw new Error(error.code === 'P0001' ? error.message : 'Something went wrong. Please try again or call the shop.');
+  if (error.code !== 'P0001') console.error(error);
+  throw customerError(error);
 };
+
+/** The error as HTML for a message line, with a sign-in link when that's the fix. */
+export const errorHtml = (err) =>
+  `${String(err?.message ?? GENERIC).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)}${err?.signIn ? ' <a href="account.html">Sign in</a>' : ''}`;
+
+/** Forget the customer (signed out, or the session ended): every page falls back to the guest list. */
+function clear() {
+  customer = null;
+  lines = new Map();
+  subs = [];
+  seenAt = null;
+  viewing = false;
+  notify();
+}
+
+let watching = false;
+function watchAuth(sb) {
+  if (watching) return;
+  watching = true;
+  sb.auth.onAuthStateChange((event, session) => {
+    // A failed token refresh also ends in SIGNED_OUT.
+    if (event === 'SIGNED_OUT' || !session) {
+      if (customer) clear();
+    } else if ((event === 'SIGNED_IN' && !customer) || event === 'USER_UPDATED') {
+      // Signed in in another tab, or the login changed: load (again). Run outside the auth callback, which must not await Supabase calls.
+      setTimeout(() => load(sb).catch((err) => console.error('Pull list failed to load', err)));
+    }
+  });
+}
 
 /** Call once per page (initPage does). Resolves quietly when signed out. */
 export async function initCustomer() {
   if (DEMO) return;
   try {
     const sb = await supabase();
+    watchAuth(sb);
     const { data } = await sb.auth.getSession();
     if (!data.session) return;
     await load(sb);
@@ -60,19 +124,34 @@ async function load(sb) {
   await refresh(sb);
 }
 
+/**
+ * After a change that worked: reload the list, but never report the change as failed if only the reload fails.
+ * Tries again a moment later; until then the list keeps the change made locally (if any).
+ */
+async function softRefresh(sb) {
+  try {
+    await refresh(sb);
+  } catch (err) {
+    console.warn('Pull list refresh failed; retrying', err);
+    notify();
+    setTimeout(() => customer && refresh(sb).catch((e) => console.error('Pull list refresh failed', e)), 2000);
+  }
+}
+
 export async function refresh(sb) {
   sb ??= await supabase();
+  if (!customer) return;
   const { data, error } = await sb
     .from('reservations')
     .select('id,item_id,quantity,status,source,created_at,order:reservation_orders!inner(customer_id)')
     .eq('order.customer_id', customer.id)
     .in('status', ACTIVE);
-  if (error) throw error;
+  if (error) throw customerError(error);
   lines = new Map(data.map((r) => [r.item_id, { id: r.id, quantity: r.quantity, status: r.status, source: r.source, created_at: r.created_at }]));
   const { data: seen } = await sb.from('pull_list_seen').select('seen_at').eq('customer_id', customer.id).maybeSingle();
   seenAt = seen?.seen_at ?? null;
   const { data: follows, error: followError } = await sb.from('subscriptions').select('id,kind,key,label,role,quantity').eq('customer_id', customer.id).order('label');
-  if (followError) throw followError;
+  if (followError) throw customerError(followError);
   subs = follows;
   const seriesKeys = follows.filter((f) => f.kind === 'series').map((f) => f.key);
   if (seriesKeys.length) {
@@ -110,9 +189,10 @@ export async function markSeen() {
 
 export async function add(itemId, quantity = 1) {
   const sb = await supabase();
-  const { error } = await sb.rpc('pull_list_add', { p_item_id: itemId, p_quantity: quantity });
+  const { data: id, error } = await sb.rpc('pull_list_add', { p_item_id: itemId, p_quantity: quantity });
   if (error) fail(error);
-  await refresh(sb);
+  if (id) lines.set(itemId, { id, quantity, status: 'open', source: 'manual', created_at: new Date().toISOString() });
+  await softRefresh(sb);
 }
 
 /** Add every open, non-incentive cover of the same issue. Resolves { added, skipped }. */
@@ -120,7 +200,7 @@ export async function addVariants(itemId, quantity = 1) {
   const sb = await supabase();
   const { data, error } = await sb.rpc('pull_list_add_variants', { p_item_id: itemId, p_quantity: quantity });
   if (error) fail(error);
-  await refresh(sb);
+  await softRefresh(sb);
   return data;
 }
 
@@ -128,14 +208,16 @@ export async function setQuantity(lineId, quantity) {
   const sb = await supabase();
   const { error } = await sb.rpc('pull_list_set_quantity', { p_line: lineId, p_quantity: quantity });
   if (error) fail(error);
-  await refresh(sb);
+  for (const l of lines.values()) if (l.id === lineId) l.quantity = quantity;
+  await softRefresh(sb);
 }
 
 export async function remove(lineId) {
   const sb = await supabase();
   const { error } = await sb.rpc('pull_list_remove', { p_line: lineId });
   if (error) fail(error);
-  await refresh(sb);
+  for (const [itemId, l] of lines) if (l.id === lineId) lines.delete(itemId);
+  await softRefresh(sb);
 }
 
 // ---------------------------------------------------------------------------
@@ -147,7 +229,7 @@ export async function followSeries(key, quantity = 1) {
   const sb = await supabase();
   const { data, error } = await sb.rpc('follow_series', { p_key: key, p_quantity: quantity });
   if (error) fail(error);
-  await refresh(sb);
+  await softRefresh(sb);
   return data;
 }
 
@@ -156,7 +238,7 @@ export async function followArtist(name, role = 'cover', quantity = 1) {
   const sb = await supabase();
   const { data, error } = await sb.rpc('follow_artist', { p_name: name, p_role: role, p_quantity: quantity });
   if (error) fail(error);
-  await refresh(sb);
+  await softRefresh(sb);
   return data;
 }
 
@@ -165,7 +247,7 @@ export async function unfollow(id) {
   const sb = await supabase();
   const { data, error } = await sb.rpc('unfollow', { p_id: id });
   if (error) fail(error);
-  await refresh(sb);
+  await softRefresh(sb);
   return data ?? 0;
 }
 
@@ -195,6 +277,6 @@ export async function setFollowQuantity(id, quantity) {
   const sb = await supabase();
   const { data, error } = await sb.rpc('set_follow_quantity', { p_id: id, p_quantity: quantity });
   if (error) fail(error);
-  await refresh(sb);
+  await softRefresh(sb);
   return data ?? { updated: 0, skipped: 0 };
 }

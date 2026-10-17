@@ -1,0 +1,47 @@
+import assert from 'node:assert/strict';
+import * as feed from '../supabase/functions/calendar-feed/ical.js';
+
+// js/config.js takes SITE_URL from the page's origin (the Worker sets it per shop); Node has no page, so give it one.
+globalThis.location ??= { origin: 'https://shop.example.com' };
+const { icsFor, htmlToText, icsText, icsFold } = await import('./ics.js');
+
+const octets = (s) => Buffer.byteLength(s, 'utf8');
+
+// Descriptions: block tags and <br> become line breaks, entities are decoded, other tags go.
+const html = '<p>Fish &amp; Chips&nbsp;night</p><p>It&#39;s <b>free</b>&#x21;<br>Bring&nbsp;a friend</p><ul><li>One</li><li>Two</li></ul>&bogus; &constructor;';
+const plain = "Fish & Chips night\n\nIt's free!\nBring a friend\n\n• One\n• Two\n\n&bogus; &constructor;";
+assert.equal(htmlToText(html), plain);
+assert.equal(htmlToText(null), '');
+assert.equal(htmlToText('&lt;script&gt;'), '<script>');
+
+// TEXT escaping
+assert.equal(icsText('a,b;c\\d\ne'), 'a\\,b\\;c\\\\d\\ne');
+
+// Folding: every physical line is at most 75 octets, unfolding gives the original back,
+// and multi-byte characters are never split.
+for (const line of ['DESCRIPTION:' + 'x'.repeat(200), 'SUMMARY:' + 'é'.repeat(100), 'SUMMARY:' + '🦸‍♀️ Comic Con — ✨'.repeat(12), 'X:short']) {
+  const folded = icsFold(line);
+  const parts = folded.split('\r\n');
+  for (const p of parts) assert.ok(octets(p) <= 75, `${octets(p)} octets: ${p}`);
+  parts.slice(1).forEach((p) => assert.equal(p[0], ' '));
+  assert.equal(folded.replace(/\r\n /g, ''), line);
+  assert.ok(!folded.includes('�'));
+  assert.equal(feed.icsFold(line), folded, 'the feed folds the same way');
+}
+assert.equal(icsFold('x'.repeat(75)), 'x'.repeat(75));
+assert.equal(icsFold('x'.repeat(76)), `${'x'.repeat(75)}\r\n x`);
+
+// The Edge Function's copy agrees with the site's.
+assert.equal(feed.htmlToText(html), plain);
+assert.equal(feed.icsText('a,b;c\\d\ne'), icsText('a,b;c\\d\ne'));
+
+// A whole file: CRLF line ends, folded description with decoded entities.
+const ics = icsFor({ id: 7, title: 'Signing; with “quotes”', starts_at: '2026-11-01T18:00:00Z', ends_at: null, location: null, description: `<p>${'Lots &amp; lots of words. '.repeat(10)}</p><p>Second</p>` }, 'Main Street Comics', 'shop.example.com');
+assert.ok(ics.endsWith('END:VCALENDAR\r\n'));
+for (const p of ics.split('\r\n')) assert.ok(octets(p) <= 75);
+const unfolded = ics.replace(/\r\n /g, '');
+assert.match(unfolded, /SUMMARY:Signing\\; with “quotes”\r\n/);
+assert.match(unfolded, /DESCRIPTION:Lots & lots of words\. .*words\.\\n\\nSecond\\n\\nDetails: https:\/\/shop\.example\.com\/event\.html\?id=7\r\n/);
+assert.match(unfolded, /DTEND:20261101T200000Z/);
+
+console.log('ics tests passed');

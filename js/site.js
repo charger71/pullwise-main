@@ -4,7 +4,7 @@
 // from the shop settings so nothing shop-specific is hardcoded in HTML.
 
 import { getSettings, getCustomPages, DEMO } from './data.js';
-import { GA_MEASUREMENT_ID, SITE_URL } from './config.js';
+import { GA_MEASUREMENT_ID, SITE_URL, FALLBACK_SETTINGS } from './config.js';
 import { SOCIAL_ICONS, LINK_ICON } from './social-icons.js';
 import { fillContent } from './content.js';
 import { initCustomer } from './customer.js';
@@ -64,14 +64,27 @@ export const $ = (sel, root = document) => root.querySelector(sel);
 
 export const price = (n) => (n == null ? '' : `$${Number(n).toFixed(2)}`);
 
-export const fmtDate = (iso, opts = { month: 'short', day: 'numeric' }) =>
-  iso ? (iso.length === 10 ? localDate(iso) : new Date(iso)).toLocaleDateString(undefined, opts) : '';
-
-export const fmtTime = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-
-// Dates like "today" follow the shop's timezone (from settings, set in
-// initPage) so the site's cutoffs match what the database enforces.
+// Dates like "today" and event times follow the shop's timezone (from settings, set in initPage) so the
+// site's cutoffs match what the database enforces and a visitor elsewhere sees the shop's local times.
 let shopTimeZone;
+
+/** The zone if the browser knows it, else undefined (the browser's own), so a typo in settings can't break dates. */
+const knownZone = (tz) => {
+  try {
+    return tz ? new Intl.DateTimeFormat('en-US', { timeZone: tz }).resolvedOptions().timeZone : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/** A date for display. Plain YYYY-MM-DD dates are calendar days and shown as-is; timestamps in shop time. */
+export const fmtDate = (iso, opts = { month: 'short', day: 'numeric' }) =>
+  !iso ? ''
+  : iso.length === 10 ? new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { ...opts, timeZone: 'UTC' })
+  : new Date(iso).toLocaleDateString(undefined, { ...opts, timeZone: shopTimeZone });
+
+/** A timestamp's time of day, in shop time. */
+export const fmtTime = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: shopTimeZone });
 
 /** Today's date in the shop's timezone, as YYYY-MM-DD. */
 export const shopToday = () => todayIn(shopTimeZone);
@@ -184,28 +197,59 @@ export function mapEmbed(s, className = 'map') {
 // Layout
 // ---------------------------------------------------------------------------
 
+// Link/focus blues to try, best first, on a dark and on a light background; the first that reads at 4.5:1 is used.
+const LINKS_ON_DARK = ['#91bbdd', '#b9d5ec', '#ffffff'];
+const LINKS_ON_LIGHT = ['#0b4f8a', '#08396a', '#000000'];
+const readableOn = (bg, choices) => choices.find((c) => contrast(c, bg) >= 4.5) ?? choices.at(-1);
+const isHex6 = (v) => /^#[0-9a-f]{6}$/i.test(v ?? '');
+
 function applyTheme(colors = {}) {
   const root = document.documentElement.style;
+  const set = (prop, value) => (value == null ? root.removeProperty(prop) : root.setProperty(prop, value));
   for (const [key, value] of Object.entries(colors)) {
     if (/^#[0-9a-f]{3,8}$/i.test(value)) root.setProperty(`--brand-${key}`, value);
   }
   // Text on the main color (buttons) and the footer's text follow their backgrounds so any color stays readable.
-  if (/^#[0-9a-f]{6}$/i.test(colors.primary ?? '')) root.setProperty('--on-primary', isLight(colors.primary) ? '#161616' : '#ffffff');
-  if (/^#[0-9a-f]{6}$/i.test(colors.footer ?? '') && isLight(colors.footer)) {
-    root.setProperty('--footer-text', '#161616');
-    root.setProperty('--footer-heading', '#161616');
-    root.setProperty('--footer-link', '#0b3d91');
-  }
+  // Everything is set or cleared each time, since the theme can be repainted (saved snapshot → fresh settings).
+  if (isHex6(colors.primary)) root.setProperty('--on-primary', isLight(colors.primary) ? '#161616' : '#ffffff');
+  const paper = isHex6(colors.paper) ? colors.paper : null;
+  const lightPage = !!paper && isLight(paper);
+  // Links and focus rings follow the page background too (the stylesheet's blue is for the default dark page),
+  // as do the browser's own form controls and scrollbars, and the few fixed light colors meant for a dark page.
+  document.documentElement.style.colorScheme = lightPage ? 'light' : '';
+  const link = paper ? readableOn(paper, lightPage ? LINKS_ON_LIGHT : LINKS_ON_DARK) : null;
+  set('--teal', link);
+  set('--teal-hover', link && (lightPage ? `color-mix(in srgb, ${link} 80%, black)` : `color-mix(in srgb, ${link} 80%, white)`));
+  set('--teal-dark', link && `color-mix(in srgb, ${paper}, ${link} 14%)`); // notice background
+  set('--cream', lightPage ? 'var(--ink)' : null);
+  set('--error', lightPage ? readableOn(paper, ['#b3261e', '#7f1b15']) : null);
+  set('--ok', lightPage ? readableOn(paper, ['#1e6b3a', '#124424']) : null);
+  const footer = isHex6(colors.footer) ? colors.footer : null;
+  const lightFooter = !!footer && isLight(footer);
+  const footerLink = footer ? readableOn(footer, lightFooter ? LINKS_ON_LIGHT : LINKS_ON_DARK) : null;
+  set('--footer-text', lightFooter ? '#161616' : null);
+  set('--footer-heading', lightFooter ? '#161616' : null);
+  set('--footer-link', footerLink);
+  set('--footer-link-hover', footerLink && `color-mix(in srgb, ${footerLink} 80%, ${lightFooter ? 'black' : 'white'})`);
 }
 
-/** Relative luminance check (WCAG formula): true for light colors. */
-function isLight(hex) {
+/** Relative luminance (WCAG formula) of a #rrggbb color. */
+function luminance(hex) {
   const [r, g, b] = [1, 3, 5].map((i) => {
     const c = parseInt(hex.slice(i, i + 2), 16) / 255;
     return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
+
+/** True for light colors. */
+const isLight = (hex) => luminance(hex) > 0.4;
+
+/** WCAG contrast ratio between two #rrggbb colors. */
+const contrast = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
 
 function renderHeader(s, page, extraNav = []) {
   // Logo, name, or both (settings.show_name_with_logo). With both, the logo is
@@ -236,17 +280,37 @@ function renderHeader(s, page, extraNav = []) {
       </button>
       <nav id="site-nav" class="nav" aria-label="Main">
         <ul>${[...NAV, ...extraNav].map(
-          (n) => `<li><a href="${n.href}"${n.page === page ? ' aria-current="page"' : ''}>${n.label}</a></li>`,
+          // Custom pages' titles are staff text: escaped like everything else.
+          (n) => `<li><a href="${esc(n.href)}"${n.page === page ? ' aria-current="page"' : ''}>${esc(n.label)}</a></li>`,
         ).join('')}</ul>
       </nav>
     </div>`;
   const toggle = $('.nav-toggle');
-  toggle.addEventListener('click', () => {
-    const open = toggle.getAttribute('aria-expanded') !== 'true';
-    toggle.setAttribute('aria-expanded', open);
-    document.body.classList.toggle('nav-open', open);
-  });
+  // The header can be repainted (saved snapshot → fresh settings) while the menu is open.
+  if (document.body.classList.contains('nav-open')) toggle.setAttribute('aria-expanded', 'true');
+  toggle.addEventListener('click', () => setNavOpen(toggle.getAttribute('aria-expanded') !== 'true'));
 }
+
+// Phone menu. It opens below the sticky header, so it's capped at the rest of the screen and scrolls inside
+// (a phone held sideways, or zoomed in, has room for only a few links). Escape closes it.
+function setNavOpen(open, { focusToggle = false } = {}) {
+  const toggle = $('.nav-toggle');
+  if (!toggle) return;
+  toggle.setAttribute('aria-expanded', open);
+  document.body.classList.toggle('nav-open', open);
+  if (open) fitNav();
+  if (focusToggle) toggle.focus();
+}
+
+function fitNav() {
+  const header = $('#site-header');
+  if (header) header.style.setProperty('--nav-top', `${Math.max(0, Math.round(header.getBoundingClientRect().bottom))}px`);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.body.classList.contains('nav-open')) setNavOpen(false, { focusToggle: true });
+});
+addEventListener('resize', () => document.body.classList.contains('nav-open') && fitNav());
 
 const NEWSLETTER_FORM_ID = '8d70c80d-4f25-11ed-afd1-0607cdff6e39';
 
@@ -288,18 +352,17 @@ function renderFooter(s, extraLinks = []) {
     <div class="container footer__grid">
       <section>
         <h2 class="footer__heading">${esc(s.shop_name)}</h2>
-        ${addr.length ? `<address><a href="${mapsHref(s)}">${addr.map(esc).join('<br>')}</a></address>` : ''}
+        ${addr.length ? `<address><a href="${esc(mapsHref(s))}">${addr.map(esc).join('<br>')}</a></address>` : ''}
         ${s.phone ? `<p><a href="${telHref(s.phone)}">${esc(formatPhone(s.phone))}</a></p>` : ''}
         ${s.email ? `<p><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></p>` : ''}
       </section>
       <section>
-        <h2 class="footer__heading">Hours</h2>
-        ${hoursList(s.hours ?? [])}
-        ${social ? `<h2 class="footer__heading footer__heading--next">Social</h2>${social}` : ''}
+        ${s.hours?.length ? `<h2 class="footer__heading">Hours</h2>${hoursList(s.hours)}` : ''}
+        ${social ? `<h2 class="footer__heading${s.hours?.length ? ' footer__heading--next' : ''}">Social</h2>${social}` : ''}
       </section>
       <section>
         <h2 class="footer__heading">More</h2>
-        <ul class="footer__links">${[...FOOTER_LINKS, ...extraLinks].map((l) => `<li><a href="${l.href}">${l.label}</a></li>`).join('')}</ul>
+        <ul class="footer__links">${[...FOOTER_LINKS, ...extraLinks].map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('')}</ul>
       </section>
     </div>
     <p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)}</p>`;
@@ -345,6 +408,21 @@ function injectSchema(s) {
   tag.type = 'application/ld+json';
   tag.textContent = JSON.stringify(data);
   document.head.append(tag);
+}
+
+/**
+ * Canonical address for search engines, on pages whose HTML doesn't carry one: SITE_URL plus the path and the
+ * query parameters that pick the content (post, event, staff page, survey). Pages marked noindex get none.
+ */
+function addCanonical() {
+  if (!SITE_URL || document.querySelector('link[rel="canonical"], meta[name="robots"][content*="noindex"]')) return;
+  const params = new URLSearchParams(location.search);
+  const keep = new URLSearchParams([...params].filter(([k]) => k === 'slug' || k === 'id'));
+  const path = location.pathname.replace(/\/index\.html$/, '/');
+  const link = document.createElement('link');
+  link.rel = 'canonical';
+  link.href = `${SITE_URL.replace(/\/$/, '')}${path}${keep.size ? `?${keep}` : ''}`;
+  document.head.append(link);
 }
 
 function loadAnalytics(settings) {
@@ -457,21 +535,59 @@ function loadAboveTheFoldImages() {
   setTimeout(() => observer.disconnect(), 5000);
 }
 
+// How long the first visit waits for the shop settings before telling the visitor the site is slow.
+const SETTINGS_TIMEOUT = 5000;
+
+/** Resolves with `p`, or with `fallback` (calling it if it's a function) if `p` takes longer than `ms`. */
+const within = (p, ms, fallback) => {
+  let timer;
+  const late = new Promise((resolve) => (timer = setTimeout(() => resolve(typeof fallback === 'function' ? fallback() : fallback), ms)));
+  return Promise.race([p, late]).finally(() => clearTimeout(timer));
+};
+
+/** The last saved settings however old (readCache drops week-old ones), for the shop's phone and address in an outage. */
+function lastKnownSettings() {
+  try {
+    return JSON.parse(localStorage.getItem('pc-cache:settings'))?.v ?? null; // cache.js's key
+  } catch {
+    return null;
+  }
+}
+
+/** A message in place of the page when the settings can't be loaded, with how to reach the shop if we know it. */
+function outageMessage({ slow }) {
+  const s = lastKnownSettings() ?? {};
+  const addr = addressLines(s);
+  const reach = [
+    s.phone && `call <a href="${esc(telHref(s.phone))}">${esc(formatPhone(s.phone))}</a>`,
+    s.email && `email <a href="mailto:${esc(s.email)}">${esc(s.email)}</a>`,
+  ].filter(Boolean);
+  return `
+    <div class="container section" role="status">
+      <h1>${slow ? 'Still Loading…' : 'We’ll Be Right Back'}</h1>
+      <p>${slow ? 'The site is taking longer than usual to load. It will appear here as soon as it’s ready — or try again in a moment.' : 'The site couldn’t load its settings. Please try again shortly.'}</p>
+      ${reach.length ? `<p>In the meantime, ${reach.join(' or ')}.</p>` : ''}
+      ${addr.length ? `<p>Visit us at <a href="${esc(mapsHref({ shop_name: s.shop_name ?? '', ...s }))}">${addr.map(esc).join(', ')}</a>.</p>` : ''}
+    </div>`;
+}
+
 export async function initPage() {
   // Staff-made pages are all data-page="custom"; tell them apart by slug so the menu can mark the current one.
   const page = document.body.dataset.page === 'custom' ? `page:${new URLSearchParams(location.search).get('slug')}` : document.body.dataset.page;
   loadAboveTheFoldImages();
+  addCanonical();
 
   // Everything the layout needs is requested at once. A snapshot from the last visit paints the header, footer
   // and theme right now; fresh data then replaces it only if something changed.
   const settingsP = getSettings();
-  const customP = getCustomPages().catch((err) => (console.error(err), null));
+  // A hung request leaves the extra menu pages out rather than holding up the page.
+  const customP = within(getCustomPages(), SETTINGS_TIMEOUT, null).catch((err) => (console.error(err), null));
   const customerP = initCustomer();
   const contentP = fillContent(settingsP);
   contentP.catch(() => {}); // reported below; this keeps an early exit from logging it twice
 
   const paint = (s, custom) => {
-    shopTimeZone = s.timezone;
+    shopTimeZone = knownZone(s.timezone);
     applyTheme(s.colors);
     const pageHref = (p) => `page.html?slug=${encodeURIComponent(p.slug)}`;
     renderHeader(s, page, custom.filter((p) => p.placement === 'menu').map((p) => ({ page: `page:${p.slug}`, href: pageHref(p), label: p.title })));
@@ -481,15 +597,33 @@ export async function initPage() {
   };
   let shown = { s: readCache('settings'), custom: readCache('custom-pages') };
   if (shown.s && shown.custom) paint(shown.s, shown.custom);
-  else shown = null;
+  else {
+    // First visit (or a cleared browser): draw the header, menu and footer from the built-in defaults now, so
+    // the visitor can get around even if the database is slow or down; the real settings repaint them.
+    shown = null;
+    paint(FALLBACK_SETTINGS, []);
+  }
 
   let s;
+  // Without a snapshot, a slow answer gets a message after a few seconds instead of a page that never finishes.
+  // The page keeps waiting and fills in normally if the settings do arrive.
+  // (Added above the page's own content, which page scripts may already be filling in, and removed once loaded.)
+  let notice;
+  const slowTimer = shown ? null : setTimeout(() => {
+    notice = document.createElement('div');
+    notice.innerHTML = outageMessage({ slow: true });
+    $('#main').prepend(notice);
+  }, SETTINGS_TIMEOUT);
   try {
-    s = await settingsP;
+    // With a snapshot on screen, a hung request just means this page view runs on the snapshot.
+    s = await (shown ? within(settingsP, SETTINGS_TIMEOUT, () => shown.s) : settingsP);
+    clearTimeout(slowTimer);
+    notice?.remove();
   } catch (err) {
+    clearTimeout(slowTimer);
     console.error(err);
     if (!shown) {
-      $('#main').innerHTML = `<div class="container section"><h1>We'll Be Right Back</h1><p>The site couldn't load its settings. Please try again shortly.</p></div>`;
+      $('#main').innerHTML = outageMessage({ slow: false });
       throw err;
     }
     s = shown.s; // keep the page as the last visit left it
@@ -498,10 +632,11 @@ export async function initPage() {
   const custom = (await customP) ?? shown?.custom ?? [];
   writeCache('settings', s);
   writeCache('custom-pages', custom);
-  if (!shown || !sameData(shown.s, s) || !sameData(shown.custom, custom)) paint(s, custom);
+  if (!shown || !sameData(shown.s, s) || !sameData(shown.custom, custom)) paint(s, custom); // (always on a first visit: the defaults are showing)
   rememberPreloads(s);
-  await customerP; // before any cards render, so they show the right button
-  await contentP.catch((err) => console.error('Page content failed to load', err));
+  // Neither may hold the page up for good if the database stops answering.
+  await within(customerP, SETTINGS_TIMEOUT, null); // before any cards render, so they show the right button
+  await within(contentP, SETTINGS_TIMEOUT, null).catch((err) => console.error('Page content failed to load', err));
   injectSchema(s);
   setupLightbox();
   loadAnalyticsWhenIdle(s);

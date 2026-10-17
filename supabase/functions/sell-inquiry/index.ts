@@ -5,22 +5,52 @@
 //
 // Goes to settings.email, plus any addresses in the optional STAFF_CC secret (comma-separated). Secrets: RESEND_API_KEY; From is settings.pull_list_email_from or RESEND_FROM.
 // Deploy with:  supabase functions deploy sell-inquiry --no-verify-jwt
+// Only the shop's own site (SITE_URL secret, which tools/add-shop.mjs sets to the shop's first domain) may post
+// here from a browser. Without SITE_URL (local development) any page may, as before.
+// Limits (sell_inquiry_rate_ok in the database): 5 a hour per address, 30 an hour overall.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+// The shop's origin, with and without www. Any other page gets the shop's origin back, which the browser refuses.
+// No shop-specific default: every shop's project has its own SITE_URL.
+const siteEnv = Deno.env.get('SITE_URL')?.trim();
+const SITE = siteEnv ? new URL(siteEnv).origin : null;
+const ORIGINS = new Set(SITE ? [SITE, SITE.replace('://www.', '://'), SITE.replace('://', '://www.')] : []);
+const corsFor = (req: Request) => {
+  const origin = req.headers.get('origin') ?? '';
+  return {
+    'Access-Control-Allow-Origin': !SITE ? '*' : ORIGINS.has(origin) ? origin : SITE,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin',
+  };
 };
-const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const MAX_PHOTOS = 8;
 const MAX_PHOTO_BYTES = 6 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 25 * 1024 * 1024;
 const ALSO_TO = (Deno.env.get('STAFF_CC') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// The image type from a file's first bytes (what the browser says the type is can't be trusted).
+const ascii = (b: Uint8Array, from: number, to: number) => String.fromCharCode(...b.subarray(from, to));
+function imageType(b: Uint8Array): { ext: string; mime: string } | null {
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return { ext: 'jpg', mime: 'image/jpeg' };
+  if (ascii(b, 0, 8) === '\x89PNG\r\n\x1a\n') return { ext: 'png', mime: 'image/png' };
+  if (/^GIF8[79]a$/.test(ascii(b, 0, 6))) return { ext: 'gif', mime: 'image/gif' };
+  if (ascii(b, 0, 4) === 'RIFF' && ascii(b, 8, 12) === 'WEBP') return { ext: 'webp', mime: 'image/webp' };
+  // HEIC/HEIF (iPhone photos): an ISO box "ftyp" with a HEIF brand.
+  if (ascii(b, 4, 8) === 'ftyp' && ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'mif1', 'msf1'].includes(ascii(b, 8, 12))) return { ext: 'heic', mime: 'image/heic' };
+  return null;
+}
+
+// The visitor's address, as Supabase's proxies report it: Cloudflare's cf-connecting-ip (which it always overwrites),
+// then x-real-ip, then the last x-forwarded-for hop (the earlier ones are whatever the client sent). The database
+// turns anything that isn't an address into one shared "unknown" bucket, which is limited too.
+const clientIp = (req: Request) =>
+  req.headers.get('cf-connecting-ip')?.trim() || req.headers.get('x-real-ip')?.trim() || (req.headers.get('x-forwarded-for') ?? '').split(',').at(-1)!.trim();
 
 function b64(bytes: Uint8Array) {
   let bin = '';
@@ -29,6 +59,8 @@ function b64(bytes: Uint8Array) {
 }
 
 Deno.serve(async (req) => {
+  const cors = corsFor(req);
+  const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json(405, { error: 'POST only' });
   try {
@@ -44,12 +76,22 @@ Deno.serve(async (req) => {
 
     const files = form.getAll('photos').filter((f): f is File => f instanceof File && f.size > 0);
     if (files.length > MAX_PHOTOS) return json(400, { error: `Please send no more than ${MAX_PHOTOS} photos.` });
+    if (files.reduce((n, f) => n + f.size, 0) > MAX_TOTAL_BYTES) return json(400, { error: 'Those photos add up to more than 25 MB — please send fewer or smaller ones.' });
     const attachments = [];
     for (const f of files) {
-      if (!f.type.startsWith('image/')) return json(400, { error: 'Only image files can be attached.' });
       if (f.size > MAX_PHOTO_BYTES) return json(400, { error: `${f.name} is too large (6 MB max per photo).` });
-      attachments.push({ filename: f.name.replace(/[^\w.\- ]/g, '_').slice(0, 80) || 'photo.jpg', content: b64(new Uint8Array(await f.arrayBuffer())) });
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const type = imageType(bytes);
+      if (!type) return json(400, { error: 'Only photos (JPEG, PNG, GIF, WebP or HEIC) can be attached.' });
+      // The name always ends in the detected type, whatever the upload called itself.
+      const base = f.name.replace(/\.[^.]*$/, '').replace(/[^\w.\- ]/g, '_').slice(0, 70) || 'photo';
+      attachments.push({ filename: `${base}.${type.ext}`, content: b64(bytes) });
     }
+
+    // Rate limit last, so a typo the customer fixes doesn't use up a try.
+    const { data: allowed, error: rateErr } = await admin.rpc('sell_inquiry_rate_ok', { p_ip: clientIp(req) || null });
+    if (rateErr) throw rateErr;
+    if (!allowed) return json(429, { error: 'We’ve had a lot of messages just now — please try again in an hour, or call the shop.' });
 
     const { data: shop, error } = await admin.from('settings').select('email,pull_list_email_from').eq('id', 1).single();
     if (error) throw error;

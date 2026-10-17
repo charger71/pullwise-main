@@ -5,11 +5,12 @@
 //  * Root HTML pages get the shop's title, description, tab icon and home page banner written in on the way
 //    out (worker/shop-page.js), from its settings and pages tables. Those are cached for CACHE_SECONDS, so a
 //    change in the admin shows up on the site within about a minute.
+//  * /sitemap.xml is generated on the shop's main domain, and /robots.txt (the static file) gets its address.
 //  * Everything else is the static file as is. A domain that isn't in shops.json gets the plain files, which
 //    run in demo mode.
 
 import SHOPS from '../shops.json';
-import { findShop, configJs, fileOf, PAGE_SLUGS, pageTitle, headTags, hero } from './shop-page.js';
+import { findShop, configJs, fileOf, PAGE_SLUGS, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 
 const CACHE_SECONDS = 60;
 const FETCH_TIMEOUT_MS = 3000;
@@ -20,7 +21,12 @@ export default {
     const url = new URL(request.url);
     const shop = findShop(SHOPS.shops, url.hostname);
     if (!shop) return env.ASSETS.fetch(request);
-    if (url.pathname === '/js/config.js') return config(shop, request);
+    if (url.pathname === '/js/config.js') return config(shop, request, await cachedShopData(shop));
+    if (url.pathname === '/sitemap.xml') return text(sitemapXml(shop), 'application/xml', request);
+    if (url.pathname === '/robots.txt') {
+      const res = await env.ASSETS.fetch(new Request(new URL('/robots.txt', url), { method: 'GET' }));
+      return res.ok ? text(robotsTxt(shop, await res.text()), 'text/plain', request) : res;
+    }
 
     const file = request.method === 'GET' || request.method === 'HEAD' ? fileOf(url.pathname) : null;
     if (!file) return env.ASSETS.fetch(request);
@@ -42,13 +48,30 @@ export default {
   },
 };
 
-function config(shop, request) {
-  const body = configJs(shop);
+function text(body, type, request) {
+  const headers = { 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control': `max-age=${CACHE_SECONDS * 60}` };
+  return new Response(request.method === 'HEAD' ? null : body, { headers });
+}
+
+// The name and timezone shown before the settings load come from the shop data the page request just cached
+// (never a fresh database call: this file holds up every page's scripts); with none, neutral defaults.
+function config(shop, request, data) {
+  const body = configJs(shop, data?.settings);
   const etag = `"${hash(body)}"`;
   const headers = { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache', ETag: etag };
   if (request.headers.get('If-None-Match') === etag) return new Response(null, { status: 304, headers });
   return new Response(request.method === 'HEAD' ? null : body, { headers });
 }
+
+/** Whatever copy of the shop's data this instance or the shared cache already has, however old; or null. */
+async function cachedShopData(shop) {
+  const hit = memo.get(shop.id);
+  if (hit) return hit.data;
+  const cached = await caches.default.match(shopDataKey(shop));
+  return cached ? cached.json() : null;
+}
+
+const shopDataKey = (shop) => new Request(`https://shop-data.internal/${encodeURIComponent(shop.id)}`);
 
 /** The shop's settings and page titles, at most CACHE_SECONDS old; the last good copy if Supabase fails. */
 async function shopData(shop, ctx) {
@@ -56,7 +79,7 @@ async function shopData(shop, ctx) {
   const hit = memo.get(shop.id);
   if (hit && now - hit.at < CACHE_SECONDS * 1000) return hit.data;
 
-  const key = new Request(`https://shop-data.internal/${encodeURIComponent(shop.id)}`);
+  const key = shopDataKey(shop);
   const cached = await caches.default.match(key);
   if (cached) {
     const data = await cached.json();
@@ -73,7 +96,7 @@ async function shopData(shop, ctx) {
       return r.json();
     };
     const [settings, pages] = await Promise.all([
-      get('settings?select=shop_name,tagline,logo_url,favicon_url,hero_image_url,hero_headline&id=eq.1'),
+      get('settings?select=shop_name,tagline,timezone,logo_url,favicon_url,hero_image_url,hero_headline&id=eq.1'),
       get('pages?select=slug,meta_title,meta_description'),
     ]);
     const data = { settings: settings[0] ?? {}, pages: Object.fromEntries(pages.map((p) => [p.slug, p])) };
