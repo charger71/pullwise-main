@@ -1,7 +1,7 @@
 // Customer account: sign in with an emailed link or 6-digit code, edit the
 // profile, and manage the pull list under this email. Everything the page
 // reads or writes is limited to the signed-in customer by row-level security;
-// claim_customer() (see the customers migration) creates or links the record.
+// claim_customer() links the record, and create_my_customer() creates it from the first-sign-in form.
 
 import { initPage, $, esc, fmtDate, itemFullTitle, itemTitle, cover, price, cutoffPassed } from '../site.js';
 import { DEMO, supabase, getSettings, searchSeries, searchArtists } from '../data.js';
@@ -147,8 +147,8 @@ async function signedIn(sb, user) {
   await pull.initCustomer(); // other parts of the page (list bar, buttons) read the shared state
   const { data: customer, error } = await sb.rpc('claim_customer');
   if (error) throw pull.customerError(error);
-  // A first sign-in only knows the email. Ask for a name and phone before anything else.
-  if (!customer.first_name?.trim() || !customer.last_name?.trim() || !customer.phone?.trim()) return setupProfile(sb, user, customer);
+  // A first sign-in has no customer record yet (id null). Ask for a name and phone before anything else.
+  if (!customer.id || !customer.first_name?.trim() || !customer.last_name?.trim() || !customer.phone?.trim()) return setupProfile(sb, user, customer);
 
   root.innerHTML = `
     <p class="account-who">Signed in as <strong>${esc(user.email)}</strong> · <button class="link-button" type="button" data-out>Sign out</button></p>
@@ -272,7 +272,8 @@ function setupProfile(sb, user, customer) {
         return form.elements[key].focus();
       }
     }
-    const { error } = await sb.from('customers').update({ first_name: v('first_name'), last_name: v('last_name'), phone: v('phone') }).eq('id', customer.id);
+    // Creates the customer record (or completes an existing one); nothing is saved for a login until this.
+    const { error } = await sb.rpc('create_my_customer', { p_first_name: v('first_name'), p_last_name: v('last_name'), p_phone: v('phone') });
     if (error) err.textContent = pull.customerMessage(error);
     else signedIn(sb, user).catch((ex) => (err.textContent = errText(ex)));
   });

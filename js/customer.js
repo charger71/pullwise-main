@@ -9,7 +9,7 @@ import { friendlyError } from './errors.js';
 
 // "Not ordered" lines are left out: they don't count toward the list, and adding the title again reopens the line.
 const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
-let customer = null; // the customers row, once signed in
+let customer = null; // the customers row, once signed in (id null until the account page's setup form is saved)
 let lines = new Map(); // item_id → { id, quantity, status, source, created_at } for active lines
 let seenAt = null; // when the customer last opened My Pull List (null: not since the "new" highlight shipped)
 let viewing = false; // on My Pull List itself, where new titles are badged in the list instead
@@ -141,6 +141,12 @@ async function softRefresh(sb) {
 export async function refresh(sb) {
   sb ??= await supabase();
   if (!customer) return;
+  if (!customer.id) {
+    // Signed in, but the account page's setup form isn't finished, so there's no customer record (or list) yet.
+    lines = new Map();
+    subs = [];
+    return notify();
+  }
   const { data, error } = await sb
     .from('reservations')
     .select('id,item_id,quantity,status,source,created_at,order:reservation_orders!inner(customer_id)')
