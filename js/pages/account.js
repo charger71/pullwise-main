@@ -261,6 +261,9 @@ const BY = { customer: 'by you', guest: 'by you', staff: 'by the shop', system: 
 
 const SOURCE_NOTE = { variant: 'Added with all covers', series: 'You follow this series', artist: 'You follow this artist', staff: 'Added by the shop' };
 
+const LIVE = ['open', 'ordered', 'reordered', 'arrived'];
+const PAST_SHOWN = 100; // picked up, released and so on: the most recent
+
 // Open lines can be changed until the order cutoff (the Saturday before FOC); after that, call the shop.
 const canEdit = (r) => r.status === 'open' && !cutoffPassed(r.item);
 
@@ -269,14 +272,22 @@ async function loadOrders(sb, customerId, seenBefore = null) {
   const settings = await getSettings();
   // `!inner` + the customer filter keeps this to the customer's own lines even for staff, whose
   // row-level security would otherwise let them read everyone's.
-  const { data, error } = await sb
-    .from('reservations')
-    .select('id,quantity,status,source,arrived_on,created_at,updated_at,updated_via,item:items(id,title,issue_number,variant,publisher,price,series_key,release_date,foc_date,cover_url,cover_thumb_url),order:reservation_orders!inner(customer_id)')
-    .eq('order.customer_id', customerId)
-    .neq('status', 'cancelled')
-    .order('created_at', { ascending: false })
-    .limit(300);
+  // Every line still in play (no limit, so a long history can't push current titles off the page), then the most
+  // recent history.
+  const lineQuery = () =>
+    sb
+      .from('reservations')
+      .select('id,quantity,status,source,arrived_on,created_at,updated_at,updated_via,item:items(id,title,issue_number,variant,publisher,price,series_key,release_date,foc_date,cover_url,cover_thumb_url),order:reservation_orders!inner(customer_id)')
+      .eq('order.customer_id', customerId)
+      .order('created_at', { ascending: false });
+  const [current, history] = await Promise.all([
+    lineQuery().in('status', [...LIVE, 'not_ordered']),
+    lineQuery().not('status', 'in', `(${[...LIVE, 'not_ordered', 'cancelled'].join(',')})`).limit(PAST_SHOWN),
+  ]);
+  const error = current.error ?? history.error;
   if (error) return void (el.innerHTML = `<p class="form-error" role="alert">${esc(error.message)}</p>`);
+  // A title the shop has since taken down still shows by name if it can; otherwise as a placeholder.
+  const data = [...current.data, ...history.data].map((r) => ({ ...r, item: r.item ?? { title: 'Title no longer listed' } }));
   // The newest change anywhere on the list, including titles since removed.
   const { data: newest } = await sb
     .from('reservations')
@@ -286,7 +297,7 @@ async function loadOrders(sb, customerId, seenBefore = null) {
     .limit(1);
   const last = newest?.[0];
 
-  const active = data.filter((r) => ['open', 'ordered', 'reordered', 'arrived'].includes(r.status));
+  const active = data.filter((r) => LIVE.includes(r.status));
   const notOrdered = data.filter((r) => r.status === 'not_ordered');
   const past = data.filter((r) => !active.includes(r) && r.status !== 'not_ordered');
   const waiting = guest.getLines();
@@ -446,7 +457,13 @@ function setupFollowing(sb, customerId, seenBefore) {
     if (!input) return;
     const q = Math.min(Math.max(Math.round(Number(input.value)) || 1, 1), 100);
     try {
-      await pull.setFollowQuantity(Number(input.dataset.fqty), q);
+      const { updated, skipped } = await pull.setFollowQuantity(Number(input.dataset.fqty), q);
+      const each = `${q} ${q === 1 ? 'copy' : 'copies'} of each issue`;
+      note(
+        `${each}. ${updated ? `${updated} ${updated === 1 ? 'title' : 'titles'} not ordered yet ${updated === 1 ? 'was' : 'were'} updated.` : 'Nothing else on your list needed changing.'}` +
+          (skipped ? ` ${skipped} ${skipped === 1 ? 'title is' : 'titles are'} over the copy limit and kept ${skipped === 1 ? 'its' : 'their'} old quantity.` : ''),
+      );
+      loadOrders(sb, customerId, seenBefore);
     } catch (err) {
       note(err.message, true);
     }
@@ -454,8 +471,13 @@ function setupFollowing(sb, customerId, seenBefore) {
   list.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-unfollow]');
     if (!btn) return;
+    const sub = pull.getSubscriptions().find((s) => s.id === Number(btn.dataset.unfollow));
+    if (!sub) return;
     try {
-      await pull.unfollow(Number(btn.dataset.unfollow));
+      const removed = await pull.unfollowWithWarning(sub);
+      if (removed == null) return;
+      note(`Unfollowed ${sub.label}.${removed ? ` ${removed} ${removed === 1 ? 'title was' : 'titles were'} removed from your pull list.` : ''}`);
+      loadOrders(sb, customerId, seenBefore);
     } catch (err) {
       note(err.message, true);
     }

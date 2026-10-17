@@ -47,6 +47,17 @@ const same = (a: string, b: string) => {
 const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Every customer with an email, `columns` each. Paged: one request returns at most 1000 rows. */
+async function allCustomers(db: typeof admin, columns: string) {
+  const rows: any[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await db.from('customers').select(columns).not('email', 'is', null).order('id').range(offset, offset + 999);
+    if (error) throw error;
+    rows.push(...data);
+    if (data.length < 1000) return rows;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
   const url = new URL(req.url);
@@ -162,8 +173,7 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
   const replyTo = shop.email || undefined;
 
   // Everyone with an email, and all their live pull-list lines.
-  const { data: customers, error: cErr } = await admin.from('customers').select('id,first_name,name,email,ship_arrivals,email_opt_in,unsubscribe_token,last_emailed_on').not('email', 'is', null);
-  if (cErr) throw cErr;
+  const customers = await allCustomers(admin, 'id,first_name,name,email,ship_arrivals,email_opt_in,unsubscribe_token,last_emailed_on');
   const lines = new Map<number, unknown[]>();
   for (let offset = 0; ; offset += 1000) {
     const { data, error: lErr } = await admin
@@ -228,8 +238,7 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
   const replyTo = shop.email || undefined;
   const holdDays = shop.hold_days ?? 30;
 
-  const { data: customers, error: cErr } = await admin.from('customers').select('id,first_name,name,email,ship_arrivals,notify_arrivals,unsubscribe_token').not('email', 'is', null);
-  if (cErr) throw cErr;
+  const customers = await allCustomers(admin, 'id,first_name,name,email,ship_arrivals,notify_arrivals,unsubscribe_token');
 
   const select = 'id,quantity,status,arrived_on,arrival_notified_at,item:items(title,issue_number,variant,price,series_key),order:reservation_orders!inner(customer_id)';
   const lines = new Map<number, any[]>();

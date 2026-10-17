@@ -160,16 +160,41 @@ export async function followArtist(name, role = 'cover', quantity = 1) {
   return data;
 }
 
+/** Unfollows, removing the titles it added that haven't been ordered. Resolves how many came off the list. */
 export async function unfollow(id) {
   const sb = await supabase();
-  const { error } = await sb.rpc('unfollow', { p_id: id });
+  const { data, error } = await sb.rpc('unfollow', { p_id: id });
   if (error) fail(error);
   await refresh(sb);
+  return data ?? 0;
 }
 
+/** How many titles unfollowing would take off the list (added by this follow, not ordered yet). */
+export async function unfollowPreview(id) {
+  const sb = await supabase();
+  const { data, error } = await sb.rpc('unfollow_preview', { p_id: id });
+  if (error) fail(error);
+  return data ?? 0;
+}
+
+/**
+ * Asks first, saying how many titles will come off the pull list, then unfollows.
+ * Resolves the number removed, or null if they changed their mind.
+ */
+export async function unfollowWithWarning(sub) {
+  const n = await unfollowPreview(sub.id);
+  const msg = n
+    ? `Unfollow ${sub.label}?\n\n${n} ${n === 1 ? 'title' : 'titles'} it added to your pull list that ${n === 1 ? 'hasn’t' : 'haven’t'} been ordered yet will be removed. Titles already ordered stay on your list.`
+    : `Unfollow ${sub.label}?\n\nNew issues will stop being added. Titles already ordered stay on your list.`;
+  if (!confirm(msg)) return null;
+  return unfollow(sub.id);
+}
+
+/** Copies of each issue: the follow and every title it added that hasn't been ordered. Resolves { updated, skipped }. */
 export async function setFollowQuantity(id, quantity) {
   const sb = await supabase();
-  const { error } = await sb.rpc('set_follow_quantity', { p_id: id, p_quantity: quantity });
+  const { data, error } = await sb.rpc('set_follow_quantity', { p_id: id, p_quantity: quantity });
   if (error) fail(error);
   await refresh(sb);
+  return data ?? { updated: 0, skipped: 0 };
 }
