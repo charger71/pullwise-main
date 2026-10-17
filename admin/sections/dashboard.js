@@ -108,7 +108,10 @@ export async function mount(el, ctx) {
     setStatus(status, 'Saving…');
     try {
       const announcement = new FormData(e.target).get('announcement').toString().trim() || null;
-      await must(sb.from('settings').update({ announcement }).eq('id', 1));
+      // Row-level security turns an update by a signed-out session into "0 rows", not an error.
+      if (!(await must(sb.from('settings').update({ announcement }).eq('id', 1).select('id')))?.length) {
+        throw Object.assign(new Error('You may have been signed out. Sign in again, then save once more.'), { code: 'P0001' });
+      }
       $('[data-announce-sum]', el).textContent = announcement || 'None showing';
       setStatus(status, announcement ? `Saved ${new Date().toLocaleTimeString()} — showing on the site now.` : 'Saved — no announcement is showing.', 'ok');
     } catch (err) {

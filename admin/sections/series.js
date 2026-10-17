@@ -4,7 +4,7 @@
 // Customers following a merged-away series move to the one you keep, and future imports of the
 // old title land on it too.
 
-import { $, $$, esc, must, toast, setStatus, imageField, openDialog, sortableTable, debounce, solidIcon, friendlyError, setupTabs } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, imageField, openDialog, sortableTable, debounce, solidIcon, friendlyError, setupTabs, fetchAll } from '../lib.js';
 
 let sb;
 let isOwner = false;
@@ -70,9 +70,12 @@ export async function mount(el, ctx) {
   const search = async (refresh = false) => {
     const q = $('#s-q', el).value.trim().toLowerCase();
     if (refresh === true || !all) {
-      const { data: rows, error: err } = await sb.rpc('staff_list_series');
-      if (err) return void (box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`);
-      all = rows;
+      // A page at a time: one request returns at most 1,000 rows, and the shop has more series than that.
+      try {
+        all = await fetchAll(() => sb.rpc('staff_list_series'));
+      } catch (err) {
+        return void (box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`);
+      }
     }
     const data = q ? all.filter((r) => `${r.label} ${r.publisher ?? ''}`.toLowerCase().includes(q)) : all;
     $('[data-series-count]', el).textContent = q ? `${data.length.toLocaleString()} of ${all.length.toLocaleString()} series match “${q}”` : `${all.length.toLocaleString()} series`;

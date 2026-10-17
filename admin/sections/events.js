@@ -1,6 +1,6 @@
 // Events: the Community Calendar (signings, release parties, tournaments…).
 
-import { $, esc, must, toast, openDialog, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, sortableTable, formatPhone, solidIcon, friendlyError } from '../lib.js';
+import { $, esc, must, toast, openDialog, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, sortableTable, formatPhone, solidIcon, friendlyError, fetchAll } from '../lib.js';
 
 const TYPES = { release_party: 'Release party', signing: 'Signing', tournament: 'Tournament', livestream: 'Livestream', comic_con: 'Comic Con', sale: 'Sale', other: 'Other' };
 let sb;
@@ -147,10 +147,11 @@ function signupsTable(rows) {
 async function loadAllSignups(box) {
   box.innerHTML = '<p class="admin-hint" aria-busy="true">Loading…</p>';
   try {
-    const [events, signups] = await Promise.all([
-      must(sb.from('events').select('id,title,starts_at,signup_capacity').eq('signup_enabled', true)),
-      must(sb.from('event_signups').select('*').order('created_at')),
-    ]);
+    const events = await must(sb.from('events').select('id,title,starts_at,signup_capacity').eq('signup_enabled', true));
+    // Only the listed events' signups, a page at a time (one request returns at most 1,000 rows).
+    const signups = [];
+    const ids = events.map((e) => e.id);
+    for (let i = 0; i < ids.length; i += 100) signups.push(...(await fetchAll(() => sb.from('event_signups').select('*').in('event_id', ids.slice(i, i + 100)).order('created_at').order('id'))));
     const now = new Date().toISOString();
     const byEvent = new Map(events.map((e) => [e.id, []]));
     for (const r of signups) byEvent.get(r.event_id)?.push(r);
@@ -188,16 +189,17 @@ async function loadAllSignups(box) {
 }
 
 async function showSignups(el, ev) {
-  const rows = await must(sb.from('event_signups').select('*').eq('event_id', ev.id).order('created_at'));
+  const rows = await fetchAll(() => sb.from('event_signups').select('*').eq('event_id', ev.id).order('created_at').order('id'));
   const people = rows.reduce((n, r) => n + r.party_size, 0);
   el.innerHTML = `
     <p><button class="btn btn--ghost btn--small" type="button" data-back>← Back to event</button></p>
     <h1>Signups: ${esc(ev.title)}</h1>
     <p>${rows.length} signup${rows.length === 1 ? '' : 's'}, ${people} ${people === 1 ? 'person' : 'people'}${ev.signup_capacity ? ` of ${ev.signup_capacity} spots` : ''}.</p>
-    ${rows.length ? signupsTable(rows) : '<p class="empty">No one has signed up yet.</p>'}`;
+    <div data-signups-view>${rows.length ? signupsTable(rows) : '<p class="empty">No one has signed up yet.</p>'}</div>`;
   window.scrollTo(0, 0);
   $('[data-back]', el).addEventListener('click', () => edit(el, ev.id));
-  el.onclick = async (e) => {
+  // On an element of this view (not the section itself, which outlives it), so the handler goes when the view does.
+  $('[data-signups-view]', el).addEventListener('click', async (e) => {
     const b = e.target.closest('[data-remove]');
     if (!b || !confirm('Remove this signup?')) return;
     try {
@@ -207,5 +209,5 @@ async function showSignups(el, ev) {
     } catch (err) {
       toast(`Not removed: ${friendlyError(err)}`);
     }
-  };
+  });
 }

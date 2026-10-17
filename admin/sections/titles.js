@@ -166,15 +166,10 @@ async function loadDateOptions(el) {
   const counts = { foc: new Map(), release: new Map() };
   const none = { foc: 0, release: 0 };
   try {
-    for (let from = 0; ; from += 1000) {
-      const rows = await must(sb.from('items').select('foc_date,release_date').order('id').range(from, from + 999));
-      for (const r of rows) {
-        if (r.foc_date) counts.foc.set(weekStart(r.foc_date), (counts.foc.get(weekStart(r.foc_date)) ?? 0) + 1);
-        else none.foc++;
-        if (r.release_date) counts.release.set(weekStart(r.release_date), (counts.release.get(weekStart(r.release_date)) ?? 0) + 1);
-        else none.release++;
-      }
-      if (rows.length < 1000) break;
+    // Counted in the database (staff_item_week_counts), not by downloading every title's dates.
+    for (const r of await must(sb.rpc('staff_item_week_counts'))) {
+      if (r.w) counts[r.k].set(r.w, r.n);
+      else none[r.k] = r.n;
     }
   } catch (err) {
     console.error('Could not load the date lists', err);
@@ -335,6 +330,9 @@ async function edit(listEl, id) {
     };
     if (!row.title) return setStatus(status, 'Please enter a title.', 'error');
     if (!id) row.distributor = 'other';
+    const submit = $('button[type=submit]', form);
+    if (submit.disabled) return; // already saving: a second click would add the title twice
+    submit.disabled = true;
     setStatus(status, 'Saving…');
     try {
       if (id) await must(sb.from('items').update(row).eq('id', id));
@@ -345,6 +343,8 @@ async function edit(listEl, id) {
       loadDateOptions(listEl);
     } catch (err) {
       setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
+    } finally {
+      submit.disabled = false;
     }
   });
   $('[data-delete]', d)?.addEventListener('click', async () => {

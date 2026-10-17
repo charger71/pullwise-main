@@ -4,7 +4,7 @@
 
 import { $, $$, esc, must, toast, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages } from '../lib.js';
 import { LINE_STATUS } from '../../js/labels.js';
-import { addDays, todayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
+import { addDays, todayIn, dayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
 
 const PAGE = 25;
 const ITEM_FIELDS = 'id,title,issue_number,variant,publisher,price,foc_date,release_date';
@@ -17,12 +17,14 @@ let toOrderLoadedAt = 0;
 let toOrderHooked = false;
 const STALE_MS = 30000;
 
-let state = { view: 'orders', q: '', status: 'active', sort: 'placed', dir: 'desc', offset: 0, detail: null };
+let state = { view: 'orders', q: '', status: 'active', sort: 'placed', dir: 'desc', offset: 0 };
 // The status choices: the common views first, then each individual title status.
 const ORDER_FILTERS = { active: 'Active (open, ordered or ready)', overdue: 'Past pickup window', all: 'Any status', ...LINE_STATUS };
 
 const today = () => todayIn(settings.timezone);
 const holdUntil = (line) => holdDate(line.arrived_on, settings.hold_days ?? 30);
+/** "2026-10-01 18:43": a timestamp's date and time in the shop's time zone, for CSV exports. */
+const placedAt = (ts) => `${dayIn(ts, settings.timezone)} ${new Intl.DateTimeFormat('en-GB', { timeZone: settings.timezone || undefined, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ts))}`;
 
 export async function mount(el, ctx) {
   sb = ctx.sb;
@@ -38,7 +40,6 @@ export async function mount(el, ctx) {
   $$('[data-view]', el).forEach((b) =>
     b.addEventListener('click', () => {
       state.view = b.dataset.view;
-      state.detail = null;
       try {
         sessionStorage.setItem('admin-reservations-view', state.view);
       } catch {
@@ -59,7 +60,7 @@ export async function mount(el, ctx) {
     const status = sessionStorage.getItem('admin-reservations-status');
     if (status) {
       sessionStorage.removeItem('admin-reservations-status');
-      state = { ...state, view: 'orders', q: '', status, offset: 0, detail: null };
+      state = { ...state, view: 'orders', q: '', status, offset: 0 };
     }
   } catch {
     /* no hand-off */
@@ -74,7 +75,6 @@ export async function mount(el, ctx) {
   }
   if (guest) {
     state.view = 'orders';
-    state.detail = null;
     $$('[data-view]', el).forEach((b) => b.setAttribute('aria-selected', b.dataset.view === 'orders'));
     renderGuest($('[data-body]', el), guest);
   } else render(el);
@@ -173,7 +173,7 @@ function bindOrderActions(box, body, reload) {
     }
     const all = e.target.closest('[data-all]');
     if (!all) return;
-    await setLineStatus(all.dataset.lines.split(',').map(Number), all.dataset.all);
+    await setLineStatus(all.dataset.lines.split(',').map(Number), all.dataset.all, ['arrived']);
     reload();
   });
 }
@@ -313,12 +313,18 @@ function ordersQuery(select, match, { count = false } = {}) {
 
 const overdueBefore = () => addDays(today(), -(settings.hold_days ?? 30));
 
+// Each list load is numbered, so a slow response for an earlier search can't overwrite a newer one.
+let ordersReq = 0;
+
 async function loadOrders(body) {
+  const req = ++ordersReq;
   const box = $('[data-orders]', body);
   const rowsEl = $('[data-rows]', body);
   box.setAttribute('aria-busy', 'true');
   const match = await orderMatch(state.q);
+  if (req !== ordersReq) return;
   const { data, count, error } = await ordersQuery(`*, customer:customers(id,name,phone,email), reservations!inner(*, item:items(${ITEM_FIELDS}))`, match, { count: true }).range(state.offset, state.offset + PAGE - 1);
+  if (req !== ordersReq) return;
   box.removeAttribute('aria-busy');
   if (error) {
     rowsEl.innerHTML = `<tr><td colspan="6" class="form-error">${esc(friendlyError(error))}</td></tr>`;
@@ -334,6 +340,7 @@ async function loadOrders(body) {
   }
   const t = today();
   await withCustomers(sb, data);
+  if (req !== ordersReq) return;
   rowsEl.innerHTML = data
     .map((o) => {
       const lines = o.reservations;
@@ -362,11 +369,23 @@ async function loadOrders(body) {
   }
 }
 
-async function setLineStatus(ids, status) {
+/**
+ * Change the status of reservation lines (ids go in the request body, so any number fits). Only lines still in one of
+ * `from` change (any status when it's null), so a line someone changed meanwhile is left alone. Ready starts the hold
+ * window: the database stamps today as the arrival date (the nightly flip does the same). Each change is written to
+ * the customer's pull list history. Returns how many lines changed.
+ */
+async function updateLines(ids, status, from = null) {
+  return must(sb.rpc('staff_set_line_status', { p_ids: ids, p_status: status, p_from: from }));
+}
+
+/** updateLines(), then say how many changed (and how many were skipped because they'd changed meanwhile). */
+async function setLineStatus(ids, status, from = null) {
   try {
-    // Ready starts the hold window, so stamp today as the arrival date (the nightly flip does the same).
-    await must(sb.from('reservations').update(status === 'arrived' ? { status, arrived_on: today() } : { status }).in('id', ids));
-    toast(`${ids.length === 1 ? 'Title' : `${ids.length} titles`} marked ${LINE_STATUS[status].toLowerCase()}`);
+    const n = await updateLines(ids, status, from);
+    const skipped = ids.length - n;
+    if (!n) return void toast(`Nothing changed: ${ids.length === 1 ? 'that title' : 'those titles'} changed meanwhile.`, 'error');
+    toast(`${n === 1 ? 'Title' : `${n} titles`} marked ${LINE_STATUS[status].toLowerCase()}${skipped ? ` (${skipped} changed meanwhile and left alone)` : ''}`);
   } catch (err) {
     toast(`Not saved: ${friendlyError(err)}`, 'error');
   }
@@ -381,7 +400,7 @@ async function exportCsv() {
     await withCustomers(sb, data);
     for (const o of data)
       for (const l of o.reservations)
-        rows.push([o.id, o.created_at.slice(0, 16).replace('T', ' '), o.name, formatPhone(o.phone), o.email, l.item?.title, l.item?.issue_number, l.item?.variant, l.item?.publisher, l.quantity, l.item?.price, l.item?.foc_date, l.item?.release_date, LINE_STATUS[l.status], l.arrived_on, holdUntil(l)]);
+        rows.push([o.id, placedAt(o.created_at), o.name, formatPhone(o.phone), o.email, l.item?.title, l.item?.issue_number, l.item?.variant, l.item?.publisher, l.quantity, l.item?.price, l.item?.foc_date, l.item?.release_date, LINE_STATUS[l.status], l.arrived_on, holdUntil(l)]);
     if (data.length < 1000) break;
   }
   downloadCsv(`reservations-${stamp()}.csv`, ['Order', 'Placed', 'Name', 'Phone', 'Email', 'Title', 'Issue', 'Variant', 'Publisher', 'Qty', 'Price', 'FOC', 'Release', 'Status', 'Arrived', 'Hold until'], rows);
@@ -394,7 +413,7 @@ async function exportCsv() {
 
 /** Open, ordered and reordered reservations, totalled per title. Titles releasing after this week (Sunday to Saturday) are listed only when asked for. */
 async function renderReady(body) {
-  body.innerHTML = `<p class="admin-hint">Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.</p>
+  body.innerHTML = `<p class="admin-hint">Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.</p>
     <form class="filters admin-filters" role="search" aria-label="Find titles">
       <div class="field field--search"><label for="rd-q">Title</label><input id="rd-q" type="search" placeholder="Filter by title or publisher"></div>
       <div class="field"><span class="label">&nbsp;</span><label class="cust-export-opt" for="rd-future"><input type="checkbox" id="rd-future"> Include titles releasing after this week</label></div>
@@ -403,7 +422,6 @@ async function renderReady(body) {
   const box = $('[data-ready]', body);
   const picked = new Set();
   let rows = [];
-  const was = new Map();
   let seeded = false;
   const weekStart = addDays(today(), -new Date(`${today()}T00:00:00Z`).getUTCDay());
   const weekEnd = addDays(weekStart, 6);
@@ -413,24 +431,24 @@ async function renderReady(body) {
     try {
       const lines = [];
       for (let from = 0; ; from += 1000) {
-        const { data, error } = await sb.from('reservations').select(`id,quantity,order_id,status,item:items(${ITEM_FIELDS})`).in('status', ['open', 'ordered', 'reordered']).range(from, from + 999);
+        const { data, error } = await sb.from('reservations').select(`id,quantity,order_id,status,item:items(${ITEM_FIELDS})`).in('status', ['open', 'ordered', 'reordered']).order('id').range(from, from + 999);
         if (error) throw fromError(error);
         lines.push(...data);
         if (data.length < 1000) break;
       }
       const byItem = new Map();
       for (const l of lines) {
-        was.set(l.id, l.status);
         if (!l.item) continue;
-        const r = byItem.get(l.item.id) ?? { item: l.item, copies: 0, orders: new Set(), lineIds: [] };
+        const r = byItem.get(l.item.id) ?? { item: l.item, copies: 0, orders: new Set(), lineIds: [], onOrder: false };
         r.copies += l.quantity;
+        if (l.status !== 'reordered') r.onOrder = true;
         r.orders.add(l.order_id);
         r.lineIds.push(l.id);
         byItem.set(l.item.id, r);
       }
       // Every title releasing this week is listed, reserved or not.
       for (let from = 0; ; from += 1000) {
-        const { data, error } = await sb.from('items').select(ITEM_FIELDS).gte('release_date', weekStart).lte('release_date', weekEnd).range(from, from + 999);
+        const { data, error } = await sb.from('items').select(ITEM_FIELDS).gte('release_date', weekStart).lte('release_date', weekEnd).order('id').range(from, from + 999);
         if (error) throw fromError(error);
         for (const item of data) if (!byItem.has(item.id)) byItem.set(item.id, { item, copies: 0, orders: new Set(), lineIds: [] });
         if (data.length < 1000) break;
@@ -446,6 +464,9 @@ async function renderReady(body) {
   }
 
   const isOut = (r) => !r.item.release_date || r.item.release_date <= weekEnd;
+  // Ticked to start: titles out this week with copies open or on order. Titles with no release date, from earlier
+  // weeks, or only reordered (the replacement comes later) are listed but have to be ticked by hand.
+  const startTicked = (r) => r.onOrder && r.item.release_date >= weekStart && r.item.release_date <= weekEnd;
   const visible = () => {
     const q = $('#rd-q', body).value.trim().toLowerCase();
     const future = $('#rd-future', body).checked;
@@ -455,7 +476,7 @@ async function renderReady(body) {
   function draw() {
     const list = visible();
     if (!seeded) {
-      rows.filter((r) => isOut(r) && r.lineIds.length).forEach((r) => picked.add(r.item.id));
+      rows.filter(startTicked).forEach((r) => picked.add(r.item.id));
       seeded = true;
     }
     if (!list.length) {
@@ -501,11 +522,9 @@ async function renderReady(body) {
     if (!confirm(`Mark ${chosen.length} ${chosen.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) as ready for pickup today?\n\nCustomers who have arrival emails turned on will be notified.`)) return;
     go.disabled = true;
     try {
-      // Re-check status in the update so a line staff changed meanwhile is left alone.
-      const done = await must(sb.from('reservations').update({ status: 'arrived', arrived_on: today() }).in('id', ids).in('status', ['open', 'ordered', 'reordered']).select('id,order:reservation_orders(customer_id),item:items(title,issue_number,variant)'));
-      const entries = done.filter((l) => l.order?.customer_id).map((l) => ({ customer_id: l.order.customer_id, reservation_id: l.id, action: 'status', detail: `${itemName(l.item)}: ${LINE_STATUS[was.get(l.id)] ?? 'Open'} → Ready` }));
-      if (entries.length) await sb.from('pull_list_log').insert(entries);
-      toast(`${done.length} ${done.length === 1 ? 'reservation' : 'reservations'} marked ready`);
+      // Only lines still open, ordered or reordered change, so a line staff changed meanwhile is left alone.
+      const done = await updateLines(ids, 'arrived', ['open', 'ordered', 'reordered']);
+      toast(`${done} ${done === 1 ? 'reservation' : 'reservations'} marked ready`);
       picked.clear();
       seeded = true;
     } catch (err) {
@@ -528,7 +547,7 @@ async function renderReady(body) {
 async function loadToOrderData() {
   const lines = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await sb.from('reservations').select(`id,quantity,order_id,item:items(${ITEM_FIELDS})`).eq('status', 'open').range(from, from + 999);
+    const { data, error } = await sb.from('reservations').select(`id,quantity,order_id,item:items(${ITEM_FIELDS})`).eq('status', 'open').order('id').range(from, from + 999);
     if (error) throw fromError(error);
     lines.push(...data);
     if (data.length < 1000) break;
@@ -545,8 +564,12 @@ async function loadToOrderData() {
     row.lineIds.push(l.id);
     g.set(l.item.id, row);
   }
+  // Product codes and distributors, a few hundred titles per request (a long id list overruns the URL, and a
+  // response stops at 1000 rows).
   const ids = [...new Set(lines.map((l) => l.item.id))];
-  const meta = new Map((await must(sb.from('items').select('id,upc,isbn,sku,distributor').in('id', ids))).map((i) => [i.id, i]));
+  const meta = new Map();
+  for (let i = 0; i < ids.length; i += 300)
+    for (const m of await must(sb.from('items').select('id,upc,isbn,sku,distributor').in('id', ids.slice(i, i + 300)))) meta.set(m.id, m);
   return { lines, groups, focs: [...groups.keys()].sort(), meta };
 }
 
@@ -554,7 +577,6 @@ async function loadToOrderData() {
 let toOrderOpen = null;
 
 async function renderToOrder(body) {
-  if (state.detail) return renderToOrderDetail(body);
   const keep = { foc: $('#ot-foc', body)?.value ?? '', dist: $('#ot-dist', body)?.value ?? 'all' };
   toOrderBody = body;
   body.innerHTML = `<p class="admin-hint">Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it.</p><div data-order-tools></div><div data-groups aria-busy="true"></div>`;
@@ -646,7 +668,7 @@ async function renderToOrder(body) {
         if (changed) renderToOrder(body);
         return;
       }
-      await setLineStatus(lineIds, 'ordered');
+      await setLineStatus(lineIds, 'ordered', ['open']);
       renderToOrder(body);
     }
   });
@@ -659,7 +681,7 @@ async function renderToOrder(body) {
 async function markNotOrdered(body, itemId, btn) {
   btn.disabled = true;
   try {
-    const lines = await must(sb.from('reservations').select('id,quantity,item:items(title,issue_number,variant),order:reservation_orders(customer_id)').eq('status', 'open').eq('item_id', itemId));
+    const lines = await must(sb.from('reservations').select('id,quantity,item:items(title,issue_number,variant)').eq('status', 'open').eq('item_id', itemId));
     if (!lines.length) {
       toast('Nothing is waiting to be ordered for that title any more.', 'error');
       return void renderToOrder(body);
@@ -667,10 +689,8 @@ async function markNotOrdered(body, itemId, btn) {
     const name = itemName(lines[0].item);
     const copies = lines.reduce((n, l) => n + l.quantity, 0);
     if (!confirm(`Mark ${name} as not ordered?\n\n${lines.length} ${lines.length === 1 ? 'reservation' : 'reservations'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) will show "Not ordered" in the customers' pull lists and leave this list.`)) return;
-    await must(sb.from('reservations').update({ status: 'not_ordered' }).in('id', lines.map((l) => l.id)).eq('status', 'open'));
-    const entries = lines.filter((l) => l.order?.customer_id).map((l) => ({ customer_id: l.order.customer_id, reservation_id: l.id, action: 'status', detail: `${name}: Open → Not ordered` }));
-    if (entries.length) await sb.from('pull_list_log').insert(entries);
-    toast(`${name}: marked not ordered (${lines.length} ${lines.length === 1 ? 'reservation' : 'reservations'})`);
+    const done = await updateLines(lines.map((l) => l.id), 'not_ordered', ['open']);
+    toast(`${name}: marked not ordered (${done} ${done === 1 ? 'reservation' : 'reservations'})`);
     renderToOrder(body);
   } catch (err) {
     toast(`Not saved: ${friendlyError(err)}`, 'error');
@@ -710,62 +730,6 @@ async function toggleCustomers(btn) {
     cell.removeAttribute('aria-busy');
     cell.innerHTML = `<span class="form-error">${esc(friendlyError(err))}</span>`;
   }
-}
-
-/** Page listing every customer with an open reservation for one title, and the quantity each wants. */
-async function renderToOrderDetail(body) {
-  toOrderBody = body;
-  body.innerHTML = `<p><button type="button" class="btn btn--ghost btn--small" data-back>← Back to Place Order</button></p><div data-detail aria-busy="true"></div>`;
-  $('[data-back]', body).addEventListener('click', () => {
-    state.detail = null;
-    renderToOrder(body);
-  });
-  const box = $('[data-detail]', body);
-  let item;
-  let lines;
-  try {
-    item = await must(sb.from('items').select(ITEM_FIELDS).eq('id', state.detail).single());
-    lines = await must(sb.from('reservations').select('id,quantity,order:reservation_orders(id,name,phone,email,kind,customer_id,created_at,customer:customers(id,name,phone,email))').eq('status', 'open').eq('item_id', state.detail));
-    await withCustomers(sb, lines.map((l) => l.order).filter(Boolean));
-  } catch (err) {
-    box.removeAttribute('aria-busy');
-    box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
-    return;
-  }
-  box.removeAttribute('aria-busy');
-  lines.sort((a, b) => (a.order?.name ?? '').localeCompare(b.order?.name ?? ''));
-  const copies = lines.reduce((n, l) => n + l.quantity, 0);
-  box.innerHTML = `<h2>${esc(itemName(item))}</h2>
-    <p class="admin-hint">${lines.length} ${lines.length === 1 ? 'customer' : 'customers'} · ${copies} ${copies === 1 ? 'copy' : 'copies'} waiting to be ordered.</p>
-    ${lines.length ? `<table class="admin-table">
-      <thead><tr><th scope="col" data-sort="text">Customer</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col">Type</th><th scope="col">Order</th><th scope="col" data-sort="num" data-first="desc">Qty</th></tr></thead>
-      <tbody>${lines.map((l) => { const o = l.order ?? {}; return `<tr>
-        <td>${esc(o.name ?? '')}${o.customer_id ? ` <a href="#customers" data-customer="${o.customer_id}">View customer →</a>` : o.id ? ` <a href="#reservations" data-guest="${o.id}">View customer →</a>` : ''}</td>
-        <td class="nowrap">${o.phone ? `<a href="tel:${esc(o.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(o.phone))}</a>` : ''}</td>
-        <td>${o.email ? `<button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(o.email)}" aria-label="Email ${esc(o.name)}" data-email-to="${esc(o.email)}" data-email-name="${esc(o.name)}"${o.customer_id ? ` data-email-customer="${o.customer_id}"` : ''}>Email</button>` : ''}</td>
-        <td>${o.kind === 'pull_list' ? 'Pull list' : 'Guest order'}</td>
-        <td class="nowrap">#${o.id}</td>
-        <td class="center"><strong>${l.quantity}</strong></td></tr>`; }).join('')}</tbody>
-    </table>` : '<p class="empty">No open reservations for this title any more.</p>'}`;
-  const t = $('table', box);
-  if (t) sortableTable(t);
-  box.addEventListener('click', (e) => {
-    const guest = e.target.closest('[data-guest]');
-    if (guest) {
-      e.preventDefault();
-      state.view = 'orders';
-      state.detail = null;
-      $$('[data-view]').forEach((b) => b.setAttribute('aria-selected', b.dataset.view === 'orders'));
-      return void renderGuest(body, Number(guest.dataset.guest));
-    }
-    const link = e.target.closest('[data-customer]');
-    if (!link) return;
-    try {
-      sessionStorage.setItem('admin-open-customer', link.dataset.customer);
-    } catch {
-      /* the link still opens the customer list */
-    }
-  });
 }
 
 // ---------------------------------------------------------------------------

@@ -88,6 +88,9 @@ async function save(sb, item) {
   const question = $('input', item.el).value.trim();
   if (!question) return setStatus(status, 'Please enter the question.', 'error');
   const row = { question, answer_html: getHtml(item.quill) ?? '', sort: (items.indexOf(item) + 1) * 10 };
+  const btn = $('[data-save]', item.el);
+  if (btn.disabled) return; // a save is already on its way (a double click would add a new question twice)
+  btn.disabled = true;
   setStatus(status, 'Saving…');
   try {
     const saved = item.id
@@ -99,6 +102,8 @@ async function save(sb, item) {
     setStatus(status, 'Saved — live on the FAQ page.', 'ok');
   } catch (err) {
     setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -126,5 +131,8 @@ async function move(sb, list, item, delta) {
   const saved = items.map((f, idx) => [f, (idx + 1) * 10]).filter(([f]) => f.id);
   const results = await Promise.all(saved.map(([f, sort]) => sb.from('faqs').update({ sort }).eq('id', f.id)));
   const failed = results.find((r) => r.error);
-  setStatus($('.admin-status', item.el), failed ? `Order not saved: ${failed.friendlyError(error)}` : 'Order saved.', failed ? 'error' : 'ok');
+  const text = failed ? `Order not saved: ${friendlyError(failed.error)}` : 'Order saved.';
+  setStatus($('.admin-status', item.el), text, failed ? 'error' : 'ok');
+  // The status line is inside the question's fold, so a failure on a closed question also gets a toast.
+  if (failed && !$('details', item.el).open) toast(text, 'error');
 }

@@ -11,6 +11,7 @@ const SITE_COLOR_FALLBACK = '#982c21';
 
 let dirty = false; // email settings changed (the preview and send buttons use the saved ones)
 let textDirty = false; // signup text changed
+const sending = new WeakSet(); // email buttons whose request is still running: they stay disabled until it ends
 export const hasUnsavedChanges = () => dirty || textDirty;
 
 export async function mount(el, { sb }) {
@@ -147,7 +148,7 @@ export async function mount(el, { sb }) {
   signupEditor.on('text-change', () => (textDirty = true));
   // Preview / test / send-now read the saved settings, so hold them back while the form has unsaved edits.
   const syncEmailButtons = () => {
-    $$('[data-email]', el).forEach((b) => (b.disabled = dirty));
+    $$('[data-email]', el).forEach((b) => (b.disabled = dirty || sending.has(b)));
     $$('[data-email-dirty]', el).forEach((n) => (n.hidden = !dirty));
   };
   form.addEventListener('input', () => ((dirty = true), syncEmailButtons()));
@@ -171,8 +172,8 @@ export async function mount(el, { sb }) {
     };
     setStatus(status, 'Saving…');
     try {
-      await must(sb.from('settings').update(row).eq('id', 1));
-      await must(sb.from('pages').upsert({ slug: 'home-newsletter', lede_html: getHtml(signupEditor) }, { onConflict: 'slug' }));
+      // One call, so the settings and the signup text are saved together or not at all (it errors if nothing was saved).
+      await must(sb.rpc('staff_save_email_settings', { p: row, p_signup_html: getHtml(signupEditor) }));
       dirty = false;
       textDirty = false;
       syncEmailButtons();
@@ -292,7 +293,18 @@ function setupLog(sb, el) {
         return;
       }
       run.disabled = true;
-      const { data, error } = await sb.from('email_log').select('id,kind,to_email,subject,body,status,error,sent_by,created_at').eq('run_id', run.dataset.logRun).order('to_email').limit(1000);
+      // A run can have more than 1000 emails (one request's limit), so read it in pages.
+      const data = [];
+      let error = null;
+      for (let from = 0; ; from += 1000) {
+        const res = await sb.from('email_log').select('id,kind,to_email,subject,body,status,error,sent_by,created_at').eq('run_id', run.dataset.logRun).order('to_email').order('id').range(from, from + 999);
+        if (res.error) {
+          error = res.error;
+          break;
+        }
+        data.push(...res.data);
+        if (res.data.length < 1000) break;
+      }
       run.disabled = false;
       if (error) return void toast(`Couldn’t load that run: ${friendlyError(error)}`, 'error');
       groupTr.insertAdjacentHTML('afterend', `<tr class="email-log__members"><td colspan="6">${table(data.map((r) => emailRow(r, { member: true })).join(''))}</td></tr>`);
@@ -327,6 +339,7 @@ async function emailAction(sb, btn, status) {
     ? 'Send “your books are in” emails now to everyone whose newly arrived titles haven’t been announced yet?'
     : 'Send the weekly pull list email to every opted-in customer now? Anyone already emailed today is skipped.')) return;
   btn.disabled = true;
+  sending.add(btn);
   setStatus(status, action === 'preview' ? 'Building preview…' : 'Sending…');
   try {
     const { data, error } = await sb.functions.invoke('weekly-pull-list', { body: { mode } });
@@ -341,13 +354,19 @@ async function emailAction(sb, btn, status) {
       d.querySelector('iframe').style.cssText = 'width:100%;height:70vh;border:1px solid #ddd;border-radius:6px';
     } else if (action === 'test') {
       setStatus(status, `Test sent to ${data.to}.`, 'ok');
-    } else if (kind === 'arrivals') {
-      setStatus(status, data.sent ? `Sent ${data.sent}${data.failed ? `, ${data.failed} failed (they’ll be retried)` : ''}.` : data.failed ? `${data.failed} failed; they’ll be retried.` : 'Nothing waiting: no customer has newly arrived titles to announce.', data.failed ? 'error' : 'ok');
     } else {
-      setStatus(status, `Sent ${data.sent}${data.failed ? `, ${data.failed} failed` : ''}. ${data.nothingToSend} had nothing to report, ${data.optedOut} opted out.`, data.failed ? 'error' : 'ok');
+      // Customers another run (the scheduled one, another tab) was already emailing, and bookkeeping problems.
+      const extra = `${data.sendingElsewhere ? ` ${data.sendingElsewhere} were already being sent by another run.` : ''}${data.errors?.length ? ` Problem: ${data.errors.join(' ')}` : ''}`;
+      const bad = data.failed || data.errors?.length ? 'error' : 'ok';
+      if (kind === 'arrivals') {
+        setStatus(status, (data.sent ? `Sent ${data.sent}${data.failed ? `, ${data.failed} failed (they’ll be retried)` : ''}.` : data.failed ? `${data.failed} failed; they’ll be retried.` : data.sendingElsewhere ? 'Nothing sent here.' : 'Nothing waiting: no customer has newly arrived titles to announce.') + extra, bad);
+      } else {
+        setStatus(status, `Sent ${data.sent}${data.failed ? `, ${data.failed} failed` : ''}. ${data.nothingToSend} had nothing to report, ${data.optedOut} opted out.${extra}`, bad);
+      }
     }
   } catch (err) {
     setStatus(status, friendlyError(err), 'error');
   }
+  sending.delete(btn);
   btn.disabled = dirty;
 }

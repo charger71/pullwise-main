@@ -15,8 +15,12 @@ export const hasUnsavedChanges = () => dirty;
 
 export async function mount(el, { sb }) {
   dirty = false;
-  const s = await must(sb.from('settings').select('*').eq('id', 1).single());
-  const field = settingsField(s);
+  const [s, notice] = await Promise.all([
+    must(sb.from('settings').select('*').eq('id', 1).single()),
+    // The staff notice has its own staff-only table (settings can be read by anyone).
+    must(sb.from('staff_notice').select('notice').eq('id', 1).maybeSingle()),
+  ]);
+  const field = settingsField({ ...s, admin_notice: notice?.notice });
 
   el.innerHTML = `
     <h1>Shop Settings</h1>
@@ -155,7 +159,7 @@ export async function mount(el, { sb }) {
     if (mapUrl && !/^https:\/\/(www\.)?google\.com\/maps\/embed\?/.test(mapUrl)) return setStatus(status, 'The custom map link should be a Google Maps embed link (https://www.google.com/maps/embed?…).', 'error');
 
     const row = {
-      shop_name: text('shop_name'), tagline: text('tagline'), hero_headline: text('hero_headline'), admin_notice: text('admin_notice'), copyright_text: text('copyright_text'), footer_scripts: text('footer_scripts'), founded_year: int('founded_year', null),
+      shop_name: text('shop_name'), tagline: text('tagline'), hero_headline: text('hero_headline'), copyright_text: text('copyright_text'), footer_scripts: text('footer_scripts'), founded_year: int('founded_year', null),
       phone: text('phone'), email: text('email'), street: text('street'), city: text('city'), region: text('region'), postal_code: text('postal_code'),
       hours, socials, colors, logo_url: logo.get(), favicon_url: favicon.get(), show_name_with_logo: f.has('show_name_with_logo'), hero_image_url: hero.get(), show_map: f.has('show_map'), map_embed_url: mapUrl, ga_measurement_id: gaId,
       max_copies_per_title: int('max_copies_per_title', 10), hold_days: int('hold_days', 30),
@@ -165,9 +169,13 @@ export async function mount(el, { sb }) {
     };
     setStatus(status, 'Saving…');
     try {
-      await must(sb.from('settings').update(row).eq('id', 1));
+      const adminNotice = text('admin_notice');
+      // Row-level security turns an update by a signed-out (or non-owner) session into "0 rows", not an error.
+      const notSaved = () => Object.assign(new Error('You may have been signed out. Sign in again, then save once more.'), { code: 'P0001' });
+      if (!(await must(sb.from('settings').update(row).eq('id', 1).select('id')))?.length) throw notSaved();
+      if (!(await must(sb.from('staff_notice').update({ notice: adminNotice }).eq('id', 1).select('id')))?.length) throw notSaved();
       dirty = false;
-      window.dispatchEvent(new CustomEvent('admin-notice', { detail: row.admin_notice }));
+      window.dispatchEvent(new CustomEvent('admin-notice', { detail: adminNotice }));
       setStatus(status, `Saved ${new Date().toLocaleTimeString()} — live on the site now.`, 'ok');
       toast('Settings saved');
     } catch (err) {

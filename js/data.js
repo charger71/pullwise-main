@@ -9,7 +9,7 @@ export const DEMO = !SUPABASE_URL;
 let clientPromise;
 export function supabase() {
   if (DEMO) return null;
-  clientPromise ??= import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm').then(({ createClient }) =>
+  clientPromise ??= import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.9/+esm').then(({ createClient }) =>
     createClient(SUPABASE_URL, SUPABASE_ANON_KEY),
   );
   return clientPromise;

@@ -213,6 +213,8 @@ async function preview(el, card, name, parsed, book) {
 async function run(el, card, name, parsed, book, onSale) {
   const status = $('.admin-actions .admin-status', card);
   const go = $('[data-go]', card);
+  // One import at a time: two sheets writing at once could both insert the same new titles.
+  if (busy) return setStatus(status, 'Another import is still running. Import this one when it has finished.', 'error');
   go.disabled = true;
   $('[data-cancel]', card).disabled = true;
   busy = true;

@@ -189,7 +189,7 @@ function addItem(sb, list, c, open = false, prepend = false) {
       </div>
     </details>`;
   prepend ? list.prepend(el) : list.append(el);
-  const item = { id: c.id, slug: c.slug, el, dirty: !c.id, forward: !!c.forward };
+  const item = { id: c.id, slug: c.slug, el, dirty: !c.id, forward: !!c.forward, scans: Number(c.scan_count || 0) };
   items.push(item);
 
   const status = $('.admin-status', el);
@@ -256,6 +256,12 @@ async function save(sb, item, read, status, render) {
   const v = read();
   if (!v.name) return setStatus(status, 'Please give the code a name.', 'error');
   if (!v.target_url) return setStatus(status, 'Please enter a web address (like example.com/events).', 'error');
+  // A saved forwarding code is printed as our site's /go address; holding the web address directly instead makes a
+  // different code, and the printed copies stop working (they only forward while forwarding is on).
+  if (item.id && item.forward && !v.forward) {
+    const scanned = item.scans ? `It has been scanned ${item.scans.toLocaleString()} ${item.scans === 1 ? 'time' : 'times'}, so copies are out there. ` : '';
+    if (!confirm(`Turn off “Forward through our site” for “${v.name}”?\n\n${scanned}Any printed copies of this code will stop working, and you’ll need to print the new code. Leave forwarding on to change where printed codes go instead.`)) return;
+  }
   const row = { name: v.name, target_url: v.target_url, forward: v.forward, slug: v.slug, fg: v.fg, bg: v.bg, notes: v.notes };
   setStatus(status, 'Saving…');
   try {

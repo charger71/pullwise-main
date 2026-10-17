@@ -267,6 +267,26 @@ export function parseSheet(rows, { today, exclusions } = {}) {
 }
 
 function parseRows(rows, today) {
+  return withoutRepeats(parseRowsBySource(rows, today));
+}
+
+/**
+ * Each SKU once: the first row wins and later rows with the same SKU are skipped ("Listed twice in this sheet").
+ * Two rows with one SKU would break the import: the insert hits the (distributor, sku) unique key, and a
+ * re-import's upsert can't update the same row twice in one statement.
+ */
+function withoutRepeats(parsed) {
+  const seen = new Set();
+  const items = [];
+  const repeats = [];
+  for (const i of parsed.items) {
+    if (seen.has(i.sku)) repeats.push({ sku: i.sku, title: [i.title, i.issue_number && `#${i.issue_number}`, i.variant].filter(Boolean).join(' '), reason: 'Listed twice in this sheet' });
+    else (seen.add(i.sku), items.push(i));
+  }
+  return repeats.length ? { ...parsed, items, skipped: [...parsed.skipped, ...repeats], repeated: repeats.length } : parsed;
+}
+
+function parseRowsBySource(rows, today) {
   const { distributor, headerRow } = detectDistributor(rows);
   const header = rows[headerRow];
   const body = rows.slice(headerRow + 1);
@@ -430,7 +450,8 @@ function parseFunko(header, body, today) {
     const foc = isoDate(deadline) ?? (/closed/i.test(deadline) ? today : release);
     items.push({
       distributor: 'other',
-      // No UPC in the sheet: a stable id from franchise + name so re-imports update in place.
+      // No UPC in the sheet: a stable id from franchise + name so re-imports update in place (see funkoSkus for
+      // figures that share a name).
       sku: `funko:${slug(`${franchise ?? ''} ${name}`)}`,
       title: franchise ? `${franchise} — ${name}` : name,
       issue_number: null,
@@ -448,7 +469,29 @@ function parseFunko(header, body, today) {
       cover: null,
     });
   }
-  return { items, skipped: [] };
+  return { items: funkoSkus(items), skipped: [] };
+}
+
+// The everyday figure type ("Pop!", "POP! Vinyl"), as opposed to Deluxe, Rides, Jumbo, Keychain…
+const REGULAR_FUNKO = /^(funko\s+)?pop!?(\s+vinyl)?(\s+figures?)?$/i;
+
+/**
+ * Figures that differ only by Figure Type (a regular Pop and a Deluxe of the same character) would share the
+ * franchise + name SKU. Within such a group the regular one (or, with none, the first listed) keeps the plain SKU and
+ * the others get their type added ("funko:marvel-venom--pop-deluxe"). A figure with a name of its own keeps the
+ * plain SKU whatever its type, so everything imported before this rule existed still updates in place.
+ */
+function funkoSkus(items) {
+  const groups = new Map();
+  for (const i of items) groups.set(i.sku, [...(groups.get(i.sku) ?? []), i]);
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const regular = (i) => !i.variant || REGULAR_FUNKO.test(i.variant);
+    const plain = group.find(regular) ?? group[0];
+    const samePlain = (i) => i === plain || (regular(i) && regular(plain)) || i.variant === plain.variant;
+    for (const i of group) if (!samePlain(i)) i.sku = `${i.sku}--${slug(i.variant)}`;
+  }
+  return items; // rows that still share a SKU (same name and type) are true repeats, dropped by withoutRepeats
 }
 
 /**

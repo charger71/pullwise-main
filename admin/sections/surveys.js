@@ -1,7 +1,7 @@
 // Surveys: build a survey, open or close it, and read the answers.
 // Customers answer at survey.html?s=<slug> (no login). Responses are private to staff.
 
-import { $, $$, esc, must, toast, setStatus, slugify, fmtDateTime, downloadCsv, loadScript, solidIcon, friendlyError, setupTabs } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, slugify, fmtDateTime, downloadCsv, loadScript, solidIcon, friendlyError, setupTabs, fetchAll } from '../lib.js';
 import { QR_LIB, svgFor, newSlug, encodedText } from './qr.js';
 import { SITE_URL } from '../../js/config.js';
 
@@ -300,7 +300,7 @@ const answerText = (v) => (Array.isArray(v) ? v.join('; ') : v ?? '');
 async function renderResults(box, sv) {
   const id = sv.id;
   box.innerHTML = '<p class="admin-hint" aria-busy="true">Loading…</p>';
-  const rows = await must(sb.from('survey_responses').select('id,answers,created_at').eq('survey_id', id).order('created_at', { ascending: false }).limit(5000));
+  const rows = await fetchAll(() => sb.from('survey_responses').select('id,answers,created_at').eq('survey_id', id).order('created_at', { ascending: false }).order('id', { ascending: false }));
   const answerable = sv.questions.filter((q) => q.type !== 'section');
   const summary = answerable.map((q) => {
     const answers = rows.map((r) => r.answers[q.id]).filter((v) => v != null && v !== '');
@@ -325,7 +325,7 @@ async function renderResults(box, sv) {
     }
     return `<section class="survey-q"><h3>${esc(q.label)} <span class="card__meta">(${answers.length} answered)</span></h3>${body}</section>`;
   });
-  const entries = sv.collect_email ? await must(sb.from('survey_entries').select('email,created_at').eq('survey_id', id).order('created_at', { ascending: false }).limit(5000)) : [];
+  const entries = sv.collect_email ? await fetchAll(() => sb.from('survey_entries').select('email,created_at').eq('survey_id', id).order('created_at', { ascending: false }).order('email')) : [];
   const d = box;
   box.innerHTML = `
     <p><strong>${rows.length}</strong> response${rows.length === 1 ? '' : 's'}${rows[0] ? ` · latest ${fmtDateTime(rows[0].created_at)}` : ''}</p>
@@ -375,12 +375,13 @@ async function renderShare(box, sv) {
     try { await navigator.clipboard.writeText(url); toast('Link copied'); } catch { $('[data-url]', box).select(); toast('Press Ctrl/⌘+C to copy', 'ok'); }
   });
   $('[data-make-qr]', box)?.addEventListener('click', async (e) => {
-    e.currentTarget.disabled = true;
+    const btn = e.currentTarget; // currentTarget is null again once the await below returns
+    btn.disabled = true;
     try {
       await ensureQr(sv);
       renderShare(box, sv);
     } catch (err) {
-      e.currentTarget.disabled = false;
+      btn.disabled = false;
       toast(`Not saved: ${friendlyError(err)}`, 'error');
     }
   });

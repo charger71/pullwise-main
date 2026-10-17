@@ -31,12 +31,19 @@ Not included:
      Use this after something was deleted by mistake.
    - **Replace the table with the backup**: deletes every row now in the table first, so anything changed since the
      backup is lost. You must type RESTORE, and a safety backup of today's data is downloaded automatically first.
-4. Press Restore. Each table is loaded all-or-nothing on the server: if it fails, that table is left exactly as it was
-   and the restore stops. Foreign keys stay enforced, so tables load parents first; a table whose parent rows are
-   missing is refused (restore the parent table first). Every restore is recorded in the job log.
+4. In Replace mode, the screen lists any other tables whose rows the replace would delete or unlink (replacing customers
+   deletes their follows and notes and unlinks their orders, for example). Tick those tables too if the backup has them,
+   or tick the box that says you accept losing those rows.
+5. Press Restore. All the ticked tables load together, all-or-nothing, on the server: if any table fails, nothing is
+   changed and the screen names the table. Foreign keys stay enforced and tables load parents first; rows whose parent
+   is in neither the database nor the backup (a backup taken while someone was ordering) are skipped and counted. A table
+   whose parent rows are missing from a table you didn't tick is refused (tick the parent table too). A very large restore
+   can hit the database's time limit; restore fewer tables at a time if it says so. Every restore is recorded in the job
+   log.
 
-Not restored: the staff list (add people under Admin → Staff) and customers' sign-ins (they sign up again with the same
-email and are matched back to their customer record and pull list automatically).
+Not restored: the staff list (add people under Admin → Staff), the staff change log and the job log (kept as the record of
+what was done), and customers' sign-ins (they sign up again with the same email and are matched back to their customer
+record and pull list automatically). Restoring event signups doesn't re-send their confirmation emails.
 
 If the whole project is lost: create a new Supabase project, run `supabase db push` so the structure exists, then restore
 every table here (the structure itself comes from git, not from the backup).

@@ -13,6 +13,7 @@ const SOURCE = { manual: 'Customer', variant: 'Customer (all covers)', series: '
 const ITEM_FIELDS = 'id,title,issue_number,variant,publisher,price,series_key,foc_date,release_date,status';
 const PAGE = 25;
 let sb;
+let isOwner = false; // only owners can delete a customer
 let settings;
 let state = { q: '', show: '', sort: 'name', dir: 'asc', offset: 0, customerId: null, showCancelled: false };
 
@@ -87,6 +88,7 @@ const fileSlug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').repl
 
 export async function mount(el, ctx) {
   sb = ctx.sb;
+  isOwner = ctx.isOwner === true;
   settings = await must(sb.from('settings').select('max_copies_per_title,hold_days,timezone,shop_name,colors,phone,logo_url,discount_enabled,discount_tiers').eq('id', 1).single());
   // "View customer" on the Reservations page hands over which customer to open.
   let handedOff = false;
@@ -316,7 +318,7 @@ async function renderCustomer(el) {
           <div class="field field--check"><input id="cu-arrivals" name="notify_arrivals" type="checkbox"${c.notify_arrivals !== false ? ' checked' : ''}><label for="cu-arrivals">Email when their books are ready for pickup</label></div>
           <p class="form-error" role="alert" data-error></p>
           <button class="btn btn--primary" type="submit">${isNew ? 'Create customer' : 'Save profile'}</button>
-          ${isNew ? '' : `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete customer…</button>`}
+          ${isNew || !isOwner ? '' : `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete customer…</button>`}
         </form></div>
         </details>
       ${isNew ? '</div>' : `
@@ -434,7 +436,7 @@ async function renderCustomer(el) {
   });
   if (isNew) return;
 
-  $('[data-delete]', el).addEventListener('click', async () => {
+  $('[data-delete]', el)?.addEventListener('click', async () => {
     const who = c.name || c.email || 'this customer';
     if (!confirm(`Permanently delete ${who}?\n\nThis removes their profile, pull list, orders, follows, notes and login. It can't be undone.`)) return;
     const err = $('[data-error]', el);

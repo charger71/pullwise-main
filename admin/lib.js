@@ -77,6 +77,29 @@ export const slugify = (s) =>
 export const STATUS_LABELS = Object.fromEntries(Object.entries(ITEM_STATUS).map(([k, v]) => [k, v.label]));
 
 /**
+ * Every row of a query, a page at a time: one request returns at most 1,000 rows, so a plain select stops there.
+ * `make()` builds a fresh query each time; give it an .order() that is unique (end with the id) so pages don't overlap.
+ */
+export async function fetchAll(make, size = 1000) {
+  const rows = [];
+  for (let from = 0; ; from += size) {
+    const page = await must(make().range(from, from + size - 1));
+    rows.push(...page);
+    if (page.length < size) return rows;
+  }
+}
+
+/** Every file in a storage folder, a page at a time (a listing returns only `limit` entries). */
+export async function listAllFiles(sb, bucket, folder, opts = {}, size = 1000) {
+  const files = [];
+  for (let offset = 0; ; offset += size) {
+    const page = await must(sb.storage.from(bucket).list(folder, { ...opts, limit: size, offset }));
+    files.push(...page);
+    if (page.length < size) return files;
+  }
+}
+
+/**
  * An order keeps the name it was placed under. Show the customer's current details instead: the linked
  * customer (`customer:customers(id,name,phone,email)` in the select), or, for orders with no link, the
  * customer record with the same email. Sets name, phone, email and customer_id on each order.
@@ -103,8 +126,8 @@ export async function withCustomers(sb, orders) {
  */
 export async function findGuestMatches(sb) {
   const [orders, customers] = await Promise.all([
-    must(sb.from('reservation_orders').select('id,email,phone_digits').is('customer_id', null).limit(2000)),
-    must(sb.from('customers').select('id,email,phone_digits').limit(5000)),
+    fetchAll(() => sb.from('reservation_orders').select('id,email,phone_digits').is('customer_id', null).order('id')),
+    fetchAll(() => sb.from('customers').select('id,email,phone_digits').order('id')),
   ]);
   const byEmail = new Map();
   const byPhone = new Map();
@@ -617,7 +640,7 @@ export function imageField(root, { folder, crop = 'original', maxSize = 1600, la
   $('[data-library]', root)?.addEventListener('click', async () => {
     try {
       const sb = await db();
-      const files = (await must(sb.storage.from('media').list('library', { limit: 500, sortBy: { column: 'created_at', order: 'desc' } })))
+      const files = (await listAllFiles(sb, 'media', 'library', { sortBy: { column: 'created_at', order: 'desc' } }))
         .filter((f) => f.id && !/-sm\.jpg$/.test(f.name)); // small copies aren't listed as pictures of their own
       const urls = files.map((f) => sb.storage.from('media').getPublicUrl(`library/${f.name}`).data.publicUrl);
       const d = openDialog('Choose from Media', files.length

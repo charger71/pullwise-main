@@ -1,6 +1,6 @@
 // node supabase/functions/weekly-pull-list/email.test.js
 import assert from 'node:assert/strict';
-import { buildMessage, emailLook, sections, build, lastChangeDay, addDays } from './email.js';
+import { buildMessage, emailLook, sections, build, lastChangeDay, addDays, asTest, splitClaims } from './email.js';
 
 const today = '2026-10-08'; // a Thursday
 const it = (title, issue, rel, foc, extra = {}) => ({ title, issue_number: issue, release_date: rel, foc_date: foc, variant: null, price: 4.99, ...extra });
@@ -147,3 +147,19 @@ assert.match(msg.html, /<img src=/);
 assert.match(msg.text, /^Hi <b>Jane<\/b>,/);
 assert.match(msg.text, /Main Street Comics, 1 Main St/);
 console.log('message tests passed');
+
+// Test copies: a note at the top saying the unsubscribe link is off; nothing else changes.
+const real = { subject: 'S', html: '<!doctype html><html><body style="margin:0"><a href="https://site/account.html">Unsubscribe</a></body></html>', text: 'Hi\nUnsubscribe: https://site/account.html\n' };
+const t = asTest(real, 'Don <b>');
+assert.equal(t.subject, 'S');
+assert.match(t.html, /<body style="margin:0"><div [^>]*>Test copy of the email Don &lt;b&gt; gets\. Its unsubscribe link is switched off\.<\/div><a /);
+assert.match(t.text, /^\[Test copy of the email Don <b> gets\. Its unsubscribe link is switched off\.\]\n\nHi\n/);
+assert.match(asTest(real).text, /a customer gets/);
+console.log('test copy tests passed');
+
+// Arrival claims: send only emails whose titles this run got all of; hand back a partial claim.
+const claims = splitClaims([{ c: 1, ids: [1, 2] }, { c: 2, ids: [3, 4] }, { c: 3, ids: [5] }, { c: 4, ids: [6] }], [1, 2, 3, 5]);
+assert.deepEqual(claims.send.map((m) => m.c), [1, 3]);
+assert.deepEqual(claims.release, [3], 'customer 2: another run got title 4, so title 3 goes back');
+assert.deepEqual(splitClaims([{ ids: [1] }], []), { send: [], release: [] });
+console.log('claim tests passed');

@@ -1,7 +1,7 @@
 // Run: node admin/backup.test.js
 import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
-import { parseBackup, restoreOrder, restoreTable, customerRows, CUSTOMER_HEADER, FORMAT } from './backup.js';
+import { buildBackup, parseBackup, restoreOrder, restoreTables, stageTable, replaceImpact, failedTable, NOT_RESTORED, customerRows, CUSTOMER_HEADER, FORMAT } from './backup.js';
 
 // Parents load before children (foreign keys stay on during a restore).
 const order = restoreOrder(['reservations', 'customer_messages', 'item_creators', 'customers', 'items', 'reservation_orders', 'pull_list_log', 'settings']);
@@ -19,18 +19,47 @@ assert.deepEqual((await parseBackup(fileOf('b.json', JSON.stringify(good)))).mig
 await assert.rejects(parseBackup(fileOf('x.json', JSON.stringify({ format: 'other', tables: {} }))), /isn’t a Pop/);
 await assert.rejects(parseBackup(fileOf('x.gz', 'not gzip')), /doesn’t look like a backup/);
 
-// Sending a table: chunks of 400 rows, then one apply call; an empty table still sends one empty chunk.
+// Sending tables: each in chunks of 400 rows (an empty table still sends one empty chunk), then ONE apply call for
+// all of them, so the server loads them in a single transaction.
 const calls = [];
-const sb = { rpc: async (fn, args) => (calls.push([fn, args]), { data: fn === 'restore_apply' ? { inserted: 1, rows_now: 1 } : null, error: null }) };
+const applied = { tables: [{ table: 'items', inserted: 950, rows_now: 950, orphans_skipped: 0 }, { table: 'faqs', inserted: 0, rows_now: 0, orphans_skipped: 0 }] };
+const sb = { rpc: async (fn, args) => (calls.push([fn, args]), { data: fn === 'restore_apply_all' ? applied : null, error: null }) };
 const rows = Array.from({ length: 950 }, (_, i) => ({ id: i }));
-const res = await restoreTable(sb, 'items', rows, { replace: true });
-assert.deepEqual(calls.filter(([f]) => f === 'restore_stage_put').map(([, a]) => [a.p_chunk, a.p_rows.length]), [[0, 400], [1, 400], [2, 150]]);
-assert.deepEqual(calls.at(-1), ['restore_apply', { p_table: 'items', p_replace: true }]);
-assert.equal(res.inserted, 1);
+const progress = [];
+const res = await restoreTables(sb, ['items', 'faqs'], (n) => (n === 'items' ? rows : []), { replace: true, onProgress: (t) => progress.push(t) });
+assert.deepEqual(calls.filter(([f]) => f === 'restore_stage_put').map(([, a]) => [a.p_table, a.p_chunk, a.p_rows.length]), [['items', 0, 400], ['items', 1, 400], ['items', 2, 150], ['faqs', 0, 0]]);
+assert.deepEqual(calls.filter(([f]) => f !== 'restore_stage_put'), [['restore_apply_all', { p_tables: ['items', 'faqs'], p_replace: true }]]);
+assert.equal(calls.at(-1)[0], 'restore_apply_all');
+assert.deepEqual(res, applied.tables);
+assert.ok(progress.length >= 3);
 calls.length = 0;
-await restoreTable(sb, 'faqs', [], {});
-assert.deepEqual(calls.map(([f]) => f), ['restore_stage_put', 'restore_apply']);
-assert.equal(calls[0][1].p_rows.length, 0);
+await stageTable(sb, 'faqs', []);
+assert.deepEqual(calls.map(([f, a]) => [f, a.p_rows.length]), [['restore_stage_put', 0]]);
+
+// A failed apply names its table first ("customers: ..."); the friendly error keeps the original in .raw.
+assert.equal(failedTable({ message: 'friendly', raw: 'reservations: insert or update on table "reservations" violates foreign key' }), 'reservations');
+assert.equal(failedTable(new Error('Only an owner can restore data.')), null);
+
+// What a replace would do to other tables comes from the server, for the warning.
+const impact = [{ table: 'subscriptions', action: 'deleted', via: ['customers'], rows: 2 }];
+const isb = { rpc: async (fn, args) => (calls.push([fn, args]), { data: impact, error: null }) };
+assert.deepEqual(await replaceImpact(isb, ['customers']), impact);
+assert.deepEqual(calls.at(-1), ['restore_replace_impact', { p_tables: ['customers'] }]);
+
+// The audit trail and job log are backed up but never offered for restore.
+for (const t of ['staff', 'auth_users', 'staff_audit', 'job_log']) assert.ok(NOT_RESTORED.includes(t), t);
+assert.ok(!NOT_RESTORED.includes('email_log'));
+
+// Download backup reads the tables in the order backup_meta gives (children before parents), then the sign-in list.
+const read = [];
+const bsb = { rpc: async (fn, args) => {
+  if (fn === 'backup_meta') return { data: { migration: '1', tables: [{ name: 'reservations', pk: 'id' }, { name: 'reservation_orders', pk: 'id' }] }, error: null };
+  read.push(args.p_table);
+  return { data: { count: 1, rows: [{ id: 1 }] }, error: null };
+} };
+const built = await buildBackup(bsb);
+assert.deepEqual(read, ['reservations', 'reservation_orders', 'auth_users']);
+assert.equal(built.rows, 3);
 
 // Customer list: sorted by last name, plain Yes/No columns, nothing internal (ids, tokens) in the file.
 const people = [
