@@ -4,6 +4,7 @@
 :root {
   --brand-primary: #c8102e;
   --brand-accent: #ffd100;
+  --on-accent: #161616;     /* text on the accent (yellow) in both themes: --ink turns light in the dark theme */
   --brand-ink: #161616;
   --brand-paper: #fffaf0;
 
@@ -188,7 +189,7 @@ p { margin: 0 0 1em; }
 .lede > :last-child { margin-bottom: 0; }
 /* Staff-edited rich text (admin WYSIWYG): a quote block shows as a callout box. */
 .lede blockquote {
-  margin: 1em 0; padding: 10px 12px; font-weight: 700; color: var(--ink);
+  margin: 1em 0; padding: 10px 12px; font-weight: 700; color: var(--on-accent);
   background: var(--brand-accent); border-radius: var(--radius);
 }
 /* Formatting from the admin editor (page text, news, events, FAQ) */
@@ -228,7 +229,7 @@ iframe.ql-video { display: block; clear: both; width: 100%; max-width: 640px; as
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   min-height: 44px; padding: 10px 18px;
   font: 700 1rem/1 var(--font-body);
-  color: var(--ink); background: var(--brand-accent);
+  color: var(--on-accent); background: var(--brand-accent);
   border: 0; border-radius: var(--radius); box-shadow: var(--shadow);
   text-decoration: none; cursor: pointer;
   transition: transform .08s, box-shadow .08s, filter .08s;
@@ -277,7 +278,7 @@ input[type='checkbox'], input[type='radio'] {
   .nav { display: block; position: static; border: 0; background: none; box-shadow: none; }
   .nav ul { display: flex; gap: 4px; padding: 0; }
   .nav a { padding: 8px 10px; border: 0; border-radius: var(--radius); }
-  .nav a[aria-current='page'] { background: var(--brand-accent); color: var(--ink); }
+  .nav a[aria-current='page'] { background: var(--brand-accent); color: var(--on-accent); }
 }
 /* ---------- Footer ---------- */
 address { font-style: normal; margin-bottom: 1em; }
@@ -339,7 +340,7 @@ address { font-style: normal; margin-bottom: 1em; }
 }
 .badge--available    { background: var(--pill-done); }
 .badge--just_arrived,
-.badge--new_this_wednesday { background: var(--brand-accent); }
+.badge--new_this_wednesday { background: var(--brand-accent); color: var(--on-accent); }
 .badge--sold_out     { background: var(--pill-off); color: var(--pill-off-text); }
 .badge--backorder    { background: var(--pill-ordered); }
 .badge--pre_order    { background: var(--pill-open); }
@@ -377,7 +378,7 @@ dialog::backdrop { background: #000a; }
 .dialog__close:focus-visible { outline: none; background: var(--focus); border-color: var(--focus); color: #fff; }
 @media (forced-colors: active) { .dialog__close:focus-visible { outline: 3px solid Highlight; outline-offset: -3px; } }
 .confirm { text-align: center; padding: 8px 0; }
-.notice { background: var(--brand-accent); border-radius: var(--radius); padding: 10px 12px; font-weight: 700; }
+.notice { background: var(--brand-accent); color: var(--on-accent); border-radius: var(--radius); padding: 10px 12px; font-weight: 700; }
 /* ---------- Reservation list ---------- */
 .list-line__remove { background: none; border: 0; padding: 8px 4px; min-height: 40px; font: inherit; font-size: .9rem; text-decoration: underline; text-underline-offset: 3px; color: var(--muted); cursor: pointer; }
 .list-line__remove:hover { color: var(--brand-primary); }
