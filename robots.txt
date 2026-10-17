@@ -1,6 +1,5 @@
 # Everything on the public site may be crawled; the staff admin may not.
+# On a shop's own domain the site Worker adds a "Sitemap:" line for that domain (worker/shop-page.js).
 User-agent: *
 Allow: /
 Disallow: /admin/
-
-Sitemap: https://popscomics502.com/sitemap.xml

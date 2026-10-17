@@ -1,6 +1,6 @@
 // node worker/shop-page.test.js
 import assert from 'node:assert/strict';
-import { findShop, siteUrl, configJs, fileOf, pageTitle, headTags, hero } from './shop-page.js';
+import { findShop, siteUrl, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 
 const shops = [
   { id: 'a', domains: ['a-comics.com', 'www.a-comics.com'], supabaseUrl: 'https://aaa.supabase.co', anonKey: 'key-a', gaMeasurementId: 'G-1' },
@@ -24,6 +24,10 @@ assert.match(cfg, /^export const GA_MEASUREMENT_ID = "G-1";$/m);
 assert.match(cfg, /^export const SITE_URL = "https:\/\/a-comics\.com";$/m);
 assert.match(configJs(shops[1]), /^export const GA_MEASUREMENT_ID = "";$/m, 'missing GA id is an empty string');
 assert.doesNotMatch(configJs({ ...shops[1], anonKey: 'x";alert(1)//' }), /"x";alert/, 'values cannot break out of the string');
+// Name and timezone shown before the settings load: from the cached settings, else neutral.
+assert.match(cfg, /^export const FALLBACK_SETTINGS = \{"shop_name":"","timezone":"America\/New_York"\};$/m);
+assert.match(configJs(shops[0], { shop_name: ' A Comics ', timezone: 'America/Chicago' }), /FALLBACK_SETTINGS = \{"shop_name":"A Comics","timezone":"America\/Chicago"\}/);
+assert.doesNotMatch(configJs(shops[0], { shop_name: '</script><b>' }), /<\//, 'the name cannot close a script tag');
 
 // Request path → HTML file
 assert.equal(fileOf('/'), 'index.html');
@@ -44,17 +48,32 @@ assert.equal(pageTitle(s, 'Main Street Comics: New Books', 'x'), 'Main Street Co
 assert.equal(pageTitle({ shop_name: '', tagline: '' }, null, 'FAQ'), 'FAQ');
 assert.equal(pageTitle({ shop_name: 'Shop' }, null, ''), 'Shop');
 
+// Staff text with String.replace patterns ($&, $', $1) comes out as typed (the Worker sets it with HTMLRewriter).
+assert.equal(pageTitle({ shop_name: 'Shop' }, "Save $$ & get $& $' $1", 'Visit'), "Shop — Save $$ & get $& $' $1");
+
 // Head tags
 const MEDIA = 'https://aaa.supabase.co/storage/v1/object/public/media';
 assert.deepEqual(headTags('about.html', {}, 'https://aaa.supabase.co'), ['<link rel="preconnect" href="https://aaa.supabase.co" crossorigin>']);
 const tags = headTags('index.html', { logo_url: `${MEDIA}/logo.png`, hero_image_url: `${MEDIA}/hero.jpg` }, 'https://aaa.supabase.co');
-assert.equal(tags.length, 4);
+assert.equal(tags.length, 5);
+assert.match(tags[4], /^<meta property="og:image" content="[^"]*hero\.jpg\?width=1400/);
 assert.match(tags[1], /rel="icon" href="https:\/\/aaa\.supabase\.co\/storage\/v1\/render\/image\/public\/media\/logo\.png\?width=64&amp;height=64/, 'icon falls back to the logo');
 assert.match(tags[2], /logo\.png\?width=320/);
 assert.match(tags[3], /hero\.jpg\?width=1400/);
-assert.equal(headTags('about.html', { logo_url: `${MEDIA}/logo.png`, hero_image_url: `${MEDIA}/hero.jpg` }, '').length, 2, 'hero preload on the home page only');
+assert.equal(headTags('about.html', { logo_url: `${MEDIA}/logo.png`, hero_image_url: `${MEDIA}/hero.jpg` }, '').filter((t) => t.includes('preload')).length, 1, 'hero preload on the home page only');
 assert.match(headTags('x.html', { favicon_url: `${MEDIA}/fav.png`, logo_url: `${MEDIA}/logo.png` }, '')[0], /fav\.png/);
 assert.match(headTags('x.html', { logo_url: 'https://x.com/a"b.png' }, '')[0], /a&quot;b\.png/, 'addresses are escaped');
+// Link-preview picture: the banner, on the pages with staff-set titles (not search, not post.html)
+assert.ok(headTags('about.html', { hero_image_url: `${MEDIA}/hero.jpg` }, '').some((t) => /^<meta property="og:image" content="[^"]*hero\.jpg\?width=1400/.test(t)));
+assert.ok(!headTags('search.html', { hero_image_url: `${MEDIA}/hero.jpg` }, '').some((t) => t.includes('og:image')));
+assert.ok(!headTags('post.html', { hero_image_url: `${MEDIA}/hero.jpg` }, '').some((t) => t.includes('og:image')));
+
+// Sitemap and robots.txt on the shop's main domain
+const map = sitemapXml(shops[0]);
+assert.match(map, /<loc>https:\/\/a-comics\.com\/<\/loc>/);
+assert.match(map, /<loc>https:\/\/a-comics\.com\/terms\.html<\/loc>/);
+assert.doesNotMatch(map, /<loc>https:\/\/www\.|search\.html|account\.html/);
+assert.equal(robotsTxt(shops[0], 'User-agent: *\nDisallow: /admin/\n'), 'User-agent: *\nDisallow: /admin/\n\nSitemap: https://a-comics.com/sitemap.xml\n');
 
 // Home banner
 assert.deepEqual(hero({ shop_name: 'Shop', tagline: ' Hi ' }), { className: 'hero', style: null, headlineHtml: 'Shop', tagline: 'Hi' });

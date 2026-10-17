@@ -14,3 +14,8 @@ export const GA_MEASUREMENT_ID = '';
 
 // Public site origin, used for canonical links and the calendar feed.
 export const SITE_URL = globalThis.location?.origin ?? '';
+
+// What the header, menu and footer show on a first visit until the shop settings arrive (or if they can't be
+// loaded at all). On the live sites the Worker fills these in per shop from its last copy of Shop Settings;
+// this local / demo copy stays neutral.
+export const FALLBACK_SETTINGS = { shop_name: '', timezone: 'America/New_York' };
