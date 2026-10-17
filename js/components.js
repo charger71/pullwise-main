@@ -2,9 +2,9 @@
 // dialog. Customers add any number of pre-order titles to their pull list; guests
 // submit them together as one order, signed-in customers keep a standing list.
 
-import { reserve, getSettings } from './data.js';
+import { reserve, getSettings, coverArtists } from './data.js';
 import { $, esc, badge, ITEM_BADGES, cover, price, fmtDate, daysUntil, lastReserveDay, cutoffPassed, itemTitle, itemFullTitle } from './site.js';
-import { thumbOf, thumbFallback, formatPhone } from './util.js';
+import { thumbOf, thumbFallback, formatPhone, nameKey } from './util.js';
 import * as list from './reservation-list.js';
 import * as pull from './customer.js';
 
@@ -42,7 +42,8 @@ export function creatorNames(item) {
     const key = pull.personKey(name);
     if (name.length >= 3 && key && !SKIP_NAMES.has(key) && !seen.has(key)) seen.set(key, name);
   }
-  return [...seen].map(([key, name]) => ({ key, name, onCover: !!item.variant && item.variant.toLowerCase().includes(name.toLowerCase()) }));
+  const coverWords = ` ${nameKey(item.variant)} `;
+  return [...seen].map(([key, name]) => ({ key, name, onCover: coverWords.includes(` ${key} `) }));
 }
 
 /** Is there anything on this title to follow (a series, or credited people)? */
@@ -73,7 +74,13 @@ function followBody(item) {
       <div class="follow-person"><strong>${esc(item.title)}</strong>
         <div class="follow-choices">${toggleBtn(on, `data-follow-series="${esc(item.series_key)}" data-label="${esc(item.title)}"`, on ? 'Following this series' : 'Follow this series', 'One cover of every new issue')}</div></div></section>`);
   }
-  const people = creatorNames(item).slice(0, 8);
+  // Credited people, then a cover artist named only in the cover text ("CVR C PEACH MOMOKO VAR"), looked up when the
+  // dialog opens (followCoverArtists).
+  const credited = creatorNames(item);
+  const extra = (followCoverArtists.get(item.id) ?? [])
+    .filter((a) => !credited.some((p) => p.key === pull.personKey(a.name)))
+    .map((a) => ({ key: pull.personKey(a.name), name: a.name, onCover: true, coverOnly: true }));
+  const people = [...extra, ...credited].slice(0, 8);
   if (people.length) {
     parts.push(`<section class="follow-group"><h3>People on this book</h3>${people
       .map((p) => {
@@ -82,7 +89,7 @@ function followBody(item) {
         return `<div class="follow-person"><strong>${esc(p.name)}</strong>${p.onCover ? ' <span class="follow-person__tag">drew this cover</span>' : ''}
           <div class="follow-choices">
             ${toggleBtn(cover, `data-follow-artist="${esc(p.name)}" data-role="cover" data-label="${esc(p.name)}"`, 'Cover artist', 'Every cover they draw')}
-            ${toggleBtn(creator, `data-follow-artist="${esc(p.name)}" data-role="creator" data-label="${esc(p.name)}"`, 'Writer / artist', 'One cover of each issue they work on')}
+            ${p.coverOnly ? '' : toggleBtn(creator, `data-follow-artist="${esc(p.name)}" data-role="creator" data-label="${esc(p.name)}"`, 'Writer / artist', 'One cover of each issue they work on')}
           </div></div>`;
       })
       .join('')}</section>`);
@@ -92,6 +99,7 @@ function followBody(item) {
 
 let followDialog;
 let followItem = null;
+const followCoverArtists = new Map(); // item id → cover artists from its cover text
 let followHooked = false;
 
 function createFollowDialog() {
@@ -143,6 +151,14 @@ function openFollowDialog(item, opener) {
   $('[data-follow-status]', followDialog).textContent = '';
   renderFollowBody();
   followDialog.showModal();
+  if (item.variant && !followCoverArtists.has(item.id)) {
+    coverArtists(item.id)
+      .then((rows) => {
+        followCoverArtists.set(item.id, rows);
+        if (rows.length && followDialog.open && followItem?.id === item.id) renderFollowBody();
+      })
+      .catch(() => followCoverArtists.set(item.id, []));
+  }
 }
 
 export function collectorBadges(item) {

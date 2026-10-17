@@ -324,6 +324,13 @@ export async function searchSeries(q) {
   return unwrap(await sb.rpc('search_series', { p_q: q }));
 }
 
+/** The cover artist named in a title's cover text when they aren't credited on it: [{ name, covers }]. Needs the database. */
+export async function coverArtists(itemId) {
+  if (DEMO) return [];
+  const sb = await supabase();
+  return unwrap(await sb.rpc('item_cover_artists', { p_item: itemId }));
+}
+
 /** Creators matching a search, for following an artist: { key, label, ... }. Needs the database. */
 export async function searchArtists(q) {
   if (DEMO) return [];
