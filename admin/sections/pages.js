@@ -220,6 +220,12 @@ async function save(el, sb, key) {
           return false;
         }
         await must(sb.from('pages').update({ slug: newSlug }).eq('slug', screen.blocks[0].slug));
+        // The row is at the new address now, so this screen is too: if saving the text below fails, a retry
+        // saves it under the new address instead of trying to move the page again ("already a page with that address").
+        const block = screen.blocks[0];
+        for (const f of block.fields) editors[`${newSlug}:${f}`] = editors[`${block.slug}:${f}`];
+        block.slug = newSlug;
+        $('#page-view', el).href = `../page.html?slug=${encodeURIComponent(newSlug)}`;
       } catch (err) {
         setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
         return false;
@@ -244,7 +250,7 @@ async function save(el, sb, key) {
   try {
     await must(sb.from('pages').upsert(rows, { onConflict: 'slug' }));
     dirty = false;
-    if (newSlug !== screen.blocks[0].slug) {
+    if (screen.custom && newSlug !== screen.key) {
       await mount(el, { sb, isOwner }, newSlug);
       setStatus($('#page-status', el), `Saved ${new Date().toLocaleTimeString()} — the page is now at page.html?slug=${newSlug}.`, 'ok');
       return true;

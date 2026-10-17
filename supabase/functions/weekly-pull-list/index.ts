@@ -19,7 +19,7 @@
 // Deploy with:  supabase functions deploy weekly-pull-list --no-verify-jwt
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { build, sections, buildArrival, arrivalSections, buildMessage } from './email.js';
+import { build, sections, buildArrival, arrivalSections, buildMessage, asTest, splitClaims } from './email.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
@@ -191,10 +191,11 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
     if (data.length < 1000) break;
   }
 
-  const compose = (c: (typeof customers)[number]) => {
+  // A test or preview (`forStaff`) gets a dummy unsubscribe link: the sample customer's real one would unsubscribe them.
+  const compose = (c: (typeof customers)[number], forStaff = false) => {
     const sec = sections((lines.get(c.id) ?? []) as never[], { today, holdDays: shop.hold_days ?? 30 });
     if (!sec) return null;
-    const unsubscribeUrl = `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}`;
+    const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}`;
     return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl }) };
   };
 
@@ -203,30 +204,68 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
     const pool = customers.filter((c) => (customerId ? c.id === customerId : true) && compose(c));
     const sample = customerId ? pool[0] : pool.sort((a, b) => (lines.get(b.id)?.length ?? 0) - (lines.get(a.id)?.length ?? 0))[0];
     if (!sample) return json(404, { error: 'No customer has anything on their pull list to show yet.' });
-    const mail = compose(sample)!;
+    const mail = asTest(compose(sample, true)!, sample.name ?? sample.email);
     if (mode === 'preview') return json(200, { subject: mail.subject, html: mail.html, customer: sample.name ?? sample.email });
     if (!staffEmail) return json(400, { error: 'Your account has no email address to send the test to.' });
-    await sendOne({ from, replyTo, to: staffEmail, subject: `[Test] ${mail.subject}`, html: mail.html, text: mail.text, unsubscribeUrl: mail.unsubscribeUrl, kind: 'test', sentBy: staffEmail });
+    // No unsubscribeUrl: a test carries no List-Unsubscribe headers.
+    await sendOne({ from, replyTo, to: staffEmail, subject: `[Test] ${mail.subject}`, html: mail.html, text: mail.text, kind: 'test', sentBy: staffEmail });
     return json(200, { sent: 1, to: staffEmail, customer: sample.name ?? sample.email });
   }
 
-  // send: everyone opted in who hasn't had today's email and has something to report
+  // send: everyone opted in who hasn't had today's email and has something to report.
+  // Each batch is claimed before it is sent: last_emailed_on is set to today only where it isn't already, in one
+  // update, and only the customers that update returned are emailed. So two runs at once (Send now during the
+  // scheduled hour, two tabs) never email anyone twice; whoever the other run claimed first is skipped here.
+  // A failed send hands the claim back (the old date returns), so a later run retries that customer.
   const due = customers.filter((c) => c.email_opt_in && c.last_emailed_on !== today);
   const mails = due.map((c) => ({ c, mail: compose(c) })).filter((m) => m.mail) as { c: (typeof customers)[number]; mail: NonNullable<ReturnType<typeof compose>> }[];
   let sent = 0;
   let failed = 0;
+  let elsewhere = 0; // claimed by another run going at the same time
+  const errors: string[] = []; // bookkeeping writes that failed, reported in the result and the function log
   const runId = crypto.randomUUID(); // groups this run's emails in the email log
+  const release = async (rows: typeof mails) => {
+    const byPrev = new Map<string | null, number[]>();
+    for (const { c } of rows) byPrev.set(c.last_emailed_on ?? null, [...(byPrev.get(c.last_emailed_on ?? null) ?? []), c.id]);
+    for (const [prev, ids] of byPrev) {
+      const { error: rErr } = await admin.from('customers').update({ last_emailed_on: prev }).in('id', ids).eq('last_emailed_on', today);
+      if (rErr) errors.push(`Couldn’t reset ${ids.length} failed ${ids.length === 1 ? 'customer' : 'customers'} for a retry today: ${rErr.message}`);
+    }
+  };
   for (let i = 0; i < mails.length; i += 50) {
     const chunk = mails.slice(i, i + 50);
-    const ok = await sendBatch(chunk.map(({ c, mail }) => ({ from, replyTo, to: c.email!, subject: mail.subject, html: mail.html, text: mail.text, unsubscribeUrl: mail.unsubscribeUrl, kind: 'weekly', customerId: c.id, sentBy: staffEmail ?? 'Automatic', runId })));
-    const delivered = chunk.filter((_, k) => ok[k]);
-    sent += delivered.length;
-    failed += chunk.length - delivered.length;
-    if (delivered.length) await admin.from('customers').update({ last_emailed_on: today }).in('id', delivered.map(({ c }) => c.id));
+    const { data: claimed, error: cErr } = await admin.from('customers').update({ last_emailed_on: today })
+      .in('id', chunk.map(({ c }) => c.id)).or(`last_emailed_on.is.null,last_emailed_on.neq.${today}`).select('id');
+    if (cErr) {
+      errors.push(`Couldn’t mark ${chunk.length} customers as emailed, so they weren’t sent: ${cErr.message}`);
+      failed += chunk.length;
+      continue;
+    }
+    const mine = new Set((claimed ?? []).map((r: { id: number }) => r.id));
+    const batch = chunk.filter(({ c }) => mine.has(c.id));
+    elsewhere += chunk.length - batch.length;
+    if (!batch.length) continue;
+    let ok: boolean[];
+    try {
+      ok = await sendBatch(batch.map(({ c, mail }) => ({ from, replyTo, to: c.email!, subject: mail.subject, html: mail.html, text: mail.text, unsubscribeUrl: mail.unsubscribeUrl, kind: 'weekly', customerId: c.id, sentBy: staffEmail ?? 'Automatic', runId })));
+    } catch (err) {
+      await release(batch); // e.g. no From address or API key: nothing in this batch went out
+      throw err;
+    }
+    sent += ok.filter(Boolean).length;
+    const undelivered = batch.filter((_, k) => !ok[k]);
+    failed += undelivered.length;
+    if (undelivered.length) await release(undelivered);
   }
-  // Only a clean run closes the day for the scheduler; a manual run never blocks the scheduled one.
-  if (scheduled || !failed) await admin.from('settings').update({ pull_list_email_last_sent: today }).eq('id', 1);
-  return json(200, { sent, failed, nothingToSend: due.length - mails.length, optedOut: customers.filter((c) => !c.email_opt_in).length });
+  // Only the scheduled run closes the day, and only when nothing due failed: until then the hourly tick tries again
+  // (for a few hours after the scheduled one), and last_emailed_on keeps those retries from emailing anyone twice.
+  // A manual "Send now" never closes the day, so it never blocks the scheduled run.
+  if (scheduled && !failed) {
+    const { error: dErr } = await admin.from('settings').update({ pull_list_email_last_sent: today }).eq('id', 1);
+    if (dErr) errors.push(`Couldn’t record today’s send as done: ${dErr.message}`);
+  }
+  if (errors.length) console.error('weekly email:', errors.join(' | '));
+  return json(200, { sent, failed, sendingElsewhere: elsewhere, nothingToSend: due.length - mails.length, optedOut: customers.filter((c) => !c.email_opt_in).length, errors });
 }
 
 /** "Your books are in": one email per customer whose titles became ready for pickup since the last one. */
@@ -253,17 +292,17 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
   }
 
   const unsubUrl = (c: (typeof customers)[number]) => `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}&k=arrivals`;
-  const compose = (c: (typeof customers)[number], customerLines: any[], sample = false) => {
+  const compose = (c: (typeof customers)[number], customerLines: any[], sample = false, forStaff = false) => {
     const arrival = arrivalSections(customerLines, { holdDays });
     if (!arrival) return null;
-    const unsubscribeUrl = unsubUrl(c);
+    const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : unsubUrl(c); // a test must not carry the customer's real link
     return { unsubscribeUrl, ids: customerLines.filter((l) => l.status === 'arrived' && !l.arrival_notified_at).map((l) => l.id), ...buildArrival({ customer: c, arrival, shop, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, sample }) };
   };
 
   if (mode === 'arrivals_preview' || mode === 'arrivals_test') {
     // A customer with titles waiting to be announced, else a sample built from someone's open titles.
     let sample = customers.filter((c) => (customerId ? c.id === customerId : true) && compose(c, lines.get(c.id) ?? [])).sort((a, b) => (lines.get(b.id)?.length ?? 0) - (lines.get(a.id)?.length ?? 0))[0];
-    let mail = sample ? compose(sample, lines.get(sample.id)!) : null;
+    let mail = sample ? compose(sample, lines.get(sample.id)!, false, true) : null;
     let isSample = false;
     if (!mail) {
       const { data: open } = await admin.from('reservations').select(select).in('status', ACTIVE).not('order.customer_id', 'is', null).order('id').limit(400);
@@ -274,13 +313,15 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
       if (!sample) return json(404, { error: 'No customer has anything on their pull list to show yet.' });
       // Pretend the first few titles just arrived, for the preview only.
       const pretend = byCustomer.get(sample.id)!.slice(0, 4).map((l) => ({ ...l, status: 'arrived', arrival_notified_at: null, arrived_on: today(shop) }));
-      mail = compose(sample, pretend, true);
+      mail = compose(sample, pretend, true, true);
       isSample = true;
     }
     if (!mail) return json(404, { error: 'Nothing to show yet.' });
+    mail = { ...mail, ...asTest(mail, sample.name ?? sample.email) };
     if (mode === 'arrivals_preview') return json(200, { subject: mail.subject, html: mail.html, customer: sample.name ?? sample.email, sample: isSample });
     if (!staffEmail) return json(400, { error: 'Your account has no email address to send the test to.' });
-    await sendOne({ from, replyTo, to: staffEmail, subject: `[Test] ${mail.subject}`, html: mail.html, text: mail.text, unsubscribeUrl: mail.unsubscribeUrl, kind: 'test', sentBy: staffEmail });
+    // No unsubscribeUrl: a test carries no List-Unsubscribe headers.
+    await sendOne({ from, replyTo, to: staffEmail, subject: `[Test] ${mail.subject}`, html: mail.html, text: mail.text, kind: 'test', sentBy: staffEmail });
     return json(200, { sent: 1, to: staffEmail, customer: sample.name ?? sample.email, sample: isSample });
   }
 
@@ -289,26 +330,55 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
     .filter((c) => c.notify_arrivals)
     .map((c) => ({ c, mail: compose(c, lines.get(c.id) ?? []) }))
     .filter((m) => m.mail) as { c: (typeof customers)[number]; mail: NonNullable<ReturnType<typeof compose>> }[];
+  // Claimed before sending, like the weekly email: each batch's titles are marked announced (only those not
+  // marked yet, in one update), and an email goes out only if this run got all of its titles. So "Send now"
+  // during the hourly tick, or two tabs, never announce the same titles twice. A failed send unmarks its titles
+  // (only if they still carry this run's mark), so the next hour retries them.
   let sent = 0;
   let failed = 0;
+  let elsewhere = 0; // claimed by another run going at the same time
+  const errors: string[] = []; // bookkeeping writes that failed, reported in the result and the function log
   const runId = crypto.randomUUID(); // groups this run's emails in the email log
+  const unmark = async (ids: number[], stamp: string) => {
+    if (!ids.length) return;
+    const { error: uErr } = await admin.from('reservations').update({ arrival_notified_at: null }).in('id', ids).eq('arrival_notified_at', stamp);
+    if (uErr) errors.push(`Couldn’t reset ${ids.length} unsent ${ids.length === 1 ? 'title' : 'titles'} for a retry: ${uErr.message}`);
+  };
   for (let i = 0; i < mails.length; i += 50) {
     const chunk = mails.slice(i, i + 50);
-    const ok = await sendBatch(chunk.map(({ c, mail }) => ({ from, replyTo, to: c.email!, subject: mail.subject, html: mail.html, text: mail.text, unsubscribeUrl: mail.unsubscribeUrl, kind: 'arrival', customerId: c.id, sentBy: staffEmail ?? 'Automatic', runId })));
-    const delivered = chunk.filter((_, k) => ok[k]);
-    sent += delivered.length;
-    failed += chunk.length - delivered.length;
-    // Only titles that were actually announced are marked, so a failed send is retried next hour.
-    const ids = delivered.flatMap(({ mail }) => mail.ids);
-    if (ids.length) await admin.from('reservations').update({ arrival_notified_at: new Date().toISOString() }).in('id', ids);
+    const stamp = new Date().toISOString();
+    const { data: claimed, error: cErr } = await admin.from('reservations').update({ arrival_notified_at: stamp })
+      .in('id', chunk.flatMap(({ mail }) => mail.ids)).eq('status', 'arrived').is('arrival_notified_at', null).select('id');
+    if (cErr) {
+      errors.push(`Couldn’t mark titles as announced, so ${chunk.length} customers weren’t sent: ${cErr.message}`);
+      failed += chunk.length;
+      continue;
+    }
+    const { send: batch, release } = splitClaims(chunk.map((m) => ({ ...m, ids: m.mail.ids })), (claimed ?? []).map((r: { id: number }) => r.id));
+    elsewhere += chunk.length - batch.length;
+    await unmark(release, stamp);
+    if (!batch.length) continue;
+    let ok: boolean[];
+    try {
+      ok = await sendBatch(batch.map(({ c, mail }) => ({ from, replyTo, to: c.email!, subject: mail.subject, html: mail.html, text: mail.text, unsubscribeUrl: mail.unsubscribeUrl, kind: 'arrival', customerId: c.id, sentBy: staffEmail ?? 'Automatic', runId })));
+    } catch (err) {
+      await unmark(batch.flatMap((m) => m.ids), stamp); // e.g. no From address or API key: nothing in this batch went out
+      throw err;
+    }
+    sent += ok.filter(Boolean).length;
+    const undelivered = batch.filter((_, k) => !ok[k]);
+    failed += undelivered.length;
+    await unmark(undelivered.flatMap((m) => m.ids), stamp);
   }
-  return json(200, { sent, failed, customersWaiting: customers.filter((c) => c.notify_arrivals && compose(c, lines.get(c.id) ?? [])).length });
+  if (errors.length) console.error('arrival email:', errors.join(' | '));
+  return json(200, { sent, failed, sendingElsewhere: elsewhere, customersWaiting: customers.filter((c) => c.notify_arrivals && compose(c, lines.get(c.id) ?? [])).length, errors });
 }
 
 const today = (shop: { timezone?: string }) => new Intl.DateTimeFormat('en-CA', { timeZone: shop.timezone || undefined }).format(new Date());
 
 type Outgoing = {
-  from?: string; replyTo?: string; to: string; subject: string; html: string; text: string; unsubscribeUrl: string;
+  from?: string; replyTo?: string; to: string; subject: string; html: string; text: string;
+  unsubscribeUrl?: string; // the customer's one-click unsubscribe (List-Unsubscribe headers); none on a test
   // for the email log (Admin -> Emails)
   kind: string; customerId?: number | null; sentBy?: string | null; runId?: string | null;
 };
@@ -332,7 +402,7 @@ const payload = (m: Outgoing) => {
     html: m.html,
     text: m.text,
     ...(m.replyTo ? { reply_to: m.replyTo } : {}),
-    headers: { 'List-Unsubscribe': `<${m.unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+    ...(m.unsubscribeUrl ? { headers: { 'List-Unsubscribe': `<${m.unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } } : {}),
   };
 };
 

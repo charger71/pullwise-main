@@ -52,7 +52,7 @@ const RULES = {
   series_catalog_title_check: 'The series name is too long (200 characters at most).',
   series_catalog_cover_url_check: 'The cover link is too long (1,000 characters at most).',
   items_cover_thumb_url_check: 'The cover link is too long (1,000 characters at most).',
-  settings_admin_notice_check: 'The admin notice is too long (500 characters at most).',
+  staff_notice_notice_check: 'The admin notice is too long (500 characters at most).',
   settings_announcement_check: 'The announcement is too long (300 characters at most).',
   settings_copyright_text_check: 'The copyright text is too long (200 characters at most).',
   settings_email_button_color_check: 'The email button color must look like #c8102e.',

@@ -9,6 +9,9 @@ export const FORMAT = 'shop-backup-1';
 /** Read every table. `onProgress(text)` is called as it goes. Returns { file (Blob), tables, rows, name }. */
 export async function buildBackup(sb, onProgress = () => {}) {
   const meta = await must(sb.rpc('backup_meta'));
+  // backup_meta lists child tables before their parents. Each page is read separately (not one snapshot), so reading
+  // children first means a parent row is still there when its table is read after them, even if someone adds an
+  // order mid-backup. The restore also skips (and counts) any child row whose parent didn't make it into the file.
   const list = [...meta.tables, { name: 'auth_users', pk: 'id', generated: [], identity_always: [] }];
   const out = { format: FORMAT, taken_at: new Date().toISOString(), migration: meta.migration, tables: {} };
   let total = 0;
@@ -51,10 +54,13 @@ export async function recordBackup(sb, who, built) {
 // Restore
 // ---------------------------------------------------------------------------------------------------------
 
-/** Tables a restore never writes: the staff list (re-add people under Staff) and the sign-in list (reference only). */
-export const NOT_RESTORED = ['staff', 'auth_users'];
+/**
+ * Tables a restore never writes: the staff list (re-add people under Staff), the sign-in list (reference only), and
+ * the audit trail and job log (so a restore can't rewrite the record of who did what). They are still backed up.
+ */
+export const NOT_RESTORED = ['staff', 'auth_users', 'staff_audit', 'job_log', 'restore_stage'];
 const CHUNK = 400;
-// Parents before children, since foreign keys stay enforced during a restore.
+// Parents before children, for showing the list (the server works out the real load order from the foreign keys).
 const FIRST = ['settings', 'categories', 'customers', 'items', 'pages', 'events', 'posts', 'surveys', 'reservation_orders', 'reservations'];
 
 export const restoreOrder = (names) => [...names].sort((a, b) => (FIRST.indexOf(a) + 1 || 99) - (FIRST.indexOf(b) + 1 || 99) || a.localeCompare(b));
@@ -79,21 +85,43 @@ export async function currentCounts(sb, names) {
   return out;
 }
 
-/** Load one table from the backup. replace = delete its current rows first. All or nothing per table. */
-export async function restoreTable(sb, name, rows, { replace = false } = {}) {
+/**
+ * Other tables that replacing `names` would empty or unlink through their foreign keys (ON DELETE CASCADE / SET NULL),
+ * plus any that would refuse it: [{ table, action: 'deleted' | 'unlinked' | 'blocks', via: [tables], rows }].
+ */
+export const replaceImpact = (sb, names) => must(sb.rpc('restore_replace_impact', { p_tables: names }));
+
+/** Upload one table's rows to the server's staging area, in chunks. Nothing is changed until restoreTables applies them. */
+export async function stageTable(sb, name, rows) {
   const chunks = Math.max(1, Math.ceil(rows.length / CHUNK));
   for (let c = 0; c < chunks; c++) {
     await must(sb.rpc('restore_stage_put', { p_table: name, p_chunk: c, p_rows: rows.slice(c * CHUNK, (c + 1) * CHUNK) }));
   }
-  return must(sb.rpc('restore_apply', { p_table: name, p_replace: replace }));
 }
+
+/**
+ * Load the given tables from the backup in ONE transaction: if any table fails, none of them is changed.
+ * replace = delete their current rows first. `onProgress(text)` is called while uploading.
+ * Returns [{ table, inserted, rows_now, orphans_skipped }] in the order they were loaded.
+ */
+export async function restoreTables(sb, names, rowsOf, { replace = false, onProgress = () => {} } = {}) {
+  for (const [i, n] of names.entries()) {
+    onProgress(`Uploading ${n} (${i + 1} of ${names.length})…`);
+    await stageTable(sb, n, rowsOf(n));
+  }
+  onProgress(`Loading ${names.length === 1 ? names[0] : `${names.length} tables`}…`);
+  return (await must(sb.rpc('restore_apply_all', { p_tables: names, p_replace: replace }))).tables;
+}
+
+/** The table a failed restore_apply_all names at the start of its message ("customers: …"), if any. */
+export const failedTable = (err) => String(err?.raw ?? err?.message ?? '').match(/^([a-z0-9_]+): /)?.[1] ?? null;
 
 export async function recordRestore(sb, who, mode, results) {
   const ok = results.every((r) => !r.error);
   await sb.from('job_log').insert({
     job: 'restore',
     ok,
-    message: `${who}: ${mode} — ${results.map((r) => (r.error ? `${r.table} FAILED (${r.error})` : `${r.table} ${r.inserted} loaded`)).join(', ')}`.slice(0, 900),
+    message: `${who}: ${mode} — ${results.map((r) => (r.error ? `${r.table} FAILED (${r.error})` : `${r.table} ${r.inserted} loaded${r.orphans ? `, ${r.orphans} skipped (parent missing)` : ''}`)).join(', ')}`.slice(0, 900),
   });
 }
 

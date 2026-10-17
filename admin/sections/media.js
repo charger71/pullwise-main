@@ -2,7 +2,7 @@
 // once (resized and optionally cropped in the browser), copy each one's link,
 // delete ones no longer needed. Stored in Storage under media/library/.
 
-import { $, esc, must, toast, uploadImage, replaceImage, thumbPath, CROPS, setStatus, solidIcon, friendlyError, setupTabs } from '../lib.js';
+import { $, esc, must, toast, uploadImage, replaceImage, thumbPath, CROPS, setStatus, solidIcon, friendlyError, setupTabs, listAllFiles } from '../lib.js';
 
 const FOLDER = 'library';
 let sb;
@@ -149,8 +149,13 @@ async function upload(el, files) {
 
 async function load(el, bust = false) {
   const grid = $('[data-grid]', el);
-  const { data, error } = await sb.storage.from('media').list(FOLDER, { limit: 500, sortBy: { column: 'created_at', order: 'desc' } });
-  if (error) return (grid.innerHTML = `<li class="form-error">${esc(friendlyError(error))}</li>`);
+  let data;
+  try {
+    // Every page of the folder: the small -sm.jpg copies count toward a listing's limit too.
+    data = await listAllFiles(sb, 'media', FOLDER, { sortBy: { column: 'created_at', order: 'desc' } });
+  } catch (error) {
+    return (grid.innerHTML = `<li class="form-error">${esc(friendlyError(error))}</li>`);
+  }
   const files = data.filter((f) => f.id && !/-sm\.jpg$/.test(f.name)); // skip folder placeholders and the small copies
   $('[data-count]', el).textContent = `${files.length} ${files.length === 1 ? 'image' : 'images'}`;
   const badge = $('[data-image-count]', el);

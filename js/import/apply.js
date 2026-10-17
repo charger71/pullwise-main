@@ -152,11 +152,11 @@ export async function applyImport(sb, parsed, opts) {
   const { distributor, skipped } = parsed;
   const items = opts.onSale ? parsed.items.map((i) => ({ ...i, release_date: opts.onSale })) : parsed.items;
   const progress = opts.onProgress ?? (() => {});
-  const { existing, fresh, known, duplicates } = await planImport(sb, { distributor, items });
+  const first = await planImport(sb, { distributor, items });
   const categories = new Map((await must(sb.from('categories').select('id,slug'))).map((c) => [c.slug, c.id]));
 
   // Covers: for new titles and for known titles still missing one.
-  const needCover = [...fresh, ...known].filter((i) => !existing.get(i.sku)?.cover_url);
+  const needCover = [...first.fresh, ...first.known].filter((i) => !first.existing.get(i.sku)?.cover_url);
   const coverUrls = new Map();
   const thumbUrls = new Map();
   const coverErrors = [];
@@ -173,6 +173,12 @@ export async function applyImport(sb, parsed, opts) {
     }
     progress(`Covers ${++done} of ${needCover.length}`);
   });
+
+  // Plan again right before writing: fetching covers takes a while, and titles saved in the meantime (another
+  // import in another tab, or by hand) are updated rather than inserted a second time.
+  const { existing, fresh, known, duplicates } = await planImport(sb, { distributor, items });
+  // A title that gained a cover in the meantime keeps it.
+  for (const i of known) if (existing.get(i.sku)?.cover_url) (coverUrls.delete(i.sku), thumbUrls.delete(i.sku));
 
   // undefined = the sheet doesn't provide this field: leave the stored value
   // alone (null still clears it). New rows just get NULL for it.
@@ -215,7 +221,7 @@ export async function applyImport(sb, parsed, opts) {
     duplicates: duplicates.length,
     arrived: newRows.filter((r) => r.status !== 'pre_order').length,
     covers: coverUrls.size,
-    coversMissing: needCover.length - coverUrls.size,
+    coversMissing: Math.max(0, needCover.length - coverUrls.size),
     coverErrors,
   };
 }

@@ -5,7 +5,7 @@
 const OWNER = { user_id: 'u1', name: 'Test Owner', email: 'owner@example.com', is_owner: true, created_at: '2026-01-01T00:00:00Z', last_sign_in_at: '2026-10-01T00:00:00Z' };
 const SETTINGS = {
   id: 1, shop_name: 'Test Shop', tagline: 'Tagline', timezone: 'America/New_York', hold_days: 30, max_copies_per_title: 10, show_map: true,
-  colors: { primary: '#c8102e', accent: '#ffd100', ink: '#141414', paper: '#fffaf0' }, hours: [], socials: {}, announcement: '', admin_notice: '',
+  colors: { primary: '#c8102e', accent: '#ffd100', ink: '#141414', paper: '#fffaf0' }, hours: [], socials: {}, announcement: '',
   pull_list_email_enabled: false, pull_list_email_day: 4, pull_list_email_hour: 9, arrival_email_enabled: false, arrival_email_after_hour: 12, arrival_email_before_hour: 20,
 };
 const ITEM = { id: 1, title: 'Test Title', issue_number: '1', variant: null, publisher: 'Test Pub', status: 'pre_order', price: 3.99, foc_date: '2026-12-01', release_date: '2026-12-10', cover_url: null, hidden: false, staff_pick: false, featured: false, badges: [], category_id: 1, distributor: 'lunar', sku: 'T1' };
@@ -13,6 +13,7 @@ const TABLE_ROWS = {
   categories: [{ id: 1, name: 'Comics', slug: 'comics', sort: 0 }],
   items: [ITEM],
   settings: [SETTINGS],
+  staff_notice: [{ id: 1, notice: '' }],
   staff: [{ user_id: 'u1', name: 'Test Owner', is_owner: true }],
 };
 const RPC_DATA = {
@@ -25,14 +26,15 @@ const RPC_DATA = {
 };
 
 /** A Supabase query builder that answers every call with empty (or canned) data. */
-function chain(table, single = false, error = null) {
+function chain(table, single = false, error = null, data = undefined) {
   const state = { single };
   const proxy = new Proxy(function () {}, {
     get(_, key) {
       if (key === 'then') {
+        if (data !== undefined) return (resolve) => resolve(error ? { data: null, error } : { data, error: null });
         const rows = TABLE_ROWS[table] ?? [];
-        const data = state.single ? rows[0] ?? null : rows;
-        return (resolve) => resolve(error ? { data: null, count: null, error } : { data, count: rows.length, error: null });
+        const out = state.single ? rows[0] ?? null : rows;
+        return (resolve) => resolve(error ? { data: null, count: null, error } : { data: out, count: rows.length, error: null });
       }
       if (key === 'single' || key === 'maybeSingle') return () => ((state.single = true), proxy);
       return () => proxy;
@@ -45,7 +47,8 @@ const BREAK = new URLSearchParams(location.search).has('break');
 const boom = { message: 'duplicate key value violates unique constraint "items_upc_idx"', code: '23505' };
 const stubClient = () => ({
   from: (table) => (BREAK ? chain('__break__', false, boom) : chain(table)),
-  rpc: async (name) => (BREAK ? { data: null, error: boom } : { data: name in RPC_DATA ? RPC_DATA[name] : [], error: null }),
+  // Like supabase-js, an RPC call is a query builder (.range() etc.) that resolves to its result.
+  rpc: (name) => (BREAK ? chain('__break__', false, boom, null) : chain(name, false, null, name in RPC_DATA ? RPC_DATA[name] : [])),
   auth: {
     getUser: async () => ({ data: { user: { id: 'u1', email: 'owner@example.com' } } }),
     getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }),

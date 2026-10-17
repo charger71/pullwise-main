@@ -315,3 +315,35 @@ export function buildMessage({ shop, subject, message }) {
   const text = `${String(message).trim()}\n\n--\n${shop.shop_name}${addr.length ? `, ${addr.join(', ')}` : ''}${shop.phone ? `, ${shop.phone}` : ''}\nJust reply to this email to reach us.\n`;
   return { subject, html, text };
 }
+
+/**
+ * A test or preview copy of a customer's email, for staff. It is built with a harmless unsubscribe link
+ * (`placeholderUrl`, not the customer's), and gets a note at the top saying so: the real link would turn the
+ * customer's emails off if staff clicked it, or if their mail app's Unsubscribe button used it.
+ */
+export function asTest(mail, customerLabel) {
+  const note = `Test copy of the email ${customerLabel ? `${customerLabel} gets` : 'a customer gets'}. Its unsubscribe link is switched off.`;
+  return {
+    ...mail,
+    html: mail.html.replace(/(<body[^>]*>)/, `$1<div style="padding:10px 16px;background:#fff4c2;font:13px/1.4 Arial,Helvetica,sans-serif;color:#161616;text-align:center">${esc(note)}</div>`),
+    text: `[${note}]\n\n${mail.text}`,
+  };
+}
+
+/**
+ * "Your books are in" claims: `items` are this batch's emails, each with the `ids` of the titles it announces;
+ * `claimedIds` are the titles this run managed to mark as announced (another run at the same time may have
+ * marked some first). An email is sent only when every one of its titles is ours. One where another run got
+ * some of them is skipped, and its titles that we did get are handed back (`release`) for the next run.
+ */
+export function splitClaims(items, claimedIds) {
+  const mine = new Set(claimedIds);
+  const send = [];
+  const release = [];
+  for (const m of items) {
+    const got = m.ids.filter((id) => mine.has(id));
+    if (got.length && got.length === m.ids.length) send.push(m);
+    else release.push(...got);
+  }
+  return { send, release };
+}

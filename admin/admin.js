@@ -17,6 +17,7 @@ const OWNER_ONLY = ['settings', 'backup', 'restore'];
 let isOwner = false;
 let current = null; // { name, module }
 let sb;
+let signedInAs = null; // the staff user id the screens were opened for
 
 // Any customer email link (data-email-to) opens the compose box instead of the mail app.
 document.addEventListener('click', (e) => {
@@ -65,8 +66,42 @@ async function start() {
     location.reload();
   });
 
+  // The session can end or change while the admin is open (it expires, Sign out in another tab, or a customer
+  // signs in on the shop site in the same browser). Writes would then run without staff rights, and an update
+  // row-level security filters out changes nothing and reports no error, so check again and lock the screens.
+  sb.auth.onAuthStateChange((event, session) => {
+    if (!signedInAs || event === 'INITIAL_SESSION') return;
+    if (event === 'SIGNED_OUT' || !session) return lockOut('You’ve been signed out. Sign in again to carry on; anything you haven’t saved is still on the screen.');
+    // supabase-js warns against awaiting its own calls inside this callback.
+    if (session.user.id !== signedInAs || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') setTimeout(recheckStaff);
+  });
+
   const { data } = await sb.auth.getSession();
   data.session ? showApp() : ($('#login').hidden = false);
+}
+
+/** Is the signed-in account still the staff member the screens were opened for? Locks the screens if not. */
+async function recheckStaff() {
+  const { data: { user }, error } = await sb.auth.getUser();
+  if (error?.name === 'AuthRetryableFetchError') return; // offline: the next save says so itself
+  const { data: staff, error: staffError } = user ? await sb.from('staff').select('user_id').eq('user_id', user.id).maybeSingle() : { data: null };
+  if (staffError) return;
+  if (staff && user.id === signedInAs) return;
+  // Another staff login: start again with their permissions (the browser asks first if anything is unsaved).
+  if (staff) return location.reload();
+  lockOut(user
+    ? 'This browser is now signed in to an account that isn’t staff (perhaps in another tab). Sign in with your staff account to carry on.'
+    : 'You’ve been signed out. Sign in again to carry on; anything you haven’t saved is still on the screen.');
+}
+
+/** Hide the screens (kept as they are, so unsaved work survives) and show the sign-in form. */
+function lockOut(message) {
+  if ($('#app').hidden) return;
+  $('#app').hidden = true;
+  $('#admin-user').hidden = true;
+  $('#admin-notice').hidden = true;
+  $('#login').hidden = false;
+  $('#login-error').textContent = message;
 }
 
 async function showApp() {
@@ -74,11 +109,22 @@ async function showApp() {
   // Only accounts in the staff table can read it (row-level security).
   const { data: staff } = user ? await sb.from('staff').select('user_id').eq('user_id', user.id).maybeSingle() : { data: null };
   if (!staff) {
+    $('#app').hidden = true;
     $('#login').hidden = false;
     $('#login-error').textContent = 'This account isn’t set up as staff. Ask the shop owner to add you.';
     await sb.auth.signOut();
     return;
   }
+  if (signedInAs) {
+    // Signed back in after lockOut(): the same person picks up where they were; anyone else starts fresh.
+    if (user.id !== signedInAs) return location.reload();
+    $('#login').hidden = true;
+    $('#app').hidden = false;
+    $('#admin-user').hidden = false;
+    $('#admin-notice').hidden = !$('#admin-notice').textContent;
+    return;
+  }
+  signedInAs = user.id;
   isOwner = (await sb.rpc('is_owner')).data === true;
   OWNER_ONLY.forEach((name) => {
     const item = $(`.admin-nav a[href="#${name}"]`)?.closest('li');
@@ -95,7 +141,7 @@ async function showApp() {
     n.hidden = !text;
   };
   window.addEventListener('admin-notice', (e) => showNotice(e.detail));
-  sb.from('settings').select('admin_notice').eq('id', 1).maybeSingle().then(({ data }) => showNotice(data?.admin_notice));
+  sb.from('staff_notice').select('notice').eq('id', 1).maybeSingle().then(({ data }) => showNotice(data?.notice));
   window.addEventListener('hashchange', route);
   route();
 }
