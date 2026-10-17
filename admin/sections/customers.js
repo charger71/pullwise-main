@@ -474,13 +474,18 @@ async function loadOrders(el, c) {
   const box = $('[data-orders]', el);
   box.setAttribute('aria-busy', 'true');
   try {
-    const lines = await must(
+    // Every line still in play (no limit, so a long history can't push current titles off), then recent history.
+    const lineQuery = () =>
       sb.from('reservations')
         .select(`id,quantity,status,source,arrived_on,created_at,updated_at,updated_by,updated_via,item:items(${ITEM_FIELDS}),order:reservation_orders!inner(customer_id)`)
         .eq('order.customer_id', c.id)
-        .order('created_at', { ascending: false })
-        .limit(500),
-    );
+        .order('created_at', { ascending: false });
+    const inPlay = [...ACTIVE_STATUSES, 'not_ordered'];
+    const [current, history] = await Promise.all([
+      must(lineQuery().in('status', inPlay)),
+      must(lineQuery().not('status', 'in', `(${inPlay.join(',')})`).limit(500)),
+    ]);
+    const lines = [...current, ...history];
     const unlinked = await findUnlinked(c);
     const staffNames = new Map((await must(sb.from('staff').select('user_id,name'))).map((m) => [m.user_id, m.name]));
     const latest = lines.reduce((a, l) => (!a || l.updated_at > a.updated_at ? l : a), null);
@@ -720,12 +725,20 @@ function setupFollows(el, c) {
   list.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-unfollow]');
     if (!btn) return;
-    if (!confirm(`Unfollow ${btn.dataset.label}? New issues will stop being added to ${c.name || 'this customer'}'s pull list.`)) return;
+    const id = Number(btn.dataset.unfollow);
+    const who = c.name || 'this customer';
     try {
-      await must(sb.from('subscriptions').delete().eq('id', Number(btn.dataset.unfollow)));
-      await log(c.id, null, 'unfollowed', btn.dataset.label);
-      toast(`Unfollowed ${btn.dataset.label}`);
+      // Unfollowing also takes off the titles it added that haven't been ordered, so say how many first.
+      const n = await must(sb.rpc('staff_unfollow', { p_customer: c.id, p_id: id, p_dry_run: true }));
+      const msg = n
+        ? `Unfollow ${btn.dataset.label}?\n\n${n} ${n === 1 ? 'title' : 'titles'} it added to ${who}'s pull list that ${n === 1 ? 'hasn’t' : 'haven’t'} been ordered yet will be removed. Titles already ordered stay.`
+        : `Unfollow ${btn.dataset.label}? New issues will stop being added to ${who}'s pull list. Titles already ordered stay.`;
+      if (!confirm(msg)) return;
+      const removed = await must(sb.rpc('staff_unfollow', { p_customer: c.id, p_id: id }));
+      await log(c.id, null, 'unfollowed', `${btn.dataset.label}${removed ? ` (${removed} not-yet-ordered ${removed === 1 ? 'title' : 'titles'} removed)` : ''}`);
+      toast(`Unfollowed ${btn.dataset.label}${removed ? ` · ${removed} ${removed === 1 ? 'title' : 'titles'} removed` : ''}`);
       load();
+      loadOrders(el, c);
       loadLog(el, c);
     } catch (err) {
       toast(`Not saved: ${friendlyError(err)}`, 'error');

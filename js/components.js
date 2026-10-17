@@ -337,8 +337,9 @@ async function toggleFollow(btn, say) {
     const label = btn.dataset.label ?? name ?? 'this series';
     const sub = series ? pull.findSubscription('series', series) : pull.findSubscription('artist', pull.personKey(name), btn.dataset.role);
     if (sub) {
-      await pull.unfollow(sub.id);
-      say(`Stopped following ${sub.label}.`);
+      const removed = await pull.unfollowWithWarning(sub);
+      if (removed == null) return;
+      say(`Stopped following ${sub.label}.${removed ? ` ${removed} ${removed === 1 ? 'title was' : 'titles were'} removed from your pull list.` : ''}`);
     } else {
       const { added } = series ? await pull.followSeries(series) : await pull.followArtist(name, btn.dataset.role);
       say(`Following ${label}. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.'}`);
