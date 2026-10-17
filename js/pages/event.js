@@ -4,24 +4,39 @@ import { getEvent, getEventSpotsTaken, signUpForEvent } from '../data.js';
 import { SITE_URL } from '../config.js';
 import { icsFor, googleLink, outlookLink } from '../ics.js';
 import { renderRich } from '../content.js';
+import { dayIn } from '../dates.js';
+import { setPageMeta, snippet, htmlSnippet } from '../page-meta.js';
 
 const s = await initPage();
 const el = $('#event');
 const id = Number(new URLSearchParams(location.search).get('id'));
-const e = Number.isInteger(id) && id > 0 ? await getEvent(id).catch((err) => (console.error(err), null)) : null;
+// undefined = couldn't load (network, database), null = no such event.
+const e = Number.isInteger(id) && id > 0 ? await getEvent(id).catch((err) => (console.error(err), undefined)) : null;
+// Dates and times are the shop's, wherever the visitor is (an unknown zone falls back to the browser's).
+const tz = (() => {
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: s.timezone || undefined }).resolvedOptions().timeZone;
+  } catch {
+    return undefined;
+  }
+})();
 
-if (!e) {
-  document.title = `${s.shop_name} — Event Not Found`;
+if (e === undefined) {
+  setPageMeta({ title: `${s.shop_name} — Event`, noindex: true });
+  el.innerHTML = `<h1>We Couldn't Load This Event</h1><p>Please check your connection and try again in a moment.</p><p><a href="calendar.html">← Calendar</a></p>`;
+} else if (!e) {
+  setPageMeta({ title: `${s.shop_name} — Event Not Found`, noindex: true });
   el.innerHTML = '<h1>Event Not Found</h1><p><a href="calendar.html">← Calendar</a></p>';
 } else {
-  document.title = `${s.shop_name} — ${e.title}`;
+  setPageMeta({ title: `${s.shop_name} — ${e.title}`, description: snippet(e.summary) || htmlSnippet(e.description) });
   const where = [s.shop_name, ...addressLines(s)].join(', ');
   // The description comes from the admin editor: sanitized before showing.
-  const description = await renderRich(e.description, s);
-  const long = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
-  const dayKey = (iso) => fmtDate(iso, { month: 'numeric', day: 'numeric', year: 'numeric' });
-  // Events entered as midnight to 11:59 PM are all-day: show the dates, not the times.
-  const allDay = e.ends_at && fmtTime(e.starts_at) === '12:00 AM' && fmtTime(e.ends_at) === '11:59 PM';
+  const description = await renderRich(e.description, s).catch((err) => (console.error(err), '<p>Sorry, the details couldn’t be shown right now. Please try again in a moment.</p>'));
+  const long = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: tz };
+  const dayKey = (iso) => dayIn(iso, tz);
+  const clock = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: tz });
+  // Events entered as midnight to 11:59 PM (shop time) are all-day: show the dates, not the times.
+  const allDay = e.ends_at && clock(e.starts_at) === '00:00' && clock(e.ends_at) === '23:59';
   const multiDay = e.ends_at && dayKey(e.ends_at) !== dayKey(e.starts_at);
   const when = allDay
     ? multiDay ? `${fmtDate(e.starts_at, long)} – ${fmtDate(e.ends_at, long)}` : fmtDate(e.starts_at, long)

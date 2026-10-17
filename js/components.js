@@ -126,7 +126,7 @@ function createFollowDialog() {
   d.addEventListener('click', (e) => {
     if (e.target === d || e.target.closest('.dialog__close, [data-close]')) return d.close();
     const btn = e.target.closest('[data-follow-series], [data-follow-artist]');
-    if (btn) toggleFollow(btn, (msg) => ($('[data-follow-status]', d).textContent = msg));
+    if (btn) toggleFollow(btn, (msg, err) => showMsg($('[data-follow-status]', d), msg, err));
   });
   return d;
 }
@@ -246,14 +246,14 @@ export function enableArtistFollow(root, render) {
     const btn = e.target.closest('[data-follow-artist]');
     if (!btn) return;
     btn.disabled = true;
-    const say = (text) => ($('[data-msg]', root) ?? {}).textContent = text;
+    const say = (text, err) => showMsg($('[data-msg]', root), text, err);
     try {
       const { added } = await pull.followArtist(btn.dataset.followArtist, btn.dataset.role);
       render();
       say(`Following ${btn.dataset.followArtist}. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New ones will be added to your pull list automatically.'}`);
     } catch (err) {
       btn.disabled = false;
-      say(err.message);
+      say(err.message, err);
     }
   });
 }
@@ -271,7 +271,7 @@ export function enableSeriesFollow(root) {
       msg.textContent = added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.';
     } catch (err) {
       btn.disabled = false;
-      msg.textContent = err.message;
+      showMsg(msg, err.message, err);
     }
   });
 }
@@ -361,7 +361,7 @@ async function toggleFollow(btn, say) {
       say(`Following ${label}. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.'}`);
     }
   } catch (err) {
-    say(err.message);
+    say(err.message, err);
   } finally {
     btn.disabled = false;
   }
@@ -379,8 +379,7 @@ async function togglePullList(btn, item) {
       announce(`Added ${itemFullTitle(item)}. ${pull.count()} ${pull.count() === 1 ? 'title' : 'titles'} on your pull list.`);
     }
   } catch (err) {
-    announce(err.message);
-    alert(err.message);
+    alertError(err);
   } finally {
     btn.disabled = false;
     btn.focus();
@@ -396,12 +395,25 @@ async function addAllCovers(btn, item) {
     announce(msg);
     alert(msg);
   } catch (err) {
-    announce(err.message);
-    alert(err.message);
+    alertError(err);
   } finally {
     btn.disabled = false;
     btn.focus();
   }
+}
+
+/** A message line: plain text, or for an error its customer-safe message (with a sign-in link when that's the fix). */
+function showMsg(el, text, err) {
+  if (!el) return;
+  if (err) el.innerHTML = pull.errorHtml(err);
+  else el.textContent = text;
+}
+
+/** An action failed: say so, and when signing in again is the fix, offer to go and do it. */
+function alertError(err) {
+  announce(err.message);
+  if (!err.signIn) return alert(err.message);
+  if (confirm(`${err.message}\n\nGo to the sign-in page now?`)) location.href = 'account.html';
 }
 
 let liveRegion;

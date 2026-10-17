@@ -29,6 +29,8 @@ function b64(bytes: Uint8Array) {
 }
 
 Deno.serve(async (req) => {
+  const cors = corsFor(req);
+  const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json(405, { error: 'POST only' });
   try {
@@ -44,12 +46,22 @@ Deno.serve(async (req) => {
 
     const files = form.getAll('photos').filter((f): f is File => f instanceof File && f.size > 0);
     if (files.length > MAX_PHOTOS) return json(400, { error: `Please send no more than ${MAX_PHOTOS} photos.` });
+    if (files.reduce((n, f) => n + f.size, 0) > MAX_TOTAL_BYTES) return json(400, { error: 'Those photos add up to more than 25 MB — please send fewer or smaller ones.' });
     const attachments = [];
     for (const f of files) {
-      if (!f.type.startsWith('image/')) return json(400, { error: 'Only image files can be attached.' });
       if (f.size > MAX_PHOTO_BYTES) return json(400, { error: `${f.name} is too large (6 MB max per photo).` });
-      attachments.push({ filename: f.name.replace(/[^\w.\- ]/g, '_').slice(0, 80) || 'photo.jpg', content: b64(new Uint8Array(await f.arrayBuffer())) });
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const type = imageType(bytes);
+      if (!type) return json(400, { error: 'Only photos (JPEG, PNG, GIF, WebP or HEIC) can be attached.' });
+      // The name always ends in the detected type, whatever the upload called itself.
+      const base = f.name.replace(/\.[^.]*$/, '').replace(/[^\w.\- ]/g, '_').slice(0, 70) || 'photo';
+      attachments.push({ filename: `${base}.${type.ext}`, content: b64(bytes) });
     }
+
+    // Rate limit last, so a typo the customer fixes doesn't use up a try.
+    const { data: allowed, error: rateErr } = await admin.rpc('sell_inquiry_rate_ok', { p_ip: clientIp(req) || null });
+    if (rateErr) throw rateErr;
+    if (!allowed) return json(429, { error: 'We’ve had a lot of messages just now — please try again in an hour, or call the shop.' });
 
     const { data: shop, error } = await admin.from('settings').select('email,pull_list_email_from').eq('id', 1).single();
     if (error) throw error;

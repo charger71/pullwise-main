@@ -9,7 +9,7 @@ export const DEMO = !SUPABASE_URL;
 let clientPromise;
 export function supabase() {
   if (DEMO) return null;
-  clientPromise ??= import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.9/+esm').then(({ createClient }) =>
+  clientPromise ??= import('./vendor/supabase.mjs').then(({ createClient }) =>
     createClient(SUPABASE_URL, SUPABASE_ANON_KEY),
   );
   return clientPromise;
@@ -89,6 +89,9 @@ export function getTopReserved() {
  * (offset/limit) runs across both parts as one list.
  */
 async function fetchItems(f) {
+  // A search with no letters or digits in it ("!!!", emoji, or a script the search can't read yet) matches
+  // nothing, rather than every title.
+  if (f.q?.trim() && !searchWords(f.q).length) return f.countOnly ? 0 : f.withCount ? { rows: [], count: 0 } : [];
   if (f.openFirst && !DEMO) return fetchOpenFirst(f);
   if (DEMO) {
     const { items, categories } = await demo();
@@ -194,19 +197,14 @@ function sorter(order) {
 }
 
 export async function getPublishers(statuses) {
+  const byName = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' });
   if (DEMO) {
     const rows = await getItems({ statuses });
-    return [...new Set(rows.map((r) => r.publisher).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    return [...new Set(rows.map((r) => r.publisher).filter(Boolean))].sort(byName);
   }
-  // Only the publisher column, paged past PostgREST's default 1000-row cap.
+  // The distinct names in one call (catalog_publishers in the database), not every title's publisher.
   const sb = await supabase();
-  const names = new Set();
-  for (let from = 0; ; from += 1000) {
-    const rows = unwrap(await sb.from('items').select('publisher').eq('hidden', false).in('status', statuses).not('publisher', 'is', null).range(from, from + 999));
-    rows.forEach((r) => names.add(r.publisher));
-    if (rows.length < 1000) break;
-  }
-  return [...names].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  return unwrap(await sb.rpc('catalog_publishers', { p_statuses: statuses })).map((r) => r.publisher).sort(byName);
 }
 
 /** Distinct FOC dates (ISO, ascending) of visible items with these statuses, on or after `focFrom`. */
@@ -216,16 +214,9 @@ export async function getFocDates(statuses, focFrom) {
     return [...new Set(rows.map((r) => r.foc_date).filter((d) => d && d >= focFrom))].sort();
   }
   const sb = await supabase();
-  const dates = new Set();
-  for (let from = 0; ; from += 1000) {
-    const rows = unwrap(await sb.from('items').select('foc_date').eq('hidden', false).in('status', statuses).gte('foc_date', focFrom).range(from, from + 999));
-    rows.forEach((r) => dates.add(r.foc_date));
-    if (rows.length < 1000) break;
-  }
-  return [...dates].sort();
+  return unwrap(await sb.rpc('catalog_foc_dates', { p_statuses: statuses, p_from: focFrom })).map((r) => r.foc_date);
 }
 
-/** @param {{ from?: string, to?: string, type?: string }} f  ISO timestamps */
 /** One visible title by id, or null. */
 export async function getItem(id) {
   if (DEMO) return (await demo()).items.find((i) => i.id === id && !i.hidden) ?? null;
@@ -247,22 +238,29 @@ export async function getVariants(item) {
   return rows.some((r) => r.id === item.id) ? rows : [item, ...rows];
 }
 
+/**
+ * @param {{ from?: string, to?: string, type?: string }} f  ISO timestamps. `from`: events not over by then (a
+ * convention that has started but not ended counts); `to`: events over before then. The same time as both splits
+ * the calendar into upcoming and past with every event in exactly one. An event without an end time is over once it starts.
+ */
 export async function getEvents(f = {}) {
   if (DEMO) {
     const { events } = await demo();
+    const end = (e) => e.ends_at ?? e.starts_at;
     return events
       .filter(
         (e) =>
-          (!f.from || e.starts_at >= f.from) &&
-          (!f.to || e.starts_at < f.to) &&
+          (!f.from || Date.parse(end(e)) >= Date.parse(f.from)) &&
+          (!f.to || Date.parse(end(e)) < Date.parse(f.to)) &&
           (!f.type || e.event_type === f.type),
       )
       .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   }
   const sb = await supabase();
   let query = sb.from('events').select('*').order('starts_at');
-  if (f.from) query = query.gte('starts_at', f.from);
-  if (f.to) query = query.lt('starts_at', f.to);
+  // coalesce(ends_at, starts_at) >= from / < to
+  if (f.from) query = query.or(`ends_at.gte."${f.from}",and(ends_at.is.null,starts_at.gte."${f.from}")`);
+  if (f.to) query = query.or(`ends_at.lt."${f.to}",and(ends_at.is.null,starts_at.lt."${f.to}")`);
   if (f.type) query = query.eq('event_type', f.type);
   return unwrap(await query);
 }

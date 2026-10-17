@@ -1,0 +1,6 @@
+# Everything on the public site may be crawled; the staff admin may not.
+User-agent: *
+Allow: /
+Disallow: /admin/
+
+Sitemap: https://popscomics502.com/sitemap.xml

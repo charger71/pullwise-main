@@ -10,9 +10,10 @@ import { renderGrid, itemCard, enableReservations, seriesCards, enableSeriesFoll
  * @param {string[]} o.statuses   statuses this page shows
  * @param {boolean}  o.reservable show Reserve buttons
  * @param {string}   o.order
- * @param {Array<{name:string,label:string,options:Array<[string,string]>,multiple?:boolean,pinned?:number}>} o.filters
+ * @param {Array<{name:string,label:string,options:Array<[string,string]>|Promise<Array<[string,string]>>,multiple?:boolean,pinned?:number|Promise<number>}>} o.filters
  *   `multiple` filters render as a checkbox dropdown and yield an array of values;
  *   `pinned` = how many leading options to set apart above a divider.
+ *   `options` and `pinned` may be promises: the first page of titles loads while they do.
  * @param {boolean}  o.followSeries  show "+ Follow Series" on cards (New Arrivals)
  * @param {(values:object)=>object} o.toQuery maps filter values → getItems() args
  */
@@ -20,16 +21,44 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
   const form = $('#filters');
   const grid = $('#results');
   const countEl = $('#results-count');
+  const params = new URLSearchParams(location.search);
 
-  // A filter with nothing to choose from (e.g. no publishers yet) isn't shown.
-  filters = filters.filter((f) => f.options.length);
+  const PAGE = 48;
+  let items = [];
+  let total = 0;
+  let query = {};
+  let seq = 0;
+  const queryFor = (values) => ({ statuses, order, q: values.q, ...toQuery(values) });
+  // Start the first page from the URL's filters now, while the filter options load.
+  const allFilters = filters;
+  const urlValues = { q: params.get('q') ?? '' };
+  for (const f of allFilters) urlValues[f.name] = f.multiple ? params.getAll(f.name) : params.get(f.name) ?? '';
+  const earlyQuery = queryFor(urlValues);
+  const firstPage = getItems({ ...earlyQuery, limit: PAGE, offset: 0, withCount: true });
+  firstPage.catch(() => {}); // reported where it's used
+  grid.setAttribute('aria-busy', 'true');
+
+  // A filter whose options can't load is left out, like one with nothing to choose from (e.g. no publishers yet);
+  // its value then reads as none.
+  filters = (
+    await Promise.all(
+      filters.map(async (f) => {
+        try {
+          const [options, pinned] = await Promise.all([f.options, f.pinned]);
+          return { ...f, options, pinned };
+        } catch (err) {
+          console.error(err);
+          return { ...f, options: [] };
+        }
+      }),
+    )
+  ).filter((f) => f.options.length);
 
   form.innerHTML =
     `<div class="field field--search"><label for="f-q">Search titles</label><input id="f-q" name="q" type="search" placeholder="e.g. Batman"></div>` +
     filters.map((f) => (f.multiple ? multiSelect(f) : singleSelect(f))).join('');
 
   // Restore from URL
-  const params = new URLSearchParams(location.search);
   for (const el of form.elements) {
     if (!el.name || !params.has(el.name)) continue;
     if (el.type === 'checkbox') el.checked = params.getAll(el.name).includes(el.value);
@@ -40,7 +69,7 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
   const readValues = () => {
     const fd = new FormData(form);
     const values = { q: fd.get('q') ?? '' };
-    for (const f of filters) values[f.name] = f.multiple ? fd.getAll(f.name) : fd.get(f.name) ?? '';
+    for (const f of allFilters) values[f.name] = f.multiple ? fd.getAll(f.name) : fd.get(f.name) ?? '';
     return values;
   };
 
@@ -57,11 +86,6 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
     $('#series-list').innerHTML = seriesCards(rows.slice(0, 6));
   }
 
-  const PAGE = 48;
-  let items = [];
-  let total = 0;
-  let query = {};
-  let seq = 0;
   enableReservations(grid, (id) => items.find((i) => i.id === id));
 
   const more = document.createElement('button');
@@ -71,7 +95,8 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
   grid.after(more);
   more.addEventListener('click', () => fetchPage(true));
 
-  async function load() {
+  /** `early`: the first page already requested, used if the form ended up asking for the same thing. */
+  async function load(early) {
     const values = readValues();
     const url = new URL(location.href);
     for (const [k, v] of Object.entries(values)) {
@@ -79,17 +104,18 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
       for (const one of [v].flat()) if (one) url.searchParams.append(k, one);
     }
     history.replaceState(null, '', url);
-    query = { statuses, order, q: values.q, ...toQuery(values) };
+    query = queryFor(values);
     showSeries(values.q);
-    await fetchPage(false);
+    // (A URL value with no matching option, say a cutoff that has passed, isn't in the form, so that asks again.)
+    await fetchPage(false, early && JSON.stringify(query) === JSON.stringify(earlyQuery) ? early : null);
   }
 
-  async function fetchPage(append) {
+  async function fetchPage(append, pending) {
     const mine = ++seq;
     grid.setAttribute('aria-busy', 'true');
     more.disabled = true;
     try {
-      const { rows, count } = await getItems({ ...query, limit: PAGE, offset: append ? items.length : 0, withCount: true });
+      const { rows, count } = await (pending ?? getItems({ ...query, limit: PAGE, offset: append ? items.length : 0, withCount: true }));
       if (mine !== seq) return; // a newer search superseded this one
       total = count;
       if (append) {
@@ -110,8 +136,11 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
       console.error(err);
       if (!append) grid.innerHTML = '<p class="empty">Couldn’t load titles right now. Please try again shortly.</p>';
     } finally {
-      if (mine === seq) grid.removeAttribute('aria-busy');
-      more.disabled = false;
+      // A superseded response leaves the button alone: the newer load enables it when its page is in.
+      if (mine === seq) {
+        grid.removeAttribute('aria-busy');
+        more.disabled = false;
+      }
     }
   }
 
@@ -119,24 +148,28 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
   form.addEventListener('input', (e) => {
     if (e.target.closest('.multi__search')) return; // filters the option list only
     clearTimeout(timer);
+    more.disabled = true; // until the new results are in, "Show more" would add to the old list
     timer = setTimeout(load, e.target.type === 'search' ? 250 : 0);
   });
   form.addEventListener('submit', (e) => e.preventDefault());
-  await load();
+  await load(firstPage);
 }
 
 // Publishers pinned to the top of the Publisher filter come from shop settings
 // (in that order, when they have titles); everyone else follows alphabetically.
 const DEFAULT_PINNED = ['Marvel', 'DC', 'Image', 'Dark Horse', 'BOOM!', 'IDW', 'Dynamite'];
 
-/** Publisher checkbox filter for items with the given statuses. */
-export async function publisherFilter(statuses) {
-  const [publishers, settings] = await Promise.all([getPublishers(statuses), getSettings()]);
-  const pinned = (settings.pinned_publishers ?? DEFAULT_PINNED).filter((p) => publishers.includes(p));
-  const rest = publishers.filter((p) => !pinned.includes(p));
-  return { name: 'publisher', label: 'Publisher', options: [...pinned, ...rest].map((p) => [p, p]), pinned: pinned.length, multiple: true };
+/** Publisher checkbox filter for items with the given statuses (its options and pinned count load in the background). */
+export function publisherFilter(statuses) {
+  const ready = Promise.all([getPublishers(statuses), getSettings()]).then(([publishers, settings]) => {
+    const pinned = (settings.pinned_publishers ?? DEFAULT_PINNED).filter((p) => publishers.includes(p));
+    const rest = publishers.filter((p) => !pinned.includes(p));
+    return { options: [...pinned, ...rest].map((p) => [p, p]), pinned: pinned.length };
+  });
+  return { name: 'publisher', label: 'Publisher', options: ready.then((r) => r.options), pinned: ready.then((r) => r.pinned), multiple: true };
 }
 
+/** Category options (a promise, for a filter's `options`). */
 export async function categoryOptions() {
   return (await getCategories()).map((c) => [String(c.id), c.name]);
 }

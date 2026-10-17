@@ -1,6 +1,7 @@
-import { initPage, $, esc, heroHeadlineHtml, sizedImage, HERO_WIDTH, hoursList, addressLines, mapsHref, telHref, mapEmbed, fmtDate, fmtTime, shopToday, addDays, openFocFrom, EVENT_TYPES } from '../site.js';
+import { initPage, $, esc, heroHeadlineHtml, sizedImage, HERO_WIDTH, hoursList, addressLines, mapsHref, telHref, mapEmbed, fmtDate, fmtTime, addDays, openFocFrom, EVENT_TYPES } from '../site.js';
+import { todayIn } from '../dates.js';
 import { formatPhone } from '../util.js';
-import { getItems, getEvents, getCategories, getPosts } from '../data.js';
+import { getItems, getEvents, getCategories, getPosts, getSettings } from '../data.js';
 import { renderGrid, enableReservations } from '../components.js';
 import * as pull from '../customer.js';
 import { readCache, writeCache, sameData } from '../cache.js';
@@ -21,12 +22,13 @@ function paintHero(s) {
 const SHELF = 12;
 const IN_STORE = ['new_this_wednesday', 'just_arrived', 'available', 'low_stock', 'sale', 'clearance', 'backorder'];
 // One failing query (say, a column that isn't in the database yet) shouldn't
-// blank the whole homepage: log it and show that shelf empty instead.
-let queryFailed = false;
-const soft = (promise) =>
+// blank the whole homepage: log it and show that shelf empty (or as it was last visit) instead.
+// `failed` holds the parts of the page whose data didn't load: focSoon, fresh, picks, events, news, categories or a shelf id.
+const failed = new Set();
+const soft = (part, promise) =>
   Promise.resolve(promise).catch((err) => {
     console.error(err);
-    queryFailed = true;
+    failed.add(part);
     return [];
   });
 // Category shelves under the main ones: what's in the shop plus what can still
@@ -38,27 +40,31 @@ const SHELVES = [
   { id: 'records', slug: 'records' },
 ];
 
-/** Everything the page shows, as plain data (this is also what's saved for the next visit). Every query starts at once. */
+/** Everything the page shows, as plain data (this is also what's saved for the next visit). Every query starts at once, the cutoff ones as soon as the shop's timezone is known. */
 async function loadHome() {
+  // Order cutoffs follow the shop's timezone, which initPage hasn't set yet on a first visit, so those queries wait
+  // for the settings (the same request initPage makes); the rest start at once.
+  const zone = getSettings().then((s) => s.timezone);
+  const focFrom = zone.then((tz) => openFocFrom(tz));
   const [categories, focFeatured, focAuto, freshFeatured, freshComics, freshAuto, freshRecent, picks, events, news, ...shelfResults] = await Promise.all([
-    soft(getCategories()),
+    soft('categories', getCategories()),
     // Titles staff ticked "Show on homepage" lead a shelf; the automatic pull
     // (soonest cutoffs / this week's new comics, then the rest of this week's arrivals, then the latest releases)
     // fills whatever room is left.
-    soft(getItems({ statuses: ['pre_order'], focFrom: openFocFrom(), featured: true, order: 'foc', limit: SHELF })),
-    soft(getItems({ statuses: ['pre_order'], focFrom: openFocFrom(), focBefore: addDays(shopToday(), 14), order: 'foc', limit: SHELF })),
-    soft(getItems({ statuses: IN_STORE, featured: true, order: 'newest', limit: SHELF })),
+    soft('focSoon', focFrom.then((from) => getItems({ statuses: ['pre_order'], focFrom: from, featured: true, order: 'foc', limit: SHELF }))),
+    soft('focSoon', zone.then((tz) => getItems({ statuses: ['pre_order'], focFrom: openFocFrom(tz), focBefore: addDays(todayIn(tz), 14), order: 'foc', limit: SHELF }))),
+    soft('fresh', getItems({ statuses: IN_STORE, featured: true, order: 'newest', limit: SHELF })),
     // This week's books: new comics first (they're what Wednesday is about), then everything else that's new, by release date.
-    soft(getItems({ categorySlug: 'comics', statuses: ['new_this_wednesday', 'just_arrived'], order: 'released', limit: SHELF })),
-    soft(getItems({ statuses: ['new_this_wednesday', 'just_arrived'], order: 'released', limit: SHELF })),
+    soft('fresh', getItems({ categorySlug: 'comics', statuses: ['new_this_wednesday', 'just_arrived'], order: 'released', limit: SHELF })),
+    soft('fresh', getItems({ statuses: ['new_this_wednesday', 'just_arrived'], order: 'released', limit: SHELF })),
     // Whatever came out most recently tops up the shelf when this week's books are few or not imported yet.
-    soft(getItems({ statuses: IN_STORE, order: 'released', limit: SHELF })),
-    soft(getItems({ staffPick: true, excludeStatuses: ['sold_out'], limit: SHELF })),
-    soft(getEvents({ from: new Date().toISOString() })),
-    soft(getPosts(3)),
-    ...SHELVES.flatMap(({ slug }) => [
-      soft(getItems({ categorySlug: slug, statuses: IN_STORE, order: 'newest', limit: SHELF })),
-      soft(getItems({ categorySlug: slug, statuses: ['pre_order'], focFrom: openFocFrom(), order: 'foc', limit: SHELF })),
+    soft('fresh', getItems({ statuses: IN_STORE, order: 'released', limit: SHELF })),
+    soft('picks', getItems({ staffPick: true, excludeStatuses: ['sold_out'], limit: SHELF })),
+    soft('events', getEvents({ from: new Date().toISOString() })),
+    soft('news', getPosts(3)),
+    ...SHELVES.flatMap(({ id, slug }) => [
+      soft(id, getItems({ categorySlug: slug, statuses: IN_STORE, order: 'newest', limit: SHELF })),
+      soft(id, focFrom.then((from) => getItems({ categorySlug: slug, statuses: ['pre_order'], focFrom: from, order: 'foc', limit: SHELF }))),
     ]),
   ]);
   const fill = (featured, auto) => {
@@ -201,9 +207,15 @@ if (!cachedSettings || !sameData(cachedSettings, s)) {
   renderVisit(s);
 }
 const home = await homeReady;
-// A failed query leaves its shelf empty: show that only when there's nothing better, and never save it.
-if (!queryFailed) writeCache('home', home);
-// Signed-in customers get extra buttons on each card, and the snapshot was drawn before their list loaded.
-if (!cachedHome || (!queryFailed && !sameData(cachedHome, home)) || pull.isSignedIn()) {
-  if (!(queryFailed && cachedHome)) renderHome(home);
+// A failed query leaves its part of the page empty: where last visit's snapshot has that part, show it instead (the
+// rest is fresh). Nothing is saved then, so the snapshot keeps its good parts and its age.
+let shown = home;
+if (failed.size && cachedHome) {
+  const keep = (part) => failed.has(part) || (failed.has('categories') && SHELVES.some((x) => x.id === part));
+  shown = { ...home };
+  for (const part of ['focSoon', 'fresh', 'picks', 'events', 'news']) if (keep(part) && cachedHome[part]) shown[part] = cachedHome[part];
+  shown.shelves = home.shelves.map((x) => (keep(x.id) && cachedHome.shelves?.find((c) => c.id === x.id)) || x);
 }
+if (!failed.size) writeCache('home', home);
+// Signed-in customers get extra buttons on each card, and the snapshot was drawn before their list loaded.
+if (!cachedHome || !sameData(cachedHome, shown) || pull.isSignedIn()) renderHome(shown);

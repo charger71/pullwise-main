@@ -5,15 +5,12 @@
 // Deploy with:  supabase functions deploy calendar-feed --no-verify-jwt
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { htmlToText, icsText as text, icsFold as fold } from './ical.js';
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
 
 const stamp = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-const text = (s: string | null) =>
-  String(s ?? '').replace(/<[^>]+>/g, '').replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/[,;]/g, '\\$&');
-
-// RFC 5545: lines longer than 75 octets are folded with CRLF + space.
-const fold = (line: string) => line.match(/.{1,74}/gsu)!.join('\r\n ');
+// text() escapes a TEXT value; fold() keeps lines to 75 octets (RFC 5545). See ical.js.
 
 Deno.serve(async () => {
   const since = new Date(Date.now() - 90 * 86400000).toISOString();
@@ -43,7 +40,7 @@ Deno.serve(async () => {
       `DTEND:${stamp(e.ends_at ?? new Date(new Date(e.starts_at).getTime() + 2 * 3600000).toISOString())}`,
       `SUMMARY:${text(e.title)}`,
       // Calendar apps show URL in different places (or not at all), so the link is also at the end of the description.
-      `DESCRIPTION:${text(`${String(e.description ?? '').replace(/<[^>]+>/g, '').trim()}\n\nDetails: ${site}/event.html?id=${e.id}`.trim())}`,
+      `DESCRIPTION:${text(`${htmlToText(e.description)}\n\nDetails: ${site}/event.html?id=${e.id}`.trim())}`,
       `URL:${site}/event.html?id=${e.id}`,
       `LOCATION:${text(e.location ? `${shop} — ${e.location}` : shop)}`,
       'END:VEVENT',

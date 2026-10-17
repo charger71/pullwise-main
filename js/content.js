@@ -9,9 +9,11 @@ import { readCache, writeCache } from './cache.js';
 // Videos staff can embed: only these players, nothing else in an <iframe>.
 const VIDEO_SRC = /^https:\/\/(www\.youtube-nocookie\.com\/embed\/|www\.youtube\.com\/embed\/|player\.vimeo\.com\/video\/)[\w-]+(\?[\w=&-]*)?$/;
 
+// DOMPurify is served from this site (js/vendor/, unchanged from the npm package) so a slow or blocked CDN can't
+// stop page text from showing. Still loaded on first use: pages without rich text never fetch it.
 let purifier;
 const purify = () =>
-  (purifier ??= import('https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.es.mjs').then((m) => {
+  (purifier ??= import('./vendor/purify.es.mjs').then((m) => {
     const DOMPurify = m.default;
     DOMPurify.addHook('uponSanitizeElement', (node, data) => {
       if (data.tagName === 'iframe' && !VIDEO_SRC.test(node.getAttribute('src') ?? '')) node.remove();
@@ -29,10 +31,35 @@ const purify = () =>
 /** Placeholders staff can type in the editor, filled from settings. */
 export const PLACEHOLDERS = ['shop_name', 'phone', 'email', 'max_copies_per_title', 'hold_days', 'founded_year'];
 
-/** Settings-filled, sanitized HTML ready to insert. */
-export async function renderRich(html, settings) {
-  const filled = String(html ?? '').replace(/\{(\w+)\}/g, (m, key) => (PLACEHOLDERS.includes(key) ? esc(key === 'phone' ? formatPhone(settings[key]) : settings[key]) : m));
-  return (await purify()).sanitize(filled, { ADD_TAGS: ['iframe'], ADD_ATTR: ['target', 'allowfullscreen', 'frameborder'] });
+/** Plain-text fallback for rich text that couldn't be sanitized: tags dropped, paragraphs kept, everything escaped. */
+const asPlainText = (html) => {
+  const text = String(html)
+    .replace(/<(script|style|iframe)[\s\S]*?<\/\1\s*>/gi, '')
+    .replace(/<\/(p|div|h[1-6]|li|blockquote)\s*>|<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>?/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&(amp|lt|gt|quot|#39);/g, (m, e) => ({ amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" })[e]);
+  return text
+    .split(/\s*\n\s*/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p>${esc(p)}</p>`)
+    .join('');
+};
+
+/**
+ * Settings-filled, sanitized HTML ready to insert. If the sanitizer can't load (or throws), the text is shown
+ * as plain escaped paragraphs instead — never as raw HTML — so callers always get something safe to show.
+ */
+export async function renderRich(html, settings = {}) {
+  const filled = String(html ?? '').replace(/\{(\w+)\}/g, (m, key) => (PLACEHOLDERS.includes(key) ? esc(key === 'phone' ? formatPhone(settings?.[key]) : settings?.[key]) : m));
+  try {
+    return (await purify()).sanitize(filled, { ADD_TAGS: ['iframe'], ADD_ATTR: ['target', 'allowfullscreen', 'frameborder'] });
+  } catch (err) {
+    console.error('Rich text sanitizer failed; showing plain text', err);
+    purifier = undefined; // try loading it again next time
+    return asPlainText(filled);
+  }
 }
 
 /**

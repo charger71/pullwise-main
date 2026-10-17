@@ -5,16 +5,15 @@ await initPage();
 
 const IN_STORE = ['new_this_wednesday', 'just_arrived', 'available', 'low_stock', 'sale', 'clearance', 'backorder', 'sold_out'];
 
-const [publisher, categories] = await Promise.all([publisherFilter(IN_STORE), categoryOptions()]);
-
+// The filter options load alongside the first page of titles (initCatalog waits for them).
 await initCatalog({
   statuses: IN_STORE,
   reservable: false,
   followSeries: true,
   order: 'arrivals',
   filters: [
-    publisher,
-    { name: 'category', label: 'Category', options: categories, multiple: true },
+    publisherFilter(IN_STORE),
+    { name: 'category', label: 'Category', options: categoryOptions(), multiple: true },
     badgeFilter(),
     { name: 'status', label: 'Status', options: statusOptions(IN_STORE), multiple: true },
   ],

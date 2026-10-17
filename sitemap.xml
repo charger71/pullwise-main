@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The site's fixed pages. Posts, events and staff-made pages (post.html?slug=, event.html?id=, page.html?slug=)
+     aren't listed here: they come and go with the database, so a generated sitemap should add them. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://popscomics502.com/</loc></url>
+  <url><loc>https://popscomics502.com/pre-orders.html</loc></url>
+  <url><loc>https://popscomics502.com/new-arrivals.html</loc></url>
+  <url><loc>https://popscomics502.com/we-buy-comics.html</loc></url>
+  <url><loc>https://popscomics502.com/calendar.html</loc></url>
+  <url><loc>https://popscomics502.com/blog.html</loc></url>
+  <url><loc>https://popscomics502.com/contact.html</loc></url>
+  <url><loc>https://popscomics502.com/about.html</loc></url>
+  <url><loc>https://popscomics502.com/gift-cards.html</loc></url>
+  <url><loc>https://popscomics502.com/how-to.html</loc></url>
+  <url><loc>https://popscomics502.com/faq.html</loc></url>
+  <url><loc>https://popscomics502.com/privacy.html</loc></url>
+  <url><loc>https://popscomics502.com/terms.html</loc></url>
+</urlset>

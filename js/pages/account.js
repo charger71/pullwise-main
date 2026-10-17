@@ -15,6 +15,23 @@ import { seriesCount, discountFor, totals, tiersFrom } from '../discount.js';
 
 const root = $('#account');
 
+// An emailed link that has expired or was already used comes back with the reason in the address
+// (#error=access_denied&error_code=otp_expired&error_description=…). Read it before supabase-js looks at the
+// address, then tidy the address so a reload doesn't show it again.
+let linkError = (() => {
+  const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const query = new URLSearchParams(location.search);
+  const get = (k) => hash.get(k) ?? query.get(k);
+  const code = get('error_code') ?? get('error');
+  if (!code && !get('error_description')) return null;
+  for (const k of ['error', 'error_code', 'error_description']) query.delete(k);
+  const rest = query.toString();
+  history.replaceState(history.state, '', `${location.pathname}${rest ? `?${rest}` : ''}${hash.has('error') || hash.has('error_code') ? '' : location.hash}`);
+  return /otp_expired|access_denied|expired|invalid/i.test(`${code} ${get('error_description') ?? ''}`)
+    ? 'That sign-in link has expired or was already used — enter the code from the email, or request a new link below.'
+    : 'That sign-in link didn’t work — enter the code from the email, or request a new link below.';
+})();
+
 await initPage();
 if (DEMO) {
   root.innerHTML = '<p class="empty">Customer accounts aren’t available in demo mode.</p>';
@@ -39,13 +56,16 @@ async function show(sb) {
     } catch (err) {
       console.error(err);
       showing = null;
-      root.innerHTML = `<p class="form-error" role="alert">${esc(err.message)}</p><p><button class="btn" type="button" data-out>Sign out</button></p>`;
+      root.innerHTML = `<p class="form-error" role="alert">${esc(errText(err))}</p><p><button class="btn" type="button" data-out>Sign out</button></p>`;
       $('[data-out]', root).addEventListener('click', () => sb.auth.signOut());
     }
   } else {
     signedOut(sb);
   }
 }
+
+// Errors from customer.js are already worded for customers; anything else goes through the same mapping.
+const errText = (err) => (err && 'signIn' in err ? err.message : pull.customerMessage(err));
 
 // ---------------------------------------------------------------------------
 // Sign in
@@ -59,6 +79,8 @@ function redirectUrl() {
 }
 
 function signedOut(sb) {
+  const linkNote = linkError; // once: not again after a later sign-out
+  linkError = null;
   root.innerHTML = `
     <div class="panel account-panel">
       <h2>Sign in</h2>
@@ -68,7 +90,7 @@ function signedOut(sb) {
           <label for="a-email">Email</label>
           <input id="a-email" name="email" type="email" autocomplete="email" required maxlength="254">
         </div>
-        <p class="form-error" role="alert"></p>
+        <p class="form-error" role="alert">${esc(linkNote ?? '')}</p>
         <button class="btn btn--primary" type="submit">Email me a sign-in link</button>
       </form>
       <form id="code-form" hidden novalidate>
@@ -96,7 +118,7 @@ function signedOut(sb) {
     btn.disabled = true;
     const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectUrl() } });
     btn.disabled = false;
-    if (error) return void (err.textContent = error.status === 429 ? 'Too many tries — please wait a minute and try again.' : error.message);
+    if (error) return void (err.textContent = error.status === 429 ? 'Too many tries — please wait a minute and try again.' : pull.customerMessage(error));
     emailForm.hidden = true;
     codeForm.hidden = false;
     $('#a-code').focus();
@@ -124,7 +146,7 @@ function signedOut(sb) {
 async function signedIn(sb, user) {
   await pull.initCustomer(); // other parts of the page (list bar, buttons) read the shared state
   const { data: customer, error } = await sb.rpc('claim_customer');
-  if (error) throw new Error(error.message);
+  if (error) throw pull.customerError(error);
   // A first sign-in only knows the email. Ask for a name and phone before anything else.
   if (!customer.first_name?.trim() || !customer.last_name?.trim() || !customer.phone?.trim()) return setupProfile(sb, user, customer);
 
@@ -133,7 +155,8 @@ async function signedIn(sb, user) {
     <div class="account-grid">
       <div class="account-col">
         <section class="panel" aria-labelledby="orders-h">
-          <h2 id="orders-h">Coming Up</h2>
+          <h2 id="orders-h" tabindex="-1">Coming Up</h2>
+          <p class="visually-hidden" role="status" aria-live="polite" data-orders-status></p>
           <div data-orders><p class="empty loading">Loading…</p></div>
         </section>
         <section class="panel" aria-labelledby="follow-h">
@@ -209,7 +232,7 @@ async function signedIn(sb, user) {
       .from('customers')
       .update({ first_name: v('first_name'), last_name: v('last_name'), phone: v('phone'), address1: v('address1'), city: v('city'), state: v('state'), zip: v('zip'), email_opt_in: form.elements.email_opt_in.checked, mature_ok: form.elements.mature_ok.checked, notify_arrivals: form.elements.notify_arrivals.checked })
       .eq('id', customer.id);
-    if (saveError) err.textContent = saveError.message;
+    if (saveError) err.textContent = pull.customerMessage(saveError);
     else saved.textContent = 'Saved.';
   });
 
@@ -250,8 +273,8 @@ function setupProfile(sb, user, customer) {
       }
     }
     const { error } = await sb.from('customers').update({ first_name: v('first_name'), last_name: v('last_name'), phone: v('phone') }).eq('id', customer.id);
-    if (error) err.textContent = error.message;
-    else signedIn(sb, user);
+    if (error) err.textContent = pull.customerMessage(error);
+    else signedIn(sb, user).catch((ex) => (err.textContent = errText(ex)));
   });
   form.elements.first_name.focus();
 }
@@ -267,7 +290,16 @@ const PAST_SHOWN = 100; // picked up, released and so on: the most recent
 // Open lines can be changed until the order cutoff (the Saturday before FOC); after that, call the shop.
 const canEdit = (r) => r.status === 'open' && !cutoffPassed(r.item);
 
-async function loadOrders(sb, customerId, seenBefore = null) {
+/** Say what just happened on the list (a polite live region that isn't redrawn with it). */
+const announce = (text) => {
+  const live = $('[data-orders-status]', root);
+  if (!live) return;
+  live.textContent = '';
+  setTimeout(() => (live.textContent = text), 50); // a change, even to the same words, is read out
+};
+
+/** `focus`: selectors to try, in order, for where keyboard focus goes once the list is redrawn. */
+async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
   const el = $('[data-orders]', root);
   const settings = await getSettings();
   // `!inner` + the customer filter keeps this to the customer's own lines even for staff, whose
@@ -285,7 +317,7 @@ async function loadOrders(sb, customerId, seenBefore = null) {
     lineQuery().not('status', 'in', `(${[...LIVE, 'not_ordered', 'cancelled'].join(',')})`).limit(PAST_SHOWN),
   ]);
   const error = current.error ?? history.error;
-  if (error) return void (el.innerHTML = `<p class="form-error" role="alert">${esc(error.message)}</p>`);
+  if (error) return void (el.innerHTML = `<p class="form-error" role="alert">${pull.errorHtml(pull.customerError(error))}</p>`);
   // A title the shop has since taken down still shows by name if it can; otherwise as a placeholder.
   const data = [...current.data, ...history.data].map((r) => ({ ...r, item: r.item ?? { title: 'Title no longer listed' } }));
   // The newest change anywhere on the list, including titles since removed.
@@ -373,18 +405,33 @@ async function loadOrders(sb, customerId, seenBefore = null) {
     ${!active.length ? '<p class="empty">Your pull list is empty. Tap <strong>Add to pull list</strong> on any title on the <a href="pre-orders.html">Pre-Orders</a> page, or <strong>Add all covers</strong> to pull every cover of an issue.</p>' : ''}
     ${past.length ? `<details class="account-past"><summary>Past (${past.length})</summary>${section('', past)}</details>` : ''}`;
 
-  const showError = (err) => ($('[data-error]', el).textContent = err.message);
-  const reload = () => loadOrders(sb, customerId, seenBefore);
+  // Keyboard focus goes back where it was (or the next sensible place) after a redraw.
+  for (const sel of focus ?? []) {
+    const target = sel && $(sel, root);
+    if (target) {
+      target.focus();
+      break;
+    }
+  }
+
+  const showError = (err) => {
+    $('[data-error]', el).innerHTML = pull.errorHtml(err);
+    announce(err.message);
+  };
+  const reload = (focusTo) => loadOrders(sb, customerId, seenBefore, { focus: [...focusTo, '#orders-h'] });
+  const titleOf = (lineId) => itemFullTitle(data.find((r) => r.id === lineId)?.item ?? { title: 'That title' });
   el.onchange = async (e) => {
     const input = e.target.closest('[data-qty]');
     if (!input) return;
+    const id = Number(input.dataset.qty);
     const q = Math.min(Math.max(Math.round(Number(input.value)) || 1, 1), settings.max_copies_per_title);
     try {
-      await pull.setQuantity(Number(input.dataset.qty), q);
-      reload();
+      await pull.setQuantity(id, q);
+      await reload([`[data-qty="${id}"]`]);
+      announce(`${titleOf(id)}: ${q} ${q === 1 ? 'copy' : 'copies'}.`);
     } catch (err) {
       showError(err);
-      input.value = data.find((r) => r.id === Number(input.dataset.qty))?.quantity ?? 1;
+      input.value = data.find((r) => r.id === id)?.quantity ?? 1;
     }
   };
   el.onclick = async (e) => {
@@ -392,28 +439,49 @@ async function loadOrders(sb, customerId, seenBefore = null) {
     const move = e.target.closest('[data-move]');
     if (!rm && !move) return;
     try {
-      if (rm) await pull.remove(Number(rm.dataset.remove));
-      else await moveGuestList(el);
-      reload();
+      if (rm) {
+        const id = Number(rm.dataset.remove);
+        // The line goes away: focus the next line's Remove (or the one before) instead.
+        const li = rm.closest('li');
+        const near = [li.nextElementSibling, li.previousElementSibling].map((n) => n?.querySelector('[data-remove]')?.dataset.remove).filter(Boolean);
+        await pull.remove(id);
+        await reload([...near.map((n) => `[data-remove="${n}"]`), '[data-remove]']);
+        announce(`Removed ${titleOf(id)} from your pull list.`);
+      } else {
+        const moved = await moveGuestList(el);
+        await reload(['[data-remove]']);
+        announce(`Added ${moved} ${moved === 1 ? 'title' : 'titles'} to your pull list.`);
+      }
     } catch (err) {
+      if (move) await reload(['[data-move]', '[data-remove]']);
       showError(err);
     }
   };
 }
 
-/** Add each title from the guest pull list; the ones that fail are kept and reported. */
-async function moveGuestList(el) {
+/** Add each title from the guest pull list; the ones that fail are kept and reported. Resolves how many moved. */
+async function moveGuestList() {
   const failed = [];
+  let moved = 0;
   for (const { item, quantity } of guest.getLines()) {
     try {
       await pull.add(item.id, quantity);
       guest.remove(item.id);
+      moved++;
     } catch (err) {
-      if (/already on your list/.test(err.message)) guest.remove(item.id);
-      else failed.push(err.message);
+      // Only a title that really is on the list (an active line) counts as done; otherwise keep it and say why.
+      if (/already on your list/.test(err.message) && (await pull.refresh().then(() => pull.has(item.id), () => false))) {
+        guest.remove(item.id);
+        moved++;
+      } else failed.push(err);
     }
   }
-  if (failed.length) throw new Error(failed.join(' '));
+  if (failed.length) {
+    const e = new Error(failed.map((f) => f.message).join(' '));
+    e.signIn = failed.some((f) => f.signIn);
+    throw e;
+  }
+  return moved;
 }
 
 // ---------------------------------------------------------------------------
@@ -422,14 +490,21 @@ async function moveGuestList(el) {
 
 const ROLE_LABEL = { cover: 'Cover artist', creator: 'Writer / artist' };
 
-function setupFollowing(sb, customerId, seenBefore) {
+async function setupFollowing(sb, customerId, seenBefore) {
   const list = $('[data-follows]', root);
   const results = $('[data-follow-results]', root);
   const form = $('[data-follow-search]', root);
   let lastQuery = '';
+  // set_follow_quantity refuses more than the copy limit (every new issue would be over it).
+  const maxCopies = (await getSettings().catch(() => null))?.max_copies_per_title ?? 100;
 
   const renderFollows = () => {
     const subs = pull.getSubscriptions();
+    // Keep keyboard focus on the same follow's control after the redraw (or the next one, if it was unfollowed).
+    const focused = document.activeElement?.closest?.('[data-fqty], [data-unfollow]');
+    const li = focused && list.contains(focused) ? focused.closest('li') : null;
+    const near = li ? [li, li.nextElementSibling, li.previousElementSibling].map((n) => n?.querySelector('[data-unfollow]')?.dataset.unfollow).filter(Boolean) : [];
+    const keep = focused && li ? (focused.dataset.fqty ? `[data-fqty="${focused.dataset.fqty}"]` : `[data-unfollow="${focused.dataset.unfollow}"]`) : null;
     list.innerHTML = subs.length
       ? `<ul class="follow-subs">${subs
           .map(
@@ -437,27 +512,32 @@ function setupFollowing(sb, customerId, seenBefore) {
               <span class="follow-item">${f.cover ? `<img class="follow-thumb" src="${esc(f.cover)}" alt="Cover of ${esc(f.label)}" loading="lazy">` : ''}<span><strong>${esc(f.label)}</strong><br><span class="card__meta">${f.kind === 'series' ? 'Series' : ROLE_LABEL[f.role]}</span></span></span>
               <span class="list-line__controls">
                 <label class="visually-hidden" for="fq-${f.id}">Copies of each new issue of ${esc(f.label)}</label>
-                <input class="list-line__qty" id="fq-${f.id}" type="number" inputmode="numeric" min="1" max="100" value="${f.quantity}" data-fqty="${f.id}">
+                <input class="list-line__qty" id="fq-${f.id}" type="number" inputmode="numeric" min="1" max="${maxCopies}" value="${f.quantity}" data-fqty="${f.id}">
                 <button class="list-line__remove" type="button" data-unfollow="${f.id}">Unfollow<span class="visually-hidden"> ${esc(f.label)}</span></button>
               </span></li>`,
           )
           .join('')}</ul>`
       : '<p class="empty">You aren’t following anything yet.</p>';
+    if (li) (($(keep, list) ?? near.map((id) => $(`[data-unfollow="${id}"]`, list)).find(Boolean)) ?? $('#f-q', root))?.focus();
   };
   renderFollows();
   pull.onChange(renderFollows);
+  pull.onChange(() => lastResults && renderResults()); // an unfollow shows "Follow" again in the search results
 
   // Messages go above the results so the list of matches stays open while following several things.
   const status = Object.assign(document.createElement('div'), { className: 'follow-status' });
   results.before(status);
   const note = (text, bad) => (status.innerHTML = `<p class="${bad ? 'form-error' : 'account-saved'}" role="${bad ? 'alert' : 'status'}">${esc(text)}</p>`);
+  const noteError = (err) => (status.innerHTML = `<p class="form-error" role="alert">${pull.errorHtml({ message: errText(err), signIn: err?.signIn })}</p>`);
 
   list.addEventListener('change', async (e) => {
     const input = e.target.closest('[data-fqty]');
     if (!input) return;
-    const q = Math.min(Math.max(Math.round(Number(input.value)) || 1, 1), 100);
+    const id = Number(input.dataset.fqty);
+    const q = Math.min(Math.max(Math.round(Number(input.value)) || 1, 1), maxCopies);
+    input.value = q;
     try {
-      const { updated, skipped } = await pull.setFollowQuantity(Number(input.dataset.fqty), q);
+      const { updated, skipped } = await pull.setFollowQuantity(id, q);
       const each = `${q} ${q === 1 ? 'copy' : 'copies'} of each issue`;
       note(
         `${each}. ${updated ? `${updated} ${updated === 1 ? 'title' : 'titles'} not ordered yet ${updated === 1 ? 'was' : 'were'} updated.` : 'Nothing else on your list needed changing.'}` +
@@ -465,7 +545,8 @@ function setupFollowing(sb, customerId, seenBefore) {
       );
       loadOrders(sb, customerId, seenBefore);
     } catch (err) {
-      note(err.message, true);
+      noteError(err);
+      input.value = pull.getSubscriptions().find((s) => s.id === id)?.quantity ?? 1;
     }
   });
   list.addEventListener('click', async (e) => {
@@ -479,34 +560,50 @@ function setupFollowing(sb, customerId, seenBefore) {
       note(`Unfollowed ${sub.label}.${removed ? ` ${removed} ${removed === 1 ? 'title was' : 'titles were'} removed from your pull list.` : ''}`);
       loadOrders(sb, customerId, seenBefore);
     } catch (err) {
-      note(err.message, true);
+      noteError(err);
     }
   });
 
   // One box for both: series and artists are searched together and listed under their own headings.
+  const following = (label) => `<span class="btn btn--ghost btn--small is-on" aria-disabled="true">✓ ${esc(label)}</span>`;
   const seriesRow = (r) => `<li><span class="follow-item">${r.cover_url ? `<img class="follow-thumb" src="${esc(thumbOf(r.cover_url))}" ${thumbFallback(r.cover_url)} alt="Cover of ${esc(r.label)}" loading="lazy">` : ''}<span><strong>${esc(r.label)}</strong><br><span class="card__meta">${r.issues ? `${r.issues} ${r.issues === 1 ? 'issue' : 'issues'}` : 'Ongoing series · new issues are added as they’re announced'}</span></span></span>
-      <span class="follow-results__act"><button class="btn btn--primary btn--small" type="button" data-fs="${esc(r.key)}">Follow</button></span></li>`;
+      <span class="follow-results__act">${pull.findSubscription('series', r.key) ? following('Following') : `<button class="btn btn--primary btn--small" type="button" data-fs="${esc(r.key)}">Follow<span class="visually-hidden"> ${esc(r.label)}</span></button>`}</span></li>`;
   // issues = 0: named only in cover text (a variant cover artist), so there are no books to follow.
+  const artistBtn = (r, role) =>
+    pull.findSubscription('artist', pull.personKey(r.name), role)
+      ? following(`Following ${role === 'cover' ? 'covers' : 'books'}`)
+      : `<button class="btn ${role === 'cover' ? 'btn--primary' : 'btn--ghost'} btn--small" type="button" data-fa="${esc(r.name)}" data-role="${role}">Follow ${role === 'cover' ? 'covers' : 'books'}<span class="visually-hidden"> by ${esc(r.name)}</span></button>`;
   const artistRow = (r) => `<li><span><strong>${esc(r.name)}</strong><br><span class="card__meta">${r.covers} ${r.covers === 1 ? 'cover' : 'covers'}${r.issues ? ` · ${r.issues} ${r.issues === 1 ? 'book' : 'books'}` : ''}</span></span>
       <span class="follow-results__act">
-        <button class="btn btn--primary btn--small" type="button" data-fa="${esc(r.name)}" data-role="cover">Follow covers</button>
-        ${r.issues ? `<button class="btn btn--ghost btn--small" type="button" data-fa="${esc(r.name)}" data-role="creator">Follow books</button>` : ''}</span></li>`;
+        ${artistBtn(r, 'cover')}
+        ${r.issues ? artistBtn(r, 'creator') : ''}</span></li>`;
+
+  let lastResults = null; // { series, artists } of the search on screen
+  const renderResults = () => {
+    const { series, artists } = lastResults;
+    // Keep focus on the same button if it is still there (another follow changed), else on the search box.
+    const focused = document.activeElement?.closest?.('[data-fs], [data-fa]');
+    const keep = focused && results.contains(focused) ? (focused.dataset.fs ? `[data-fs="${CSS.escape(focused.dataset.fs)}"]` : `[data-fa="${CSS.escape(focused.dataset.fa)}"][data-role="${focused.dataset.role}"]`) : null;
+    results.innerHTML = series.length || artists.length
+      ? `${series.length ? `<h3 class="follow-results__head">Series</h3><ul class="follow-results">${series.map(seriesRow).join('')}</ul>` : ''}
+         ${artists.length ? `<h3 class="follow-results__head">Artists &amp; writers</h3><ul class="follow-results">${artists.map(artistRow).join('')}</ul>
+           <p class="field__hint">Covers = every cover they draw. Books = one cover of each issue they write or draw.</p>` : ''}`
+      : '<p class="empty">No series or artists match.</p>';
+    if (keep) ($(keep, results) ?? $('#f-q', root)).focus();
+  };
 
   const search = async () => {
     const q = $('#f-q', form).value.trim();
     lastQuery = q;
     status.innerHTML = '';
-    if (q.length < 2) return void (results.innerHTML = '');
+    if (q.length < 2) return void ((lastResults = null), (results.innerHTML = ''));
     try {
       const [series, artists] = await Promise.all([searchSeries(q), searchArtists(q)]);
       if (lastQuery !== q) return; // a newer search is already running
-      results.innerHTML = series.length || artists.length
-        ? `${series.length ? `<h3 class="follow-results__head">Series</h3><ul class="follow-results">${series.map(seriesRow).join('')}</ul>` : ''}
-           ${artists.length ? `<h3 class="follow-results__head">Artists &amp; writers</h3><ul class="follow-results">${artists.map(artistRow).join('')}</ul>
-             <p class="field__hint">Covers = every cover they draw. Books = one cover of each issue they write or draw.</p>` : ''}`
-        : '<p class="empty">No series or artists match.</p>';
+      lastResults = { series, artists };
+      renderResults();
     } catch (err) {
-      note(err.message, true);
+      noteError(err);
     }
   };
   let timer;
@@ -519,12 +616,14 @@ function setupFollowing(sb, customerId, seenBefore) {
     btn.disabled = true;
     try {
       const { added } = btn.dataset.fs ? await pull.followSeries(btn.dataset.fs) : await pull.followArtist(btn.dataset.fa, btn.dataset.role);
-      btn.textContent = 'Following ✓';
+      // The results redraw with "✓ Following" (pull.onChange); focus stays in the search.
+      if (btn.isConnected) btn.textContent = 'Following ✓';
+      if (!results.contains(document.activeElement)) $('#f-q', root).focus();
       note(`Following. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added automatically.'}`);
       loadOrders(sb, customerId, seenBefore);
     } catch (err) {
       btn.disabled = false;
-      note(err.message, true);
+      noteError(err);
     }
   });
 }

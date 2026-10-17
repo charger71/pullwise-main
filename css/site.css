@@ -23,6 +23,7 @@
   --footer-text: var(--muted);
   --footer-heading: var(--brand-accent);
   --footer-link: var(--teal);
+  --footer-link-hover: var(--teal-hover);
 
   --ink: var(--brand-ink);
   --paper: var(--brand-paper);
@@ -38,7 +39,8 @@
   --field-line: color-mix(in srgb, var(--paper), var(--ink) 52%);  /* form-field outline, >=3:1 for accessibility */
   --muted: color-mix(in srgb, var(--paper), var(--ink) 76%);
 
-  /* Fixed colors: links and focus, plus feedback and a cream for headings */
+  /* Links and focus, feedback and a cream for headings: set for this dark page; applyTheme swaps them
+     (and color-scheme) for readable ones when Shop Settings picks a light page background. */
   --cream: #e9e1d3;
   --teal: #91bbdd;
   --teal-hover: #a5c9e5;
@@ -309,6 +311,16 @@ input[type='checkbox'], input[type='radio'] {
   border-bottom: 1px solid var(--line);
 }
 .nav-open .nav { display: block; }
+/* The open menu never runs past the bottom of the screen (phone held sideways, zoomed in): it scrolls instead.
+   --nav-top is the header's bottom edge, measured by js/site.js when the menu opens. */
+@media (max-width: 1099.98px) {
+  .nav-open .nav {
+    max-height: calc(100vh - var(--nav-top, 126px));
+    max-height: calc(100dvh - var(--nav-top, 126px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
 .nav ul { list-style: none; margin: 0; padding: 8px var(--gutter) 16px; }
 .nav a {
   display: block;
@@ -347,12 +359,13 @@ input[type='checkbox'], input[type='radio'] {
 /* ---------- Footer ---------- */
 #site-footer { padding-top: 32px; background: var(--brand-footer); border-top: 1px solid var(--line); color: var(--footer-text); }
 #site-footer a { color: var(--footer-link); }
-#site-footer a:hover { color: var(--teal-hover); }
+#site-footer a:hover { color: var(--footer-link-hover); }
+#site-footer :focus-visible { outline-color: var(--footer-link); }
 .footer__grid { display: grid; gap: 24px; }
 .footer__heading { font-family: var(--font-heading); font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--footer-heading); }
 .footer__heading--next { margin-top: 20px; }
 .footer__links { list-style: none; padding: 0; margin: 0 0 12px; columns: 2; column-gap: 24px; }
-.footer__links li { margin-bottom: 6px; break-inside: avoid; }
+.footer__links li { margin-bottom: 6px; break-inside: avoid; overflow-wrap: anywhere; } /* a long page title wraps instead of widening the page */
 .footer__legal { padding-block: 20px; margin: 0 auto; text-align: center; font-size: 13px; }
 address { font-style: normal; margin-bottom: 1em; }
 /* Social icons (footer, Visit page): 44px tap targets, current text color. */
@@ -373,7 +386,7 @@ address { font-style: normal; margin-bottom: 1em; }
    with the text above; each link keeps its 44px tap area. */
 #site-footer .socials { gap: 0; margin-left: -12px; }
 #site-footer .socials a { background: none; }
-#site-footer .socials a:hover { background: none; color: var(--teal-hover); }
+#site-footer .socials a:hover { background: none; color: var(--footer-link-hover); }
 @media (min-width: 700px) {
   .footer__grid { grid-template-columns: repeat(3, 1fr); }
 }
