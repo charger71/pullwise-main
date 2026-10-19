@@ -7,7 +7,10 @@
 // Options: --owner-name "Pat Smith"  --shop-email hello@…  --phone "(555) 555-0100"  --timezone America/Chicago
 //          --region us-east-1  --org <organization slug>  --project-ref <use an existing project>  --canary
 //          --super (make the owner Super Admin)  --catalog (this is the master catalog the other shops sync from)
-// Optional env: RESEND_API_KEY, RESEND_FROM, STAFF_CC (set as the shop's function secrets).
+//          --hide-passwords (print no passwords: the owner uses "Forgot your password?" on the admin sign-in;
+//          the "Add a shop" GitHub Action uses this so nothing secret lands in its log)
+// Optional env: RESEND_API_KEY, RESEND_FROM, STAFF_CC (set as the shop's function secrets; with RESEND_API_KEY and
+// RESEND_FROM, sign-in and password emails are sent through Resend too).
 //
 // What it does, each step skipped when already done, so it's safe to run again after a failure:
 //   1. Creates the Supabase project "pullwise-<id>" (or uses --project-ref) and waits for it to come up.
@@ -38,7 +41,7 @@ export const lit = (v) => (v == null || v === '' ? 'null' : `'${String(v).replac
 const randomSecret = (bytes = 32) => crypto.randomBytes(bytes).toString('base64url');
 
 export function parseArgs(argv) {
-  const o = { domains: [], canary: false, super: false, catalog: false, timezone: 'America/New_York', region: 'us-east-1' };
+  const o = { domains: [], canary: false, super: false, catalog: false, hidePasswords: false, timezone: 'America/New_York', region: 'us-east-1' };
   const names = { '--id': 'id', '--name': 'name', '--owner-email': 'ownerEmail', '--owner-name': 'ownerName', '--shop-email': 'shopEmail',
     '--phone': 'phone', '--timezone': 'timezone', '--region': 'region', '--org': 'org', '--project-ref': 'projectRef' };
   for (let i = 0; i < argv.length; i++) {
@@ -48,6 +51,7 @@ export function parseArgs(argv) {
     else if (flag === '--canary') o.canary = true;
     else if (flag === '--super') o.super = true;
     else if (flag === '--catalog') o.catalog = true;
+    else if (flag === '--hide-passwords') o.hidePasswords = true;
     else if (names[flag]) o[names[flag]] = value();
     else throw new Error(`Unknown option ${argv[i]}`);
   }
@@ -60,12 +64,28 @@ export function parseArgs(argv) {
   return o;
 }
 
-/** Auth settings for a shop (Management API: PATCH /projects/{ref}/config/auth). */
-export function authConfig(domains) {
+/** "Shop <hello@shop.com>" → { name, email }; a bare address has no name. */
+export function parseFrom(from) {
+  const m = /^\s*(.*?)\s*<([^<>\s]+@[^<>\s]+)>\s*$/.exec(from ?? '');
+  if (m) return { name: m[1].replace(/^"|"$/g, ''), email: m[2] };
+  return /^[^\s@]+@[^\s@]+$/.test((from ?? '').trim()) ? { name: '', email: from.trim() } : null;
+}
+
+/**
+ * Auth settings for a shop (Management API: PATCH /projects/{ref}/config/auth). With Resend details, sign-in and
+ * password emails go out through Resend; without, Supabase's built-in sender only mails your own team's addresses.
+ */
+export function authConfig(domains, resend = {}) {
   const site = `https://${domains[0]}`;
+  const from = parseFrom(resend.from);
+  const smtp = resend.apiKey && from
+    ? { smtp_host: 'smtp.resend.com', smtp_port: '465', smtp_user: 'resend', smtp_pass: resend.apiKey, smtp_admin_email: from.email, smtp_sender_name: from.name || domains[0] }
+    : {};
   return {
+    ...smtp,
     site_url: site,
-    uri_allow_list: [...domains.map((d) => `https://${d}/account.html`), 'http://localhost:8080/account.html'].join(','),
+    // account.html: customers' sign-in links; admin/: staff password-reset links.
+    uri_allow_list: [...domains.flatMap((d) => [`https://${d}/account.html`, `https://${d}/admin/`]), 'http://localhost:8080/account.html', 'http://localhost:8080/admin/'].join(','),
     disable_signup: false,
     external_email_enabled: true,
     mailer_subjects_magic_link: 'Your sign-in link',
@@ -156,7 +176,7 @@ export async function addShop(o, deps) {
 
   // 3. Auth
   log('Setting up sign-in…');
-  await api('PATCH', `/projects/${ref}/config/auth`, authConfig(o.domains));
+  await api('PATCH', `/projects/${ref}/config/auth`, authConfig(o.domains, { apiKey: deps.env.RESEND_API_KEY, from: deps.env.RESEND_FROM }));
 
   // 4. Secrets: the functions' and the database's copy of CRON_SECRET must match, so both are set together.
   log('Setting secrets…');
@@ -239,9 +259,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const o = parseArgs(process.argv.slice(2));
     const r = await addShop(o, realDeps(token));
     console.log(`\n✓ ${o.name} is set up (project ${r.ref}) and added to shops.json.\n`);
-    if (r.dbPassword) console.log(`Database password (save it in your password manager; deploys don't need it): ${r.dbPassword}`);
-    if (r.ownerPassword) console.log(`Owner sign-in: ${o.ownerEmail} / ${r.ownerPassword}  (send it privately; they change it in Staff → My Account)`);
-    else console.log(`Owner ${o.ownerEmail} already had a login; they keep their password.`);
+    if (o.hidePasswords) {
+      console.log(`Owner ${o.ownerEmail}: once the site is live, open https://${o.domains[0]}/admin/, type the email and click "Forgot your password?".`);
+    } else {
+      if (r.dbPassword) console.log(`Database password (save it in your password manager; deploys don't need it): ${r.dbPassword}`);
+      if (r.ownerPassword) console.log(`Owner sign-in: ${o.ownerEmail} / ${r.ownerPassword}  (send it privately; they change it in Staff → My Account)`);
+      else console.log(`Owner ${o.ownerEmail} already had a login; they keep their password.`);
+    }
     console.log(`
 Next:
   1. Commit shops.json on a branch and open a pull request; merging it deploys the site to ${o.domains.join(', ')}.

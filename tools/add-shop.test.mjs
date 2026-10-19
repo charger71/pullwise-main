@@ -1,6 +1,6 @@
 // node tools/add-shop.test.mjs   (the flow against fakes; tools/add-shop.mjs has the real calls)
 import assert from 'node:assert/strict';
-import { parseArgs, authConfig, lit, vaultSql, settingsSql, staffSql, shopEntry, addShop } from './add-shop.mjs';
+import { parseArgs, authConfig, parseFrom, lit, vaultSql, settingsSql, staffSql, shopEntry, addShop } from './add-shop.mjs';
 
 const REF = 'abcdefghijklmnopqrst';
 
@@ -30,7 +30,15 @@ assert.match(staffSql('u1', o), /on conflict \(user_id\) do nothing/);
 // Auth settings
 const auth = authConfig(o.domains);
 assert.equal(auth.site_url, 'https://mainstreet.com');
-assert.equal(auth.uri_allow_list, 'https://mainstreet.com/account.html,https://www.mainstreet.com/account.html,http://localhost:8080/account.html');
+assert.equal(auth.uri_allow_list, 'https://mainstreet.com/account.html,https://mainstreet.com/admin/,https://www.mainstreet.com/account.html,https://www.mainstreet.com/admin/,http://localhost:8080/account.html,http://localhost:8080/admin/');
+assert.equal('smtp_host' in auth, false, 'no Resend details: Supabase sends the emails');
+const viaResend = authConfig(o.domains, { apiKey: 're_x', from: 'Main Street Comics <hello@mainstreet.com>' });
+assert.deepEqual([viaResend.smtp_host, viaResend.smtp_port, viaResend.smtp_user, viaResend.smtp_pass, viaResend.smtp_admin_email, viaResend.smtp_sender_name],
+  ['smtp.resend.com', '465', 'resend', 're_x', 'hello@mainstreet.com', 'Main Street Comics']);
+assert.equal(authConfig(o.domains, { apiKey: 're_x', from: 'hello@mainstreet.com' }).smtp_sender_name, 'mainstreet.com');
+assert.equal('smtp_host' in authConfig(o.domains, { apiKey: 're_x', from: 'not an address' }), false);
+assert.deepEqual(parseFrom('"Pat\'s" <p@x.co>'), { name: "Pat's", email: 'p@x.co' });
+assert.equal(parseArgs(['--id', 'x', '--name', 'X', '--domain', 'x.com', '--owner-email', 'a@b.co', '--hide-passwords']).hidePasswords, true);
 assert.match(auth.mailer_templates_magic_link_content, /\{\{ \.Token \}\}/);
 assert.match(auth.mailer_templates_magic_link_content, /\{\{ \.ConfirmationURL \}\}/);
 

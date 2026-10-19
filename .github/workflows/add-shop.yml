@@ -1,0 +1,158 @@
+# The "Add a shop" button: Actions → Add a shop → Run workflow.
+#
+# Sets up a new shop's Supabase project with tools/add-shop.mjs (project, database, sign-in, secrets, owner login,
+# functions), using the SUPABASE_ACCESS_TOKEN secret, then opens a pull request adding the shop to shops.json.
+# Merging that pull request deploys the site. No password is ever printed: the owner opens the shop's /admin/,
+# types their email and clicks "Forgot your password?".
+#
+# Run one shop at a time: every run edits shops.json, so merge each pull request before starting the next.
+# Safe to run again with the same id after a failure; finished steps are skipped.
+name: Add a shop
+
+on:
+  workflow_dispatch:
+    inputs:
+      id:
+        description: Short id, lower-case letters, digits and dashes (e.g. main-street)
+        required: true
+        type: string
+      name:
+        description: Shop name (e.g. Main Street Comics)
+        required: true
+        type: string
+      domains:
+        description: Domain(s), main one first, separated by spaces (e.g. mainstreetcomics.com www.mainstreetcomics.com)
+        required: true
+        type: string
+      owner_email:
+        description: Owner's email (their admin login)
+        required: true
+        type: string
+      owner_name:
+        description: Owner's name (optional)
+        required: false
+        type: string
+      timezone:
+        description: Shop time zone
+        required: false
+        type: string
+        default: America/New_York
+      kind:
+        description: What kind of shop
+        required: true
+        type: choice
+        default: shop
+        options:
+          - shop
+          - canary (a demo or test shop that gets every deploy first)
+          - catalog (the master catalog every other shop copies titles from)
+      super_admin:
+        description: Make the owner Super Admin
+        required: false
+        type: boolean
+        default: false
+      org:
+        description: Supabase organization slug (only if you're in more than one)
+        required: false
+        type: string
+      project_ref:
+        description: Use an existing Supabase project instead of creating one (optional)
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: add-shop
+  cancel-in-progress: false
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Set up the shop
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM: ${{ secrets.RESEND_FROM }}
+          STAFF_CC: ${{ secrets.STAFF_CC }}
+          ID: ${{ inputs.id }}
+          NAME: ${{ inputs.name }}
+          DOMAINS: ${{ inputs.domains }}
+          OWNER_EMAIL: ${{ inputs.owner_email }}
+          OWNER_NAME: ${{ inputs.owner_name }}
+          SHOP_TZ: ${{ inputs.timezone }}
+          KIND: ${{ inputs.kind }}
+          SUPER: ${{ inputs.super_admin }}
+          ORG: ${{ inputs.org }}
+          PROJECT_REF: ${{ inputs.project_ref }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error title=Missing secret::Add the SUPABASE_ACCESS_TOKEN secret first (SETUP.md → Deploys)."
+            exit 1
+          fi
+          args=(--id "$ID" --name "$NAME" --owner-email "$OWNER_EMAIL" --hide-passwords)
+          for d in ${DOMAINS//,/ }; do args+=(--domain "$d"); done
+          [ -n "$OWNER_NAME" ] && args+=(--owner-name "$OWNER_NAME")
+          [ -n "$SHOP_TZ" ] && args+=(--timezone "$SHOP_TZ")
+          [ -n "$ORG" ] && args+=(--org "$ORG")
+          [ -n "$PROJECT_REF" ] && args+=(--project-ref "$PROJECT_REF")
+          case "$KIND" in
+            canary*) args+=(--canary) ;;
+            catalog*) args+=(--catalog) ;;
+          esac
+          [ "$SUPER" = "true" ] && args+=(--super)
+          node tools/add-shop.mjs "${args[@]}"
+
+      - name: Open the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ID: ${{ inputs.id }}
+          NAME: ${{ inputs.name }}
+          DOMAINS: ${{ inputs.domains }}
+          OWNER_EMAIL: ${{ inputs.owner_email }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- shops.json; then
+            echo "shops.json already lists $ID exactly like this; nothing to commit." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          branch="add-shop/$ID"
+          main_domain=$(echo "${DOMAINS//,/ }" | awk '{print $1}')
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add shops.json
+          git commit -m "Add $NAME ($ID) to shops.json"
+          git push --force origin "$branch"
+          body="Adds **$NAME** (\`$ID\`) to \`shops.json\`. Its Supabase project is already set up by the Add a shop workflow.
+
+          Merging this deploys the site to: $DOMAINS
+
+          Afterwards the owner ($OWNER_EMAIL) opens https://$main_domain/admin/, types their email and clicks **Forgot your password?** to choose a password, then fills in Shop Settings.
+
+          _Opened by the Add a shop workflow. Pull requests opened by a workflow don't start CI here; the deploy runs it first when this is merged._"
+          url=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url')
+          if [ -z "$url" ]; then
+            if ! url=$(gh pr create --base main --head "$branch" --title "Add $NAME" --body "$body"); then
+              url="https://github.com/$GITHUB_REPOSITORY/compare/main...$branch"
+              echo "::warning title=Pull request not opened::GitHub didn't let this workflow open it (Settings → Actions → General → Allow GitHub Actions to create and approve pull requests). Open it yourself: $url"
+            fi
+          fi
+          {
+            echo "### $NAME is set up"
+            echo ""
+            echo "Next: review and merge $url to deploy it to $DOMAINS."
+            echo ""
+            echo "Then the owner ($OWNER_EMAIL) opens https://$main_domain/admin/ and clicks **Forgot your password?**."
+          } >> "$GITHUB_STEP_SUMMARY"

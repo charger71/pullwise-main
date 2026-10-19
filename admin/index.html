@@ -41,6 +41,22 @@
         </div>
         <p class="form-error" role="alert" id="login-error"></p>
         <button class="btn btn--primary" type="submit">Sign in</button>
+        <p><button class="admin-link-button" type="button" id="forgot-password">Forgot your password?</button></p>
+        <p class="admin-status" role="status" id="forgot-status"></p>
+      </form>
+      <form id="reset-form" hidden>
+        <p>Choose a new password for your staff account.</p>
+        <div class="field">
+          <label for="reset-password">New password</label>
+          <input id="reset-password" type="password" autocomplete="new-password" minlength="10" required>
+          <p class="field__hint">At least 10 characters.</p>
+        </div>
+        <div class="field">
+          <label for="reset-password2">New password again</label>
+          <input id="reset-password2" type="password" autocomplete="new-password" required>
+        </div>
+        <p class="form-error" role="alert" id="reset-error"></p>
+        <button class="btn btn--primary" type="submit">Save and sign in</button>
       </form>
     </section>
 
