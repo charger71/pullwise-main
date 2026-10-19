@@ -1,7 +1,7 @@
 // Staff: your own account (change your password) and, for owners, who has access to the admin.
 // Account changes go through the staff-admin Edge Function; the staff table is read-only here.
 
-import { getTheme, saveTheme } from '../theme.js';
+import { getTheme, saveTheme, COLOR_VARS, getColors, saveColors, currentMode } from '../theme.js';
 import { $, $$, esc, toast, setStatus, openDialog, fmtDateTime, solidIcon, friendlyError, setupTabs, sortableTable } from '../lib.js';
 
 let sb;
@@ -108,6 +108,13 @@ export async function mount(el, ctx) {
           <p class="field__hint">Changes the admin for you only, on every device you sign in from.</p></div>
         <p class="admin-status" role="status" data-theme-status></p>
       </form>
+      <form class="admin-form" data-colors>
+        <h3>Admin colors</h3>
+        <p class="field__hint">Pick your own colors for the admin. They apply to the <strong data-colors-mode></strong> theme you are using now (switch Appearance above to set the other one), for you only, on every device you sign in from.</p>
+        <div class="form-grid color-grid">${COLOR_VARS.map(([v, label, hint], i) => `<div class="field"><label for="st-c${i}">${label}</label><input id="st-c${i}" data-var="${v}" type="color"><p class="field__hint">${hint}</p></div>`).join('')}</div>
+        <div class="admin-form__actions"><button class="btn" type="submit">Save colors</button> <button class="btn btn--ghost" type="button" data-colors-reset>Back to standard colors</button></div>
+        <p class="admin-status" role="status" data-colors-status></p>
+      </form>
       <form class="admin-form" data-password novalidate>
         <div class="form-grid">
           <div class="field"><label for="st-new">New password</label><input id="st-new" type="password" autocomplete="new-password" minlength="10"></div>
@@ -179,6 +186,54 @@ export async function mount(el, ctx) {
     const err = await saveTheme(sb, user, e.target.value);
     if (err) setStatus(status, `Applied here, but not saved to your account: ${friendlyError(err)}`, 'error');
     else setStatus(status, 'Saved.', 'ok');
+    fillColors();
+  });
+
+  // Admin colors: pickers show the colors in effect now; saving keeps only the ones that differ from the standard.
+  const colorForm = $('[data-colors]', el);
+  const standard = {};
+  const fillColors = () => {
+    const mode = currentMode();
+    $('[data-colors-mode]', el).textContent = mode;
+    const root = document.documentElement.style;
+    const mine = getColors()[mode] ?? {};
+    const saved = COLOR_VARS.map(([v]) => [v, root.getPropertyValue(v)]);
+    COLOR_VARS.forEach(([v]) => root.removeProperty(v));
+    const cs = getComputedStyle(document.documentElement);
+    for (const [v] of COLOR_VARS) standard[v] = hex(cs.getPropertyValue(v).trim());
+    saved.forEach(([v, val]) => val && root.setProperty(v, val));
+    $$('[data-var]', colorForm).forEach((i) => { i.value = mine[i.dataset.var] ?? standard[i.dataset.var]; });
+  };
+  const hex = (c) => {
+    const d = document.createElement('i');
+    d.style.color = c;
+    document.body.append(d);
+    const [r, g, b] = getComputedStyle(d).color.match(/\d+/g).map(Number);
+    d.remove();
+    return '#' + [r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('');
+  };
+  fillColors();
+  const persist = async (mine, msg) => {
+    const status = $('[data-colors-status]', el);
+    setStatus(status, 'Saving…');
+    const all = { ...getColors(), [currentMode()]: mine };
+    const err = await saveColors(sb, user, all);
+    if (err) setStatus(status, `Applied here, but not saved to your account: ${friendlyError(err)}`, 'error');
+    else setStatus(status, msg, 'ok');
+    fillColors();
+  };
+  colorForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const mine = {};
+    $$('[data-var]', colorForm).forEach((i) => { if (i.value.toLowerCase() !== standard[i.dataset.var].toLowerCase()) mine[i.dataset.var] = i.value; });
+    persist(mine, Object.keys(mine).length ? 'Saved.' : 'Saved. Everything is on the standard colors.');
+  });
+  $('[data-colors-reset]', el).addEventListener('click', () => persist({}, 'Back to the standard colors.'));
+  // Preview as you pick.
+  colorForm.addEventListener('input', (e) => {
+    const v = e.target.dataset?.var;
+    if (!v) return;
+    document.documentElement.style.setProperty(v, e.target.value);
   });
 
   // Change my own password.
