@@ -35,7 +35,23 @@ Until the first three exist (or while `shops.json` is empty) the workflow deploy
 **Rolling back the site:** `npx wrangler rollback --name pullwise` (or `pullwise-canary`) puts the previous Worker
 version back in seconds. Migrations aren't rolled back; fix forward with a new migration.
 
-## Adding a shop: the quick way
+## Adding a shop: the button
+
+GitHub → this repo → **Actions → Add a shop → Run workflow**. Fill in the id, name, domain(s) and owner's email, pick
+the kind (shop, canary for a demo/test shop, or catalog for the master catalog) and run it. It does steps 2–6 below
+with the `SUPABASE_ACCESS_TOKEN` secret (about 5 minutes) and opens a pull request adding the shop to `shops.json`;
+merging it deploys the site. Nothing secret is printed: once the site is live, the owner opens `https://<domain>/admin/`,
+types their email and clicks **Forgot your password?**.
+
+- Run one shop at a time and merge its pull request before the next (each one edits `shops.json`).
+- If a run fails, fix the cause and run it again with the same id; finished steps are skipped.
+- With the optional `RESEND_API_KEY` and `RESEND_FROM` repo secrets, new shops send email through Resend, including
+  sign-in and password emails. Without them, Supabase's built-in sender only mails members of your Supabase
+  organization, so a real owner wouldn't get their password email.
+- If the run says it couldn't open the pull request, turn on Settings → Actions → General → **Allow GitHub Actions to
+  create and approve pull requests**, or open it from the link it prints.
+
+## Adding a shop: from your computer
 
 `npm run add-shop` does steps 2–6 below in one go (about 5 minutes, mostly waiting for Supabase to create the project):
 
@@ -59,7 +75,8 @@ The numbered steps below are the same thing by hand.
 
 ## The master catalog (once, for the whole fleet)
 
-Create the catalog like any shop, with `--catalog` (and a domain for its admin, e.g. `catalog.yourdomain.com`):
+Create the catalog like any shop: with the button, pick **catalog**; or from your computer, add `--catalog`. Give it a
+domain for its admin, e.g. `catalog.yourdomain.com`:
 
 ```bash
 SUPABASE_ACCESS_TOKEN=… npm run add-shop -- --id catalog --name "Pullwise Catalog" \

@@ -18,6 +18,9 @@ let isOwner = false;
 let current = null; // { name, module }
 let sb;
 let signedInAs = null; // the staff user id the screens were opened for
+// Arrived from a "reset your password" email: Supabase signs them in from the link, then they choose a password.
+// Read before the Supabase client clears the address.
+const RECOVERY = new URLSearchParams(location.hash.slice(1)).get('type') === 'recovery';
 
 // Any customer email link (data-email-to) opens the compose box instead of the mail app.
 document.addEventListener('click', (e) => {
@@ -60,6 +63,34 @@ async function start() {
     if (error) err.textContent = error.message === 'Invalid login credentials' ? 'That email and password don’t match a staff account.' : friendlyError(error);
     else showApp();
   });
+  $('#forgot-password').addEventListener('click', async () => {
+    const status = $('#forgot-status');
+    const email = $('#login-email').value.trim();
+    if (!email) {
+      status.textContent = 'Type your email address above first.';
+      return $('#login-email').focus();
+    }
+    status.textContent = 'Sending…';
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}/admin/` });
+    // The same answer whether or not the address has an account, so this can't be used to find staff emails.
+    status.textContent = error && error.status !== 400
+      ? friendlyError(error)
+      : `If ${email} has a staff account, we’ve emailed it a link to choose a new password. It can take a few minutes; check spam too.`;
+  });
+  $('#reset-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('#reset-error');
+    const password = $('#reset-password').value;
+    if (password.length < 10) return (err.textContent = 'A password needs at least 10 characters.');
+    if (password !== $('#reset-password2').value) return (err.textContent = 'The two passwords don’t match.');
+    err.textContent = '';
+    const { error } = await sb.auth.updateUser({ password });
+    if (error) return (err.textContent = friendlyError(error));
+    history.replaceState(null, '', location.pathname);
+    $('#reset-form').hidden = true;
+    $('#login-form').hidden = false;
+    showApp();
+  });
   $('#sign-out').addEventListener('click', async () => {
     if (current?.module.hasUnsavedChanges?.() && !confirm('You have unsaved changes. Sign out anyway?')) return;
     await sb.auth.signOut();
@@ -77,6 +108,13 @@ async function start() {
   });
 
   const { data } = await sb.auth.getSession();
+  if (RECOVERY && data.session) {
+    $('#login').hidden = false;
+    $('#login-form').hidden = true;
+    $('#reset-form').hidden = false;
+    $('#reset-password').focus();
+    return;
+  }
   data.session ? showApp() : ($('#login').hidden = false);
 }
 

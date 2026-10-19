@@ -17,6 +17,8 @@ Everyone in the staff list can open **every admin screen**. **Owners** can also 
 
 That's it: they can sign in right away. If you close the box before copying, use **Reset password** on their row to make a new one.
 
+**Forgot your password?** Anyone on staff can reset their own: on the admin sign-in, type your email and click **Forgot your password?**, then follow the link in the email to choose a new one.
+
 ## Part 2: Their first sign-in (new staff member)
 
 1. Go to https://<your site>/admin/ and sign in with the email and password you were given.
