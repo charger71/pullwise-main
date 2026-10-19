@@ -73,6 +73,24 @@ owner Super Admin. Every step is skipped when already done, so after a failure j
 Then commit `shops.json` in a pull request; merging deploys the site (step 7), and the owner continues at step 8.
 The numbered steps below are the same thing by hand.
 
+## Images in Cloudflare R2 (once, for the whole fleet)
+
+Covers and series images of shops marked `"media": "r2"` in `shops.json` (the master catalog is) live in one R2
+bucket instead of the shop's Supabase storage: R2 has no charge for people viewing them, which matters when every
+shop's visitors load the catalog's covers. Logos, banners, event photos and the Media library stay in Supabase.
+
+1. Cloudflare → **R2** → **Create bucket** named `pullwise-media` (the name in `wrangler.jsonc`). Do this before
+   merging the change that adds it: every deploy binds the Worker to it.
+2. The bucket → **Settings → Custom Domains → Connect Domain** → `images.pullwise.shop` (`MEDIA_PUBLIC_URL` in
+   `wrangler.jsonc`; change both if you use another).
+3. The `CLOUDFLARE_API_TOKEN` needs **Account → Workers R2 Storage → Edit** (the "Edit Cloudflare Workers" template
+   includes it).
+4. Existing images: Actions → **Move images to R2** → Run workflow, first with "dry run" ticked to see the count, then
+   without. It copies them into the bucket and rewrites the addresses; shops pick them up on their next hourly sync.
+
+New covers uploaded in an R2 shop's admin (Import, a title's cover, a series cover) go through the site Worker
+(`PUT /__media`, staff only) straight into the bucket under the shop's id.
+
 ## The master catalog (once, for the whole fleet)
 
 Create the catalog like any shop: with the button, pick **catalog**; or from your computer, add `--catalog`. Give it a

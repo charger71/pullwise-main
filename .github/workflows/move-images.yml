@@ -1,0 +1,52 @@
+# The "Move images to R2" button: Actions → Move images to R2 → Run workflow.
+#
+# Copies a shop's covers and series images (by default the master catalog's) from Supabase storage into the shared
+# R2 bucket and rewrites their addresses (tools/move-images-to-r2.mjs). Start with "dry run" ticked to see how many
+# would move; then run it again without. Safe to re-run: only addresses still on Supabase are picked up.
+# Shops syncing from the catalog get the new addresses on their next hourly sync.
+name: Move images to R2
+
+on:
+  workflow_dispatch:
+    inputs:
+      shop:
+        description: Shop id from shops.json (blank = the master catalog)
+        required: false
+        type: string
+      dry_run:
+        description: Dry run (only count, change nothing)
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: move-images
+  cancel-in-progress: false
+
+jobs:
+  move:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Move images
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHOP: ${{ inputs.shop }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          args=()
+          [ -n "$SHOP" ] && args+=(--shop "$SHOP")
+          [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
+          node tools/move-images-to-r2.mjs "${args[@]}"

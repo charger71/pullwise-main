@@ -7,6 +7,7 @@
 // Function because of CORS.
 
 import { must } from '../util.js';
+import { putMedia } from '../media-store.js';
 import { addDays, weekStart } from '../dates.js';
 
 // Distributor fields refreshed on every import. Staff-owned fields (status,
@@ -126,18 +127,16 @@ async function uploadCover(sb, distributor, item, ctx) {
   // and CDN caches (a week) never keep showing the picture it replaced.
   const hash = (await sha1(got.bytes)).slice(0, 10);
   const path = `covers/${distributor}/${item.sku.replace(/[^\w.-]/g, '_')}-${got.hires ? 'hires-' : ''}${hash}.${ext}`;
-  const publicUrl = (p) => sb.storage.from('media').getPublicUrl(p).data.publicUrl;
-  await must(sb.storage.from('media').upload(path, got.bytes, { contentType: got.type, upsert: true, cacheControl: '604800' }));
+  const url = await putMedia(sb, path, got.bytes, { contentType: got.type, upsert: true, cacheControl: '604800' });
   // A small copy for cards and lists, so a page of covers isn't hundreds of KB per picture. If it can't be made
   // the title just uses the full-size cover.
   let thumbUrl = null;
   const thumb = ctx.makeThumb ? await ctx.makeThumb(got.bytes, got.type).catch(() => null) : null;
   if (thumb?.bytes) {
     const thumbPath = path.replace(/\.\w+$/, `-sm.${extOf(thumb.type)}`);
-    await must(sb.storage.from('media').upload(thumbPath, thumb.bytes, { contentType: thumb.type, upsert: true, cacheControl: '604800' }));
-    thumbUrl = publicUrl(thumbPath);
+    thumbUrl = await putMedia(sb, thumbPath, thumb.bytes, { contentType: thumb.type, upsert: true, cacheControl: '604800' });
   }
-  return { url: publicUrl(path), thumbUrl };
+  return { url, thumbUrl };
 }
 
 /**

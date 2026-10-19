@@ -221,7 +221,8 @@ Lunar, PRH and Funko sheets on the normal Admin → Import page. Every other sho
 though it still can for things the catalog doesn't carry.
 
 - **New titles** arrive with the status a first import would give them, the catalog's category and badges, and a link
-  to the catalog's cover (covers aren't copied).
+  to the catalog's cover (covers aren't copied). The catalog keeps its covers in Cloudflare R2 (`"media": "r2"`,
+  SETUP.md → "Images in Cloudflare R2"), which doesn't charge for the traffic of every shop's visitors.
 - **Changes** to a title's name, retail price, dates, description, creators or cover follow the catalog. A shop's own
   **shop price**, status, category, badges, staff pick, homepage and hidden are never touched.
 - Titles are matched by catalog id, then distributor + SKU, UPC and ISBN, so titles a shop imported before joining are

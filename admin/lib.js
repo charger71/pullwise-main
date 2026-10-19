@@ -2,6 +2,7 @@
 
 import { supabase } from '../js/data.js';
 import { esc, must, formatPhone } from '../js/util.js';
+import { putMedia } from '../js/media-store.js';
 import { friendlyError, fromError } from '../js/errors.js';
 import { searchTerm, customerFilter, titleFilter, emailMatch, digitsMatch, anyOf } from './filters.js';
 import { ITEM_STATUS } from '../js/labels.js';
@@ -561,9 +562,7 @@ export const thumbPath = (path) => path.replace(/\.\w+$/, '-sm.jpg');
 async function saveThumb(sb, file, path, { crop, cacheControl }) {
   if (file.type === 'image/svg+xml') return null;
   const small = await processImage(file, { maxSize: THUMB_SIZE, crop, quality: 0.65, flatten: true });
-  const to = thumbPath(path);
-  await must(sb.storage.from('media').upload(to, small.blob, { contentType: small.type, cacheControl, upsert: true }));
-  return sb.storage.from('media').getPublicUrl(to).data.publicUrl;
+  return putMedia(sb, thumbPath(path), small.blob, { contentType: small.type, cacheControl, upsert: true });
 }
 
 /**
@@ -577,9 +576,9 @@ export async function uploadImage(file, folder, opts = {}) {
   if (base.endsWith('-sm')) base += '-img'; // "-sm" at the end of a name is how small copies are recognised
   const path = `${folder}/${Date.now().toString(36)}-${base}.${out.ext}`;
   const cacheControl = opts.cacheControl ?? '604800';
-  await must(sb.storage.from('media').upload(path, out.blob, { contentType: out.type, cacheControl }));
+  const url = await putMedia(sb, path, out.blob, { contentType: out.type, cacheControl });
   const thumbUrl = opts.thumb ? await saveThumb(sb, file, path, { crop: opts.crop, cacheControl }) : null;
-  return { url: sb.storage.from('media').getPublicUrl(path).data.publicUrl, thumbUrl, path, ...out };
+  return { url, thumbUrl, path, ...out };
 }
 
 /**
@@ -589,9 +588,9 @@ export async function uploadImage(file, folder, opts = {}) {
 export async function replaceImage(file, path, opts = {}) {
   const sb = await db();
   const out = await processImage(file, opts);
-  await must(sb.storage.from('media').upload(path, out.blob, { contentType: out.type, cacheControl: '3600', upsert: true }));
+  const url = await putMedia(sb, path, out.blob, { contentType: out.type, cacheControl: '3600', upsert: true });
   if (opts.thumb) await saveThumb(sb, file, path, { crop: opts.crop, cacheControl: '3600' }); // same picture, so the small copy follows it
-  return { url: sb.storage.from('media').getPublicUrl(path).data.publicUrl, path, ...out };
+  return { url, path, ...out };
 }
 
 /**

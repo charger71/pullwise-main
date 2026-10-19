@@ -11,5 +11,9 @@
     // anything else it hands straight to the static files.
     "run_worker_first": true
   },
+  // Covers and series images for shops marked "media": "r2" (worker/media.js). The bucket must exist before a
+  // deploy; MEDIA_PUBLIC_URL is the custom domain connected to it (R2 → the bucket → Settings → Custom Domains).
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "pullwise-media" }],
+  "vars": { "MEDIA_PUBLIC_URL": "https://images.pullwise.shop" },
   "observability": { "enabled": true }
 }

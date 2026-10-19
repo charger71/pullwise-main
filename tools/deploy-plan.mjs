@@ -48,6 +48,7 @@ export function validate(data) {
     if (s.gaMeasurementId != null && !/^(G-[A-Z0-9]+)?$/.test(s.gaMeasurementId)) problems.push(`${at}: gaMeasurementId looks wrong (G-XXXXXXXXXX)`);
     if (s.canary != null && typeof s.canary !== 'boolean') problems.push(`${at}: canary must be true or false`);
     if (s.catalog != null && typeof s.catalog !== 'boolean') problems.push(`${at}: catalog must be true or false`);
+    if (s.media != null && s.media !== 'r2') problems.push(`${at}: media can only be "r2" (or left out for the shop's own storage)`);
   });
   const catalogs = data.shops.filter((s) => s?.catalog === true).map((s) => s.id);
   if (catalogs.length > 1) problems.push(`only one shop can be the master catalog (${catalogs.join(', ')})`);
