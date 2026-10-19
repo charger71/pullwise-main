@@ -9,6 +9,10 @@ export const SUPABASE_URL = '';
 // Public anon key — safe in browser code; row-level security protects the data.
 export const SUPABASE_ANON_KEY = '';
 
+// Live sites using the shared R2 image bucket get '/__media' here (covers and series images upload through the
+// Worker). Empty = pictures go to the shop's own Supabase storage.
+export const MEDIA_UPLOAD_URL = '';
+
 // Google Analytics 4 measurement ID, e.g. 'G-XXXXXXXXXX'. Empty = no analytics.
 export const GA_MEASUREMENT_ID = '';
 

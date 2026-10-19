@@ -16,6 +16,25 @@ export const siteUrl = (shop) => `https://${shop.domains[0]}`;
  * js/config.js for one shop: the same exports as the static file, filled in from shops.json. `settings` is the
  * Worker's last copy of the shop's settings (may be empty), for the name and timezone shown before they load.
  */
+/** Where admin pages send covers and series images for shops whose media lives in R2 (worker/media.js). */
+export const MEDIA_UPLOAD_PATH = '/__media';
+/** Folders that go to R2; everything else (logo, banner, Media library…) stays in the shop's own Supabase storage. */
+export const R2_FOLDERS = ['covers', 'series'];
+const MEDIA_TYPES = { 'image/jpeg': /\.jpe?g$/, 'image/png': /\.png$/, 'image/webp': /\.webp$/, 'image/gif': /\.gif$/ };
+
+/** A safe object path for an upload ("covers/lunar/ABC-1f2e.jpg"), or null. The file type must match the name. */
+export function mediaPath(path, contentType) {
+  if (typeof path !== 'string' || path.length > 300) return null;
+  const parts = path.split('/');
+  if (!R2_FOLDERS.includes(parts[0]) || parts.length < 2) return null;
+  if (parts.some((p) => !/^[A-Za-z0-9_][A-Za-z0-9._-]*$/.test(p))) return null; // no "..", no hidden names
+  const ext = MEDIA_TYPES[contentType];
+  return ext && ext.test(parts.at(-1).toLowerCase()) ? path : null;
+}
+
+/** Public address of an object the Worker stored for a shop. */
+export const mediaUrl = (publicBase, shop, path) => `${publicBase.replace(/\/+$/, '')}/${shop.id}/${path}`;
+
 export function configJs(shop, settings = {}) {
   const line = (name, value) => `export const ${name} = ${JSON.stringify(value ?? '')};`;
   const fallback = { shop_name: (settings.shop_name ?? '').trim(), timezone: settings.timezone || 'America/New_York' };
@@ -25,6 +44,8 @@ export function configJs(shop, settings = {}) {
     line('SUPABASE_ANON_KEY', shop.anonKey),
     line('GA_MEASUREMENT_ID', shop.gaMeasurementId),
     line('SITE_URL', siteUrl(shop)),
+    // Covers and series images go to the shared R2 bucket through the Worker for shops marked "media": "r2".
+    line('MEDIA_UPLOAD_URL', shop.media === 'r2' ? MEDIA_UPLOAD_PATH : ''),
     `export const FALLBACK_SETTINGS = ${JSON.stringify(fallback).replace(/</g, '\\u003c')};`,
     '',
   ].join('\n');

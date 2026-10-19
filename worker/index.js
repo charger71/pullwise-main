@@ -6,11 +6,13 @@
 //    out (worker/shop-page.js), from its settings and pages tables. Those are cached for CACHE_SECONDS, so a
 //    change in the admin shows up on the site within about a minute.
 //  * /sitemap.xml is generated on the shop's main domain, and /robots.txt (the static file) gets its address.
+//  * PUT /__media stores covers and series images in R2 for shops using it (worker/media.js).
 //  * Everything else is the static file as is. A domain that isn't in shops.json gets the plain files, which
 //    run in demo mode.
 
 import SHOPS from '../shops.json';
-import { findShop, configJs, fileOf, PAGE_SLUGS, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { mediaUpload } from './media.js';
+import { MEDIA_UPLOAD_PATH, findShop, configJs, fileOf, PAGE_SLUGS, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 
 const CACHE_SECONDS = 60;
 const FETCH_TIMEOUT_MS = 3000;
@@ -21,6 +23,7 @@ export default {
     const url = new URL(request.url);
     const shop = findShop(SHOPS.shops, url.hostname);
     if (!shop) return env.ASSETS.fetch(request);
+    if (url.pathname === MEDIA_UPLOAD_PATH) return mediaUpload(request, shop, env);
     if (url.pathname === '/js/config.js') return config(shop, request, await cachedShopData(shop));
     if (url.pathname === '/sitemap.xml') return text(sitemapXml(shop), 'application/xml', request);
     if (url.pathname === '/robots.txt') {
