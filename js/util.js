@@ -72,3 +72,7 @@ export function formatPhone(phone) {
   const n = d.length === 11 && d[0] === '1' ? d.slice(1) : d;
   return n.length === 10 ? `(${n.slice(0, 3)}) ${n.slice(3, 6)}-${n.slice(6)}` : String(phone ?? '');
 }
+
+/** "Drew 12 covers · on 30 books" under an artist's name in the follow lists. */
+export const artistMeta = (r) =>
+  [r.covers ? `Drew ${r.covers} ${r.covers === 1 ? 'cover' : 'covers'}` : '', r.issues ? `on ${r.issues} ${r.issues === 1 ? 'book' : 'books'}` : ''].filter(Boolean).join(' · ') || 'Named on a cover';

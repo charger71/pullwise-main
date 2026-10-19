@@ -9,7 +9,7 @@ let sb;
 // Plain names for the tables the change log covers.
 const LOG_TABLES = {
   settings: 'Shop settings', items: 'Titles', events: 'Events', posts: 'News', pages: 'Pages', faqs: 'FAQ', categories: 'Categories',
-  series_catalog: 'Series list', series_aliases: 'Series merges', surveys: 'Surveys', import_exclusions: 'Import exclusions',
+  series_catalog: 'Series list', creator_catalog: 'Creative list', series_aliases: 'Series merges', surveys: 'Surveys', import_exclusions: 'Import exclusions',
   customers: 'Customers', customer_notes: 'Customer notes', event_signups: 'Event signups', staff: 'Staff', media: 'Media',
 };
 const VERBS = { insert: 'Added', update: 'Changed', delete: 'Deleted' };

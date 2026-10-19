@@ -4,7 +4,7 @@
 
 import { reserve, getSettings, coverArtists } from './data.js';
 import { $, esc, badge, ITEM_BADGES, cover, price, fmtDate, daysUntil, lastReserveDay, cutoffPassed, itemTitle, itemFullTitle } from './site.js';
-import { thumbOf, thumbFallback, formatPhone, nameKey } from './util.js';
+import { thumbOf, thumbFallback, formatPhone, nameKey, artistMeta } from './util.js';
 import * as list from './reservation-list.js';
 import * as pull from './customer.js';
 
@@ -69,10 +69,14 @@ const toggleBtn = (on, attrs, label, hint) =>
 function followBody(item) {
   const parts = [];
   if (item.series_key && item.issue_number) {
-    const on = !!pull.findSubscription('series', item.series_key);
+    const sub = pull.findSubscription('series', item.series_key);
+    const attrs = (covers) => `data-follow-series="${esc(item.series_key)}" data-covers="${covers}" data-label="${esc(item.title)}"`;
     parts.push(`<section class="follow-group"><h3>Series</h3>
       <div class="follow-person"><strong>${esc(item.title)}</strong>
-        <div class="follow-choices">${toggleBtn(on, `data-follow-series="${esc(item.series_key)}" data-label="${esc(item.title)}"`, on ? 'Following this series' : 'Follow this series', 'One cover of every new issue')}</div></div></section>`);
+        <div class="follow-choices">
+          ${toggleBtn(!!sub && !sub.all_covers, attrs('main'), 'Main cover', 'One cover of every new issue')}
+          ${toggleBtn(!!sub?.all_covers, attrs('all'), 'All covers', 'Every variant of every new issue (not incentives)')}
+        </div></div></section>`);
   }
   // Credited people, then a cover artist named only in the cover text ("CVR C PEACH MOMOKO VAR"), looked up when the
   // dialog opens (followCoverArtists).
@@ -137,7 +141,7 @@ function renderFollowBody() {
   body.innerHTML = followBody(followItem);
   // Keep keyboard focus on the same choice after the list redraws.
   if (focused) {
-    const sel = focused.dataset.followSeries ? `[data-follow-series="${CSS.escape(focused.dataset.followSeries)}"]` : `[data-follow-artist="${CSS.escape(focused.dataset.followArtist)}"][data-role="${focused.dataset.role}"]`;
+    const sel = focused.dataset.followSeries ? `[data-follow-series="${CSS.escape(focused.dataset.followSeries)}"][data-covers="${focused.dataset.covers}"]` : `[data-follow-artist="${CSS.escape(focused.dataset.followArtist)}"][data-role="${focused.dataset.role}"]`;
     $(sel, body)?.focus();
   }
 }
@@ -202,14 +206,15 @@ export function seriesCards(rows) {
   return rows
     .map(
       (r, n) => `<article class="card">
-        <div class="card__media">${r.cover_url ? `<img class="cover" src="${esc(thumbOf(r.cover_url))}" ${thumbFallback(r.cover_url)} alt="Cover of ${esc(r.label)}" ${n < 4 ? 'fetchpriority="high"' : 'loading="lazy"'}>` : '<div class="cover cover--placeholder" aria-hidden="true">Image coming soon</div>'}</div>
+        <div class="card__media">${r.cover_url ? `<img class="cover" src="${esc(thumbOf(r.cover_url))}" ${thumbFallback(r.cover_url)} alt="Cover of ${esc(r.label)}" ${n < 4 ? 'fetchpriority="high"' : 'loading="lazy"'}>` : '<div class="cover cover--placeholder" aria-hidden="true">Image coming soon</div>'}<span class="card__banner" aria-hidden="true">Series</span></div>
         <div class="card__body">
           <h3 class="card__title">${esc(r.label)}</h3>
           <p class="card__meta">${r.issues ? `Series · ${r.issues} ${r.issues === 1 ? 'issue' : 'issues'} listed` : 'Ongoing series · new issues are added as they’re announced'}</p>
           ${pull.isSignedIn()
             ? (pull.findSubscription('series', r.key)
               ? '<span class="follow-open follow-open--on">✓ Following this series</span>'
-              : `<button class="follow-open" type="button" data-follow="${esc(r.key)}">+ Follow<span class="follow-open__more"> this series</span><span class="visually-hidden"> ${esc(r.label)}</span></button>`)
+              : `<button class="follow-open" type="button" data-follow="${esc(r.key)}">+ Follow<span class="follow-open__more"> this series</span><span class="visually-hidden"> ${esc(r.label)}</span></button>
+                 <button class="follow-open" type="button" data-follow="${esc(r.key)}" data-covers="all">+ Follow all covers<span class="visually-hidden"> of ${esc(r.label)}</span></button>`)
             : '<a class="follow-open" href="account.html">+ Sign in to follow<span class="visually-hidden"> this series</span></a>'}
           <p class="card__meta" role="status" data-msg></p>
         </div></article>`,
@@ -225,18 +230,18 @@ export function artistRows(rows) {
   const btn = (r, role, label) => {
     const on = pull.findSubscription('artist', pull.personKey(r.name), role);
     return on
-      ? `<span class="btn btn--ghost btn--small is-on" aria-disabled="true">✓ Following ${role === 'cover' ? 'covers' : 'books'}</span>`
+      ? `<span class="btn btn--ghost btn--small is-on" aria-disabled="true">✓ Following their ${role === 'cover' ? 'covers' : 'books'}</span>`
       : `<button class="btn ${role === 'cover' ? 'btn--primary' : 'btn--ghost'} btn--small" type="button" data-follow-artist="${esc(r.name)}" data-role="${role}">${label}<span class="visually-hidden"> by ${esc(r.name)}</span></button>`;
   };
-  return `<ul class="follow-results">${rows
+  return `${pull.isSignedIn() ? `<p class="field__hint follow-explain">Follow an artist or writer and their new titles are added to your pull list automatically.<br><strong>Their covers</strong> = every cover they draw, on any series (variants included, not incentives).<br><strong>Their books</strong> = the main cover of each issue they write or draw.</p>` : ''}
+    <ul class="follow-results">${rows
     .map(
-      (r) => `<li><span><strong>${esc(r.name)}</strong><br><span class="card__meta">${r.covers} ${r.covers === 1 ? 'cover' : 'covers'}${r.issues ? ` · ${r.issues} ${r.issues === 1 ? 'book' : 'books'}` : ''}</span></span>
+      (r) => `<li><span><strong>${esc(r.name)}</strong><br><span class="card__meta">${artistMeta(r)}</span></span>
         <span class="follow-results__act">${pull.isSignedIn()
-          ? `${btn(r, 'cover', 'Follow covers')}${r.issues ? btn(r, 'creator', 'Follow books') : ''}`
+          ? `${btn(r, 'cover', 'Follow their covers')}${r.issues ? btn(r, 'creator', 'Follow their books') : ''}`
           : `<a class="btn btn--ghost btn--small" href="account.html">Sign in to follow<span class="visually-hidden"> ${esc(r.name)}</span></a>`}</span></li>`,
     )
     .join('')}</ul>
-    ${pull.isSignedIn() ? '<p class="field__hint">Covers = every cover they draw. Books = one cover of each issue they write or draw. New ones are added to your pull list automatically.</p>' : ''}
     <p class="card__meta" role="status" data-msg></p>`;
 }
 
@@ -266,8 +271,9 @@ export function enableSeriesFollow(root) {
     const msg = $('[data-msg]', btn.closest('.card'));
     btn.disabled = true;
     try {
-      const { added } = await pull.followSeries(btn.dataset.follow);
-      btn.outerHTML = '<span class="follow-open follow-open--on">✓ Following this series</span>';
+      const allCovers = btn.dataset.covers === 'all';
+      const { added } = await pull.followSeries(btn.dataset.follow, 1, allCovers);
+      btn.closest('.card').querySelectorAll('[data-follow]').forEach((b, n) => (n ? b.remove() : (b.outerHTML = `<span class="follow-open follow-open--on">✓ Following this series${allCovers ? ' · all covers' : ''}</span>`)));
       msg.textContent = added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.';
     } catch (err) {
       btn.disabled = false;
@@ -352,13 +358,20 @@ async function toggleFollow(btn, say) {
     const name = btn.dataset.followArtist;
     const label = btn.dataset.label ?? name ?? 'this series';
     const sub = series ? pull.findSubscription('series', series) : pull.findSubscription('artist', pull.personKey(name), btn.dataset.role);
-    if (sub) {
+    const allCovers = btn.dataset.covers === 'all';
+    if (sub && series && !!sub.all_covers !== allCovers) {
+      // Following already, the other way: switch between the main cover and all covers.
+      const { added, removed } = await pull.setFollowAllCovers(sub.id, allCovers);
+      say(allCovers
+        ? `${sub.label}: every cover of each new issue.${added ? ` ${added} ${added === 1 ? 'cover was' : 'covers were'} added to your pull list.` : ''}`
+        : `${sub.label}: just the main cover of each new issue.${removed ? ` ${removed} extra ${removed === 1 ? 'cover' : 'covers'} not ordered yet ${removed === 1 ? 'was' : 'were'} removed.` : ''}`);
+    } else if (sub) {
       const removed = await pull.unfollowWithWarning(sub);
       if (removed == null) return;
       say(`Stopped following ${sub.label}.${removed ? ` ${removed} ${removed === 1 ? 'title was' : 'titles were'} removed from your pull list.` : ''}`);
     } else {
-      const { added } = series ? await pull.followSeries(series) : await pull.followArtist(name, btn.dataset.role);
-      say(`Following ${label}. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.'}`);
+      const { added } = series ? await pull.followSeries(series, 1, allCovers) : await pull.followArtist(name, btn.dataset.role);
+      say(`Following ${label}${series && allCovers ? ' (all covers)' : ''}. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.'}`);
     }
   } catch (err) {
     say(err.message, err);

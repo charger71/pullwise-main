@@ -485,6 +485,8 @@ td.dash-top__n { text-align: center; font: 1.1rem var(--font-display); }
 .cust-follow-row input { flex: 1 1 200px; }
 .cust-results__head { margin: var(--sp-10) 0 var(--sp-4); font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .cust-follows li { grid-template-columns: 1fr auto; display: flex; justify-content: space-between; align-items: center; gap: var(--sp-10); }
+.cust-follows__act { display: flex; align-items: center; gap: var(--sp-12); flex-wrap: wrap; }
+.cust-follows__act label { display: inline-flex; align-items: center; gap: var(--sp-6); margin: 0; font-weight: 400; white-space: nowrap; cursor: pointer; }
 
 /* Profile / messages / changes: folds whose header shows a one-line summary while closed. */
 .cust-profile__sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -638,6 +640,8 @@ tr.is-clickable { cursor: pointer; }
 [data-follow-results] + [data-follows] { margin-top: var(--sp-6); }
 
 .series-table__acts { white-space: nowrap; }
+.artist-add .field { display: flex; flex-direction: column; }
+.artist-add .admin-actions { margin-top: auto; padding-top: var(--sp-8); }
 .series-table__acts .thumb { display: inline-block; vertical-align: middle; margin-right: var(--sp-6); }
 
 .media-pick__btn { display: block; width: 100%; padding: 0; border: 2px solid transparent; border-radius: var(--radius); background: none; cursor: pointer; }

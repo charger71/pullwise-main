@@ -709,11 +709,12 @@ function setupFollows(el, c) {
 
   const load = async () => {
     try {
-      const subs = await must(sb.from('subscriptions').select('id,kind,label,role,quantity').eq('customer_id', c.id).order('label'));
+      const subs = await must(sb.from('subscriptions').select('id,kind,label,role,quantity,all_covers').eq('customer_id', c.id).order('label'));
       list.innerHTML = subs.length
         ? `<ul class="job-log cust-follows">${subs
-            .map((f) => `<li><span><strong>${esc(f.label)}</strong> <span class="card__meta">${f.kind === 'series' ? 'Series' : ROLE_LABEL[f.role]} · ${f.quantity} ${f.quantity === 1 ? 'copy' : 'copies'} of each</span></span>
-              <button class="btn btn--danger btn--small" type="button" data-unfollow="${f.id}" data-label="${esc(f.label)}" aria-label="Unfollow ${esc(f.label)}">${solidIcon('unfollow', 16)} Unfollow</button></li>`)
+            .map((f) => `<li><span><strong>${esc(f.label)}</strong> <span class="card__meta">${f.kind === 'series' ? (f.all_covers ? 'Series · every cover' : 'Series · main cover') : ROLE_LABEL[f.role]} · ${f.quantity} ${f.quantity === 1 ? 'copy' : 'copies'} of each</span></span>
+              <span class="cust-follows__act">${f.kind === 'series' ? `<label><input type="checkbox" data-fall="${f.id}" data-label="${esc(f.label)}"${f.all_covers ? ' checked' : ''}> All covers<span class="visually-hidden"> of ${esc(f.label)}</span></label>` : ''}
+              <button class="btn btn--danger btn--small" type="button" data-unfollow="${f.id}" data-label="${esc(f.label)}" aria-label="Unfollow ${esc(f.label)}">${solidIcon('unfollow', 16)} Unfollow</button></span></li>`)
             .join('')}</ul>`
         : '<p class="empty">Not following anything.</p>';
       const fc = $('[data-follow-count]', el);
@@ -723,6 +724,25 @@ function setupFollows(el, c) {
     }
   };
   load();
+
+  // All covers (series only): every non-incentive cover of each new issue instead of just the main one.
+  list.addEventListener('change', async (e) => {
+    const box = e.target.closest('[data-fall]');
+    if (!box) return;
+    box.disabled = true;
+    try {
+      const { added, removed } = await must(sb.rpc('staff_set_follow_all_covers', { p_customer: c.id, p_id: Number(box.dataset.fall), p_on: box.checked }));
+      await log(c.id, null, 'follow changed', `${box.dataset.label}: ${box.checked ? `all covers${added ? ` (${added} added)` : ''}` : `main cover only${removed ? ` (${removed} not-yet-ordered ${removed === 1 ? 'cover' : 'covers'} removed)` : ''}`}`);
+      toast(box.checked ? `All covers on · ${added} ${added === 1 ? 'title' : 'titles'} added` : `Main cover only · ${removed} ${removed === 1 ? 'title' : 'titles'} removed`);
+      load();
+      loadOrders(el, c);
+      loadLog(el, c);
+    } catch (err) {
+      box.checked = !box.checked;
+      box.disabled = false;
+      toast(`Not saved: ${friendlyError(err)}`, 'error');
+    }
+  });
 
   list.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-unfollow]');
@@ -758,12 +778,13 @@ function setupFollows(el, c) {
     const error = series.error ?? artists.error;
     if (error) return void (results.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
     const seriesRows = series.data.map((r) => `<li><span><strong>${esc(r.label)}</strong> <span class="card__meta">${r.issues ? `${r.issues} ${r.issues === 1 ? 'issue' : 'issues'}` : 'on the active list, no issues yet'}</span></span>
-        <span class="cust-results__act"><button class="btn btn--add btn--small" type="button" data-fs="${esc(r.key)}" aria-label="Follow ${esc(r.label)}">${solidIcon('follow', 16)} Follow</button></span></li>`);
+        <span class="cust-results__act"><button class="btn btn--add btn--small" type="button" data-fs="${esc(r.key)}" aria-label="Follow ${esc(r.label)}, main cover">${solidIcon('follow', 16)} Follow</button>
+          <button class="btn btn--add btn--small" type="button" data-fs="${esc(r.key)}" data-covers="all" aria-label="Follow ${esc(r.label)}, all covers">${solidIcon('follow', 16)} Follow all covers</button></span></li>`);
     // issues = 0: named only in cover text (a variant cover artist), so there are no books to follow.
     const artistRows = artists.data.map((r) => `<li><span><strong>${esc(r.name)}</strong> <span class="card__meta">${r.covers} covers${r.issues ? ` · ${r.issues} books` : ' (named in cover text)'}</span></span>
         <span class="cust-results__act">
-          <button class="btn btn--add btn--small" type="button" data-fa="${esc(r.name)}" data-role="cover">${solidIcon('follow', 16)} Follow covers</button>
-          ${r.issues ? `<button class="btn btn--add btn--small" type="button" data-fa="${esc(r.name)}" data-role="creator">${solidIcon('follow', 16)} Follow books</button>` : ''}</span></li>`);
+          <button class="btn btn--add btn--small" type="button" data-fa="${esc(r.name)}" data-role="cover" title="Every cover they draw, on any series">${solidIcon('follow', 16)} Follow their covers</button>
+          ${r.issues ? `<button class="btn btn--add btn--small" type="button" data-fa="${esc(r.name)}" data-role="creator" title="The main cover of each issue they write or draw">${solidIcon('follow', 16)} Follow their books</button>` : ''}</span></li>`);
     results.innerHTML = seriesRows.length || artistRows.length
       ? `${seriesRows.length ? `<h3 class="cust-results__head">Series</h3><ul class="cust-results">${seriesRows.join('')}</ul>` : ''}
          ${artistRows.length ? `<h3 class="cust-results__head">Artists &amp; writers</h3><ul class="cust-results">${artistRows.join('')}</ul>` : ''}`
@@ -777,13 +798,14 @@ function setupFollows(el, c) {
     if (!btn) return;
     btn.disabled = true;
     const { data, error } = btn.dataset.fs
-      ? await sb.rpc('staff_follow_series', { p_customer: c.id, p_key: btn.dataset.fs })
+      ? await sb.rpc('staff_follow_series', { p_customer: c.id, p_key: btn.dataset.fs, p_all_covers: btn.dataset.covers === 'all' })
       : await sb.rpc('staff_follow_artist', { p_customer: c.id, p_name: btn.dataset.fa, p_role: btn.dataset.role });
     btn.disabled = false;
     if (error) return void toast(friendlyError(error), 'error');
-    await log(c.id, null, 'followed', btn.dataset.fs ? `series ${btn.dataset.fs}` : `${btn.dataset.fa} (${ROLE_LABEL[btn.dataset.role].toLowerCase()})`);
+    await log(c.id, null, 'followed', btn.dataset.fs ? `series ${btn.dataset.fs}${btn.dataset.covers === 'all' ? ' (all covers)' : ''}` : `${btn.dataset.fa} (${ROLE_LABEL[btn.dataset.role].toLowerCase()})`);
     toast(`Following. ${data.added} open ${data.added === 1 ? 'title' : 'titles'} added to the pull list.`);
     btn.disabled = true;
+    if (btn.dataset.fs) btn.closest('li').querySelectorAll('[data-fs]').forEach((b) => b !== btn && b.remove()); // one follow per series
     if (btn.classList.contains('icon-btn')) {
       btn.title = 'Following';
       btn.setAttribute('aria-label', 'Following');
