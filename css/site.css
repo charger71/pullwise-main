@@ -468,6 +468,8 @@ address { font-style: normal; margin-bottom: 1em; }
 .card__media { position: relative; }
 .card__media .cover { display: block; }
 .card__media .cover--placeholder { display: flex; }
+/* Series cards: a red bar over the bottom of the cover */
+.card__banner { position: absolute; left: 0; right: 0; bottom: 0; padding: 9px 8px; background: var(--red-btn); color: var(--on-primary); font: 700 .8rem/1 var(--font-body); letter-spacing: .12em; text-align: center; text-transform: uppercase; }
 /* Collector chips (1st Appearance, Key Issue, …) */
 .chips { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
 .chips li {
@@ -999,6 +1001,7 @@ a.follow-open { box-sizing: border-box; line-height: 24px; }
 .how-it-works > div { padding: 0; }
 .how-it-works .page-body { margin-bottom: 0; }
 .follow-item { display: flex; align-items: center; gap: 10px; }
+.follow-allcovers { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 400; font-size: .9rem; white-space: nowrap; cursor: pointer; }
 .follow-thumb { width: 36px; height: 54px; object-fit: cover; border-radius: 3px; border: 1px solid var(--line); flex: none; }
 /* Bronze Age Modern + Dusty Blue — the public-site theme, applied over the rules above.
    Dark page, brick-red buttons, gold accents, dusty-blue links and focus.

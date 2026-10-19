@@ -8,7 +8,7 @@ import { DEMO, supabase, getSettings, searchSeries, searchArtists } from '../dat
 import { SITE_URL } from '../config.js';
 import { LINE_STATUS_CUSTOMER as LINE_STATUS } from '../labels.js';
 import { whenIn as whenLabel } from '../dates.js';
-import { thumbOf, thumbFallback } from '../util.js';
+import { thumbOf, thumbFallback, artistMeta } from '../util.js';
 import * as pull from '../customer.js';
 import * as guest from '../reservation-list.js';
 import { seriesCount, discountFor, totals, tiersFrom } from '../discount.js';
@@ -161,7 +161,7 @@ async function signedIn(sb, user) {
         </section>
         <section class="panel" aria-labelledby="follow-h">
           <h2 id="follow-h">Following</h2>
-          <p class="field__hint">New issues from anything you follow are added to your pull list automatically, until the order cutoff. Remove any you don’t want from Coming Up.</p>
+          <p class="field__hint">New issues from anything you follow are added to your pull list automatically, until the order cutoff. A series adds its main cover; tick <strong>All covers</strong> to get every variant too (never incentive covers). Remove any you don’t want from Coming Up.</p>
           <form class="follow-form" data-follow-search role="search">
             <div class="follow-form__row">
               <label class="visually-hidden" for="f-q">Search for a series or artist to follow</label>
@@ -502,16 +502,17 @@ async function setupFollowing(sb, customerId, seenBefore) {
   const renderFollows = () => {
     const subs = pull.getSubscriptions();
     // Keep keyboard focus on the same follow's control after the redraw (or the next one, if it was unfollowed).
-    const focused = document.activeElement?.closest?.('[data-fqty], [data-unfollow]');
+    const focused = document.activeElement?.closest?.('[data-fqty], [data-fall], [data-unfollow]');
     const li = focused && list.contains(focused) ? focused.closest('li') : null;
     const near = li ? [li, li.nextElementSibling, li.previousElementSibling].map((n) => n?.querySelector('[data-unfollow]')?.dataset.unfollow).filter(Boolean) : [];
-    const keep = focused && li ? (focused.dataset.fqty ? `[data-fqty="${focused.dataset.fqty}"]` : `[data-unfollow="${focused.dataset.unfollow}"]`) : null;
+    const keep = focused && li ? (focused.dataset.fqty ? `[data-fqty="${focused.dataset.fqty}"]` : focused.dataset.fall ? `[data-fall="${focused.dataset.fall}"]` : `[data-unfollow="${focused.dataset.unfollow}"]`) : null;
     list.innerHTML = subs.length
       ? `<ul class="follow-subs">${subs
           .map(
             (f) => `<li>
-              <span class="follow-item">${f.cover ? `<img class="follow-thumb" src="${esc(f.cover)}" alt="Cover of ${esc(f.label)}" loading="lazy">` : ''}<span><strong>${esc(f.label)}</strong><br><span class="card__meta">${f.kind === 'series' ? 'Series' : ROLE_LABEL[f.role]}</span></span></span>
+              <span class="follow-item">${f.cover ? `<img class="follow-thumb" src="${esc(f.cover)}" alt="Cover of ${esc(f.label)}" loading="lazy">` : ''}<span><strong>${esc(f.label)}</strong><br><span class="card__meta">${f.kind === 'series' ? (f.all_covers ? 'Series · every cover' : 'Series · main cover') : ROLE_LABEL[f.role]}</span></span></span>
               <span class="list-line__controls">
+                ${f.kind === 'series' ? `<label class="follow-allcovers"><input type="checkbox" data-fall="${f.id}"${f.all_covers ? ' checked' : ''}> All covers<span class="visually-hidden"> of ${esc(f.label)}</span></label>` : ''}
                 <label class="visually-hidden" for="fq-${f.id}">Copies of each new issue of ${esc(f.label)}</label>
                 <input class="list-line__qty" id="fq-${f.id}" type="number" inputmode="numeric" min="1" max="${maxCopies}" value="${f.quantity}" data-fqty="${f.id}">
                 <button class="list-line__remove" type="button" data-unfollow="${f.id}">Unfollow<span class="visually-hidden"> ${esc(f.label)}</span></button>
@@ -532,6 +533,24 @@ async function setupFollowing(sb, customerId, seenBefore) {
   const noteError = (err) => (status.innerHTML = `<p class="form-error" role="alert">${pull.errorHtml({ message: errText(err), signIn: err?.signIn })}</p>`);
 
   list.addEventListener('change', async (e) => {
+    const box = e.target.closest('[data-fall]');
+    if (box) {
+      const sub = pull.getSubscriptions().find((s) => s.id === Number(box.dataset.fall));
+      try {
+        const { added, removed } = await pull.setFollowAllCovers(sub.id, box.checked);
+        const n = box.checked ? added : removed;
+        note(
+          box.checked
+            ? `${sub.label}: every cover of each new issue will be added (not incentive covers).${n ? ` ${n} ${n === 1 ? 'cover was' : 'covers were'} added now.` : ''}`
+            : `${sub.label}: just the main cover of each new issue.${n ? ` ${n} extra ${n === 1 ? 'cover' : 'covers'} not ordered yet ${n === 1 ? 'was' : 'were'} removed.` : ''}`,
+        );
+        loadOrders(sb, customerId, seenBefore);
+      } catch (err) {
+        noteError(err);
+        box.checked = !box.checked;
+      }
+      return;
+    }
     const input = e.target.closest('[data-fqty]');
     if (!input) return;
     const id = Number(input.dataset.fqty);
@@ -568,13 +587,16 @@ async function setupFollowing(sb, customerId, seenBefore) {
   // One box for both: series and artists are searched together and listed under their own headings.
   const following = (label) => `<span class="btn btn--ghost btn--small is-on" aria-disabled="true">✓ ${esc(label)}</span>`;
   const seriesRow = (r) => `<li><span class="follow-item">${r.cover_url ? `<img class="follow-thumb" src="${esc(thumbOf(r.cover_url))}" ${thumbFallback(r.cover_url)} alt="Cover of ${esc(r.label)}" loading="lazy">` : ''}<span><strong>${esc(r.label)}</strong><br><span class="card__meta">${r.issues ? `${r.issues} ${r.issues === 1 ? 'issue' : 'issues'}` : 'Ongoing series · new issues are added as they’re announced'}</span></span></span>
-      <span class="follow-results__act">${pull.findSubscription('series', r.key) ? following('Following') : `<button class="btn btn--primary btn--small" type="button" data-fs="${esc(r.key)}">Follow<span class="visually-hidden"> ${esc(r.label)}</span></button>`}</span></li>`;
+      <span class="follow-results__act">${pull.findSubscription('series', r.key)
+        ? following(pull.findSubscription('series', r.key).all_covers ? 'Following all covers' : 'Following')
+        : `<button class="btn btn--primary btn--small" type="button" data-fs="${esc(r.key)}">Follow<span class="visually-hidden"> ${esc(r.label)}</span></button>
+           <button class="btn btn--primary btn--small" type="button" data-fs="${esc(r.key)}" data-covers="all">Follow all covers<span class="visually-hidden"> of ${esc(r.label)}</span></button>`}</span></li>`;
   // issues = 0: named only in cover text (a variant cover artist), so there are no books to follow.
   const artistBtn = (r, role) =>
     pull.findSubscription('artist', pull.personKey(r.name), role)
-      ? following(`Following ${role === 'cover' ? 'covers' : 'books'}`)
-      : `<button class="btn ${role === 'cover' ? 'btn--primary' : 'btn--ghost'} btn--small" type="button" data-fa="${esc(r.name)}" data-role="${role}">Follow ${role === 'cover' ? 'covers' : 'books'}<span class="visually-hidden"> by ${esc(r.name)}</span></button>`;
-  const artistRow = (r) => `<li><span><strong>${esc(r.name)}</strong><br><span class="card__meta">${r.covers} ${r.covers === 1 ? 'cover' : 'covers'}${r.issues ? ` · ${r.issues} ${r.issues === 1 ? 'book' : 'books'}` : ''}</span></span>
+      ? following(`Following their ${role === 'cover' ? 'covers' : 'books'}`)
+      : `<button class="btn ${role === 'cover' ? 'btn--primary' : 'btn--ghost'} btn--small" type="button" data-fa="${esc(r.name)}" data-role="${role}">Follow their ${role === 'cover' ? 'covers' : 'books'}<span class="visually-hidden"> by ${esc(r.name)}</span></button>`;
+  const artistRow = (r) => `<li><span><strong>${esc(r.name)}</strong><br><span class="card__meta">${artistMeta(r)}</span></span>
       <span class="follow-results__act">
         ${artistBtn(r, 'cover')}
         ${r.issues ? artistBtn(r, 'creator') : ''}</span></li>`;
@@ -584,11 +606,12 @@ async function setupFollowing(sb, customerId, seenBefore) {
     const { series, artists } = lastResults;
     // Keep focus on the same button if it is still there (another follow changed), else on the search box.
     const focused = document.activeElement?.closest?.('[data-fs], [data-fa]');
-    const keep = focused && results.contains(focused) ? (focused.dataset.fs ? `[data-fs="${CSS.escape(focused.dataset.fs)}"]` : `[data-fa="${CSS.escape(focused.dataset.fa)}"][data-role="${focused.dataset.role}"]`) : null;
+    const keep = focused && results.contains(focused) ? (focused.dataset.fs ? `[data-fs="${CSS.escape(focused.dataset.fs)}"]${focused.dataset.covers ? '[data-covers="all"]' : ':not([data-covers])'}` : `[data-fa="${CSS.escape(focused.dataset.fa)}"][data-role="${focused.dataset.role}"]`) : null;
     results.innerHTML = series.length || artists.length
       ? `${series.length ? `<h3 class="follow-results__head">Series</h3><ul class="follow-results">${series.map(seriesRow).join('')}</ul>` : ''}
          ${artists.length ? `<h3 class="follow-results__head">Artists &amp; writers</h3><ul class="follow-results">${artists.map(artistRow).join('')}</ul>
-           <p class="field__hint">Covers = every cover they draw. Books = one cover of each issue they write or draw.</p>` : ''}`
+           <p class="field__hint"><strong>Their covers</strong> = every cover they draw, on any series (variants included, not incentives). <strong>Their books</strong> = the main cover of each issue they write or draw.</p>` : ''}
+         ${series.length ? '<p class="field__hint">Follow = the main cover of each new issue. All covers = every variant too (not incentives).</p>' : ''}`
       : '<p class="empty">No series or artists match.</p>';
     if (keep) ($(keep, results) ?? $('#f-q', root)).focus();
   };
@@ -616,7 +639,7 @@ async function setupFollowing(sb, customerId, seenBefore) {
     if (!btn) return;
     btn.disabled = true;
     try {
-      const { added } = btn.dataset.fs ? await pull.followSeries(btn.dataset.fs) : await pull.followArtist(btn.dataset.fa, btn.dataset.role);
+      const { added } = btn.dataset.fs ? await pull.followSeries(btn.dataset.fs, 1, btn.dataset.covers === 'all') : await pull.followArtist(btn.dataset.fa, btn.dataset.role);
       // The results redraw with "✓ Following" (pull.onChange); focus stays in the search.
       if (btn.isConnected) btn.textContent = 'Following ✓';
       if (!results.contains(document.activeElement)) $('#f-q', root).focus();

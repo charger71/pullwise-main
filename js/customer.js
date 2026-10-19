@@ -156,7 +156,7 @@ export async function refresh(sb) {
   lines = new Map(data.map((r) => [r.item_id, { id: r.id, quantity: r.quantity, status: r.status, source: r.source, created_at: r.created_at }]));
   const { data: seen } = await sb.from('pull_list_seen').select('seen_at').eq('customer_id', customer.id).maybeSingle();
   seenAt = seen?.seen_at ?? null;
-  const { data: follows, error: followError } = await sb.from('subscriptions').select('id,kind,key,label,role,quantity').eq('customer_id', customer.id).order('label');
+  const { data: follows, error: followError } = await sb.from('subscriptions').select('id,kind,key,label,role,quantity,all_covers').eq('customer_id', customer.id).order('label');
   if (followError) throw customerError(followError);
   subs = follows;
   const seriesKeys = follows.filter((f) => f.kind === 'series').map((f) => f.key);
@@ -230,10 +230,10 @@ export async function remove(lineId) {
 // Following a series or an artist: new issues are added to the pull list for you.
 // ---------------------------------------------------------------------------
 
-/** Resolves { id, added }: `added` is how many open titles were added right away. */
-export async function followSeries(key, quantity = 1) {
+/** Resolves { id, added }: `added` is how many open titles were added right away. allCovers: every cover of each issue, not just the main one. */
+export async function followSeries(key, quantity = 1, allCovers = false) {
   const sb = await supabase();
-  const { data, error } = await sb.rpc('follow_series', { p_key: key, p_quantity: quantity });
+  const { data, error } = await sb.rpc('follow_series', { p_key: key, p_quantity: quantity, p_all_covers: allCovers });
   if (error) fail(error);
   await softRefresh(sb);
   return data;
@@ -276,6 +276,15 @@ export async function unfollowWithWarning(sub) {
     : `Unfollow ${sub.label}?\n\nNew issues will stop being added. Titles already ordered stay on your list.`;
   if (!confirm(msg)) return null;
   return unfollow(sub.id);
+}
+
+/** Series follows: every cover of each new issue (on) or just the main one (off). Resolves { added, removed }. */
+export async function setFollowAllCovers(id, on) {
+  const sb = await supabase();
+  const { data, error } = await sb.rpc('set_follow_all_covers', { p_id: id, p_on: on });
+  if (error) fail(error);
+  await softRefresh(sb);
+  return data ?? { added: 0, removed: 0 };
 }
 
 /** Copies of each issue: the follow and every title it added that hasn't been ordered. Resolves { updated, skipped }. */

@@ -43,6 +43,7 @@ const SVG = {
   download: '<path d="M12 4v10M8 10l4 4 4-4"/><path d="M8 19h8" stroke-width="3"/>',
   forward: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>',
+  brush: '<path d="M18 3l3 3-9.5 9.5-3-3zM8.5 12.5C5.5 12.5 4 14 4 16.5c0 1.5-.5 2.5-1.5 3.5 3.5.5 7-1 7-4.2"/>',
   dot: '<circle cx="12" cy="12" r="4"/>',
 };
 
@@ -62,7 +63,7 @@ const BY_LABEL = [
   [/^upcoming/i, 'calendar'], [/^past/i, 'clock'], [/signups/i, 'clipboard'],
   [/^reservations/i, 'bookmark'], [/^place order/i, 'cart'], [/^received/i, 'box'],
   [/^my account/i, 'user'], [/^staff list/i, 'shield'], [/^add a staff/i, 'userPlus'],
-  [/^all series/i, 'layers'], [/^add active series/i, 'plus'], [/^all$/i, 'grid'],
+  [/^all series/i, 'layers'], [/^creatives/i, 'brush'], [/^add active series/i, 'plus'], [/^all$/i, 'grid'],
   [/^forwarding/i, 'forward'], [/^direct/i, 'target'],
   [/^foc /i, 'flag'], [/^out this week/i, 'bag'],
   [/^shop/i, 'shop'], [/^logo/i, 'palette'], [/^online/i, 'globe'], [/^pre-orders/i, 'tag'],
