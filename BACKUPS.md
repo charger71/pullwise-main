@@ -67,3 +67,19 @@ settings, pages, events, the series list, follows and the titles table loaded ba
 ## Better protection
 
 Supabase's paid plan includes daily backups kept for 7 days, and point-in-time recovery as an add-on.
+
+## Filling a new project from another site's backup
+
+Restore also takes backups made by the original single-shop site (Pop's Comics, `popscomics-backup-….json.gz`), so a
+new project, such as the master catalog, can start with an existing shop's titles, series and artists:
+
+1. In the old site's admin, **Staff → Backup → Download backup** (owners).
+2. In the new project's admin, **Restore**, pick the file, and tick only the catalog tables:
+   **categories, items, series_catalog, series_aliases, creator_catalog, creator_aliases**. Leave everything else
+   unticked (customers, reservations, staff… stay with the old shop). Don't tick item_creators: it is rebuilt from
+   the titles' credits as they load.
+3. Choose **Replace** if the new project has no titles yet (its starting categories are swapped for the backup's, so
+   every title keeps its category), otherwise **Add missing rows**.
+
+Prices load as the retail price. Covers keep pointing at the old site's image storage, so they keep working as long as
+that project does.

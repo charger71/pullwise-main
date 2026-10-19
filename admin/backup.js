@@ -5,6 +5,9 @@ import { must } from '../js/util.js';
 
 const PAGE = 1000;
 export const FORMAT = 'shop-backup-1';
+// Files this can restore: its own, and those made by the original single-shop site (Pop's Comics, ComicStore),
+// which have the same layout. That's how a shop moving over, or the master catalog, is filled from an old site.
+export const RESTORABLE_FORMATS = [FORMAT, 'popscomics-backup-1'];
 
 /** Read every table. `onProgress(text)` is called as it goes. Returns { file (Blob), tables, rows, name }. */
 export async function buildBackup(sb, onProgress = () => {}) {
@@ -74,7 +77,7 @@ export async function parseBackup(file) {
   } catch {
     throw new Error('That doesn’t look like a backup file. Pick a shop-backup-….json.gz file made by Download backup.');
   }
-  if (data?.format !== FORMAT || typeof data.tables !== 'object') throw new Error('That file isn’t a Pop’s Comics backup.');
+  if (!RESTORABLE_FORMATS.includes(data?.format) || typeof data.tables !== 'object') throw new Error('That file isn’t a backup made by Download backup.');
   return data;
 }
 

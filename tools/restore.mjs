@@ -19,6 +19,9 @@ import { gunzipSync } from 'node:zlib';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Its own backups and the original single-shop site's (same layout); see RESTORABLE_FORMATS in admin/backup.js.
+const RESTORABLE_FORMATS = ['shop-backup-1', 'popscomics-backup-1'];
+
 const ROWS_PER_INSERT = 400;
 const PART_BYTES = 800_000; // each file stays under Supabase's ~1 MB request limit
 const sqlString = (s) => `'${s.replace(/'/g, "''")}'`; // JSON text only; no backslash escapes with standard_conforming_strings on
@@ -75,7 +78,7 @@ export function main(argv) {
   if (/\.json(\.gz)?$/.test(dir)) {
     const raw = readFileSync(dir);
     const file = JSON.parse((dir.endsWith('.gz') ? gunzipSync(raw) : raw).toString('utf8'));
-    if (file.format !== 'shop-backup-1') throw new Error('That file is not a shop backup.');
+    if (!RESTORABLE_FORMATS.includes(file.format)) throw new Error('That file is not a backup made by Download backup.');
     manifest = { tables: Object.fromEntries(Object.entries(file.tables).map(([n, t]) => [n, { pk: t.pk, generated: t.generated, identity_always: t.identity_always }])) };
     rowsOf = (n) => file.tables[n].rows;
   } else {

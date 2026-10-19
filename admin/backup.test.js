@@ -16,7 +16,9 @@ const good = { format: FORMAT, taken_at: '2026-10-12T00:00:00Z', migration: '1',
 const fileOf = (name, bytes) => new File([bytes], name);
 assert.deepEqual((await parseBackup(fileOf('b.json.gz', gzipSync(JSON.stringify(good))))).tables.faqs.rows, [{ id: 1 }]);
 assert.deepEqual((await parseBackup(fileOf('b.json', JSON.stringify(good)))).migration, '1');
-await assert.rejects(parseBackup(fileOf('x.json', JSON.stringify({ format: 'other', tables: {} }))), /isn’t a Pop/);
+await assert.rejects(parseBackup(fileOf('x.json', JSON.stringify({ format: 'other', tables: {} }))), /isn’t a backup made by Download backup/);
+// Backups from the original single-shop site (Pop's Comics) restore too, e.g. to fill the master catalog
+assert.equal((await parseBackup(fileOf('popscomics-backup-2026-10-19.json', JSON.stringify({ ...good, format: 'popscomics-backup-1' })))).format, 'popscomics-backup-1');
 await assert.rejects(parseBackup(fileOf('x.gz', 'not gzip')), /doesn’t look like a backup/);
 
 // Sending tables: each in chunks of 400 rows (an empty table still sends one empty chunk), then ONE apply call for
