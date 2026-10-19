@@ -1,3 +1,15 @@
 {
-  "shops": []
+  "shops": [
+    {
+      "id": "catalog",
+      "domains": [
+        "catalog.pullwise.shop"
+      ],
+      "supabaseUrl": "https://txnwzmkimphenittcicm.supabase.co",
+      "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4bnd6bWtpbXBoZW5pdHRjaWNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzOTAxMTgsImV4cCI6MjEwNzk2NjExOH0.feOYqXP29tEWGQ6b5UEs_Mtwsjh9cn1PdqA6zE-omVY",
+      "projectRef": "txnwzmkimphenittcicm",
+      "gaMeasurementId": "",
+      "catalog": true
+    }
+  ]
 }
