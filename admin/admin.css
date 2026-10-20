@@ -851,4 +851,4 @@ tr.is-clickable { cursor: pointer; }
 .contrast__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-6); }
 .contrast__list li { display: flex; align-items: center; gap: var(--sp-10); }
 .contrast__sample { flex: none; width: 44px; text-align: center; font-weight: 700; padding: var(--sp-4) 0; border: 1px solid var(--line, currentColor); border-radius: 4px; }
-.contrast__list .is-bad { color: var(--error, #b3261e); }
+.contrast__list .is-bad { color: var(--danger); }
