@@ -21,7 +21,9 @@ async function fingerprint(url) {
   try {
     const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
     if (!res.ok) return null;
-    return res.headers.get('etag') ?? res.headers.get('last-modified');
+    // Cloudflare answers the same file with a weak ETag (W/"x") or a strong one ("x") depending on whether that
+    // response was compressed; the hash inside is what says the content changed.
+    return res.headers.get('etag')?.replace(/^W\//, '') ?? res.headers.get('last-modified');
   } catch {
     return null; // offline or a blip: try again next time
   }
