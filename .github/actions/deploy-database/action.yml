@@ -15,12 +15,6 @@ inputs:
   access-token:
     description: Supabase personal access token
     required: true
-  catalog-url:
-    description: The master catalog's Supabase URL (empty for the catalog itself)
-    required: false
-  catalog-key:
-    description: The master catalog's public anon key
-    required: false
 runs:
   using: composite
   steps:
@@ -33,10 +27,11 @@ runs:
         SUPABASE_DB_PASSWORD: ${{ inputs.db-password }}
         SHOP: ${{ inputs.shop }}
         REF: ${{ inputs.project-ref }}
-        CATALOG_URL: ${{ inputs.catalog-url }}
-        CATALOG_KEY: ${{ inputs.catalog-key }}
       run: |
         set -euo pipefail
+        # The master catalog this shop syncs from, read from shops.json (empty for the catalog itself).
+        CATALOG_URL=$(node -p 'const c = require("./shops.json").shops.find((s) => s.catalog); c && c.id !== process.env.SHOP ? c.supabaseUrl : ""')
+        CATALOG_KEY=$(node -p 'const c = require("./shops.json").shops.find((s) => s.catalog); c && c.id !== process.env.SHOP ? c.anonKey : ""')
         # Without SUPABASE_DB_PASSWORD the CLI mints a temporary login role through the access token.
         [ -n "$SUPABASE_DB_PASSWORD" ] || unset SUPABASE_DB_PASSWORD
         supabase link --project-ref "$REF"

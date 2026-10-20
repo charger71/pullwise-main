@@ -56,15 +56,14 @@ export function validate(data) {
 }
 
 /** What each deploy job needs to know about a shop. */
-// catalogUrl / catalogKey: the master catalog every other shop syncs titles from (empty for the catalog itself,
-// or when there's no catalog yet); the deploy sets them as the shop's CATALOG_URL / CATALOG_ANON_KEY secrets.
-const target = (catalog) => (s) => ({
+// The master catalog's address and key are not here: the keys look like secrets to GitHub, which then drops this whole
+// output. The deploy-database action reads them from shops.json instead.
+const target = (s) => ({
   id: s.id, projectRef: s.projectRef, secret: secretName(s.id), url: `https://${s.domains[0]}`, supabaseUrl: s.supabaseUrl, domains: s.domains,
-  catalogUrl: catalog && catalog.id !== s.id ? catalog.supabaseUrl : '', catalogKey: catalog && catalog.id !== s.id ? catalog.anonKey : '',
 });
 
 export function plan(data, { hasSupabase, hasCloudflare }) {
-  const t = target(data.shops.find((s) => s.catalog));
+  const t = target;
   const canary = data.shops.filter((s) => s.canary).map(t);
   const shops = data.shops.filter((s) => !s.canary).map(t);
   const missing = [!hasSupabase && 'SUPABASE_ACCESS_TOKEN', !hasCloudflare && 'CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID'].filter(Boolean);
