@@ -3,6 +3,7 @@
 
 import { SOCIAL_ICONS } from '../../js/social-icons.js';
 import { tiersFrom } from '../../js/discount.js';
+import { contrast } from '../theme.js';
 import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs } from '../lib.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
@@ -74,6 +75,7 @@ export async function mount(el, { sb }) {
             <label class="color-row__match"><input type="checkbox" data-link-auto${s.colors?.link ? '' : ' checked'}> Automatic</label></div>
             <p class="field__hint">Links in text and focus outlines. Automatic picks a blue that reads well on the page background; pick your own to override it (make sure it is readable on the page background).</p></div></div>
         <p class="field__hint">The site is designed for a dark page background with light text. Everything else (cards, borders, muted text) is worked out from these five colors. Use the page background and text colors together: a dark background needs light text.</p>
+        <div class="contrast" data-contrast aria-live="polite"></div>
       </div></details>
       </div>
       <div data-tabpane="online">
@@ -135,6 +137,33 @@ export async function mount(el, { sb }) {
   setupTabs(el, 'admin-settings-tab', 'shop');
 
   $('[data-link-auto]', form).addEventListener('change', (e) => ($('#c-link', form).disabled = e.target.checked));
+
+  // Accessibility check of the colors as picked (WCAG: 4.5:1 for text, 3:1 for large or bold text), updated as you pick.
+  const val = (k) => $(`[data-color="${k}"]`, form).value;
+  const light = (hex) => contrast(hex, '#000000') > contrast(hex, '#ffffff');
+  const checkContrast = () => {
+    const paper = val('paper');
+    // The same choices the public site makes (applyTheme in js/site.js): the first blue that reads, else its own pick.
+    const autoLink = [['#91bbdd', '#b9d5ec', '#ffffff'], ['#0b4f8a', '#08396a', '#000000']][light(paper) ? 1 : 0];
+    const auto = $('[data-link-auto]', form).checked;
+    const link = auto ? autoLink.find((c) => contrast(c, paper) >= 4.5) ?? autoLink.at(-1) : val('link');
+    const onPrimary = light(val('primary')) ? '#161616' : '#ffffff'; // the site's choice of button text
+    const rows = [
+      ['Text on the page background', val('ink'), paper, 4.5],
+      [`Text links on the page background${auto ? ' (automatic)' : ''}`, link, paper, 4.5],
+      ['Button text on the main color', onPrimary, val('primary'), 4.5],
+      ['Accent on the page background (headings, highlights)', val('accent'), paper, 3],
+      ['Accent on the footer background (footer headings)', val('accent'), val('footer'), 3],
+    ];
+    $('[data-contrast]', form).innerHTML = `<h3>Readability check</h3><ul class="contrast__list">${rows.map(([label, fg, bg, need]) => {
+      const r = contrast(fg, bg);
+      const ok = r >= need;
+      return `<li class="${ok ? 'is-ok' : 'is-bad'}"><span class="contrast__sample" style="color:${fg};background:${bg}" aria-hidden="true">Aa</span> <span>${label}: <strong>${r.toFixed(1)}:1</strong> ${ok ? '✓ passes' : `✗ needs ${need}:1`}</span></li>`;
+    }).join('')}</ul>`;
+  };
+  checkContrast();
+  form.addEventListener('input', checkContrast);
+  form.addEventListener('change', checkContrast);
   form.addEventListener('input', () => (dirty = true));
   form.addEventListener('change', () => (dirty = true));
 
