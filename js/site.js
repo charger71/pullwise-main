@@ -217,10 +217,11 @@ function applyTheme(colors = {}) {
   // Links and focus rings follow the page background too (the stylesheet's blue is for the default dark page),
   // as do the browser's own form controls and scrollbars, and the few fixed light colors meant for a dark page.
   document.documentElement.style.colorScheme = lightPage ? 'light' : '';
-  const link = paper ? readableOn(paper, lightPage ? LINKS_ON_LIGHT : LINKS_ON_DARK) : null;
+  // A link color picked in Shop Settings wins; without one, the first readable blue is used.
+  const link = isHex6(colors.link) ? colors.link : paper ? readableOn(paper, lightPage ? LINKS_ON_LIGHT : LINKS_ON_DARK) : null;
   set('--teal', link);
   set('--teal-hover', link && (lightPage ? `color-mix(in srgb, ${link} 80%, black)` : `color-mix(in srgb, ${link} 80%, white)`));
-  set('--teal-dark', link && `color-mix(in srgb, ${paper}, ${link} 14%)`); // notice background
+  set('--teal-dark', link && `color-mix(in srgb, ${paper ?? 'var(--brand-paper)'}, ${link} 14%)`); // notice background
   set('--cream', lightPage ? 'var(--ink)' : null);
   set('--error', lightPage ? readableOn(paper, ['#b3261e', '#7f1b15']) : null);
   set('--ok', lightPage ? readableOn(paper, ['#1e6b3a', '#124424']) : null);

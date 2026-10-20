@@ -8,7 +8,7 @@ import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formRead
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
 const COLORS = [['primary', 'Main color (buttons, highlights)'], ['accent', 'Accent (banner, badges)'], ['ink', 'Text'], ['paper', 'Page background'], ['footer', 'Footer background']];
-const COLOR_DEFAULTS = { primary: '#982c21', accent: '#e7b84b', ink: '#f4f0ea', paper: '#121212', footer: '#121212' };
+const COLOR_DEFAULTS = { primary: '#982c21', accent: '#e7b84b', ink: '#f4f0ea', paper: '#121212', footer: '#121212', link: '#91bbdd' };
 
 let dirty = false;
 export const hasUnsavedChanges = () => dirty;
@@ -68,7 +68,11 @@ export async function mount(el, { sb }) {
         <p class="field__hint">The small icon in the browser tab. Use a simple square picture (it's shown at 64 px or less). Blank uses the logo. It can take about a minute to appear on the site.</p>
         <div data-hero></div>
         <p class="field__hint">Shown behind the home page headline, darkened so the text stays readable. Cropped wide; a landscape photo of the shop works best. Without one, the banner uses the page background.</p>
-        <div class="form-grid color-grid">${COLORS.map(([k, label]) => `<div class="field"><label for="c-${k}">${label}</label><input id="c-${k}" data-color="${k}" type="color" value="${esc(s.colors?.[k] ?? COLOR_DEFAULTS[k])}"></div>`).join('')}</div>
+        <div class="form-grid color-grid">${COLORS.map(([k, label]) => `<div class="field"><label for="c-${k}">${label}</label><input id="c-${k}" data-color="${k}" type="color" value="${esc(s.colors?.[k] ?? COLOR_DEFAULTS[k])}"></div>`).join('')}
+          <div class="field"><label for="c-link">Text links</label>
+            <div class="color-row"><input id="c-link" data-color="link" type="color" value="${esc(s.colors?.link ?? COLOR_DEFAULTS.link)}"${s.colors?.link ? '' : ' disabled'}>
+            <label class="color-row__match"><input type="checkbox" data-link-auto${s.colors?.link ? '' : ' checked'}> Automatic</label></div>
+            <p class="field__hint">Links in text and focus outlines. Automatic picks a blue that reads well on the page background; pick your own to override it (make sure it is readable on the page background).</p></div></div>
         <p class="field__hint">The site is designed for a dark page background with light text. Everything else (cards, borders, muted text) is worked out from these five colors. Use the page background and text colors together: a dark background needs light text.</p>
       </div></details>
       </div>
@@ -130,6 +134,7 @@ export async function mount(el, { sb }) {
   hero.set(s.hero_image_url);
   setupTabs(el, 'admin-settings-tab', 'shop');
 
+  $('[data-link-auto]', form).addEventListener('change', (e) => ($('#c-link', form).disabled = e.target.checked));
   form.addEventListener('input', () => (dirty = true));
   form.addEventListener('change', () => (dirty = true));
 
@@ -145,7 +150,7 @@ export async function mount(el, { sb }) {
     }));
     const tiers = $$('.tier-row', tiersBox).map((row) => ({ min: Number($('[data-min]', row).value), pct: Number($('[data-pct]', row).value) }));
     const socials = Object.fromEntries($$('[data-social]', form).map((i) => [i.dataset.social, i.value.trim()]).filter(([, v]) => v));
-    const colors = Object.fromEntries($$('[data-color]', form).map((i) => [i.dataset.color, i.value]));
+    const colors = Object.fromEntries($$('[data-color]:not(:disabled)', form).map((i) => [i.dataset.color, i.value])); // Automatic links: no link key
 
     if (!text('shop_name')) return setStatus(status, 'The shop needs a name.', 'error');
     if (hours.some((h) => !h.days.length || !h.open || !h.close)) return setStatus(status, 'Each hours row needs at least one day and open/close times.', 'error');
