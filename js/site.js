@@ -312,20 +312,26 @@ document.addEventListener('keydown', (e) => {
 });
 addEventListener('resize', () => document.body.classList.contains('nav-open') && fitNav());
 
-const NEWSLETTER_FORM_ID = '8d70c80d-4f25-11ed-afd1-0607cdff6e39';
-
-// innerHTML doesn't run scripts, so the email-list embed is added as a real element. It's large (it pulls in
-// reCAPTCHA), so it loads only when the visitor scrolls near it.
-function loadNewsletterForm() {
+// The email-list signup is whatever form code the shop pasted into Emails → Weekly Email Signup (settings.newsletter_embed);
+// with nothing there the whole section is left out. innerHTML doesn't run scripts, so the snippet is parsed and its
+// <script> tags are re-created as real elements. Embeds are heavy (many pull in reCAPTCHA), so it loads only when the
+// visitor scrolls near it.
+function loadNewsletterForm(embed) {
   const host = $('#newsletter-form');
-  if (!host || host.dataset.loading) return;
-  host.dataset.loading = '1';
+  if (!embed || !host || host.dataset.loading === embed) return;
+  host.dataset.loading = embed;
+  host.replaceChildren();
   const load = () => {
-    const el = document.createElement('script');
-    el.async = true;
-    el.src = `https://eomail8.com/form/${NEWSLETTER_FORM_ID}.js`;
-    el.dataset.form = NEWSLETTER_FORM_ID;
-    host.appendChild(el);
+    if (host.dataset.loading !== embed) return; // replaced while waiting
+    const tpl = document.createElement('template');
+    tpl.innerHTML = embed;
+    tpl.content.querySelectorAll('script').forEach((old) => {
+      const el = document.createElement('script');
+      for (const { name, value } of old.attributes) el.setAttribute(name, value);
+      el.text = old.text;
+      old.replaceWith(el);
+    });
+    host.appendChild(tpl.content);
   };
   if (!('IntersectionObserver' in window)) return load();
   const watcher = new IntersectionObserver((entries) => {
@@ -340,14 +346,16 @@ function renderFooter(s, extraLinks = []) {
   const addr = addressLines(s);
   const footer = $('#site-footer');
   const social = socialIcons(s);
-  if (!$('.newsletter')) footer.insertAdjacentHTML('beforebegin', `
+  const embed = s.newsletter_embed?.trim() ?? '';
+  if (!embed) $('.newsletter')?.remove();
+  else if (!$('.newsletter')) footer.insertAdjacentHTML('beforebegin', `
     <section class="newsletter" aria-labelledby="newsletter-title">
       <div class="container">
         <h2 id="newsletter-title">Get the Weekly New&#8209;Release Email</h2>
         <div class="lede" data-content="home-newsletter:lede"></div>
         <div id="newsletter-form"></div>
       </div>
-    </section>`);
+    </section>`), fillContent(getSettings()).catch(() => {}); // the page's content was filled before this section existed
   footer.innerHTML = `
     <div class="container footer__grid">
       <section>
@@ -592,7 +600,7 @@ export async function initPage() {
     const pageHref = (p) => `page.html?slug=${encodeURIComponent(p.slug)}`;
     renderHeader(s, page, custom.filter((p) => p.placement === 'menu').map((p) => ({ page: `page:${p.slug}`, href: pageHref(p), label: p.title })));
     renderFooter(s, custom.filter((p) => p.placement === 'footer').map((p) => ({ href: pageHref(p), label: p.title })));
-    loadNewsletterForm();
+    loadNewsletterForm(s.newsletter_embed?.trim() ?? '');
     fillSettings(s);
   };
   let shown = { s: readCache('settings'), custom: readCache('custom-pages') };
