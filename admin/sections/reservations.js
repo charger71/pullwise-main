@@ -579,6 +579,8 @@ let toOrderOpen = null;
 async function renderToOrder(body) {
   const keep = { foc: $('#ot-foc', body)?.value ?? '', dist: $('#ot-dist', body)?.value ?? 'all' };
   toOrderBody = body;
+  // Titles whose customer list is open, so a refresh can open them again.
+  const openPeople = $$('[data-customers][aria-expanded="true"]', body).map((b) => b.dataset.customers);
   body.innerHTML = `<p class="admin-hint">Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it.</p><div data-order-tools></div><div data-groups aria-busy="true"></div>`;
   const box = $('[data-groups]', body);
   let loaded;
@@ -629,6 +631,7 @@ async function renderToOrder(body) {
     $$(`[data-foc="${CSS.escape(foc)}"] tbody tr`, box).forEach((tr, i) => (tr.children[3].textContent = codes.get(rows[i].item.id) ?? ''));
   });
   $$('.toorder table', box).forEach((t) => sortableTable(t));
+  openPeople.forEach((id) => { const b = $(`[data-customers="${id}"]`, box); if (b) toggleCustomers(b); });
   // Sorting reorders rows, which would strand an open customer row: close them first.
   box.addEventListener('click', (e) => { if (e.target.closest('th[data-sort]')) $$('tr.toorder__people', box).forEach((r) => { r.previousElementSibling?.querySelector('[data-customers]')?.setAttribute('aria-expanded', 'false'); r.remove(); }); }, true);
 
@@ -878,7 +881,15 @@ function hookToOrderRefresh() {
   toOrderHooked = true;
   const maybeRefresh = () => {
     if (document.visibilityState !== 'visible' || !toOrderBody?.isConnected || state.view !== 'toorder') return;
-    if (Date.now() - toOrderLoadedAt > STALE_MS) renderToOrder(toOrderBody);
+    if (Date.now() - toOrderLoadedAt <= STALE_MS) return;
+    // The re-render empties the list while it loads, which would drop the page to the top: put it back after.
+    const { scrollX, scrollY } = window;
+    const wrap = toOrderBody.style.minHeight;
+    toOrderBody.style.minHeight = `${toOrderBody.offsetHeight}px`;
+    renderToOrder(toOrderBody).finally(() => {
+      toOrderBody.style.minHeight = wrap;
+      window.scrollTo(scrollX, scrollY);
+    });
   };
   document.addEventListener('visibilitychange', maybeRefresh);
   window.addEventListener('focus', maybeRefresh);
