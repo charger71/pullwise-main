@@ -32,7 +32,7 @@ jobs:
 
   plan:
     needs: ci
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       canary: ${{ steps.plan.outputs.canary }}
       shops: ${{ steps.plan.outputs.shops }}
@@ -51,7 +51,7 @@ jobs:
   canary-database:
     needs: plan
     if: needs.plan.outputs.ready == 'true' && needs.plan.outputs.canary != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -69,7 +69,7 @@ jobs:
   canary-worker:
     needs: [plan, canary-database]
     if: needs.plan.outputs.ready == 'true' && needs.plan.outputs.canary != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -94,7 +94,7 @@ jobs:
       always() && needs.plan.result == 'success' && needs.plan.outputs.ready == 'true' && needs.plan.outputs.shops != '[]' &&
       contains(fromJSON('["success","skipped"]'), needs.canary-database.result) &&
       contains(fromJSON('["success","skipped"]'), needs.canary-worker.result)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -112,7 +112,7 @@ jobs:
   worker:
     needs: [plan, shops-database]
     if: always() && needs.plan.result == 'success' && needs.shops-database.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
