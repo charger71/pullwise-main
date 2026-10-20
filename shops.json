@@ -22,6 +22,16 @@
       "projectRef": "ltjkhteibtuiywhoaqic",
       "gaMeasurementId": "",
       "media": "r2"
+    },
+    {
+      "id": "demo2",
+      "domains": [
+        "demo2.pullwise.shop"
+      ],
+      "supabaseUrl": "https://ufszxnsfjfozpijghvhw.supabase.co",
+      "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmc3p4bnNmamZvenBpamdodmh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTY0MTksImV4cCI6MjEwODA5MjQxOX0.RKTliQIXgbRAiPrV8DSN_QGiXpFu9F0nxcyg6TevIGk",
+      "projectRef": "ufszxnsfjfozpijghvhw",
+      "gaMeasurementId": ""
     }
   ]
 }
