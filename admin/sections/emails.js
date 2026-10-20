@@ -33,9 +33,12 @@ export async function mount(el, { sb }) {
       <details class="fold toorder"><summary class="fold__head"><h2>Weekly Email Signup</h2></summary><div class="fold__body">
         <div class="editor-block">
           <span class="label" id="lbl-signup">Intro text</span>
-          <p class="editor-block__hint">The short text above the email signup form at the bottom of every page. Leave it empty to hide it.</p>
+          <p class="editor-block__hint">The short text above the email signup form at the bottom of every page. The text can be left empty; the whole signup section is hidden unless the form code below is filled in.</p>
           <div class="editor--lede"><div data-signup-intro></div></div>
         </div>
+        <div class="field"><label for="s-newsletter-embed">Signup form code</label>
+          <textarea id="s-newsletter-embed" name="newsletter_embed" rows="6" spellcheck="false" autocomplete="off" placeholder="Paste the embed code from EmailOctopus, Mailchimp, Klaviyo or another email service">${esc(s.newsletter_embed)}</textarea>
+          <p class="field__hint">Paste the form’s embed or script snippet from your email service. Leave it empty to hide the signup section on every page. Only an owner can change this, because the code runs on your public site.</p></div>
       </div></details>
 
       <details class="fold toorder"><summary class="fold__head"><h2>Look (Both Emails)<span class="toorder__count">Logo and colors</span></h2></summary><div class="fold__body">
@@ -170,10 +173,13 @@ export async function mount(el, { sb }) {
       email_logo_url: emailLogo.get(), email_header_color: text('email_header_color'), email_button_color: text('email_button_color'), // disabled colors aren't in the form data → null
       arrival_email_enabled: f.has('arrival_email_enabled'), arrival_email_after_hour: int('arrival_email_after_hour', 12), arrival_email_before_hour: int('arrival_email_before_hour', 20),
     };
+    const embed = text('newsletter_embed');
+    if (embed !== (s.newsletter_embed?.trim() || null)) row.newsletter_embed = embed; // sent only when changed, so other staff can save the rest
     setStatus(status, 'Saving…');
     try {
       // One call, so the settings and the signup text are saved together or not at all (it errors if nothing was saved).
       await must(sb.rpc('staff_save_email_settings', { p: row, p_signup_html: getHtml(signupEditor) }));
+      s.newsletter_embed = embed;
       dirty = false;
       textDirty = false;
       syncEmailButtons();

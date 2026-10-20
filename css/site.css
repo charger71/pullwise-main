@@ -1045,15 +1045,9 @@ select, .multi__button {
 :is(.prose, [data-content], #faq-list, .page-body, .lede) [style*='background'] { color: var(--paper) !important; }
 .lede blockquote a, .page-body blockquote a, #faq-list blockquote a { color: var(--paper); }
 /* ---------- Newsletter + footer ---------- */
-/* The email-list embed (EmailOctopus) ships its own light styles; recolor it to match. */
-#newsletter-form .emailoctopus-form-wrapper { color: var(--ink) !important; }
-#newsletter-form .emailoctopus-success-message, #newsletter-form .emailoctopus-error-message, #newsletter-form label { color: var(--muted) !important; }
-#newsletter-form .emailoctopus-error-message { color: var(--error) !important; }
-#newsletter-form input[type='email'], #newsletter-form input[type='text'] { background: var(--paper) !important; color: var(--ink) !important; border: 1px solid var(--field-line) !important; border-radius: 9px !important; min-height: 46px; }
-#newsletter-form input[type='submit'] { background: var(--red-btn) !important; color: var(--on-primary) !important; border: 1px solid transparent !important; border-radius: 3px !important; min-height: 46px; font: 700 14px/1 var(--font-body) !important; letter-spacing: .04em; text-transform: uppercase; }
-#newsletter-form input[type='submit']:hover { background: var(--red-btn-hover) !important; }
-#newsletter-form a { color: var(--teal) !important; }
-#newsletter-form .mastfoot, #newsletter-form .mastfoot * { color: var(--muted) !important; }
+/* The email-list embed is the shop's own pasted code (any service) and brings its own styles. */
+#newsletter-form { max-width: 100%; }
+#newsletter-form iframe { max-width: 100%; }
 @media (forced-colors: active) {
   input, select, textarea, .btn { border: 1px solid ButtonText; }
   .hero { background-image: none; }
