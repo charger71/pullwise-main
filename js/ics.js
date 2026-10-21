@@ -58,7 +58,8 @@ const stamp = (iso) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(
 const text = icsText;
 const endOf = (e) => e.ends_at ?? new Date(new Date(e.starts_at).getTime() + 2 * 3600000).toISOString();
 
-export function icsFor(e, shopName, host) {
+/** `place`: the LOCATION text, when the shop has several locations (see eventPlace in site.js). */
+export function icsFor(e, shopName, host, place = null) {
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -71,7 +72,7 @@ export function icsFor(e, shopName, host) {
     `SUMMARY:${text(e.title)}`,
     `DESCRIPTION:${text(details(e))}`,
     `URL:${eventUrl(e)}`,
-    `LOCATION:${text(e.location ? `${shopName} — ${e.location}` : shopName)}`,
+    `LOCATION:${text(place ?? (e.location ? `${shopName} — ${e.location}` : shopName))}`,
     'END:VEVENT',
     'END:VCALENDAR',
   ].map(icsFold).join('\r\n') + '\r\n';

@@ -14,8 +14,9 @@ const stamp = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, '').
 
 Deno.serve(async () => {
   const since = new Date(Date.now() - 90 * 86400000).toISOString();
-  const [{ data: settings }, { data: events, error }] = await Promise.all([
+  const [{ data: settings }, { data: locations }, { data: events, error }] = await Promise.all([
     supabase.from('settings').select('shop_name').eq('id', 1).single(),
+    supabase.from('locations').select('*').order('id'),
     supabase.from('events').select('*').gte('starts_at', since).order('starts_at'),
   ]);
   if (error) return new Response('Calendar unavailable', { status: 500 });
@@ -24,6 +25,15 @@ Deno.serve(async () => {
   const host = new URL(Deno.env.get('SUPABASE_URL')!).host;
   const site = (Deno.env.get('SITE_URL') ?? '').replace(/\/+$/, '');
   const now = stamp(new Date().toISOString());
+  // A shop with several locations puts each event at one of them: "Shop : Location, address", then any note staff typed.
+  const multi = (locations ?? []).length > 1;
+  const placeOf = (e: { location_id: number | null; location: string | null }) => {
+    if (!multi) return e.location ? `${shop} — ${e.location}` : shop;
+    const loc = locations!.find((l) => l.id === e.location_id) ?? locations!.find((l) => l.is_default) ?? locations![0];
+    const addr = [loc.street, [loc.city, loc.region].filter(Boolean).join(', ')].filter(Boolean).join(', ');
+    const where = [`${shop} : ${loc.name}`, addr].filter(Boolean).join(', ');
+    return e.location ? `${where} — ${e.location}` : where;
+  };
 
   const lines = [
     'BEGIN:VCALENDAR',
@@ -42,7 +52,7 @@ Deno.serve(async () => {
       // Calendar apps show URL in different places (or not at all), so the link is also at the end of the description.
       `DESCRIPTION:${text(`${htmlToText(e.description)}\n\nDetails: ${site}/event.html?id=${e.id}`.trim())}`,
       `URL:${site}/event.html?id=${e.id}`,
-      `LOCATION:${text(e.location ? `${shop} — ${e.location}` : shop)}`,
+      `LOCATION:${text(placeOf(e))}`,
       'END:VEVENT',
     ]),
     'END:VCALENDAR',

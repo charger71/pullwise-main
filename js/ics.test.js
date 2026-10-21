@@ -45,3 +45,10 @@ assert.match(unfolded, /DESCRIPTION:Lots & lots of words\. .*words\.\\n\\nSecond
 assert.match(unfolded, /DTEND:20261101T200000Z/);
 
 console.log('ics tests passed');
+
+// A shop with several locations passes each event's place; without one the old "Shop — note" text is used.
+{
+  const e = { id: 8, title: 'Signing', starts_at: '2026-11-01T18:00:00Z', ends_at: null, location: 'back room', description: '' };
+  assert.match(icsFor(e, 'Main Street Comics', 'shop.example.com').replace(/\r\n /g, ''), /LOCATION:Main Street Comics — back room/);
+  assert.match(icsFor(e, 'Main Street Comics', 'shop.example.com', 'Main Street Comics : Downtown, 1 Oak St').replace(/\r\n /g, ''), /LOCATION:Main Street Comics : Downtown\\, 1 Oak St/);
+}

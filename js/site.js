@@ -180,6 +180,17 @@ export function socialIcons(s, opts) {
 /** One location as a settings-like object (its address, phone, hours and map), named "Shop : Location", for the helpers here. */
 export const locationAs = (s, loc) => ({ ...s, ...loc, shop_name: `${s.shop_name} : ${loc.name}`, locations: [] });
 
+/**
+ * Where an event is. A shop with several locations puts each event at one of them ("Shop : Location" with its address),
+ * plus any note staff typed. Returns { label (for the event's line), where (calendar links), ics (the LOCATION text) }.
+ */
+export function eventPlace(s, e) {
+  const loc = s.locations?.length ? s.locations.find((l) => l.id === e.location_id) ?? s.locations.find((l) => l.is_default) ?? s.locations[0] : null;
+  if (!loc) return { label: e.location ?? '', where: [s.shop_name, ...addressLines(s)].join(', '), ics: e.location ? `${s.shop_name} — ${e.location}` : s.shop_name };
+  const where = [`${s.shop_name} : ${loc.name}`, ...addressLines(loc)].join(', ');
+  return { label: [loc.name, e.location].filter(Boolean).join(' — '), where, ics: e.location ? `${where} — ${e.location}` : where };
+}
+
 export const mapsHref = (s) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([s.shop_name, ...addressLines(s)].join(', '))}`;
 
 /**
