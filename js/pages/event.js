@@ -1,5 +1,5 @@
 // One event's detail page: event.html?id=…
-import { initPage, $, esc, fmtDate, fmtTime, addressLines, EVENT_TYPES } from '../site.js';
+import { initPage, $, esc, fmtDate, fmtTime, eventPlace, EVENT_TYPES } from '../site.js';
 import { getEvent, getEventSpotsTaken, signUpForEvent } from '../data.js';
 import { SITE_URL } from '../config.js';
 import { icsFor, googleLink, outlookLink } from '../ics.js';
@@ -29,7 +29,8 @@ if (e === undefined) {
   el.innerHTML = '<h1>Event Not Found</h1><p><a href="calendar.html">← Calendar</a></p>';
 } else {
   setPageMeta({ title: `${s.shop_name} — ${e.title}`, description: snippet(e.summary) || htmlSnippet(e.description) });
-  const where = [s.shop_name, ...addressLines(s)].join(', ');
+  const place = eventPlace(s, e);
+  const where = place.where;
   // The description comes from the admin editor: sanitized before showing.
   const description = await renderRich(e.description, s).catch((err) => (console.error(err), '<p>Sorry, the details couldn’t be shown right now. Please try again in a moment.</p>'));
   const long = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: tz };
@@ -47,7 +48,7 @@ if (e === undefined) {
     ${e.image_url ? `<a href="${esc(e.image_url)}" data-lightbox><img class="event__img" src="${esc(e.image_url)}" alt="${esc(e.title)}"></a>` : ''}
     <span class="event__type">${esc(EVENT_TYPES[e.event_type] ?? 'Event')}</span>
     <h1>${esc(e.title)}</h1>
-    <p class="event__when">${esc(when)}${e.location ? ` · ${esc(e.location)}` : ''}</p>
+    <p class="event__when">${esc(when)}${place.label ? ` · ${esc(place.label)}` : ''}</p>
     ${description.trim() ? `<div class="page-body">${description}</div>` : ''}
     <div id="signup"></div>
     <div class="event__actions">
@@ -58,7 +59,7 @@ if (e === undefined) {
     </div>`;
   $('[data-ics]', el).addEventListener('click', (ev) => {
     ev.preventDefault();
-    const blob = new Blob([icsFor(e, s.shop_name, new URL(SITE_URL).host)], { type: 'text/calendar' });
+    const blob = new Blob([icsFor(e, s.shop_name, new URL(SITE_URL).host, place.ics)], { type: 'text/calendar' });
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${e.title.replace(/[^\w]+/g, '-')}.ics` });
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);

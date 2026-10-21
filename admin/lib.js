@@ -921,7 +921,7 @@ export function setupTabs(el, key, fallback, onShow) {
 
 /** The shop's locations when it has two or more (else []): the location filters only show for a multi-location shop. */
 export async function listLocations(sb) {
-  const { data } = await sb.from('locations').select('id,name').order('id');
+  const { data } = await sb.from('locations').select('id,name,is_default').order('id');
   return data?.length > 1 ? data : [];
 }
 

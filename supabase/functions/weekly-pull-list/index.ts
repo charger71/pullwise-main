@@ -148,14 +148,18 @@ async function sendEventSignup(signupId: number) {
   const ev = su.event;
   const tz = shop.timezone || undefined;
   const when = `${new Date(ev.starts_at).toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at ${new Date(ev.starts_at).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' })}`;
-  const where = ev.location || shop.shop_name;
+  // A shop with several locations holds each event at one of them: its name and address, then any note staff typed.
+  const locs = await loadLocations();
+  const evShop = locs.multi ? withLocation(shop, locs.byId.get(ev.location_id) ?? locs.fallback, { multi: true }) : shop;
+  const addr = [evShop.street, [evShop.city, evShop.region].filter(Boolean).join(', ')].filter(Boolean).join(', ');
+  const where = locs.multi ? [evShop.shop_name, addr].filter(Boolean).join(', ') + (ev.location ? ` (${ev.location})` : '') : ev.location || shop.shop_name;
   const people = su.party_size === 1 ? '1 person' : `${su.party_size} people`;
   const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
 
   const confirmSubject = `You're signed up: ${ev.title}`;
   const confirm = buildMessage({
-    shop, subject: confirmSubject,
-    message: `Hi ${su.name},\n\nYou're signed up for ${ev.title}.\n\nWhen: ${when}\nWhere: ${where}\nSpots held: ${people}\n\nEvent details: ${siteUrl}/event.html?id=${ev.id}\n\nNeed to change or cancel? Just reply to this email or call the shop${shop.phone ? ` at ${shop.phone}` : ''}.`,
+    shop: evShop, subject: confirmSubject,
+    message: `Hi ${su.name},\n\nYou're signed up for ${ev.title}.\n\nWhen: ${when}\nWhere: ${where}\nSpots held: ${people}\n\nEvent details: ${siteUrl}/event.html?id=${ev.id}\n\nNeed to change or cancel? Just reply to this email or call the shop${evShop.phone ? ` at ${evShop.phone}` : ''}.`,
   });
   const noteSubject = `Event signup: ${su.name} for ${ev.title}`;
   const noteText = `${su.name} signed up for ${ev.title} (${when}).\n\nPeople: ${su.party_size}\nEmail: ${su.email}\nPhone: ${su.phone}${su.notes ? `\nNotes: ${su.notes}` : ''}\n\nReply to this email to answer ${su.name} directly. See everyone signed up in Admin → Events.`;

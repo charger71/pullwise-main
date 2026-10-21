@@ -1,6 +1,6 @@
 // Events: the Community Calendar (signings, release parties, tournaments…).
 
-import { $, esc, must, toast, openDialog, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, sortableTable, formatPhone, solidIcon, friendlyError, fetchAll } from '../lib.js';
+import { $, esc, must, toast, openDialog, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, sortableTable, formatPhone, solidIcon, friendlyError, fetchAll, listLocations } from '../lib.js';
 
 const TYPES = { release_party: 'Release party', signing: 'Signing', tournament: 'Tournament', livestream: 'Livestream', comic_con: 'Comic Con', sale: 'Sale', other: 'Other' };
 let sb;
@@ -55,12 +55,14 @@ async function load(el) {
   if (showSignupsTab) return loadAllSignups($('[data-list]', el));
   const now = new Date().toISOString();
   const q = sb.from('events').select('*');
+  const locations = await listLocations(sb); // [] unless the shop has 2+ locations
+  const placeOf = (e) => [locations.find((l) => l.id === e.location_id)?.name, e.location].filter(Boolean).join(' — ');
   const { data, error } = await (showPast ? q.lt('starts_at', now).order('starts_at', { ascending: false }).limit(100) : q.gte('starts_at', now).order('starts_at'));
   const box = $('[data-list]', el);
   if (error) return (box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
   box.innerHTML = data.length
     ? `<table class="admin-table"><thead><tr><th scope="col" data-sort="text">When</th><th scope="col" data-sort="text">Event</th><th scope="col" data-sort="text">Type</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead><tbody>${data
-        .map((e) => `<tr><td class="nowrap" data-sort="${esc(e.starts_at)}">${fmtDateTime(e.starts_at)}</td><td><strong>${esc(e.title)}</strong>${e.location ? `<br><span class="card__meta">${esc(e.location)}</span>` : ''}</td><td>${TYPES[e.event_type] ?? e.event_type}</td><td><button class="btn btn--ghost btn--small" type="button" data-edit="${e.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(e.title)}</span></button></td></tr>`)
+        .map((e) => `<tr><td class="nowrap" data-sort="${esc(e.starts_at)}">${fmtDateTime(e.starts_at)}</td><td><strong>${esc(e.title)}</strong>${placeOf(e) ? `<br><span class="card__meta">${esc(placeOf(e))}</span>` : ''}</td><td>${TYPES[e.event_type] ?? e.event_type}</td><td><button class="btn btn--ghost btn--small" type="button" data-edit="${e.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(e.title)}</span></button></td></tr>`)
         .join('')}</tbody></table>`
     : `<p class="empty">${showPast ? 'No past events.' : 'No upcoming events — add one so it shows on the calendar and the home page.'}</p>`;
   if (data.length) sortableTable($('table', box));
@@ -68,6 +70,7 @@ async function load(el) {
 
 async function edit(listEl, id) {
   const ev = id ? await must(sb.from('events').select('*').eq('id', id).single()) : { event_type: 'other' };
+  const locations = await listLocations(sb); // [] unless the shop has 2+ locations
   const d = listEl;
   const back = () => showList(listEl);
   d.innerHTML = `
@@ -77,7 +80,8 @@ async function edit(listEl, id) {
       <div class="form-grid">
         <div class="field span-2"><label for="ev-title">Title</label><input id="ev-title" name="title" required value="${esc(ev.title)}"></div>
         <div class="field"><label for="ev-type">Type</label><select id="ev-type" name="event_type">${Object.entries(TYPES).map(([v, l]) => `<option value="${v}"${v === ev.event_type ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
-        <div class="field"><label for="ev-loc">Location</label><input id="ev-loc" name="location" placeholder="In store" value="${esc(ev.location)}"></div>
+        ${locations.length ? `<div class="field"><label for="ev-store">Location</label><select id="ev-store" name="location_id">${locations.map((l) => `<option value="${l.id}"${l.id === (ev.location_id ?? locations.find((x) => x.is_default)?.id) ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>` : ''}
+        <div class="field"><label for="ev-loc">${locations.length ? 'Where in the store (optional)' : 'Location'}</label><input id="ev-loc" name="location" placeholder="${locations.length ? 'e.g. back room' : 'In store'}" value="${esc(ev.location)}"></div>
         <div class="field"><label for="ev-start">Starts</label><input id="ev-start" name="starts_at" type="datetime-local" required value="${toLocalInput(ev.starts_at)}"></div>
         <div class="field"><label for="ev-end">Ends (optional)</label><input id="ev-end" name="ends_at" type="datetime-local" value="${toLocalInput(ev.ends_at)}"></div>
         <div class="field span-2"><label for="ev-summary">Short description</label><textarea id="ev-summary" name="summary" rows="2" maxlength="300">${esc(ev.summary)}</textarea>
@@ -107,6 +111,7 @@ async function edit(listEl, id) {
     const f = new FormData(form);
     const row = {
       title: f.get('title').trim(), event_type: f.get('event_type'), location: f.get('location').trim() || null,
+      ...(f.has('location_id') ? { location_id: Number(f.get('location_id')) } : {}),
       starts_at: fromLocalInput(f.get('starts_at')), ends_at: fromLocalInput(f.get('ends_at')),
       summary: f.get('summary').trim() || null,
       signup_enabled: f.get('signup_enabled') === 'on', signup_capacity: Number(f.get('signup_capacity')) || null, description: getHtml(quill), image_url: image.get(),

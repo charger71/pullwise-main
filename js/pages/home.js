@@ -1,4 +1,4 @@
-import { initPage, $, esc, heroHeadlineHtml, sizedImage, HERO_WIDTH, hoursList, addressLines, mapsHref, telHref, mapEmbed, locationAs, fmtDate, fmtTime, addDays, openFocFrom, EVENT_TYPES } from '../site.js';
+import { initPage, $, esc, heroHeadlineHtml, sizedImage, HERO_WIDTH, hoursList, addressLines, mapsHref, telHref, mapEmbed, locationAs, eventPlace, fmtDate, fmtTime, addDays, openFocFrom, EVENT_TYPES } from '../site.js';
 import { todayIn } from '../dates.js';
 import { formatPhone } from '../util.js';
 import { getItems, getEvents, getCategories, getPosts, getSettings } from '../data.js';
@@ -122,7 +122,7 @@ function drawGrid(el, items, opts, emptyText) {
 // Items on the page by id, kept across repaints so the add-to-list buttons always find their title.
 const byId = new Map();
 
-function renderHome({ focSoon, fresh, picks, events, news, shelves }) {
+function renderHome({ focSoon, fresh, picks, events, news, shelves }, st = {}) {
   byId.clear();
   for (const i of [...focSoon, ...fresh, ...picks, ...shelves.flatMap((x) => x.items)]) byId.set(i.id, i);
   drawGrid($('#foc-soon'), focSoon, { reservable: true }, 'No cutoffs in the next two weeks.');
@@ -138,13 +138,13 @@ function renderHome({ focSoon, fresh, picks, events, news, shelves }) {
     $(`#${id}-arrivals-link`).hidden = !hasInStore;
     $(`#${id}-preorders-link`).hidden = !hasPreorders;
   }
-  renderEvents(events);
+  renderEvents(events, st);
   renderNews(news);
 }
 
 // Same look as the calendar page (date tile, type, title, time), without the
 // description and add-to-calendar links.
-function renderEvents(events) {
+function renderEvents(events, st) {
   $('#upcoming-events').innerHTML = events.length
     ? events
         .slice(0, 3)
@@ -157,7 +157,7 @@ function renderEvents(events) {
           <div>
             <span class="event__type">${esc(EVENT_TYPES[e.event_type] ?? 'Event')}</span>
             <h3><a href="event.html?id=${e.id}">${esc(e.title)}</a></h3>
-            <p class="event__when">${fmtDate(e.starts_at, { weekday: 'short', month: 'short', day: 'numeric' })} · ${fmtTime(e.starts_at)}${e.ends_at ? `–${fmtTime(e.ends_at)}` : ''}${e.location ? ` · ${esc(e.location)}` : ''}</p>
+            <p class="event__when">${fmtDate(e.starts_at, { weekday: 'short', month: 'short', day: 'numeric' })} · ${fmtTime(e.starts_at)}${e.ends_at ? `–${fmtTime(e.ends_at)}` : ''}${eventPlace(st, e).label ? ` · ${esc(eventPlace(st, e).label)}` : ''}</p>
           </div>
         </article>`,
         )
@@ -206,7 +206,7 @@ if (cachedSettings) {
   paintHero(cachedSettings);
   renderVisit(cachedSettings);
 }
-if (cachedHome) renderHome(cachedHome);
+if (cachedHome) renderHome(cachedHome, cachedSettings ?? {});
 enableReservations($('main'), (id) => byId.get(id));
 
 const s = await settingsReady;
@@ -226,4 +226,4 @@ if (failed.size && cachedHome) {
 }
 if (!failed.size) writeCache('home', home);
 // Signed-in customers get extra buttons on each card, and the snapshot was drawn before their list loaded.
-if (!cachedHome || !sameData(cachedHome, shown) || pull.isSignedIn()) renderHome(shown);
+if (!cachedHome || !sameData(cachedHome, shown) || pull.isSignedIn()) renderHome(shown, s);
