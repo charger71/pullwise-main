@@ -918,3 +918,24 @@ export function setupTabs(el, key, fallback, onShow) {
   show(start, false);
   return show;
 }
+
+/** The shop's locations when it has two or more (else []): the location filters only show for a multi-location shop. */
+export async function listLocations(sb) {
+  const { data } = await sb.from('locations').select('id,name').order('id');
+  return data?.length > 1 ? data : [];
+}
+
+/** "Location" filter menu: All locations, then each one. */
+export const locationFilterField = (locations, selected, id) =>
+  `<div class="field" data-location-field><label for="${id}">Location</label><select id="${id}" name="location"><option value="">All locations</option>${locations.map((l) => `<option value="${l.id}"${String(l.id) === String(selected) ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>`;
+
+/** Add the Location filter to a list's filter form once the locations are known. `onReset` runs if the remembered choice no longer exists. */
+export async function addLocationFilter(sb, form, state, id, onReset) {
+  const locations = await listLocations(sb);
+  if (!locations.length || $('[data-location-field]', form)) return;
+  if (state.location && !locations.some((l) => String(l.id) === String(state.location))) {
+    state.location = '';
+    onReset();
+  }
+  form.insertAdjacentHTML('beforeend', locationFilterField(locations, state.location, id));
+}

@@ -4,7 +4,7 @@
 // adding titles goes through staff_pull_list_add(), which can also add past the cutoff.
 // Every change is recorded in pull_list_log and shown under "Recent changes".
 
-import { $, $$, esc, must, toast, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm } from '../lib.js';
+import { $, $$, esc, must, toast, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter } from '../lib.js';
 import { cutoffPassed } from '../../js/site.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { whenIn, todayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
@@ -15,7 +15,7 @@ const PAGE = 25;
 let sb;
 let isOwner = false; // only owners can delete a customer
 let settings;
-let state = { q: '', show: '', sort: 'name', dir: 'asc', offset: 0, customerId: null, showCancelled: false };
+let state = { q: '', location: '', show: '', sort: 'name', dir: 'asc', offset: 0, customerId: null, showCancelled: false };
 
 // What the Pull List panel is showing right now, so its Export button matches the screen.
 let shownLines = [];
@@ -174,11 +174,13 @@ function renderList(el) {
     clearTimeout(timer);
     timer = setTimeout(() => {
       state.q = form.elements.q.value;
+      state.location = form.elements.location?.value ?? state.location;
       state.offset = 0;
       loadList(el);
     }, e.target.type === 'search' ? 300 : 0);
   });
   form.addEventListener('submit', (e) => e.preventDefault());
+  addLocationFilter(sb, form, state, 'c-loc', () => loadList(el)); // only for a shop with 2+ locations
   sortableTable($('table', el), { sort: state.sort, dir: state.dir, onSort: (sort, dir) => ((state = { ...state, sort, dir, offset: 0 }), loadList(el)) });
   $('[data-prev]', el).addEventListener('click', () => ((state.offset = Math.max(0, state.offset - PAGE)), loadList(el)));
   $('[data-next]', el).addEventListener('click', () => ((state.offset += PAGE), loadList(el)));
@@ -209,6 +211,7 @@ async function loadList(el) {
   let q = sb.from('customer_list').select('id,first_name,last_name,name,email,phone,address1,user_id,ship_arrivals,email_opt_in,notify_arrivals,overdue_count,ready_count,active_count,last_updated,notes_text', { count: 'exact' });
   const match = customerFilter(state.q, { words: true }); // "Smith Jane" finds Jane Smith too
   if (match) q = q.or(match);
+  if (state.location) q = q.eq('home_location_id', state.location);
   if (state.show === 'to_fix') {
     // No name or email address saved, or earlier guest orders that match them and aren't linked yet.
     const ids = [...new Set((await findGuestMatches(sb)).map((m) => m.customer_id))];
