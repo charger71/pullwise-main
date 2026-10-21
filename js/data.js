@@ -33,6 +33,12 @@ export function getSettings() {
     : supabase().then(async (sb) => {
         const row = unwrap(await sb.from('settings').select('*').eq('id', 1).maybeSingle());
         if (!row) throw new Error('Shop settings not found — run supabase/seed.sql against this project.');
+        // Address, phone and hours come from the shop's default location (a shop's first one mirrors its settings).
+        const loc = await sb.from('locations').select('*').eq('is_default', true).maybeSingle();
+        if (loc.data) {
+          const { street, city, region, postal_code, country, phone, hours, map_embed_url } = loc.data;
+          return { ...row, street, city, region, postal_code, country, phone, hours, map_embed_url };
+        }
         return row;
       });
   return settingsPromise;
