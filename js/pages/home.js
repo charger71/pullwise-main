@@ -1,4 +1,4 @@
-import { initPage, $, esc, heroHeadlineHtml, sizedImage, HERO_WIDTH, hoursList, addressLines, mapsHref, telHref, mapEmbed, fmtDate, fmtTime, addDays, openFocFrom, EVENT_TYPES } from '../site.js';
+import { initPage, $, esc, heroHeadlineHtml, sizedImage, HERO_WIDTH, hoursList, addressLines, mapsHref, telHref, mapEmbed, locationAs, fmtDate, fmtTime, addDays, openFocFrom, EVENT_TYPES } from '../site.js';
 import { todayIn } from '../dates.js';
 import { formatPhone } from '../util.js';
 import { getItems, getEvents, getCategories, getPosts, getSettings } from '../data.js';
@@ -180,6 +180,14 @@ function renderNews(news) {
 }
 
 function renderVisit(s) {
+  if (s.locations?.length) {
+    // Several locations: each one's address and phone; hours and maps are on the Visit page.
+    $('#visit').innerHTML =
+      s.locations
+        .map((l) => `<p><strong>${esc(l.name)}</strong>${addressLines(l).length ? `<br><a href="${mapsHref(locationAs(s, l))}">${addressLines(l).map(esc).join('<br>')}</a>` : ''}${l.phone ? `<br><a href="${telHref(l.phone)}">${esc(formatPhone(l.phone))}</a>` : ''}</p>`)
+        .join('') + '<p><a href="contact.html">Hours &amp; directions</a></p>';
+    return;
+  }
   const addr = addressLines(s);
   $('#visit').innerHTML = `
     ${addr.length ? `<p><a href="${mapsHref(s)}">${addr.map(esc).join('<br>')}</a></p>` : ''}
