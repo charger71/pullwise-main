@@ -32,6 +32,14 @@ async function loadShop() {
   return { data: withLocation(shop, location), error: null };
 }
 
+/** Every location by id, and the default one: a customer's emails use the location they pick up at. */
+async function loadLocations() {
+  const { data, error } = await admin.from('locations').select('*');
+  if (error) throw error;
+  const byId = new Map<number, any>((data ?? []).map((l) => [l.id, l]));
+  return { byId, fallback: (data ?? []).find((l) => l.is_default) ?? null };
+}
+
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
@@ -175,13 +183,14 @@ async function sendEventSignup(signupId: number) {
 async function run(mode: string, customerId: number | undefined, staffEmail: string | null, scheduled: boolean) {
   const { data: shop, error } = await loadShop();
   if (error) throw error;
+  const shopBase = shop; // each customer's email overlays their own location on this
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: shop.timezone || undefined }).format(new Date());
   const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
   const from = shop.pull_list_email_from || Deno.env.get('RESEND_FROM');
   const replyTo = shop.email || undefined;
 
   // Everyone with an email, and all their live pull-list lines.
-  const customers = await allCustomers(admin, 'id,first_name,name,email,ship_arrivals,email_opt_in,unsubscribe_token,last_emailed_on');
+  const customers = await allCustomers(admin, 'id,first_name,name,email,ship_arrivals,email_opt_in,unsubscribe_token,last_emailed_on,home_location_id');
   const lines = new Map<number, unknown[]>();
   for (let offset = 0; ; offset += 1000) {
     const { data, error: lErr } = await admin
@@ -200,7 +209,9 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
   }
 
   // A test or preview (`forStaff`) gets a dummy unsubscribe link: the sample customer's real one would unsubscribe them.
+  const locs = await loadLocations();
   const compose = (c: (typeof customers)[number], forStaff = false) => {
+    const shop = withLocation(shopBase, locs.byId.get(c.home_location_id) ?? locs.fallback);
     const sec = sections((lines.get(c.id) ?? []) as never[], { today, holdDays: shop.hold_days ?? 30 });
     if (!sec) return null;
     const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}`;
@@ -280,14 +291,15 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
 async function runArrivals(mode: string, customerId: number | undefined, staffEmail: string | null) {
   const { data: shop, error } = await loadShop();
   if (error) throw error;
+  const shopBase = shop; // each customer's email overlays their own location on this
   const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
   const from = shop.pull_list_email_from || Deno.env.get('RESEND_FROM');
   const replyTo = shop.email || undefined;
   const holdDays = shop.hold_days ?? 30;
 
-  const customers = await allCustomers(admin, 'id,first_name,name,email,ship_arrivals,notify_arrivals,unsubscribe_token');
+  const customers = await allCustomers(admin, 'id,first_name,name,email,ship_arrivals,notify_arrivals,unsubscribe_token,home_location_id');
 
-  const select = 'id,quantity,status,arrived_on,arrival_notified_at,item:items(title,issue_number,variant,price,series_key),order:reservation_orders!inner(customer_id)';
+  const select = 'id,quantity,status,arrived_on,arrival_notified_at,location_id,item:items(title,issue_number,variant,price,series_key),order:reservation_orders!inner(customer_id)';
   const lines = new Map<number, any[]>();
   for (let offset = 0; ; offset += 1000) {
     const { data, error: lErr } = await admin.from('reservations').select(select).in('status', ACTIVE).not('order.customer_id', 'is', null).order('id').range(offset, offset + 999);
@@ -300,9 +312,13 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
   }
 
   const unsubUrl = (c: (typeof customers)[number]) => `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}&k=arrivals`;
+  const locs = await loadLocations();
   const compose = (c: (typeof customers)[number], customerLines: any[], sample = false, forStaff = false) => {
     const arrival = arrivalSections(customerLines, { holdDays });
     if (!arrival) return null;
+    // The store the waiting books are at (they stay put if the customer later changes home store), else their home store.
+    const waiting = customerLines.find((l) => l.status === 'arrived' && !l.arrival_notified_at);
+    const shop = withLocation(shopBase, locs.byId.get(waiting?.location_id ?? c.home_location_id) ?? locs.fallback);
     const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : unsubUrl(c); // a test must not carry the customer's real link
     return { unsubscribeUrl, ids: customerLines.filter((l) => l.status === 'arrived' && !l.arrival_notified_at).map((l) => l.id), ...buildArrival({ customer: c, arrival, shop, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, sample }) };
   };

@@ -11,9 +11,9 @@ import { VERSION } from './version.js';
 import { syncTheme } from './theme.js';
 import { watchForUpdates, track as trackUpdates } from './update-check.js';
 
-const SECTIONS = ['dashboard', 'titles', 'reservations', 'customers', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'backup', 'restore', 'staff'];
+const SECTIONS = ['dashboard', 'titles', 'reservations', 'customers', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'restore', 'staff'];
 // Screens only owners open (the menu item is hidden and the address redirects to the Dashboard).
-const OWNER_ONLY = ['settings', 'backup', 'restore'];
+const OWNER_ONLY = ['settings', 'locations', 'backup', 'restore'];
 let isOwner = false;
 let current = null; // { name, module }
 let sb;
