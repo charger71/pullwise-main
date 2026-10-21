@@ -58,7 +58,7 @@ export async function mount(el, ctx) {
     </details>
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="today">Today</button>
-      ${locations.map((l) => `<button type="button" class="admin-tab" role="tab" data-tab="loc-${l.id}">${esc(l.name)}</button>`).join('')}
+      ${locations.map((l) => `<button type="button" class="admin-tab" role="tab" data-tab="loc-${l.id}" data-icon="pin">${esc(l.name)}</button>`).join('')}
       <button type="button" class="admin-tab" role="tab" data-tab="trends">Trends</button>
       <button type="button" class="admin-tab" role="tab" data-tab="system">System</button>
     </div>
