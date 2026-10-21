@@ -145,17 +145,18 @@ function signedOut(sb) {
 
 /** The shop's locations (empty if there is just the one, or the list can't be read): the pickup picker only shows for two or more. */
 async function getLocations(sb) {
-  const { data } = await sb.from('locations').select('id,name,city,region').order('id');
-  return data?.length > 1 ? data : [];
+  const [{ data }, shop] = await Promise.all([sb.from('locations').select('id,name').order('id'), getSettings()]);
+  return data?.length > 1 ? data.map((l) => ({ ...l, label: locationLabel(l, shop.shop_name) })) : [];
 }
 
-const locationLabel = (l) => [l.name, [l.city, l.region].filter(Boolean).join(', ')].filter(Boolean).join(' – ');
+/** "Shop : Location", e.g. "Area71 Comics & Toys : Elizabethtown". */
+const locationLabel = (l, shopName) => [shopName, l.name].filter(Boolean).join(' : ');
 
 /** "Pick up at" menu; nothing for a one-location shop. */
 const locationField = (locations, selected, id, hint = '') =>
   locations.length < 2 ? '' : `
           <div class="field"><label for="${id}">Pick up my books at</label>
-            <select id="${id}" name="home_location_id">${locations.map((l) => `<option value="${l.id}"${l.id === selected ? ' selected' : ''}>${esc(locationLabel(l))}</option>`).join('')}</select>
+            <select id="${id}" name="home_location_id">${locations.map((l) => `<option value="${l.id}"${l.id === selected ? ' selected' : ''}>${esc(l.label)}</option>`).join('')}</select>
             ${hint ? `<p class="field__hint">${hint}</p>` : ''}
           </div>`;
 

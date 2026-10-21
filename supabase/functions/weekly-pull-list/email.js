@@ -230,11 +230,16 @@ const time12 = (hhmm) => {
   const [h, m] = hhmm.split(':').map(Number);
   return `${h % 12 || 12}${m ? `:${String(m).padStart(2, '0')}` : ''} ${h < 12 ? 'AM' : 'PM'}`;
 };
-/** The shop's settings with the address, phone and hours of one location laid over them, so emails read "where" from the location record. */
-export function withLocation(shop, location) {
+/**
+ * The shop's settings with the address, phone and hours of one location laid over them, so emails read "where" from the
+ * location record. A shop with several locations (`multi`) goes by "Shop : Location" ("Area71 Comics & Toys : Elizabethtown").
+ * Safe to apply twice: the plain shop name is kept in brand_name.
+ */
+export function withLocation(shop, location, { multi = false } = {}) {
   if (!location) return shop;
   const { street, city, region, postal_code, country, phone, hours, map_embed_url } = location;
-  return { ...shop, street, city, region, postal_code, country, phone, hours, map_embed_url, location_name: location.name };
+  const brand = shop.brand_name ?? shop.shop_name;
+  return { ...shop, street, city, region, postal_code, country, phone, hours, map_embed_url, location_name: location.name, brand_name: brand, shop_name: multi && location.name ? `${brand} : ${location.name}` : brand };
 }
 
 /** "Tue–Sat 11 AM – 7 PM", one line per row of the shop's opening hours. */
