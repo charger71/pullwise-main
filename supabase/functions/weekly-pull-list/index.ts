@@ -19,10 +19,18 @@
 // Deploy with:  supabase functions deploy weekly-pull-list --no-verify-jwt
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { build, sections, buildArrival, arrivalSections, buildMessage, asTest, splitClaims } from './email.js';
+import { build, sections, buildArrival, arrivalSections, buildMessage, asTest, splitClaims, withLocation } from './email.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
+
+/** The shop's settings row with its default location's address, phone and hours laid over it (same { data, error } shape as a query). */
+async function loadShop() {
+  const { data: shop, error } = await admin.from('settings').select('*').eq('id', 1).single();
+  if (error) return { data: shop, error };
+  const { data: location } = await admin.from('locations').select('*').eq('is_default', true).maybeSingle();
+  return { data: withLocation(shop, location), error: null };
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -102,7 +110,7 @@ async function sendMessage(body: { to?: string; subject?: string; message?: stri
   if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(to) || to.length > 254) return json(400, { error: 'That email address doesn’t look right.' });
   if (!subject || subject.length > 200) return json(400, { error: 'Please add a subject (200 characters at most).' });
   if (!message || message.length > 10000) return json(400, { error: 'Please write a message (10,000 characters at most).' });
-  const { data: shop, error } = await admin.from('settings').select('*').eq('id', 1).single();
+  const { data: shop, error } = await loadShop();
   if (error) throw error;
   const from = shop.pull_list_email_from || Deno.env.get('RESEND_FROM');
   if (!from) return json(500, { error: 'Set the From address in Admin → Emails first.' });
@@ -124,7 +132,7 @@ async function sendEventSignup(signupId: number) {
   if (!Number.isInteger(signupId)) return json(400, { error: 'Missing signup.' });
   const { data: su, error } = await admin.from('event_signups').select('*, event:events(*)').eq('id', signupId).single();
   if (error) throw error;
-  const { data: shop, error: sErr } = await admin.from('settings').select('*').eq('id', 1).single();
+  const { data: shop, error: sErr } = await loadShop();
   if (sErr) throw sErr;
   const from = shop.pull_list_email_from || Deno.env.get('RESEND_FROM');
   if (!from) return json(500, { error: 'Set the From address in Admin → Emails first.' });
@@ -165,7 +173,7 @@ async function sendEventSignup(signupId: number) {
 }
 
 async function run(mode: string, customerId: number | undefined, staffEmail: string | null, scheduled: boolean) {
-  const { data: shop, error } = await admin.from('settings').select('*').eq('id', 1).single();
+  const { data: shop, error } = await loadShop();
   if (error) throw error;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: shop.timezone || undefined }).format(new Date());
   const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
@@ -270,7 +278,7 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
 
 /** "Your books are in": one email per customer whose titles became ready for pickup since the last one. */
 async function runArrivals(mode: string, customerId: number | undefined, staffEmail: string | null) {
-  const { data: shop, error } = await admin.from('settings').select('*').eq('id', 1).single();
+  const { data: shop, error } = await loadShop();
   if (error) throw error;
   const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
   const from = shop.pull_list_email_from || Deno.env.get('RESEND_FROM');

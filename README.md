@@ -213,6 +213,21 @@ Rules that keep it that way:
 - **Migrations must work with the code that's already live**, because each shop's database is updated before its site.
   Add a column in one release and stop using an old one in a later release.
 
+## Adding a second location
+
+A shop (one Supabase project: settings, domain, branding) owns one or more rows in `locations`. Every shop has exactly
+one, marked `is_default`, copied from its settings; while it is the only one, a trigger keeps it in step with Shop
+Settings, so staff still edit the address and hours there. Rows that mean "where this is picked up or handled" carry
+a `location_id` that defaults to the default location: `reservations`, `events`, `customers.home_location_id`, and
+`staff.location_id` (null = every location). Weekly and arrival emails and the public site read address, phone and
+hours from the default location (`withLocation` in `weekly-pull-list/email.js`, `getSettings` in `js/data.js`).
+
+To add a second location today, insert a `locations` row (`is_default` false). The shop's first location then stops
+mirroring Shop Settings and is edited on its own. Nothing customer-facing exists yet: no picker, no per-item pickup
+override, no combined "ready" email, no location-scoped staff permissions, no billing. Until those are built, new rows
+keep landing on the default location. Backup/restore carries the new columns but does not include the `locations`
+table itself.
+
 ## Master catalog
 
 One shop in `shops.json` is the master catalog (`"catalog": true`): a Pullwise install whose staff import the week's

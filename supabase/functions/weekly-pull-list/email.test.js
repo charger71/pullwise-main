@@ -1,6 +1,6 @@
 // node supabase/functions/weekly-pull-list/email.test.js
 import assert from 'node:assert/strict';
-import { buildMessage, emailLook, sections, build, lastChangeDay, addDays, asTest, splitClaims } from './email.js';
+import { buildMessage, emailLook, sections, build, lastChangeDay, addDays, asTest, splitClaims, withLocation } from './email.js';
 
 const today = '2026-10-08'; // a Thursday
 const it = (title, issue, rel, foc, extra = {}) => ({ title, issue_number: issue, release_date: rel, foc_date: foc, variant: null, price: 4.99, ...extra });
@@ -163,3 +163,15 @@ assert.deepEqual(claims.send.map((m) => m.c), [1, 3]);
 assert.deepEqual(claims.release, [3], 'customer 2: another run got title 4, so title 3 goes back');
 assert.deepEqual(splitClaims([{ ids: [1] }], []), { send: [], release: [] });
 console.log('claim tests passed');
+
+// A location's address, phone and hours replace the shop's in emails; with no location the shop is unchanged.
+{
+  const shop = { shop_name: 'Shop', street: '1 Old St', phone: '111', hours: [], email: 'a@b.c' };
+  assert.equal(withLocation(shop, null), shop);
+  const w = withLocation(shop, { name: 'Downtown', street: '2 New St', city: 'Town', region: 'OR', postal_code: '97000', phone: '222', hours: [{ days: ['Mo'], open: '10:00', close: '18:00' }] });
+  assert.equal(w.street, '2 New St');
+  assert.equal(w.phone, '222');
+  assert.equal(w.hours.length, 1);
+  assert.equal(w.email, 'a@b.c');
+  assert.equal(w.shop_name, 'Shop');
+}
