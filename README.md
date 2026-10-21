@@ -216,14 +216,13 @@ Rules that keep it that way:
 ## Adding a second location
 
 A shop (one Supabase project: settings, domain, branding) owns one or more rows in `locations`. Every shop has exactly
-one, marked `is_default`, copied from its settings; while it is the only one, a trigger keeps it in step with Shop
-Settings, so staff still edit the address and hours there. Rows that mean "where this is picked up or handled" carry
+one, marked `is_default`, copied from its settings. Triggers keep that first location and Shop Settings in step both
+ways (address, phone, hours, map), so staff can edit either; the shop name is shared only while there is one location. Rows that mean "where this is picked up or handled" carry
 a `location_id` that defaults to the default location: `reservations`, `events`, `customers.home_location_id`, and
 `staff.location_id` (null = every location). Weekly and arrival emails and the public site read address, phone and
 hours from the default location (`withLocation` in `weekly-pull-list/email.js`, `getSettings` in `js/data.js`).
 
-To add a second location, owners use Admin → Locations → Add a location. The shop's first location then stops
-mirroring Shop Settings and is edited on its own there. Staff set a customer's pickup location on the customer's Profile tab. With two or more locations, a customer picks one home location (Account → My Profile, and at first sign-in); that is
+To add a second location, owners use Admin → Locations → Add a location. Other locations are edited only there. Staff set a customer's pickup location on the customer's Profile tab. With two or more locations, a customer picks one home location (Account → My Profile, and at first sign-in); that is
 where their pull list is picked up. New lines follow it (`reservations_set_location`), changing it moves lines that
 haven't arrived yet (`customers_move_open_lines`; books already on the shelf stay where they are), and the weekly and
 arrival emails show that location's address and hours. A one-location shop never sees the picker. Not built: a
