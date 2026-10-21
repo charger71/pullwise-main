@@ -2,7 +2,7 @@
 // status, lookup by name/phone/email, CSV export — plus a "To order" view that
 // totals reserved copies per title for each order cutoff.
 
-import { $, $$, esc, must, toast, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages } from '../lib.js';
+import { $, $$, esc, must, toast, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, addLocationFilter } from '../lib.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, todayIn, dayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
 
@@ -17,7 +17,7 @@ let toOrderLoadedAt = 0;
 let toOrderHooked = false;
 const STALE_MS = 30000;
 
-let state = { view: 'orders', q: '', status: 'active', sort: 'placed', dir: 'desc', offset: 0 };
+let state = { view: 'orders', q: '', location: '', status: 'active', sort: 'placed', dir: 'desc', offset: 0 };
 // The status choices: the common views first, then each individual title status.
 const ORDER_FILTERS = { active: 'Active (open, ordered or ready)', overdue: 'Past pickup window', all: 'Any status', ...LINE_STATUS };
 
@@ -119,6 +119,7 @@ function renderOrders(body) {
     }, e.target.type === 'search' ? 300 : 0);
   });
   form.addEventListener('submit', (e) => e.preventDefault());
+  addLocationFilter(sb, form, state, 'r-loc', () => loadOrders(body)); // only for a shop with 2+ locations
   sortableTable($('table', body), { sort: state.sort, dir: state.dir, onSort: (sort, dir) => ((state = { ...state, sort, dir, offset: 0 }), loadOrders(body)) });
   $('[data-prev]', body).addEventListener('click', () => ((state.offset = Math.max(0, state.offset - PAGE)), loadOrders(body)));
   $('[data-next]', body).addEventListener('click', () => ((state.offset += PAGE), loadOrders(body)));
@@ -305,6 +306,7 @@ async function orderMatch(text) {
 function ordersQuery(select, match, { count = false } = {}) {
   let q = sb.from('reservation_orders').select(select, count ? { count: 'exact' } : undefined);
   if (match) q = q.or(match);
+  if (state.location) q = q.eq('reservations.location_id', state.location); // orders with a title picked up there
   if (state.status === 'active') q = q.in('reservations.status', ['open', 'ordered', 'reordered', 'arrived']);
   else if (state.status === 'overdue') q = q.eq('reservations.status', 'arrived').lt('reservations.arrived_on', overdueBefore());
   else if (state.status !== 'all') q = q.eq('reservations.status', state.status);
