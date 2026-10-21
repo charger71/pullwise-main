@@ -13,6 +13,10 @@ const TABLE_ROWS = {
   categories: [{ id: 1, name: 'Comics', slug: 'comics', sort: 0 }],
   items: [ITEM],
   settings: [SETTINGS],
+  locations: [
+    { id: 1, name: 'Test Shop', street: '1 Main St', city: 'Town', region: 'KY', postal_code: '40000', phone: '555-0100', hours: [{ days: ['Mo', 'Tu'], open: '11:00', close: '19:00' }], map_embed_url: null, is_default: true },
+    { id: 2, name: 'Second Store', street: '2 Oak St', city: 'Village', region: 'KY', postal_code: '40001', phone: null, hours: [], map_embed_url: null, is_default: false },
+  ],
   staff_notice: [{ id: 1, notice: '' }],
   staff: [{ user_id: 'u1', name: 'Test Owner', is_owner: true }],
 };

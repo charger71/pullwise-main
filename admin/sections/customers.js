@@ -287,6 +287,11 @@ async function renderCustomer(el) {
     return renderList(el);
   }
   const c = customer ?? { first_name: '', last_name: '', name: '', email: '', phone: '', address1: '', city: '', state: '', zip: '', ship_arrivals: false, email_opt_in: true, notify_arrivals: true };
+  // Only a shop with two or more locations asks which one the customer picks up at.
+  const { data: locs } = await sb.from('locations').select('id,name,city,region,is_default').order('id');
+  const locations = locs?.length > 1 ? locs : [];
+  const homeId = c.home_location_id ?? locations.find((l) => l.is_default)?.id;
+  const locationField = !locations.length ? '' : `<div class="field span-all"><label for="cu-location">Picks up at</label><select id="cu-location" name="home_location_id">${locations.map((l) => `<option value="${l.id}"${l.id === homeId ? ' selected' : ''}>${esc([l.name, [l.city, l.region].filter(Boolean).join(', ')].filter(Boolean).join(' – '))}</option>`).join('')}</select><p class="field__hint">Changing it moves books that haven’t arrived yet. Books already on the shelf stay where they are.</p></div>`;
   const field = (id, label, value, attrs = '') => `<div class="field"><label for="cu-${id}">${label}</label><input id="cu-${id}" name="${id}" value="${esc(value)}" ${attrs}></div>`;
   el.innerHTML = `
     <p><a href="#customers" data-back>← All customers</a></p>
@@ -309,6 +314,7 @@ async function renderCustomer(el) {
           ${field('email', 'Email <span class="req" aria-hidden="true">*</span>', c.email, `type="email" maxlength="254" required autocomplete="off"${c.user_id ? ' readonly' : ''}`)}
           ${field('phone', 'Phone <span class="req" aria-hidden="true">*</span>', c.phone, 'type="tel" maxlength="40" required autocomplete="off"')}
           <p class="field__hint span-all">${c.user_id ? 'This customer has an account, so the email can’t be changed here. <span class="req">*</span> = required.' : 'The email lets them log in and get the weekly email. <span class="req">*</span> = required.'}</p>
+          ${locationField}
           ${field('address1', 'Address', c.address1, 'maxlength="200" autocomplete="off"').replace('class="field"', 'class="field span-all"')}
           ${field('city', 'City', c.city, 'maxlength="100" autocomplete="off"')}
           <div class="cust-row">${field('state', 'State', c.state, 'maxlength="50" autocomplete="off"')}${field('zip', 'Zip code', c.zip, 'maxlength="20" autocomplete="off"')}</div>
@@ -427,9 +433,14 @@ async function renderCustomer(el) {
       err.textContent = `Please enter the customer’s ${missing[1]}.`;
       return void form.elements[missing[0]].focus();
     }
-    const payload = { ...v, ship_arrivals: form.elements.ship_arrivals.checked, email_opt_in: form.elements.email_opt_in.checked, notify_arrivals: form.elements.notify_arrivals.checked };
+    const { home_location_id: homeLocation, ...rest } = v; // saved on its own below (the profile function doesn't take it)
+    const payload = { ...rest, ship_arrivals: form.elements.ship_arrivals.checked, email_opt_in: form.elements.email_opt_in.checked, notify_arrivals: form.elements.notify_arrivals.checked };
     const { data: id, error } = await sb.rpc('staff_save_customer', { p_id: isNew ? null : c.id, p: payload });
     if (error) return void (err.textContent = friendlyError(error));
+    if (homeLocation) {
+      const { error: locError } = await sb.from('customers').update({ home_location_id: Number(homeLocation) }).eq('id', id);
+      if (locError) return void (err.textContent = `Saved, but not the pickup location: ${friendlyError(locError)}`);
+    }
     toast(isNew ? 'Customer created' : 'Profile saved');
     state.customerId = id;
     renderCustomer(el);
