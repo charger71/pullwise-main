@@ -223,9 +223,11 @@ a `location_id` that defaults to the default location: `reservations`, `events`,
 hours from the default location (`withLocation` in `weekly-pull-list/email.js`, `getSettings` in `js/data.js`).
 
 To add a second location today, insert a `locations` row (`is_default` false). The shop's first location then stops
-mirroring Shop Settings and is edited on its own. Nothing customer-facing exists yet: no picker, no per-item pickup
-override, no combined "ready" email, no location-scoped staff permissions, no billing. Until those are built, new rows
-keep landing on the default location. Backup/restore covers `locations` like every other table. Only owners can change locations.
+mirroring Shop Settings and is edited on its own. With two or more locations, a customer picks one home location (Account → My Profile, and at first sign-in); that is
+where their pull list is picked up. New lines follow it (`reservations_set_location`), changing it moves lines that
+haven't arrived yet (`customers_move_open_lines`; books already on the shelf stay where they are), and the weekly and
+arrival emails show that location's address and hours. A one-location shop never sees the picker. Not built: a
+per-item pickup override, a combined multi-location "ready" email, location-scoped staff permissions, billing. Backup/restore covers `locations` like every other table. Only owners can change locations.
 
 ## Master catalog
 

@@ -143,12 +143,29 @@ function signedOut(sb) {
 // Signed in: profile and reservations
 // ---------------------------------------------------------------------------
 
+/** The shop's locations (empty if there is just the one, or the list can't be read): the pickup picker only shows for two or more. */
+async function getLocations(sb) {
+  const { data } = await sb.from('locations').select('id,name,city,region').order('id');
+  return data?.length > 1 ? data : [];
+}
+
+const locationLabel = (l) => [l.name, [l.city, l.region].filter(Boolean).join(', ')].filter(Boolean).join(' – ');
+
+/** "Pick up at" menu; nothing for a one-location shop. */
+const locationField = (locations, selected, id, hint = '') =>
+  locations.length < 2 ? '' : `
+          <div class="field"><label for="${id}">Pick up my books at</label>
+            <select id="${id}" name="home_location_id">${locations.map((l) => `<option value="${l.id}"${l.id === selected ? ' selected' : ''}>${esc(locationLabel(l))}</option>`).join('')}</select>
+            ${hint ? `<p class="field__hint">${hint}</p>` : ''}
+          </div>`;
+
 async function signedIn(sb, user) {
   await pull.initCustomer(); // other parts of the page (list bar, buttons) read the shared state
   const { data: customer, error } = await sb.rpc('claim_customer');
   if (error) throw pull.customerError(error);
   // A first sign-in has no customer record yet (id null). Ask for a name and phone before anything else.
   if (!customer.id || !customer.first_name?.trim() || !customer.last_name?.trim() || !customer.phone?.trim()) return setupProfile(sb, user, customer);
+  const locations = await getLocations(sb);
 
   root.innerHTML = `
     <p class="account-who">Signed in as <strong>${esc(user.email)}</strong> · <button class="link-button" type="button" data-out>Sign out</button></p>
@@ -182,6 +199,7 @@ async function signedIn(sb, user) {
             <div class="field"><label for="p-last">Last name (required to place orders)</label><input id="p-last" name="last_name" autocomplete="family-name" required maxlength="80" value="${esc(customer.last_name)}"></div>
           </div>
           <div class="field"><label for="p-phone">Phone (required to place orders)</label><input id="p-phone" name="phone" type="tel" autocomplete="tel" required maxlength="40" value="${esc(customer.phone)}"></div>
+          ${locationField(locations, customer.home_location_id, 'p-location', 'Changing this moves books that haven’t arrived yet. Books already waiting stay at the store where they are.')}
           <fieldset class="account-fieldset">
             <legend>Shipping address</legend>
             <p class="field__hint">Only needed if you pay by phone and have your books shipped.</p>
@@ -230,7 +248,7 @@ async function signedIn(sb, user) {
     }
     const { error: saveError } = await sb
       .from('customers')
-      .update({ first_name: v('first_name'), last_name: v('last_name'), phone: v('phone'), address1: v('address1'), city: v('city'), state: v('state'), zip: v('zip'), email_opt_in: form.elements.email_opt_in.checked, mature_ok: form.elements.mature_ok.checked, notify_arrivals: form.elements.notify_arrivals.checked })
+      .update({ ...(form.elements.home_location_id ? { home_location_id: Number(form.elements.home_location_id.value) } : {}), first_name: v('first_name'), last_name: v('last_name'), phone: v('phone'), address1: v('address1'), city: v('city'), state: v('state'), zip: v('zip'), email_opt_in: form.elements.email_opt_in.checked, mature_ok: form.elements.mature_ok.checked, notify_arrivals: form.elements.notify_arrivals.checked })
       .eq('id', customer.id);
     if (saveError) err.textContent = pull.customerMessage(saveError);
     else saved.textContent = 'Saved.';
@@ -243,7 +261,8 @@ async function signedIn(sb, user) {
 }
 
 /** First sign-in: collect the details orders need (first name, last name, phone) before showing the account. */
-function setupProfile(sb, user, customer) {
+async function setupProfile(sb, user, customer) {
+  const locations = await getLocations(sb);
   root.innerHTML = `
     <p class="account-who">Signed in as <strong>${esc(user.email)}</strong> · <button class="link-button" type="button" data-out>Sign out</button></p>
     <section class="panel account-setup" aria-labelledby="setup-h">
@@ -255,6 +274,7 @@ function setupProfile(sb, user, customer) {
           <div class="field"><label for="s-last">Last name</label><input id="s-last" name="last_name" autocomplete="family-name" required maxlength="80" value="${esc(customer.last_name)}"></div>
         </div>
         <div class="field"><label for="s-phone">Phone</label><input id="s-phone" name="phone" type="tel" autocomplete="tel" required maxlength="40" value="${esc(customer.phone)}"></div>
+        ${locationField(locations, customer.home_location_id, 's-location')}
         <p class="form-error" role="alert"></p>
         <button class="btn btn--primary" type="submit">Continue</button>
       </form>
@@ -274,8 +294,13 @@ function setupProfile(sb, user, customer) {
     }
     // Creates the customer record (or completes an existing one); nothing is saved for a login until this.
     const { error } = await sb.rpc('create_my_customer', { p_first_name: v('first_name'), p_last_name: v('last_name'), p_phone: v('phone') });
-    if (error) err.textContent = pull.customerMessage(error);
-    else signedIn(sb, user).catch((ex) => (err.textContent = errText(ex)));
+    if (error) return void (err.textContent = pull.customerMessage(error));
+    // The record exists now, so the chosen pickup location can be saved on it.
+    if (form.elements.home_location_id) {
+      const { error: locError } = await sb.from('customers').update({ home_location_id: Number(form.elements.home_location_id.value) }).eq('user_id', user.id);
+      if (locError) return void (err.textContent = pull.customerMessage(locError));
+    }
+    signedIn(sb, user).catch((ex) => (err.textContent = errText(ex)));
   });
   form.elements.first_name.focus();
 }
