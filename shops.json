@@ -21,6 +21,7 @@
       "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0amtodGVpYnR1aXl3aG9hcWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzOTcyMzYsImV4cCI6MjEwNzk3MzIzNn0.L6LcPkGoOoxI_TmpqTLGcd5jHlbxVxzAHSrBtCzYYzE",
       "projectRef": "ltjkhteibtuiywhoaqic",
       "gaMeasurementId": "",
+      "canary": true,
       "media": "r2"
     },
     {
