@@ -4,7 +4,7 @@
 // titles, titles needing attention). Read-only; links out to the sections
 // where things get changed.
 
-import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs } from '../lib.js';
+import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations } from '../lib.js';
 import { lastReserveDay } from '../../js/site.js';
 import { lastBackup } from '../backup.js';
 import { LINE_STATUS_SHORT } from '../../js/labels.js';
@@ -12,6 +12,7 @@ import { addDays, todayIn, dayIn } from '../../js/dates.js';
 
 const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
 const DAYS = 30;
+const LINE_FIELDS = 'id,order_id,quantity,status,arrived_on,item:items(id,title,issue_number,variant,publisher,foc_date,release_date,cover_url)';
 let sb;
 let settings;
 let isOwner = false;
@@ -36,6 +37,7 @@ export async function mount(el, ctx) {
   isOwner = ctx.isOwner === true;
   sb = ctx.sb;
   settings = await must(sb.from('settings').select('hold_days,timezone,announcement,pull_list_email_enabled,pull_list_email_day,pull_list_email_hour,pull_list_email_last_sent,arrival_email_enabled').eq('id', 1).single());
+  const locations = await listLocations(sb); // [] unless the shop has 2+ locations: then each gets its own tab
   el.innerHTML = `
     <div class="admin-title-row">
       <h1>Dashboard</h1>
@@ -56,10 +58,12 @@ export async function mount(el, ctx) {
     </details>
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="today">Today</button>
+      ${locations.map((l) => `<button type="button" class="admin-tab" role="tab" data-tab="loc-${l.id}">${esc(l.name)}</button>`).join('')}
       <button type="button" class="admin-tab" role="tab" data-tab="trends">Trends</button>
       <button type="button" class="admin-tab" role="tab" data-tab="system">System</button>
     </div>
     <div data-tabpane="today">
+    <p class="card__meta" data-scope hidden></p>
     <ul class="dash-tiles" data-tiles aria-busy="true"><li class="dash-tile"><p class="admin-hint loading">Loading…</p></li></ul>
     <div class="dash-grid">
       <section class="dash-card" aria-labelledby="dash-attn">
@@ -118,7 +122,6 @@ export async function mount(el, ctx) {
       setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
     }
   });
-  setupTabs(el, 'admin-dashboard-tab', 'today');
   $('[data-asof]', el).textContent = `As of ${fmtDateTime(new Date().toISOString())}`;
 
   // Each panel loads on its own so one slow or failing query doesn't blank the page.
@@ -132,22 +135,50 @@ export async function mount(el, ctx) {
     }
     box.removeAttribute('aria-busy');
   };
-  const lines = all(() =>
-    sb.from('reservations').select('id,order_id,quantity,status,arrived_on,item:items(id,title,issue_number,variant,publisher,foc_date,release_date,cover_url)').in('status', ACTIVE).order('id'),
-  );
+  const lines = all(() => sb.from('reservations').select(LINE_FIELDS).in('status', ACTIVE).order('id'));
   const since = addDays(today(), -(DAYS - 1));
   const recent = all(() => sb.from('reservation_orders').select('id,created_at').gte('created_at', new Date(`${since}T00:00:00`).toISOString()).order('id'));
   lines.catch(() => {});
   recent.catch(() => {});
 
+  // The Today panels, for the whole shop or (a store's tab) for one location. A newer choice wins if loads overlap.
+  let todayReq = 0;
+  let shown = null; // which location the Today panels show now: '' = all
+  const loadToday = (location) => {
+    const mine = ++todayReq;
+    const stale = () => mine !== todayReq;
+    const loc = location ? Number(location) : null;
+    shown = location;
+    const scope = $('[data-scope]', el);
+    scope.hidden = loc == null;
+    scope.textContent = loc == null ? '' : `${locations.find((l) => l.id === loc)?.name ?? 'This store'} only: its pull-list titles, pickups and customers.`;
+    ['[data-tiles]', '[data-latest]', '[data-cutoff]', '[data-attn]'].forEach((sel) => $(sel, el).setAttribute('aria-busy', 'true'));
+    const myLines = loc == null ? lines : all(() => sb.from('reservations').select(LINE_FIELDS).in('status', ACTIVE).eq('location_id', loc).order('id'));
+    const myRecent = loc == null ? recent : all(() => sb.from('reservation_orders').select('id,created_at,reservations!inner(location_id)').eq('reservations.location_id', loc).gte('created_at', new Date(`${since}T00:00:00`).toISOString()).order('id'));
+    myLines.catch(() => {});
+    myRecent.catch(() => {});
+    return Promise.all([
+      panel('[data-tiles]', async (box) => {
+        const [l, r] = [await myLines, await myRecent];
+        if (!stale()) renderTiles(box, l, r);
+      }),
+      panel('[data-latest]', (box) => renderLatest(box, loc, stale)),
+      panel('[data-cutoff]', async (box) => renderCutoff(box, await myLines, stale)),
+      panel('[data-attn]', (box) => renderAttention(box, loc, stale)),
+    ]);
+  };
+  // A store's tab shows the Today panels for that store (the tab bar hides every other pane, so bring Today back).
+  setupTabs(el, 'admin-dashboard-tab', 'today', (tab) => {
+    const location = tab.startsWith('loc-') ? tab.slice(4) : '';
+    if (location) $('[data-tabpane="today"]', el).hidden = false;
+    if (shown !== location && (tab === 'today' || location)) loadToday(location);
+  });
+
   await Promise.all([
-    panel('[data-tiles]', async (box) => renderTiles(box, await lines, await recent)),
-    panel('[data-latest]', renderLatest),
+    shown === null ? loadToday('') : null,
     panel('[data-trend]', async (box) => renderTrend(box, await recent, since)),
     panel('[data-status]', renderStatus),
-    panel('[data-cutoff]', async (box) => renderCutoff(box, await lines)),
     panel('[data-top]', async (box) => renderTop(box, await lines)),
-    panel('[data-attn]', renderAttention),
     panel('[data-health]', renderHealth),
   ]);
 }
@@ -183,9 +214,13 @@ function renderTiles(box, lines, recent) {
   ].join('');
 }
 
-async function renderLatest(box) {
-  const orders = await must(sb.from('reservation_orders').select('id,name,phone,email,customer_id,created_at,customer:customers(id,name,phone,email),reservations(quantity,status)').order('created_at', { ascending: false }).limit(10));
+async function renderLatest(box, loc = null, stale = () => false) {
+  // A store's tab lists only orders with a title at that store, and counts only those titles.
+  let q = sb.from('reservation_orders').select(`id,name,phone,email,customer_id,created_at,customer:customers(id,name,phone,email),reservations${loc ? '!inner' : ''}(quantity,status,location_id)`);
+  if (loc) q = q.eq('reservations.location_id', loc);
+  const orders = await must(q.order('created_at', { ascending: false }).limit(10));
   await withCustomers(sb, orders);
+  if (stale()) return;
   if (!orders.length) {
     box.innerHTML = '<p class="empty">No reservations yet.</p>';
     return;
@@ -210,7 +245,7 @@ async function renderLatest(box) {
   </table></div>`;
   sortableTable($('table', box));
   // The destination screens read these on load: a customer id for Customers, a guest order id for Reservations.
-  box.addEventListener('click', (e) => {
+  box.onclick = (e) => {
     const link = e.target.closest('[data-customer], [data-guest]');
     if (!link) return;
     try {
@@ -219,7 +254,7 @@ async function renderLatest(box) {
     } catch {
       /* the link still opens the screen */
     }
-  });
+  };
 }
 
 function renderTrend(box, recent, since) {
@@ -280,15 +315,17 @@ async function renderStatus(box) {
       .join('')}</ul>`;
 }
 
-async function renderCutoff(box, lines) {
+async function renderCutoff(box, lines, stale = () => false) {
   const t = today();
   const next = await must(sb.from('items').select('foc_date').eq('status', 'pre_order').gte('foc_date', t).order('foc_date').limit(1));
+  if (stale()) return;
   if (!next.length) {
     box.innerHTML = '<p class="empty">No upcoming order cutoffs.</p>';
     return;
   }
   const foc = next[0].foc_date;
   const titles = await count(items().eq('status', 'pre_order').eq('foc_date', foc).eq('hidden', false));
+  if (stale()) return;
   const onFoc = lines.filter((l) => l.status === 'open' && l.item?.foc_date === foc);
   const copies = onFoc.reduce((n, l) => n + l.quantity, 0);
   const daysLeft = Math.round((new Date(`${foc}T12:00:00`) - new Date(`${t}T12:00:00`)) / 86400000);
@@ -370,21 +407,29 @@ function renderTop(box, lines) {
   draw();
 }
 
-async function renderAttention(box) {
+async function renderAttention(box, loc = null, stale = () => false) {
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-  const customers = () => sb.from('customers').select('id', { count: 'exact', head: true });
+  // A store's tab covers only what belongs to that store; catalog and email problems are shop-wide, so they stay on Today.
+  const scoped = loc != null;
+  const customers = () => {
+    const q = sb.from('customers').select('id', { count: 'exact', head: true });
+    return scoped ? q.eq('home_location_id', loc) : q;
+  };
   const heldBefore = addDays(today(), -(settings.hold_days ?? 30));
+  const wide = (fn) => (scoped ? Promise.resolve(0) : fn());
+  const overdueQuery = sb.from('reservations').select('id', { count: 'exact', head: true }).eq('status', 'arrived').lt('arrived_on', heldBefore);
   const [guestMatches, overdue, failedEmails, signups, noEmail, noCover, noCategory, hidden, noPrice] = await Promise.all([
-    findGuestMatches(sb).then((m) => m.length),
-    count(sb.from('reservations').select('id', { count: 'exact', head: true }).eq('status', 'arrived').lt('arrived_on', heldBefore)),
-    count(sb.from('email_log').select('id', { count: 'exact', head: true }).eq('status', 'failed').gte('created_at', weekAgo)),
+    wide(() => findGuestMatches(sb).then((m) => m.length)),
+    count(scoped ? overdueQuery.eq('location_id', loc) : overdueQuery),
+    wide(() => count(sb.from('email_log').select('id', { count: 'exact', head: true }).eq('status', 'failed').gte('created_at', weekAgo))),
     count(customers().not('user_id', 'is', null).gte('created_at', weekAgo)),
     count(customers().is('email', null)),
-    count(items().is('cover_url', null).eq('hidden', false)),
-    count(items().is('category_id', null).eq('hidden', false)),
-    count(items().eq('hidden', true)),
-    count(items().is('price', null).eq('hidden', false)),
+    wide(() => count(items().is('cover_url', null).eq('hidden', false))),
+    wide(() => count(items().is('category_id', null).eq('hidden', false))),
+    wide(() => count(items().eq('hidden', true))),
+    wide(() => count(items().is('price', null).eq('hidden', false))),
   ]);
+  if (stale()) return;
   // Each row with something to fix links to the screen that fixes it, already filtered (the destination reads the hand-off).
   // `go.view` marks an item that is information rather than a problem: a quieter "View" button instead of "Fix".
   const row = (n, text, go) => {
@@ -392,20 +437,20 @@ async function renderAttention(box) {
     return `<li class="${n ? 'has-fix' : 'is-zero'}"><span class="dash-facts__text"><strong>${n.toLocaleString()}</strong> <span>${text}</span></span>${n ? `<a class="btn ${btn.cls} btn--small" href="#${go.page}" data-go-page="${go.page}" data-go-key="${go.key}" data-go="${esc(JSON.stringify(go.filter))}" aria-label="${btn.word}: ${n.toLocaleString()} ${esc(text)}">${solidIcon(btn.icon, 16)} ${btn.word}</a>` : ''}</li>`;
   };
   // Owners: nag when the last backup download is more than a week old (or there never was one).
-  const backup = isOwner ? await lastBackup(sb).catch(() => undefined) : undefined;
+  const backup = isOwner && !scoped ? await lastBackup(sb).catch(() => undefined) : undefined;
   const backupRow = backup === undefined || (backup && backup.days <= 7) ? '' : `<li class="has-fix"><span class="dash-facts__text"><strong>${backup ? `${backup.days} days` : 'Never'}</strong> <span>${backup ? 'since the last backup' : 'backed up: download a backup'}</span></span><a class="btn btn--primary btn--small" href="#backup">${solidIcon('fix', 16)} Back up</a></li>`;
   const visible = { visibility: 'visible' };
   box.innerHTML = `<ul class="dash-facts">
     ${backupRow}
     ${row(overdue, `${overdue === 1 ? 'title is' : 'titles are'} past the pickup window`, { page: 'reservations', key: 'admin-reservations-status', filter: 'overdue' })}
-    ${row(failedEmails, `${failedEmails === 1 ? 'email' : 'emails'} failed to send in the last 7 days`, { page: 'emails', key: 'admin-emails-failed', filter: '1' })}
-    ${row(guestMatches, `guest ${guestMatches === 1 ? 'order matches' : 'orders match'} an existing customer`, { page: 'customers', key: 'admin-customers-show', filter: 'link_guests' })}
+    ${scoped ? '' : row(failedEmails, `${failedEmails === 1 ? 'email' : 'emails'} failed to send in the last 7 days`, { page: 'emails', key: 'admin-emails-failed', filter: '1' })}
+    ${scoped ? '' : row(guestMatches, `guest ${guestMatches === 1 ? 'order matches' : 'orders match'} an existing customer`, { page: 'customers', key: 'admin-customers-show', filter: 'link_guests' })}
     ${row(signups, `${signups === 1 ? 'customer' : 'customers'} signed up this week`, { page: 'customers', key: 'admin-customers-show', filter: 'new_week', view: true })}
     ${row(noEmail, `${noEmail === 1 ? 'customer has' : 'customers have'} no email`, { page: 'customers', key: 'admin-customers-show', filter: 'no_email' })}
-    ${row(noCover, `visible ${noCover === 1 ? 'title has' : 'titles have'} no cover`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'no_cover', ...visible } })}
-    ${row(noCategory, `visible ${noCategory === 1 ? 'title has' : 'titles have'} no category`, { page: 'titles', key: 'admin-titles-filter', filter: { category: 'none', ...visible } })}
-    ${row(noPrice, `visible ${noPrice === 1 ? 'title has' : 'titles have'} no price`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'no_price', ...visible } })}
-    ${row(hidden, `${hidden === 1 ? 'title is' : 'titles are'} hidden from customers`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'hidden' } })}
+    ${scoped ? '' : row(noCover, `visible ${noCover === 1 ? 'title has' : 'titles have'} no cover`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'no_cover', ...visible } })}
+    ${scoped ? '' : row(noCategory, `visible ${noCategory === 1 ? 'title has' : 'titles have'} no category`, { page: 'titles', key: 'admin-titles-filter', filter: { category: 'none', ...visible } })}
+    ${scoped ? '' : row(noPrice, `visible ${noPrice === 1 ? 'title has' : 'titles have'} no price`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'no_price', ...visible } })}
+    ${scoped ? '' : row(hidden, `${hidden === 1 ? 'title is' : 'titles are'} hidden from customers`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'hidden' } })}
   </ul>
   <p class="admin-hint">Fix and View open the list already filtered to those titles or customers.</p>`;
   box.onclick = (e) => {
