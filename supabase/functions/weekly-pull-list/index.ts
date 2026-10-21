@@ -150,9 +150,13 @@ async function sendEventSignup(signupId: number) {
   const when = `${new Date(ev.starts_at).toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at ${new Date(ev.starts_at).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' })}`;
   // A shop with several locations holds each event at one of them: its name and address, then any note staff typed.
   const locs = await loadLocations();
-  const evShop = locs.multi ? withLocation(shop, locs.byId.get(ev.location_id) ?? locs.fallback, { multi: true }) : shop;
+  const allLocations = locs.multi && ev.location_id === null; // an event for every location has no one address
+  const evShop = allLocations
+    ? { ...shop, shop_name: shop.brand_name ?? shop.shop_name, street: null, city: null, region: null, postal_code: null }
+    : locs.multi ? withLocation(shop, locs.byId.get(ev.location_id) ?? locs.fallback, { multi: true }) : shop;
   const addr = [evShop.street, [evShop.city, evShop.region].filter(Boolean).join(', ')].filter(Boolean).join(', ');
-  const where = locs.multi ? [evShop.shop_name, addr].filter(Boolean).join(', ') + (ev.location ? ` (${ev.location})` : '') : ev.location || shop.shop_name;
+  const where = allLocations ? `${evShop.shop_name} — all locations${ev.location ? ` (${ev.location})` : ''}`
+    : locs.multi ? [evShop.shop_name, addr].filter(Boolean).join(', ') + (ev.location ? ` (${ev.location})` : '') : ev.location || shop.shop_name;
   const people = su.party_size === 1 ? '1 person' : `${su.party_size} people`;
   const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
 

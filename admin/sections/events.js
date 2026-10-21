@@ -56,7 +56,7 @@ async function load(el) {
   const now = new Date().toISOString();
   const q = sb.from('events').select('*');
   const locations = await listLocations(sb); // [] unless the shop has 2+ locations
-  const placeOf = (e) => [locations.find((l) => l.id === e.location_id)?.name, e.location].filter(Boolean).join(' — ');
+  const placeOf = (e) => [locations.length ? (e.location_id === null ? 'All locations' : locations.find((l) => l.id === e.location_id)?.name) : null, e.location].filter(Boolean).join(' — ');
   const { data, error } = await (showPast ? q.lt('starts_at', now).order('starts_at', { ascending: false }).limit(100) : q.gte('starts_at', now).order('starts_at'));
   const box = $('[data-list]', el);
   if (error) return (box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
@@ -80,7 +80,7 @@ async function edit(listEl, id) {
       <div class="form-grid">
         <div class="field span-2"><label for="ev-title">Title</label><input id="ev-title" name="title" required value="${esc(ev.title)}"></div>
         <div class="field"><label for="ev-type">Type</label><select id="ev-type" name="event_type">${Object.entries(TYPES).map(([v, l]) => `<option value="${v}"${v === ev.event_type ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
-        ${locations.length ? `<div class="field"><label for="ev-store">Location</label><select id="ev-store" name="location_id">${locations.map((l) => `<option value="${l.id}"${l.id === (ev.location_id ?? locations.find((x) => x.is_default)?.id) ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>` : ''}
+        ${locations.length ? `<div class="field"><label for="ev-store">Location</label><select id="ev-store" name="location_id"><option value="">All locations</option>${locations.map((l) => `<option value="${l.id}"${l.id === ev.location_id ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>` : ''}
         <div class="field"><label for="ev-loc">${locations.length ? 'Where in the store (optional)' : 'Location'}</label><input id="ev-loc" name="location" placeholder="${locations.length ? 'e.g. back room' : 'In store'}" value="${esc(ev.location)}"></div>
         <div class="field"><label for="ev-start">Starts</label><input id="ev-start" name="starts_at" type="datetime-local" required value="${toLocalInput(ev.starts_at)}"></div>
         <div class="field"><label for="ev-end">Ends (optional)</label><input id="ev-end" name="ends_at" type="datetime-local" value="${toLocalInput(ev.ends_at)}"></div>
@@ -111,7 +111,7 @@ async function edit(listEl, id) {
     const f = new FormData(form);
     const row = {
       title: f.get('title').trim(), event_type: f.get('event_type'), location: f.get('location').trim() || null,
-      ...(f.has('location_id') ? { location_id: Number(f.get('location_id')) } : {}),
+      ...(f.has('location_id') ? { location_id: Number(f.get('location_id')) || null } : {}), // empty = every location
       starts_at: fromLocalInput(f.get('starts_at')), ends_at: fromLocalInput(f.get('ends_at')),
       summary: f.get('summary').trim() || null,
       signup_enabled: f.get('signup_enabled') === 'on', signup_capacity: Number(f.get('signup_capacity')) || null, description: getHtml(quill), image_url: image.get(),

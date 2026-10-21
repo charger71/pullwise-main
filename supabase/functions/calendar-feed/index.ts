@@ -29,6 +29,7 @@ Deno.serve(async () => {
   const multi = (locations ?? []).length > 1;
   const placeOf = (e: { location_id: number | null; location: string | null }) => {
     if (!multi) return e.location ? `${shop} — ${e.location}` : shop;
+    if (e.location_id === null) return e.location ? `${shop} — all locations — ${e.location}` : `${shop} — all locations`;
     const loc = locations!.find((l) => l.id === e.location_id) ?? locations!.find((l) => l.is_default) ?? locations![0];
     const addr = [loc.street, [loc.city, loc.region].filter(Boolean).join(', ')].filter(Boolean).join(', ');
     const where = [`${shop} : ${loc.name}`, addr].filter(Boolean).join(', ');

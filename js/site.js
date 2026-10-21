@@ -181,10 +181,15 @@ export function socialIcons(s, opts) {
 export const locationAs = (s, loc) => ({ ...s, ...loc, shop_name: `${s.shop_name} : ${loc.name}`, locations: [] });
 
 /**
- * Where an event is. A shop with several locations puts each event at one of them ("Shop : Location" with its address),
- * plus any note staff typed. Returns { label (for the event's line), where (calendar links), ics (the LOCATION text) }.
+ * Where an event is. A shop with several locations puts each event at one of them ("Shop : Location" with its address)
+ * or at all of them, plus any note staff typed. Returns { label (for the event's line), where (calendar links), ics (the LOCATION text) }.
  */
 export function eventPlace(s, e) {
+  // An event for every location (Batman Day, a Black Friday sale) has no location_id.
+  if (s.locations?.length && e.location_id === null) {
+    const all = `${s.shop_name} — all locations`;
+    return { label: ['All locations', e.location].filter(Boolean).join(' — '), where: s.shop_name, ics: e.location ? `${all} — ${e.location}` : all };
+  }
   const loc = s.locations?.length ? s.locations.find((l) => l.id === e.location_id) ?? s.locations.find((l) => l.is_default) ?? s.locations[0] : null;
   if (!loc) return { label: e.location ?? '', where: [s.shop_name, ...addressLines(s)].join(', '), ics: e.location ? `${s.shop_name} — ${e.location}` : s.shop_name };
   const where = [`${s.shop_name} : ${loc.name}`, ...addressLines(loc)].join(', ');
