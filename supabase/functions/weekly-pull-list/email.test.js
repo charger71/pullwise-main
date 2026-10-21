@@ -175,3 +175,13 @@ console.log('claim tests passed');
   assert.equal(w.email, 'a@b.c');
   assert.equal(w.shop_name, 'Shop');
 }
+
+// Several locations: the name reads "Shop : Location", and applying a location twice doesn't stack it.
+{
+  const shop = { shop_name: 'Area71 Comics & Toys' };
+  const loc = { name: 'Elizabethtown', street: '2 New St', hours: [] };
+  assert.equal(withLocation(shop, loc).shop_name, 'Area71 Comics & Toys');
+  const multi = withLocation(shop, loc, { multi: true });
+  assert.equal(multi.shop_name, 'Area71 Comics & Toys : Elizabethtown');
+  assert.equal(withLocation(multi, { name: 'Camp Taylor' }, { multi: true }).shop_name, 'Area71 Comics & Toys : Camp Taylor');
+}

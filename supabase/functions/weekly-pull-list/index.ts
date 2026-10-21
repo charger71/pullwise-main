@@ -28,8 +28,9 @@ const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY
 async function loadShop() {
   const { data: shop, error } = await admin.from('settings').select('*').eq('id', 1).single();
   if (error) return { data: shop, error };
-  const { data: location } = await admin.from('locations').select('*').eq('is_default', true).maybeSingle();
-  return { data: withLocation(shop, location), error: null };
+  const { data: locations } = await admin.from('locations').select('*');
+  const location = (locations ?? []).find((l) => l.is_default) ?? null;
+  return { data: withLocation(shop, location, { multi: (locations ?? []).length > 1 }), error: null };
 }
 
 /** Every location by id, and the default one: a customer's emails use the location they pick up at. */
@@ -37,7 +38,7 @@ async function loadLocations() {
   const { data, error } = await admin.from('locations').select('*');
   if (error) throw error;
   const byId = new Map<number, any>((data ?? []).map((l) => [l.id, l]));
-  return { byId, fallback: (data ?? []).find((l) => l.is_default) ?? null };
+  return { byId, fallback: (data ?? []).find((l) => l.is_default) ?? null, multi: byId.size > 1 };
 }
 
 const cors = {
@@ -211,7 +212,7 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
   // A test or preview (`forStaff`) gets a dummy unsubscribe link: the sample customer's real one would unsubscribe them.
   const locs = await loadLocations();
   const compose = (c: (typeof customers)[number], forStaff = false) => {
-    const shop = withLocation(shopBase, locs.byId.get(c.home_location_id) ?? locs.fallback);
+    const shop = withLocation(shopBase, locs.byId.get(c.home_location_id) ?? locs.fallback, { multi: locs.multi });
     const sec = sections((lines.get(c.id) ?? []) as never[], { today, holdDays: shop.hold_days ?? 30 });
     if (!sec) return null;
     const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}`;
@@ -318,7 +319,7 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
     if (!arrival) return null;
     // The store the waiting books are at (they stay put if the customer later changes home store), else their home store.
     const waiting = customerLines.find((l) => l.status === 'arrived' && !l.arrival_notified_at);
-    const shop = withLocation(shopBase, locs.byId.get(waiting?.location_id ?? c.home_location_id) ?? locs.fallback);
+    const shop = withLocation(shopBase, locs.byId.get(waiting?.location_id ?? c.home_location_id) ?? locs.fallback, { multi: locs.multi });
     const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : unsubUrl(c); // a test must not carry the customer's real link
     return { unsubscribeUrl, ids: customerLines.filter((l) => l.status === 'arrived' && !l.arrival_notified_at).map((l) => l.id), ...buildArrival({ customer: c, arrival, shop, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, sample }) };
   };
