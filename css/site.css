@@ -390,6 +390,11 @@ address { font-style: normal; margin-bottom: 1em; }
 @media (min-width: 700px) {
   .footer__grid { grid-template-columns: repeat(3, 1fr); }
 }
+.footer__location { margin: 0 0 12px; }
+.footer__sub { font-size: .95rem; margin: 12px 0 4px; }
+.locations-grid { display: grid; gap: 20px; }
+@media (min-width: 800px) { .locations-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); } }
+.location .map { margin-bottom: 0; }
 .hours { margin: 0; }
 .hours div { display: flex; justify-content: space-between; gap: 16px; max-width: 280px; }
 .hours dt { font-weight: 700; }

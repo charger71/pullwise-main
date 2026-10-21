@@ -177,6 +177,9 @@ export function socialIcons(s, opts) {
     .join('')}</ul>`;
 }
 
+/** One location as a settings-like object (its address, phone, hours and map), named "Shop : Location", for the helpers here. */
+export const locationAs = (s, loc) => ({ ...s, ...loc, shop_name: `${s.shop_name} : ${loc.name}`, locations: [] });
+
 export const mapsHref = (s) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([s.shop_name, ...addressLines(s)].join(', '))}`;
 
 /**
@@ -345,6 +348,9 @@ function loadNewsletterForm(embed) {
 
 function renderFooter(s, extraLinks = []) {
   const addr = addressLines(s);
+  // A shop with several locations lists each one's address, phone and hours.
+  const multi = !!s.locations?.length;
+  const locs = multi ? s.locations.map((l) => ({ ...l, as: locationAs(s, l), addr: addressLines(l) })) : [];
   const footer = $('#site-footer');
   const social = socialIcons(s);
   const embed = s.newsletter_embed?.trim() ?? '';
@@ -361,12 +367,16 @@ function renderFooter(s, extraLinks = []) {
     <div class="container footer__grid">
       <section>
         <h2 class="footer__heading">${esc(s.shop_name)}</h2>
-        ${addr.length ? `<address><a href="${esc(mapsHref(s))}">${addr.map(esc).join('<br>')}</a></address>` : ''}
-        ${s.phone ? `<p><a href="${telHref(s.phone)}">${esc(formatPhone(s.phone))}</a></p>` : ''}
+        ${multi
+          ? locs.map((l) => `<p class="footer__location"><strong>${esc(l.name)}</strong>${l.addr.length ? `<br><a href="${esc(mapsHref(l.as))}">${l.addr.map(esc).join('<br>')}</a>` : ''}${l.phone ? `<br><a href="${telHref(l.phone)}">${esc(formatPhone(l.phone))}</a>` : ''}</p>`).join('')
+          : `${addr.length ? `<address><a href="${esc(mapsHref(s))}">${addr.map(esc).join('<br>')}</a></address>` : ''}
+        ${s.phone ? `<p><a href="${telHref(s.phone)}">${esc(formatPhone(s.phone))}</a></p>` : ''}`}
         ${s.email ? `<p><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></p>` : ''}
       </section>
       <section>
-        ${s.hours?.length ? `<h2 class="footer__heading">Hours</h2>${hoursList(s.hours)}` : ''}
+        ${multi
+          ? `<h2 class="footer__heading">Hours</h2>${locs.filter((l) => l.hours?.length).map((l) => `<h3 class="footer__sub">${esc(l.name)}</h3>${hoursList(l.hours)}`).join('')}`
+          : s.hours?.length ? `<h2 class="footer__heading">Hours</h2>${hoursList(s.hours)}` : ''}
         ${social ? `<h2 class="footer__heading${s.hours?.length ? ' footer__heading--next' : ''}">Social</h2>${social}` : ''}
       </section>
       <section>
@@ -413,9 +423,25 @@ function injectSchema(s) {
     })),
     sameAs: socialEntries(s).map(([, url]) => url),
   };
+  // Several locations: one Store per location, so search engines see each address and its hours.
+  const stores = s.locations?.length
+    ? s.locations.map((l) => ({
+        ...data,
+        '@id': `${SITE_URL}#location-${l.id}`,
+        name: `${s.shop_name} : ${l.name}`,
+        telephone: l.phone || undefined,
+        address: l.street ? { '@type': 'PostalAddress', streetAddress: l.street, addressLocality: l.city, addressRegion: l.region, postalCode: l.postal_code, addressCountry: l.country } : undefined,
+        openingHoursSpecification: (l.hours ?? []).map((h) => ({
+          '@type': 'OpeningHoursSpecification',
+          dayOfWeek: h.days.map((d) => `https://schema.org/${{ Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday', Fr: 'Friday', Sa: 'Saturday', Su: 'Sunday' }[d]}`),
+          opens: h.open,
+          closes: h.close,
+        })),
+      }))
+    : null;
   const tag = document.createElement('script');
   tag.type = 'application/ld+json';
-  tag.textContent = JSON.stringify(data);
+  tag.textContent = JSON.stringify(stores ? { '@context': 'https://schema.org', '@graph': stores.map(({ '@context': _, ...store }) => store) } : data);
   document.head.append(tag);
 }
 
