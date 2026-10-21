@@ -2,7 +2,7 @@
 // status, lookup by name/phone/email, CSV export — plus a "To order" view that
 // totals reserved copies per title for each order cutoff.
 
-import { $, $$, esc, must, toast, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, addLocationFilter } from '../lib.js';
+import { $, $$, esc, must, toast, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField } from '../lib.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, todayIn, dayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
 
@@ -21,6 +21,11 @@ let state = { view: 'orders', q: '', location: '', status: 'active', sort: 'plac
 // The status choices: the common views first, then each individual title status.
 const ORDER_FILTERS = { active: 'Active (open, ordered or ready)', overdue: 'Past pickup window', all: 'Any status', ...LINE_STATUS };
 
+/** Limit a reservations query to the location picked at the top of the screen (all locations when none is). */
+const atLocation = (q) => (state.location ? q.eq('location_id', state.location) : q);
+let locationNames = new Map(); // id → name, for a shop with 2+ locations
+const locationSlug = () => (state.location && locationNames.get(Number(state.location)) ? `-${locationNames.get(Number(state.location)).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}` : '');
+
 const today = () => todayIn(settings.timezone);
 const holdUntil = (line) => holdDate(line.arrived_on, settings.hold_days ?? 30);
 /** "2026-10-01 18:43": a timestamp's date and time in the shop's time zone, for CSV exports. */
@@ -36,7 +41,24 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-view="toorder">Place Order</button>
       <button type="button" class="admin-tab" role="tab" data-view="ready">Received</button>
     </div>
+    <form class="filters admin-filters" data-location-bar hidden></form>
     <div data-body></div>`;
+  // A shop with 2+ locations picks which one to work on; it applies to all three tabs (orders are placed and received per location).
+  listLocations(sb).then((locations) => {
+    if (!locations.length) return void (state.location = '');
+    locationNames = new Map(locations.map((l) => [l.id, l.name]));
+    if (state.location && !locationNames.has(Number(state.location))) state.location = '';
+    const bar = $('[data-location-bar]', el);
+    bar.innerHTML = locationFilterField(locations, state.location, 'r-loc');
+    bar.hidden = false;
+    bar.addEventListener('submit', (e) => e.preventDefault());
+    bar.addEventListener('change', () => {
+      state.location = bar.elements.location.value;
+      state.offset = 0;
+      render(el);
+    });
+    if (state.location) render(el); // a remembered choice: load with it
+  });
   $$('[data-view]', el).forEach((b) =>
     b.addEventListener('click', () => {
       state.view = b.dataset.view;
@@ -119,7 +141,6 @@ function renderOrders(body) {
     }, e.target.type === 'search' ? 300 : 0);
   });
   form.addEventListener('submit', (e) => e.preventDefault());
-  addLocationFilter(sb, form, state, 'r-loc', () => loadOrders(body)); // only for a shop with 2+ locations
   sortableTable($('table', body), { sort: state.sort, dir: state.dir, onSort: (sort, dir) => ((state = { ...state, sort, dir, offset: 0 }), loadOrders(body)) });
   $('[data-prev]', body).addEventListener('click', () => ((state.offset = Math.max(0, state.offset - PAGE)), loadOrders(body)));
   $('[data-next]', body).addEventListener('click', () => ((state.offset += PAGE), loadOrders(body)));
@@ -433,7 +454,7 @@ async function renderReady(body) {
     try {
       const lines = [];
       for (let from = 0; ; from += 1000) {
-        const { data, error } = await sb.from('reservations').select(`id,quantity,order_id,status,item:items(${ITEM_FIELDS})`).in('status', ['open', 'ordered', 'reordered']).order('id').range(from, from + 999);
+        const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,status,item:items(${ITEM_FIELDS})`).in('status', ['open', 'ordered', 'reordered'])).order('id').range(from, from + 999);
         if (error) throw fromError(error);
         lines.push(...data);
         if (data.length < 1000) break;
@@ -549,7 +570,7 @@ async function renderReady(body) {
 async function loadToOrderData() {
   const lines = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await sb.from('reservations').select(`id,quantity,order_id,item:items(${ITEM_FIELDS})`).eq('status', 'open').order('id').range(from, from + 999);
+    const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items(${ITEM_FIELDS})`).eq('status', 'open')).order('id').range(from, from + 999);
     if (error) throw fromError(error);
     lines.push(...data);
     if (data.length < 1000) break;
@@ -686,7 +707,7 @@ async function renderToOrder(body) {
 async function markNotOrdered(body, itemId, btn) {
   btn.disabled = true;
   try {
-    const lines = await must(sb.from('reservations').select('id,quantity,item:items(title,issue_number,variant)').eq('status', 'open').eq('item_id', itemId));
+    const lines = await must(atLocation(sb.from('reservations').select('id,quantity,item:items(title,issue_number,variant)').eq('status', 'open').eq('item_id', itemId)));
     if (!lines.length) {
       toast('Nothing is waiting to be ordered for that title any more.', 'error');
       return void renderToOrder(body);
@@ -719,7 +740,7 @@ async function toggleCustomers(btn) {
   tr.after(row);
   const cell = row.firstElementChild;
   try {
-    const lines = await must(sb.from('reservations').select('quantity,order:reservation_orders(id,name,customer:customers(name,first_name,last_name))').eq('status', 'open').eq('item_id', Number(btn.dataset.customers)));
+    const lines = await must(atLocation(sb.from('reservations').select('quantity,order:reservation_orders(id,name,customer:customers(name,first_name,last_name))').eq('status', 'open').eq('item_id', Number(btn.dataset.customers))));
     // Sorted by last name and shown as "Last, First". Guest orders only have one name field: the last word is the surname.
     const people = lines.map((l) => {
       const c = l.order?.customer;
@@ -851,7 +872,7 @@ function setupOrderTools(box, groups, focs, meta, keep = {}) {
       toast('Reservations changed since this page loaded. Exporting the latest quantities.');
       setTimeout(() => renderToOrder(body), 0);
     }
-    const slug = `${dist === 'all' ? 'all' : dist}-${foc ? foc.toLowerCase().replace(/\s+/g, '-') : 'all-cutoffs'}-${stamp()}`;
+    const slug = `${dist === 'all' ? 'all' : dist}-${foc ? foc.toLowerCase().replace(/\s+/g, '-') : 'all-cutoffs'}${locationSlug()}-${stamp()}`;
     if (btn.dataset.ot === 'csv') {
       const rows = sel.flatMap((g) => g.rows.map((r) => [g.name, r.code, r.upc, r.baseTitle, r.issue, r.variant, r.publisher, r.price, r.release, r.foc, r.copies, r.customers]));
       downloadCsv(`distributor-order-${slug}.csv`, ['Distributor', 'Product code', 'UPC/ISBN', 'Title', 'Issue', 'Variant', 'Publisher', 'Price', 'Release', 'FOC', 'Copies to order', 'Customers'], rows);
@@ -862,7 +883,7 @@ function setupOrderTools(box, groups, focs, meta, keep = {}) {
     try {
       const { buildOrderSheetPdf } = await import('../order-sheet-pdf.js');
       const shop = await must(sb.from('settings').select('shop_name,colors').eq('id', 1).single());
-      const subtitle = [foc ? (foc === 'No cutoff' ? 'No cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`) : 'All open cutoffs', dist === 'all' ? null : distributorName(dist === 'none' ? null : dist)].filter(Boolean).join(' · ');
+      const subtitle = [foc ? (foc === 'No cutoff' ? 'No cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`) : 'All open cutoffs', dist === 'all' ? null : distributorName(dist === 'none' ? null : dist), state.location ? locationNames.get(Number(state.location)) : null].filter(Boolean).join(' · ');
       const pdf = await buildOrderSheetPdf({ shop, subtitle, today: today(), groups: sel });
       pdf.save(`distributor-order-${slug}.pdf`);
       toast(`PDF saved: ${pdf.titles} ${pdf.titles === 1 ? 'title' : 'titles'}, ${pdf.copies} ${pdf.copies === 1 ? 'copy' : 'copies'}`);
