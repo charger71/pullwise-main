@@ -64,7 +64,7 @@ export async function recordBackup(sb, who, built) {
 export const NOT_RESTORED = ['staff', 'auth_users', 'staff_audit', 'job_log', 'restore_stage'];
 const CHUNK = 400;
 // Parents before children, for showing the list (the server works out the real load order from the foreign keys).
-const FIRST = ['settings', 'categories', 'customers', 'items', 'pages', 'events', 'posts', 'surveys', 'reservation_orders', 'reservations'];
+const FIRST = ['settings', 'locations', 'categories', 'customers', 'items', 'pages', 'events', 'posts', 'surveys', 'reservation_orders', 'reservations'];
 
 export const restoreOrder = (names) => [...names].sort((a, b) => (FIRST.indexOf(a) + 1 || 99) - (FIRST.indexOf(b) + 1 || 99) || a.localeCompare(b));
 

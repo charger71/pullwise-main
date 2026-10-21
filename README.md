@@ -225,8 +225,7 @@ hours from the default location (`withLocation` in `weekly-pull-list/email.js`, 
 To add a second location today, insert a `locations` row (`is_default` false). The shop's first location then stops
 mirroring Shop Settings and is edited on its own. Nothing customer-facing exists yet: no picker, no per-item pickup
 override, no combined "ready" email, no location-scoped staff permissions, no billing. Until those are built, new rows
-keep landing on the default location. Backup/restore carries the new columns but does not include the `locations`
-table itself.
+keep landing on the default location. Backup/restore covers `locations` like every other table. Only owners can change locations.
 
 ## Master catalog
 
