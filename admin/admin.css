@@ -85,6 +85,12 @@
 .table-tools button:hover { background: var(--hover-bg); }
 .table-tools button.is-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
 .ql-snow .ql-toolbar button, .ql-snow.ql-toolbar button { width: 30px; }
+/* Toolbar icons stay one size however big the button is (Quill sizes them to the button's height) and sit in its middle. */
+.ql-snow.ql-toolbar button { display: inline-flex; align-items: center; justify-content: center; padding: 0; vertical-align: middle; }
+.ql-snow.ql-toolbar button svg { float: none; width: 18px; height: 18px; flex: none; }
+.ql-snow.ql-toolbar .ql-formats { display: inline-flex; align-items: center; margin-right: var(--sp-12); }
+.ql-snow.ql-toolbar .ql-picker-label { display: inline-flex; align-items: center; }
+.ql-snow.ql-toolbar .ql-picker-label svg { position: static; margin-top: 0; width: 18px; height: 18px; }
 .ql-editor blockquote { border: 0 !important; padding: var(--sp-10) var(--sp-12) !important; font-weight: 700; background: var(--brand-accent); color: var(--on-accent); border-radius: var(--radius); }
 
 .admin-hint { font-size: .9rem; color: var(--muted); }
@@ -1155,6 +1161,11 @@ tr.is-clickable { cursor: pointer; }
   /* Rich-text editor: finger-sized toolbar buttons and pickers. */
   .ql-snow.ql-toolbar button, .ql-snow .ql-toolbar button { width: 40px; height: 40px; }
   .ql-snow.ql-toolbar .ql-picker-label, .ql-snow .ql-toolbar .ql-picker-label { display: flex; align-items: center; min-height: 40px; }
+  .ql-snow.ql-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); padding: var(--sp-6); }
+  .ql-snow.ql-toolbar .ql-picker { height: 40px; display: inline-flex; align-items: center; float: none; }
+  .ql-snow.ql-toolbar .ql-picker.ql-color-picker, .ql-snow.ql-toolbar .ql-picker.ql-icon-picker { width: 40px; }
+  .ql-snow.ql-toolbar .ql-picker.ql-color-picker .ql-picker-label, .ql-snow.ql-toolbar .ql-picker.ql-icon-picker .ql-picker-label { width: 40px; height: 40px; padding: 0; justify-content: center; }
+  .ql-snow.ql-toolbar .ql-formats { display: contents; } /* the buttons flow in even rows instead of wrapping group by group */
   /* Pages: the page chooser takes the row, View and Delete share the next one. */
   .admin-toolbar .field { flex: 1 1 100%; min-width: 100%; }
   .admin-toolbar > .btn { flex: 1 1 0; min-width: 0; min-height: 44px; justify-content: center; }
