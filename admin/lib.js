@@ -19,8 +19,8 @@ export const db = () => supabase();
 export { searchTerm, customerFilter, titleFilter, emailMatch, digitsMatch, anyOf };
 
 /** Text input for a column of the settings row `s`: `<input name=…>` with label and optional hint. */
-export const settingsField = (s) => (name, label, attrs = '', hint = '') =>
-  `<div class="field"><label for="s-${name}">${label}</label><input id="s-${name}" name="${name}" value="${esc(s[name])}" ${attrs}>${hint ? `<p class="field__hint">${hint}</p>` : ''}</div>`;
+export const settingsField = (s) => (name, label, attrs = '', hint = '', cls = '') =>
+  `<div class="field${cls ? ` ${cls}` : ''}"><label for="s-${name}">${label}</label><input id="s-${name}" name="${name}" value="${esc(s[name])}" ${attrs}>${hint ? `<p class="field__hint">${hint}</p>` : ''}</div>`;
 
 /** Readers over a submitted FormData: trimmed text (null when empty) and rounded whole numbers (with a fallback). */
 export const formReaders = (f) => ({

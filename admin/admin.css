@@ -197,7 +197,6 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 @media (min-width: 700px) { .hours-row { grid-template-columns: 1fr 130px 130px auto; } }
 .hours-row .field { margin: 0; }
 .hours-row__days { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-12); }
-.hours-row__days label { display: flex; align-items: center; gap: 5px; font-weight: 600; margin: 0; min-height: 36px; }
 
 /* Image field */
 .image-field { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-12); }
@@ -922,6 +921,11 @@ tr.is-clickable { cursor: pointer; }
 .chip:hover { background: var(--head-bg); }
 .chip[aria-pressed='true'] { background: var(--brand-accent); border-color: var(--brand-accent); color: var(--on-accent); }
 .chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* A chip can also be a tick box (the days of the week): the real checkbox stays for keyboards and screen readers. */
+.chip { display: inline-flex; align-items: center; position: relative; margin: 0; }
+.chip:has(input:checked) { background: var(--brand-accent); border-color: var(--brand-accent); color: var(--on-accent); }
+.chip:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.chip > input[type=checkbox] { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
 @media (min-width: 900px) { .orders-filters { grid-template-columns: 2fr auto repeat(2, 1fr); align-items: end; } }
 @media (max-width: 899px) {
   .orders-filters, .filters--compact { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-10); align-items: end; }
@@ -1125,4 +1129,17 @@ tr.is-clickable { cursor: pointer; }
   .settings-form label input[type=checkbox] { width: 24px; height: 24px; flex: none; }
   .color-row input[type=color] { width: 72px; height: 44px; }
   .email-log .fold__head .card__meta { flex: 1 1 100%; }
+}
+
+/* ---------- Shop Settings on phones ----------
+   Fields come two to a row (form-grid--pairs), the days of the week are chips, and the add / remove rows are 44px. */
+@media (max-width: 699px) {
+  .hours-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hours-row__days, .hours-row > .btn { grid-column: 1 / -1; }
+  .hours-row .field input { width: 100%; min-height: 44px; }
+  .tier-row { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: none; }
+  .tier-row > .btn { grid-column: 1 / -1; }
+  .tier-row .field input { width: 100%; min-height: 44px; }
+  .hours-row .btn, .tier-row .btn, .settings-form [data-add-hours], .settings-form [data-add-tier] { min-height: 44px; justify-content: center; }
+  .settings-form [data-add-hours], .settings-form [data-add-tier] { width: 100%; }
 }
