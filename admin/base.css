@@ -103,12 +103,12 @@
 /* Dark theme: set by admin/theme.js (Staff → My Account → Appearance). It only swaps variables. */
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --brand-ink: #f1ead8;
-  --brand-paper: #312f2c;
-  --surface: #3c3a35;
-  --muted: #bdb6a6;
-  --line: #534f47;
-  --field-line: #8c8678;
+  --brand-ink: #e1e4e8;
+  --brand-paper: #272d36;
+  --surface: #2f3742;
+  --muted: #a4afbf;
+  --line: #404b5a;
+  --field-line: #6d7e97;
   --focus: #7aa7ff;
   --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 4px 14px rgb(0 0 0 / .45);
   --danger: #d93a4a;
@@ -118,25 +118,25 @@
   --success-hover: #1b6f3c;
   --info: #3b7fc4;
   --info-hover: #2f68a2;
-  --stripe: #413e37;
-  --head-bg: #474334;
-  --head-bg-hover: #524c39;
-  --header-bg: #2a2927;
-  --header-fg: #f1ead8;
-  --tab-bg: #44413b;
-  --tab-hover: #60593b;
-  --hover-bg: #48453e;
-  --raised: #403d38;
-  --code-bg: #48443c;
-  --neutral-bg: #4c4a44;
-  --neutral-bg-2: #44423d;
-  --hover-row: #625a3b;
+  --stripe: #323a46;
+  --head-bg: #333c48;
+  --head-bg-hover: #3a4451;
+  --header-bg: #22272f;
+  --header-fg: #e1e4e8;
+  --tab-bg: #353e4a;
+  --tab-hover: #404b5b;
+  --hover-bg: #38414e;
+  --raised: #323a46;
+  --code-bg: #37404d;
+  --neutral-bg: #3c4654;
+  --neutral-bg-2: #363f4b;
+  --hover-row: #414c5c;
   --hover-row-danger: #6e4445;
   --merge-bg: #5a5330;
   --keep-bg: #335044;
   --select-bg: #3a536c;
   --select-bg-light: #35485b;
-  --dropzone-bg: #373531;
+  --dropzone-bg: #2b333d;
   --dropzone-hover: #463739;
   --pill-open: #524467;
   --pill-ordered: #3d4c6e;
@@ -144,13 +144,13 @@
   --pill-warn: #694e35;
   --pill-off: #525252;
   --pill-off-text: #d0d0d0;
-  --card-tint: #413e37;
-  --group-bg: #44413b;
-  --track-bg: #4c4a44;
-  --media-bg: #353430;
-  --line-strong: #7d776a;
-  --line-dash: #605c51;
-  --line-dash-2: #6e6959;
+  --card-tint: #323a46;
+  --group-bg: #353e4a;
+  --track-bg: #3c4654;
+  --media-bg: #2a313b;
+  --line-strong: #607087;
+  --line-dash: #495668;
+  --line-dash-2: #536174;
   --select-edge: #4a78a8;
   --warn-text: #e8a463;
   --bar: #5b9be0;
@@ -159,7 +159,7 @@
   --alert-icon: #ff6b78;
   --minor-icon: #e0963a;
   --danger-hover: #b02f3c;
-  --tool-bg: #4b4935;
+  --tool-bg: #353e4b;
   --pill-pink: #6e3d49;
 }
 
