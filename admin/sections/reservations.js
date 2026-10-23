@@ -469,7 +469,9 @@ async function exportCsv() {
 
 /** Open, ordered and reordered reservations, totalled per title. Titles releasing after this week (Sunday to Saturday) are listed only when asked for. */
 async function renderReady(body) {
-  body.innerHTML = `<p class="admin-hint">Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.</p>
+  // The instructions are long: folded away on phones, where they would fill the first screen.
+  const hintOpen = window.matchMedia('(max-width: 899px)').matches ? '' : ' open';
+  body.innerHTML = `<details class="admin-hint-fold"${hintOpen}><summary>How this works</summary><p class="admin-hint">Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.</p></details>
     <form class="filters admin-filters" role="search" aria-label="Find titles">
       <div class="field field--search"><label for="rd-q">Title</label><input id="rd-q" type="search" placeholder="Filter by title or publisher"></div>
       <div class="field"><span class="label">&nbsp;</span><label class="cust-export-opt" for="rd-future"><input type="checkbox" id="rd-future"> Include titles releasing after this week</label></div>
@@ -564,6 +566,15 @@ async function renderReady(body) {
   });
   box.addEventListener('click', async (e) => {
     if (e.target.closest('summary') && !e.target.closest('button')) e.preventDefault();
+    const card = !e.target.closest('input, button, a, label, select') && e.target.closest('tbody tr');
+    if (card && window.matchMedia('(max-width: 899px)').matches) {
+      const cb = $('input[data-item]:not([disabled])', card);
+      if (cb) {
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      return;
+    }
     const pick = e.target.closest('[data-pick]');
     if (pick) {
       visible().filter((r) => r.lineIds.length).forEach((r) => (pick.dataset.pick === 'all' ? picked.add(r.item.id) : picked.delete(r.item.id)));

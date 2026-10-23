@@ -928,3 +928,22 @@ tr.is-clickable { cursor: pointer; }
   .order--inline .order__lines td.col-status select.select--small { width: 100%; max-width: none; height: 44px; font-size: 1rem; margin: 0; }
   .order--inline .order__lines td.col-status .card__meta { margin-top: var(--sp-6); }
 }
+
+/* ---------- Received tab on phones ---------- */
+.admin-hint-fold { margin-bottom: var(--sp-12); }
+.admin-hint-fold > summary { cursor: pointer; font-weight: 600; color: var(--muted); min-height: 44px; display: flex; align-items: center; }
+.admin-hint-fold .admin-hint { margin-top: 0; }
+@media (max-width: 899px) {
+  .field .cust-export-opt { min-height: 44px; font-size: 1rem; white-space: normal; }
+  /* The Mark Ready button stays on screen under the page header while the list scrolls. */
+  .toorder.fold--static > .fold__head { position: sticky; top: 60px; z-index: 5; }
+  .toorder .admin-table.is-stack > tbody > tr > td[data-label='Out']::before { content: 'Out '; display: inline; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+  .toorder .admin-table.is-stack > tbody > tr > td input[type=checkbox] { width: 28px; height: 28px; margin: 8px; }
+  .toorder .admin-table.is-stack > tbody > tr:has(input[type=checkbox]:not([disabled])) { cursor: pointer; }
+}
+@media (max-width: 899px) {
+  .admin-filters .field:has(.cust-export-opt) { grid-column: 1 / -1; }
+  .admin-filters .field:has(.cust-export-opt) > .label { display: none; }
+  .field .cust-export-opt { width: 100%; gap: var(--sp-10); }
+  .field .cust-export-opt input { width: 24px; height: 24px; flex: none; }
+}
