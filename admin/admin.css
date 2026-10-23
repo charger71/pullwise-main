@@ -964,3 +964,37 @@ tr.is-clickable { cursor: pointer; }
   .past-table.is-stack > tbody > tr > td[data-label='Publisher'] { order: 3; }
   .past-table.is-stack > tbody > tr > td[data-label='Status'] { order: 4; flex: 1 1 100%; color: var(--ink); font-size: .95rem; font-weight: 600; }
 }
+
+/* ---------- Customers list on phones ---------- */
+.cust-more > summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.cust-more__body { display: grid; gap: var(--sp-8); padding-bottom: var(--sp-8); }
+@media (max-width: 899px) {
+  .cust-head-actions { flex: 1 1 100%; margin: 0; display: flex; flex-direction: column-reverse; align-items: stretch; gap: var(--sp-8); }
+  .cust-head-actions > .btn { width: 100%; min-height: 48px; justify-content: center; }
+  .cust-more { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 0 var(--sp-14); }
+  .cust-more__body .btn { width: 100%; min-height: 44px; }
+  .cust-more__body .cust-export-opt { min-height: 44px; font-size: 1rem; }
+  /* One row of tabs that scrolls sideways instead of wrapping onto a second line. */
+  .cust-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .cust-tabs::-webkit-scrollbar { display: none; }
+  .cust-tabs .admin-tab { flex: none; white-space: nowrap; }
+  .admin-hint-fold .cust-legend { justify-content: flex-start; padding-bottom: var(--sp-8); }
+  .admin-pager > span { white-space: nowrap; }
+  /* A customer is a card: name and Email on the first line, phone, the counts, then the status icons and Fix. */
+  .cust-list.is-stack > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-16); }
+  .cust-list.is-stack > tbody > tr > td { display: block; flex: 0 0 auto; order: 3; padding: 0; font-size: .9rem; color: var(--muted); }
+  .cust-list.is-stack > tbody > tr > td::before { content: none; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Name'] { order: 0; flex: 1 1 100%; min-width: 0; font-size: 1.05rem; color: var(--ink); }
+  .cust-list.is-stack > tbody > tr:has(.cust-email) > td[data-label='Name'] { flex-basis: calc(100% - 96px); }
+  .admin-pager { gap: var(--sp-8); }
+  .admin-pager .btn { flex: 1 1 0; min-width: 0; padding-inline: var(--sp-8); min-height: 44px; }
+  .admin-pager > span { flex: none; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Email'] { order: 1; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Email'] .btn { min-height: 44px; min-width: 80px; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Phone'] { order: 2; flex: 1 1 100%; color: var(--ink); }
+  .cust-list.is-stack > tbody > tr > td[data-label='Ready']::before, .cust-list.is-stack > tbody > tr > td[data-label='Active']::before { content: attr(data-label) ' '; display: inline; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+  .cust-list.is-stack > tbody > tr > td[data-label='Last updated']::before { content: 'Updated '; display: inline; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Status'] { order: 5; flex: 1 1 100%; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Status']:not(:has(.cust-icon, .btn)) { display: none; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Status'] .btn { min-height: 44px; }
+}

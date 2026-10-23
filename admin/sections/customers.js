@@ -127,18 +127,21 @@ const listName = (c) => [c.last_name, c.first_name].filter(Boolean).join(', ') |
 
 function renderList(el) {
   state.customerId = null;
+  // On phones the export and print controls, the icon key and the help text fold away so the list is on the first screen.
+  const phone = window.matchMedia('(max-width: 899px)').matches;
+  const exportControls = `<label class="cust-export-opt" title="Also export picked-up, released and cancelled titles"><input type="checkbox" data-export-history> Include past titles</label>
+        <button class="btn btn--ghost" type="button" data-export-all>Export all pull lists (CSV)</button>
+        <button class="btn btn--ghost" type="button" data-export-customers title="One page per customer, to print and put in their bag">Print all pull lists (PDF)</button>`;
   el.innerHTML = `
     <div class="admin-title-row">
       <h1>Customers</h1>
       <div class="admin-actions cust-head-actions">
-        <label class="cust-export-opt" title="Also export picked-up, released and cancelled titles"><input type="checkbox" data-export-history> Include past titles</label>
-        <button class="btn btn--ghost" type="button" data-export-all>Export all pull lists (CSV)</button>
-        <button class="btn btn--ghost" type="button" data-export-customers title="One page per customer, to print and put in their bag">Print all pull lists (PDF)</button>
+        ${phone ? `<details class="cust-more"><summary>Export &amp; print</summary><div class="cust-more__body">${exportControls}</div></details>` : exportControls}
         <button class="btn btn--primary" type="button" data-new>+ New customer</button>
       </div>
     </div>
-    <p class="admin-hint">Customers who made an account on the site, and ones you add here. Open one to edit their pull list while they're in the store or on the phone.</p>
-    <div class="admin-tabs" role="tablist">
+    ${phone ? '<details class="admin-hint-fold"><summary>How this works</summary>' : ''}<p class="admin-hint">Customers who made an account on the site, and ones you add here. Open one to edit their pull list while they're in the store or on the phone.</p>${phone ? '</details>' : ''}
+    <div class="admin-tabs cust-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-show="">All Customers</button>
       <button type="button" class="admin-tab" role="tab" data-show="new_week">New This Week <span class="admin-tab__badge" data-new-count hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-show="to_fix">Needs Attention</button>
@@ -147,8 +150,8 @@ function renderList(el) {
       <div class="field field--search"><label for="c-q">Customer</label><input id="c-q" name="q" type="search" placeholder="Name, phone or email" value="${esc(state.q)}"></div>
     </form>
     <p class="results-count" role="status" data-count></p>
-    ${iconLegend()}
-    <div class="admin-table-wrap"><table class="admin-table">
+    ${phone ? `<details class="admin-hint-fold"><summary>Status icon key</summary>${iconLegend()}</details>` : iconLegend()}
+    <div class="admin-table-wrap"><table class="admin-table cust-list">
       <thead><tr><th scope="col" class="col-cust-name" data-sort="name">Name</th><th scope="col" data-sort="phone">Phone</th><th scope="col" data-sort="email">Email</th><th scope="col" class="center" data-sort="ready">Ready</th><th scope="col" class="center" data-sort="active">Active</th><th scope="col" data-sort="updated">Last updated</th><th scope="col" data-sort="notes">Status</th></tr></thead>
       <tbody data-rows></tbody>
     </table></div>
