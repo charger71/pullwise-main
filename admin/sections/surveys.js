@@ -18,10 +18,8 @@ export const hasUnsavedChanges = () => dirty;
 function openPage(el, title, bodyHtml) {
   dirty = false;
   el.innerHTML = `
-    <div class="admin-title-row">
-      <h1>${esc(title)}</h1>
-      <button class="btn btn--ghost" type="button" data-back>← Back to surveys</button>
-    </div>
+    <p><button class="btn btn--ghost btn--small" type="button" data-back>← Back to surveys</button></p>
+    <h1>${esc(title)}</h1>
     ${bodyHtml}`;
   el.close = () => ((dirty = false), mount(el, { sb }));
   $('[data-back]', el).addEventListener('click', () => {

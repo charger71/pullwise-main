@@ -76,6 +76,7 @@ async function edit(listEl, id) {
   d.innerHTML = `
     <p><button class="btn btn--ghost btn--small" type="button" data-back>← Back to events</button></p>
     <h1>${id ? 'Edit Event' : 'New Event'}</h1>
+    <details class="fold toorder fold--static" open><summary class="fold__head"><h2>Event Details</h2></summary><div class="fold__body">
     <form class="admin-form" novalidate>
       <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="ev-title">Title <span class="req" aria-hidden="true">*</span></label><input id="ev-title" name="title" required value="${esc(ev.title)}"></div>
@@ -88,7 +89,7 @@ async function edit(listEl, id) {
           <p class="field__hint">One or two sentences, shown on the Calendar page next to a “More details” link. Leave it blank to show the start of the full description instead.</p></div>
         <div class="field span-2"><span class="label" id="ev-desc-label">Full description</span><div class="editor--body"><div data-desc></div></div></div>
         <div class="field span-2" data-image></div>
-        <div class="field field--check span-2"><input id="ev-signup" name="signup_enabled" type="checkbox"${ev.signup_enabled ? ' checked' : ''}><label for="ev-signup">Show a signup form on the event page</label></div>
+        <div class="checks span-2"><label><input name="signup_enabled" type="checkbox"${ev.signup_enabled ? ' checked' : ''}> Show a signup form on the event page</label></div>
         <div class="field"><label for="ev-cap">Spots available (optional)</label><input id="ev-cap" name="signup_capacity" type="number" min="1" max="1000" value="${esc(ev.signup_capacity)}"><p class="field__hint">Counts people, not signups. Leave blank for no limit.</p></div>
       </div>
       <div class="admin-actions sticky-actions">
@@ -97,7 +98,8 @@ async function edit(listEl, id) {
         ${id ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
         <span class="admin-status" role="status"></span>
       </div>
-    </form>`;
+    </form>
+    </div></details>`;
   window.scrollTo(0, 0);
   $('[data-back]', d).addEventListener('click', back);
   const quill = makeEditor($('[data-desc]', d), 'body', $('#ev-desc-label', d));
