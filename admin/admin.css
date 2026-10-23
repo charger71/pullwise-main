@@ -860,20 +860,22 @@ tr.is-clickable { cursor: pointer; }
      .card-lead    a tick box before the title            .card-line    a line of its own under the title (phone)
      .card-key     a figure that matters (copies, ...)   .card-wide    a line of its own at the end (status, notes)
      .card-foot    buttons on a last line                 .card-label   put the column heading in front ("Copies 4")
-   A cell with none of these is small print, in the order it comes. Cards that have an action leave room for it on
+   A row that holds something opening under a card (a table of members, an order's lines) gets `card-expand` and keeps
+   its own layout. A cell with none of these is small print, in the order it comes. Cards that have an action leave room for it on
    the title line: `cards--slim` for a narrow one (an icon button). */
 @media (max-width: 899px) {
   .cards.is-stack { --card-action: 100px; --card-lead: 0px; }
   .cards--slim.is-stack { --card-action: 76px; }
-  .cards.is-stack > tbody > tr:not(.order-expand):has(> .card-lead) { --card-lead: 56px; }
-  .cards.is-stack > tbody > tr:not(.order-expand):not(:has(> .card-action)) { --card-action: 0px; }
-  .cards.is-stack > tbody > tr:not(.order-expand) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-12); }
-  .cards.is-stack > tbody > tr:not(.order-expand) > td { display: block; flex: 0 0 auto; order: 5; padding: 0; font-size: .9rem; color: var(--muted); }
-  .cards.is-stack > tbody > tr:not(.order-expand) > td::before { content: none; }
-  .cards.is-stack > tbody > tr:not(.order-expand)::after { content: ''; order: 2; flex: 1 1 100%; height: 0; } /* line break after the title and its action */
+  .cards.is-stack > tbody > tr:not(.card-expand):has(> .card-lead) { --card-lead: 56px; }
+  .cards.is-stack > tbody > tr:not(.card-expand):not(:has(> .card-action)) { --card-action: 0px; }
+  .cards.is-stack > tbody > tr:not(.card-expand) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-12); }
+  .cards.is-stack > tbody > tr:not(.card-expand) > td { display: block; flex: 0 0 auto; order: 5; padding: 0; font-size: .9rem; color: var(--muted); }
+  .cards.is-stack > tbody > tr:not(.card-expand) > td::before { content: none; }
+  .cards.is-stack > tbody > tr:not(.card-expand)::after { content: ''; order: 2; flex: 1 1 100%; height: 0; } /* line break after the title and its action */
   .cards.is-stack > tbody > tr > td.card-title { order: 0; flex: 1 1 calc(100% - var(--card-action) - var(--card-lead)); min-width: 0; font-size: 1.05rem; font-weight: 700; color: var(--ink); }
   .cards.is-stack > tbody > tr > td.card-title br { display: none; }
-  .cards.is-stack > tbody > tr > td.card-title .card__meta { display: block; font-size: .85rem; font-weight: 400; }
+  .cards.is-stack > tbody > tr > td.card-title br + .card__meta { display: block; font-size: .85rem; font-weight: 400; } /* the line under a name ("Order #1042") */
+  .cards.is-stack > tbody > tr > td.card-title .card__meta { font-size: .85rem; font-weight: 400; }
   .cards.is-stack > tbody > tr > td.card-lead { order: -1; }
   .cards.is-stack > tbody > tr > td.card-action { order: 1; }
   .cards.is-stack > tbody > tr > td.card-line { order: 3; flex: 1 1 100%; color: var(--ink); }
@@ -922,10 +924,15 @@ tr.is-clickable { cursor: pointer; }
 .chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 @media (min-width: 900px) { .orders-filters { grid-template-columns: 2fr auto repeat(2, 1fr); align-items: end; } }
 @media (max-width: 899px) {
-  .orders-filters { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-10); align-items: end; }
+  .orders-filters, .filters--compact { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-10); align-items: end; }
   .orders-filters .field--search, .orders-filters .status-chips { grid-column: 1 / -1; }
   .orders-filters .field--search input, .orders-filters select, .orders-filters .btn { min-height: 44px; }
   .orders-filters select { width: 100%; }
+  /* The same bar built from bare controls (Email Log): search on its own row, then the select and a tick box. */
+  .filters--compact > input[type=search] { grid-column: 1 / -1; order: -1; width: 100%; }
+  .filters--compact > :where(input, select) { min-height: 44px; width: 100%; }
+  .filters--compact > label { display: flex; align-items: center; gap: var(--sp-8); min-height: 44px; }
+  .filters--compact > label input { width: 24px; height: 24px; flex: none; }
   /* An order is a card: customer and View on the first line, the details under them, then the status. */
 }
 
@@ -1106,3 +1113,16 @@ tr.is-clickable { cursor: pointer; }
   .sticky-actions .admin-status:empty { display: none; }
 }
 .admin-dialog .sticky-actions { z-index: 3; background: var(--surface); margin: var(--sp-12) calc(-1 * var(--sp-16)) calc(-1 * var(--sp-16)); padding: var(--sp-10) var(--sp-16); border-top: var(--border); }
+
+/* ---------- Emails on phones ---------- */
+@media (max-width: 899px) {
+  /* Try it first / Send now: every button is a full-width 44px row, like the other action bars. */
+  .email-tools .admin-actions { flex-direction: column; align-items: stretch; gap: var(--sp-8); }
+  .email-tools .btn { width: 100%; min-height: 44px; justify-content: center; }
+  .email-tools .admin-actions .field__hint { margin: 0; }
+  /* Settings: tick boxes and the colour "match the site" switch are 44px rows. */
+  .settings-form label:has(input[type=checkbox]) { min-height: 44px; }
+  .settings-form label input[type=checkbox] { width: 24px; height: 24px; flex: none; }
+  .color-row input[type=color] { width: 72px; height: 44px; }
+  .email-log .fold__head .card__meta { flex: 1 1 100%; }
+}

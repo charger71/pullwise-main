@@ -226,7 +226,7 @@ async function expandOrder(tr) {
   let x = tr.nextElementSibling;
   if (!x?.matches('.order-expand')) {
     x = document.createElement('tr');
-    x.className = 'order-expand';
+    x.className = 'order-expand card-expand';
     x.innerHTML = '<td colspan="6"><div data-order-box aria-busy="true"><p class="admin-hint">Loading…</p></div></td>';
     tr.after(x);
   }

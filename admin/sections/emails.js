@@ -57,19 +57,19 @@ export async function mount(el, { sb }) {
 
       <details class="fold toorder"><summary class="fold__head"><h2>Weekly Pull List Email<span class="toorder__count">${s.pull_list_email_enabled ? `On: ${WEEKDAYS[s.pull_list_email_day]} around ${hourLabel(s.pull_list_email_hour)}` : 'Off'}</span></h2></summary><div class="fold__body">
         <p class="field__hint">Every customer with something on their pull list gets one email a week: what’s ready for pickup, what’s coming, and a link to log in and edit. Customers can turn it off in their profile or with the link in the email.</p>
-        <div class="form-grid">
+        <div class="form-grid form-grid--pairs">
           <div class="field span-2"><label><input type="checkbox" name="pull_list_email_enabled"${s.pull_list_email_enabled ? ' checked' : ''}> Send the weekly email</label>
             <p class="field__hint">When this is on, the email goes out automatically on the day and time below.</p></div>
           <div class="field"><label for="s-email-day">Day</label><select id="s-email-day" name="pull_list_email_day">${WEEKDAYS.map((d, i) => `<option value="${i}"${i === s.pull_list_email_day ? ' selected' : ''}>${d}</option>`).join('')}</select></div>
           <div class="field"><label for="s-email-hour">Time (shop time)</label><select id="s-email-hour" name="pull_list_email_hour">${Array.from({ length: 24 }, (_, h) => `<option value="${h}"${h === s.pull_list_email_hour ? ' selected' : ''}>${hourLabel(h)}</option>`).join('')}</select>
             <p class="field__hint">Sent within the hour, in the shop time zone above.</p></div>
-          ${field('pull_list_email_from', 'From', 'maxlength="200" placeholder="Pop’s Comics &lt;pulllist@yourdomain.com&gt;"', 'Must be an address on a domain verified with the sending service. Replies go to the shop email above.')}
+          ${field('pull_list_email_from', 'From', 'maxlength="200" placeholder="Pop’s Comics &lt;pulllist@yourdomain.com&gt;"', 'Must be an address on a domain verified with the sending service. Replies go to the shop email above.').replace('class="field"', 'class="field field--full"')}
         </div>
       </div></details>
 
       <details class="fold toorder"><summary class="fold__head"><h2>“Your Books Are In” Email<span class="toorder__count">${s.arrival_email_enabled ? `On: ${hourLabel(s.arrival_email_after_hour)} to ${hourLabel(s.arrival_email_before_hour % 24)}` : 'Off'}</span></h2></summary><div class="fold__body">
         <p class="field__hint">When titles on a customer’s pull list become ready for pickup, they get one email listing them (plus anything still waiting). It uses the same sender as the weekly email, and customers can turn it off in their profile.</p>
-        <div class="form-grid">
+        <div class="form-grid form-grid--pairs">
           <div class="field span-2"><label><input type="checkbox" name="arrival_email_enabled"${s.arrival_email_enabled ? ' checked' : ''}> Send “your books are in” emails</label>
             <p class="field__hint">Checked every hour. Titles become ready for pickup on their release date, or when you mark them Ready.</p></div>
           <div class="field"><label for="s-arr-after">Send no earlier than</label><select id="s-arr-after" name="arrival_email_after_hour">${Array.from({ length: 24 }, (_, h) => `<option value="${h}"${h === s.arrival_email_after_hour ? ' selected' : ''}>${hourLabel(h)}</option>`).join('')}</select>
@@ -129,7 +129,7 @@ export async function mount(el, { sb }) {
     <details class="fold toorder fold--static email-log" data-email-log open>
       <summary class="fold__head"><h2>Email Log<span class="toorder__count" data-log-count>Every email the site has sent</span></h2></summary>
       <div class="fold__body">
-        <div class="email-log__filters">
+        <div class="email-log__filters filters--compact">
           <select data-log-kind aria-label="Type of email"><option value="">All types</option>${Object.entries(LOG_KINDS).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}</select>
           <input type="search" data-log-q placeholder="Search recipient or subject" aria-label="Search the email log">
           <label><input type="checkbox" data-log-failed> Failed only</label>
@@ -213,29 +213,29 @@ function setupLog(sb, el) {
     return `<tr class="${member ? 'email-log__member' : ''}${r.status === 'failed' ? ' is-overdue' : ''}">
       <td class="nowrap card__meta">${member ? '' : esc(fmtDateTime(r.created_at))}</td>
       <td>${member ? '' : esc(kindLabel(r.kind))}</td>
-      <td class="email-log__to">${esc(r.to_email)}</td>
-      <td class="email-log__subject">${esc(r.subject)}</td>
-      <td>${statusCell(r)}</td>
-      <td><button class="btn btn--ghost btn--small" type="button" data-log-view="${r.id}">View</button></td>
+      <td class="email-log__to card-title">${esc(r.to_email)}</td>
+      <td class="email-log__subject card-line">${esc(r.subject)}</td>
+      <td class="card-key">${statusCell(r)}</td>
+      <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-log-view="${r.id}">View</button></td>
     </tr>`;
   };
   const groupRow = (g) => `<tr class="email-log__group" data-run="${esc(g.run_id)}">
       <td class="nowrap card__meta">${esc(fmtDateTime(g.created_at))}</td>
       <td>${esc(kindLabel(g.kind))}</td>
-      <td colspan="2"><strong>${g.total} ${g.total === 1 ? 'email' : 'emails'}</strong>${g.sent_by ? ` <span class="card__meta">· ${esc(g.sent_by)}</span>` : ''}</td>
-      <td>${g.failed ? `<span class="order__badge order__badge--failed">${g.failed} failed</span>` : 'Sent'}</td>
-      <td><button class="btn btn--ghost btn--small" type="button" data-log-run="${esc(g.run_id)}" aria-expanded="false">Show</button></td>
+      <td colspan="2" class="card-title"><strong>${g.total} ${g.total === 1 ? 'email' : 'emails'}</strong>${g.sent_by ? ` <span class="card__meta">· ${esc(g.sent_by)}</span>` : ''}</td>
+      <td class="card-key">${g.failed ? `<span class="order__badge order__badge--failed">${g.failed} failed</span>` : 'Sent'}</td>
+      <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-log-run="${esc(g.run_id)}" aria-expanded="false">Show</button></td>
     </tr>`;
   // An entry with no run is one email: show it like any other row, and fetch its text when View is clicked.
   const singleRow = (g) => `<tr${g.failed ? ' class="is-overdue"' : ''}>
       <td class="nowrap card__meta">${esc(fmtDateTime(g.created_at))}</td>
       <td>${esc(kindLabel(g.kind))}</td>
-      <td class="email-log__to">${esc(g.to_email)}</td>
-      <td class="email-log__subject">${esc(g.subject)}</td>
-      <td>${g.failed ? '<span class="order__badge order__badge--failed">Failed</span>' : 'Sent'}</td>
-      <td><button class="btn btn--ghost btn--small" type="button" data-log-view="${g.first_id}">View</button></td>
+      <td class="email-log__to card-title">${esc(g.to_email)}</td>
+      <td class="email-log__subject card-line">${esc(g.subject)}</td>
+      <td class="card-key">${g.failed ? '<span class="order__badge order__badge--failed">Failed</span>' : 'Sent'}</td>
+      <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-log-view="${g.first_id}">View</button></td>
     </tr>`;
-  const table = (body) => `<div class="admin-table-wrap"><table class="admin-table email-log__table">
+  const table = (body) => `<div class="admin-table-wrap"><table class="admin-table email-log__table cards">
       <thead><tr><th scope="col">When</th><th scope="col">Type</th><th scope="col">To</th><th scope="col">Subject</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">View</span></th></tr></thead>
       <tbody>${body}</tbody></table></div>`;
 
@@ -313,7 +313,7 @@ function setupLog(sb, el) {
       }
       run.disabled = false;
       if (error) return void toast(`Couldn’t load that run: ${friendlyError(error)}`, 'error');
-      groupTr.insertAdjacentHTML('afterend', `<tr class="email-log__members"><td colspan="6">${table(data.map((r) => emailRow(r, { member: true })).join(''))}</td></tr>`);
+      groupTr.insertAdjacentHTML('afterend', `<tr class="email-log__members card-expand"><td colspan="6">${table(data.map((r) => emailRow(r, { member: true })).join(''))}</td></tr>`);
       run.setAttribute('aria-expanded', 'true');
       run.textContent = 'Hide';
       return;
