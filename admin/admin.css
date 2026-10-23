@@ -260,6 +260,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .fold__head h2 { margin: 0; font-size: var(--fs-card); }
 .fold__body { padding: var(--sp-16); }
 /* A fold that is always open (e.g. a new customer's profile): no chevron, not clickable. */
+.fold:not(.fold--static) > .fold__head { min-height: 52px; } /* a header you click or tap open is a roomy target (the Place Order cutoffs are 56px) */
 .fold--static > .fold__head { cursor: default; }
 .fold--static > .fold__head::after { display: none; }
 
@@ -907,7 +908,7 @@ tr.is-clickable { cursor: pointer; }
 @media (max-width: 700px) {
   /* Cutoff header: the heading takes the first line and the action sits full width beneath it. */
   .toorder .fold__head { flex-wrap: wrap; row-gap: var(--sp-6); }
-  .toorder .fold__head h2 { flex: 1 1 100%; }
+  .toorder .fold__head h2 { flex: 1 1 calc(100% - 2rem); } /* leaves room for the chevron on the same line */
   .toorder .fold__head .btn { flex: 1 1 100%; min-height: 44px; }
   .order-tools__row .btn, .order-tools__row select { min-height: 44px; }
   .order-tools__btns .btn { flex: 1 1 0; }
@@ -1156,7 +1157,6 @@ tr.is-clickable { cursor: pointer; }
 [data-move] { min-width: 0; width: 44px; padding: 0; } /* the up / down arrows (the global .btn minimum width made them 136px) */
 .faq-item__move button { min-width: 0; }
 @media (max-width: 899px) {
-  .fold:not(.fold--static) > .fold__head { min-height: 44px; } /* a fold you tap open is a 44px target */
   .btn.btn--small { min-height: 44px; } /* every small button is still a 44px tap target on a phone */
   .sticky-actions[hidden] { display: none; }
   .fold .sticky-actions { background: var(--surface); }
