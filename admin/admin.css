@@ -861,7 +861,7 @@ tr.is-clickable { cursor: pointer; }
   .toorder .admin-table.is-stack > tbody > tr > td { display: block; flex: 0 0 auto; order: 3; padding: 0; font-size: .85rem; color: var(--muted); }
   .toorder .admin-table.is-stack > tbody > tr > td::before { content: none; }
   /* The title fills its line; the action (tick box or "not ordering") sits at the end of it. */
-  .toorder .admin-table.is-stack > tbody > tr > td[data-label='Title'] { order: 0; flex: 1 1 calc(100% - 64px); min-width: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
+  .toorder .admin-table.is-stack > tbody > tr > td[data-label='Title'] { order: 0; flex: 1 1 calc(100% - 76px); min-width: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
   .toorder .admin-table.is-stack > tbody > tr > td[data-label=''] { order: 1; flex: 0 0 auto; }
   .toorder .admin-table.is-stack > tbody > tr > td:has(input[type=checkbox]) { order: -1; }
   .toorder .admin-table.is-stack > tbody > tr > td[data-label='Copies'], .toorder .admin-table.is-stack > tbody > tr > td[data-label='Customers'] { order: 2; color: var(--ink); font-size: .95rem; }
@@ -881,3 +881,7 @@ tr.is-clickable { cursor: pointer; }
   .order-tools__btns .btn { flex: 1 1 0; }
   .order-tools__btns .label { display: none; }
 }
+
+/* "Not ordering" (the red X) on Place Order: a big target with a big icon, on phones and desktop alike. */
+.toorder [data-notordering] { width: 52px; height: 52px; min-width: 52px; min-height: 52px; }
+.toorder [data-notordering] svg { width: 36px; height: 36px; }
