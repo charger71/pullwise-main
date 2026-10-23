@@ -43,7 +43,7 @@ export async function mount(el, { sb, isOwner: owner }, selectKey) {
   el.innerHTML = `
     <div class="admin-title-row">
       <h1>Pages</h1>
-      <button class="btn btn--primary" type="button" id="page-new">+ New page</button>
+      <button class="btn btn--add" type="button" id="page-new">${solidIcon('add', 18)} New page</button>
     </div>
     <div class="admin-toolbar">
       <div class="field">

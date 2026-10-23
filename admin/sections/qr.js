@@ -103,7 +103,7 @@ export async function mount(el, { sb }) {
       if (!it.el.hidden) shown++;
     }
     $('[data-tab-empty]', list)?.remove();
-    if (!shown && items.length) list.insertAdjacentHTML('beforeend', `<p class="admin-hint" data-tab-empty>No ${qrTab === 'forward' ? 'forwarding' : 'direct'} codes.</p>`);
+    if (!shown && items.length) list.insertAdjacentHTML('beforeend', `<p class="empty" data-tab-empty>No ${qrTab === 'forward' ? 'forwarding' : 'direct'} codes.</p>`);
   };
   try {
     qrTab = sessionStorage.getItem('admin-qr-tab') || qrTab;
@@ -124,7 +124,7 @@ export async function mount(el, { sb }) {
   try {
     await loadScript(QR_LIB, 'Couldn’t load the QR code library. Check your connection and reload.');
     const rows = await must(sb.from('qr_codes').select('*').order('created_at', { ascending: false }));
-    if (!rows.length) list.innerHTML = '<p class="admin-hint" data-empty>No QR codes yet. Click “New QR code” to make one.</p>';
+    if (!rows.length) list.innerHTML = '<p class="empty" data-empty>No QR codes yet. Click “New QR code” to make one.</p>';
     rows.forEach((r, i) => addItem(sb, list, r, i === 0));
     applyTab();
   } catch (err) {

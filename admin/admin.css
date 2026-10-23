@@ -1060,7 +1060,7 @@ tr.is-clickable { cursor: pointer; }
 .filters-more > summary { cursor: pointer; font-weight: 600; color: var(--muted); min-height: 44px; display: flex; align-items: center; }
 .filters-more__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-12); }
 @media (max-width: 899px) {
-  .filters-more__grid select { width: 100%; text-overflow: ellipsis; font-size: .85rem; padding-inline: var(--sp-8) var(--sp-24); }
+  .filters-more__grid select { width: 100%; text-overflow: ellipsis; font-size: 1rem; padding-inline: var(--sp-8) var(--sp-24); }
   .admin-actions .btn { min-height: 44px; }
   /* A title is a card that fits the screen: cover and name side by side, the dates, a full-width status dropdown with
      Edit beside it, then the three tick boxes under the name. */
@@ -1138,6 +1138,7 @@ tr.is-clickable { cursor: pointer; }
 [data-move] { min-width: 0; width: 44px; padding: 0; } /* the up / down arrows (the global .btn minimum width made them 136px) */
 .faq-item__move button { min-width: 0; }
 @media (max-width: 899px) {
+  .btn.btn--small { min-height: 44px; } /* every small button is still a 44px tap target on a phone */
   .sticky-actions[hidden] { display: none; }
   .fold .sticky-actions { background: var(--surface); }
   [data-move] { min-height: 44px; }

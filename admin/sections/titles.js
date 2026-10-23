@@ -45,7 +45,7 @@ export async function mount(el, ctx) {
       <h1>Titles</h1>
       <div class="admin-actions">
         <button class="btn btn--ghost" type="button" data-cleanup>Clean up old titles…</button>
-        <button class="btn btn--primary" type="button" data-new>+ Add title</button>
+        <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New title</button>
       </div>
     </div>
     <div class="admin-tabs" role="tablist">
@@ -341,7 +341,7 @@ async function edit(listEl, id) {
     try {
       if (id) await must(sb.from('items').update(row).eq('id', id));
       else await must(sb.from('items').insert(row));
-      toast(id ? 'Title saved' : 'Title added');
+      toast(id ? 'Title saved' : 'Title created');
       d.close();
       load(listEl);
       loadDateOptions(listEl);

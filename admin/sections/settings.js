@@ -93,7 +93,7 @@ export async function mount(el, { sb }) {
       </div></div></details>
       </div>
       <div data-tabpane="stock">
-      <details class="fold toorder fold--static" open><summary class="fold__head"><h2>Pre-orders &amp; Stock</h2></summary><div class="fold__body"><div class="form-grid form-grid--pairs">
+      <details class="fold toorder fold--static" open><summary class="fold__head"><h2>Pre-Orders &amp; Stock</h2></summary><div class="fold__body"><div class="form-grid form-grid--pairs">
         ${field('max_copies_per_title', 'Copies per customer per title', 'type="number" min="1" max="100" inputmode="numeric"')}
         ${field('hold_days', 'Hold reservations after arrival (days)', 'type="number" min="1" max="365" inputmode="numeric"')}
         <div class="field field--full"><label for="s-timezone">Shop time zone</label><select id="s-timezone" name="timezone">${[...new Set([s.timezone, ...ZONES])].filter(Boolean).map((z) => `<option${z === s.timezone ? ' selected' : ''}>${z}</option>`).join('')}</select><p class="field__hint">Reservations close at midnight shop time on the Saturday before each order cutoff (FOC).</p></div>
