@@ -1,7 +1,7 @@
 // Surveys: build a survey, open or close it, and read the answers.
 // Customers answer at survey.html?s=<slug> (no login). Responses are private to staff.
 
-import { $, $$, esc, must, toast, setStatus, slugify, fmtDateTime, downloadCsv, loadScript, solidIcon, friendlyError, setupTabs, fetchAll, hintFold } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, slugify, fmtDateTime, downloadCsv, loadScript, solidIcon, friendlyError, setupTabs, fetchAll, hintFold, fmtDate } from '../lib.js';
 import { QR_LIB, svgFor, newSlug, encodedText } from './qr.js';
 import { SITE_URL } from '../../js/config.js';
 
@@ -329,7 +329,7 @@ async function renderResults(box, sv) {
   const d = box;
   box.innerHTML = `
     <p><strong>${rows.length}</strong> response${rows.length === 1 ? '' : 's'}${rows[0] ? ` · latest ${fmtDateTime(rows[0].created_at)}` : ''}</p>
-    <p class="print-only">${esc(sv.title)} · printed ${new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+    <p class="print-only">${esc(sv.title)} · printed ${fmtDate(new Date().toISOString(), { month: 'short', day: 'numeric', year: 'numeric' })}</p>
     ${rows.length ? '<p class="no-print"><button class="btn btn--primary" type="button" data-print>Print / Save as PDF</button> <button class="btn btn--ghost" type="button" data-csv>Download CSV</button></p>' : ''}
     ${sv.collect_email ? `<p><strong>${entries.length}</strong> email${entries.length === 1 ? '' : 's'} entered for the drawing${entries.length ? ' <button class="btn btn--ghost btn--small no-print" type="button" data-entries>Download emails</button>' : ''}</p>` : ''}
     ${rows.length ? summary.join('') : '<p class="empty">No responses yet.</p>'}`;

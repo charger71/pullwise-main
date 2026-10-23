@@ -6,7 +6,7 @@ import { putMedia } from '../js/media-store.js';
 import { friendlyError, fromError } from '../js/errors.js';
 import { searchTerm, customerFilter, titleFilter, emailMatch, digitsMatch, anyOf } from './filters.js';
 import { ITEM_STATUS } from '../js/labels.js';
-import { fmtDate as siteFmtDate } from '../js/site.js';
+import { fmtDate as siteFmtDate, fmtTime as siteFmtTime } from '../js/site.js';
 
 export { esc, must, formatPhone };
 export { friendlyError, fromError };
@@ -61,8 +61,14 @@ export function toast(text, kind = 'ok') {
   setTimeout(() => t.remove(), kind === 'error' ? 8000 : 3500);
 }
 
-export const fmtDate = (iso, opts = { month: 'short', day: 'numeric', year: 'numeric' }) => siteFmtDate(iso, opts);
-export const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
+/**
+ * Dates across the admin: "Oct 23", and "Oct 23, 2025" when it isn't this year. Pass the parts you want to show
+ * (weekday: 'short' for a cutoff); the year is added for other years whenever a month is shown. Times are "5:04 PM".
+ */
+export const fmtDate = (iso, opts = { month: 'short', day: 'numeric' }) =>
+  siteFmtDate(iso, opts.month && opts.year === undefined && iso && iso.slice(0, 4) !== String(new Date().getFullYear()) ? { ...opts, year: 'numeric' } : opts);
+export const fmtDateTime = (iso) => (iso ? fmtDate(iso, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
+export const fmtTime = (when = new Date()) => siteFmtTime(when);
 
 /** <input type="datetime-local"> value ↔ ISO timestamp (local time). */
 export const toLocalInput = (iso) => {

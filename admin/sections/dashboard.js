@@ -4,7 +4,7 @@
 // titles, titles needing attention). Read-only; links out to the sections
 // where things get changed.
 
-import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations } from '../lib.js';
+import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations, fmtTime } from '../lib.js';
 import { lastReserveDay } from '../../js/site.js';
 import { lastBackup } from '../backup.js';
 import { LINE_STATUS_SHORT } from '../../js/labels.js';
@@ -117,7 +117,7 @@ export async function mount(el, ctx) {
         throw Object.assign(new Error('You may have been signed out. Sign in again, then save once more.'), { code: 'P0001' });
       }
       $('[data-announce-sum]', el).textContent = announcement || 'None showing';
-      setStatus(status, announcement ? `Saved ${new Date().toLocaleTimeString()} — showing on the site now.` : 'Saved — no announcement is showing.', 'ok');
+      setStatus(status, announcement ? `Saved ${fmtTime()} — showing on the site now.` : 'Saved — no announcement is showing.', 'ok');
     } catch (err) {
       setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
     }

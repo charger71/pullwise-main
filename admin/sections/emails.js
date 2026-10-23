@@ -2,7 +2,7 @@
 // schedule, sender, and preview / test / send-now tools. Saves only its own
 // settings columns, so it never touches the Shop Settings fields.
 
-import { $, $$, esc, must, toast, setStatus, openDialog, makeEditor, setHtml, getHtml, imageField, settingsField, formReaders, fmtDateTime, debounce, friendlyError, setupTabs } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, openDialog, makeEditor, setHtml, getHtml, imageField, settingsField, formReaders, fmtDateTime, debounce, friendlyError, setupTabs, fmtTime } from '../lib.js';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const hourLabel = (h) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
@@ -183,7 +183,7 @@ export async function mount(el, { sb }) {
       dirty = false;
       textDirty = false;
       syncEmailButtons();
-      setStatus(status, `Saved ${new Date().toLocaleTimeString()} — live on the site now.`, 'ok');
+      setStatus(status, `Saved ${fmtTime()} — live on the site now.`, 'ok');
       toast('Email settings saved');
     } catch (err) {
       setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
