@@ -103,7 +103,7 @@
 /* FAQ manager */
 .faq-items { list-style: none; padding: 0; margin: 0 0 var(--sp-16); counter-reset: faq; }
 .faq-item { counter-increment: faq; }
-.faq-item__num::before { content: 'Question ' counter(faq); font-weight: 700; color: var(--muted); font-size: .9rem; white-space: nowrap; }
+.faq-item__num::before { content: 'Question ' counter(faq); font-weight: 700; color: inherit; opacity: .85; font-size: .9rem; white-space: nowrap; }
 .faq-item__q { flex: 1; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .faq-item__move { display: flex; gap: var(--sp-6); }
 .faq-item__move button { width: 40px; min-height: 40px; padding: 0; }
@@ -251,9 +251,11 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
    (.fold__head, a <summary> with the shared chevron) and a padded .fold__body. */
 .panel, .fold { margin-bottom: var(--sp-16); }
 .fold { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
-.fold__head { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-14) var(--sp-16); min-height: 0; font-weight: inherit; background: var(--head-bg); border-left: 4px solid var(--brand-accent); border-radius: var(--radius); }
-.fold__head:hover { background: var(--head-bg-hover); }
-.fold__head:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.fold__head { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-14) var(--sp-16); min-height: 0; font-weight: inherit; background: var(--fold-head-bg); color: #fff; border-radius: var(--radius); }
+.fold__head:hover { background: var(--fold-head-bg); filter: brightness(1.12); }
+.fold__head h2, .fold__head .toorder__count, .fold__head .card__meta { color: #fff; }
+.fold__head .toorder__count, .fold__head .card__meta { opacity: .85; }
+.fold__head:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 2px; }
 .fold[open] > .fold__head { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .fold__head h2 { margin: 0; font-size: var(--fs-card); }
 .fold__body { padding: var(--sp-16); }
@@ -1106,6 +1108,8 @@ tr.is-clickable { cursor: pointer; }
   .form-grid--pairs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-12); align-items: start; }
   .form-grid--pairs .span-2, .form-grid--pairs .field--full, .form-grid--pairs .field:has(input[type=datetime-local]) { grid-column: 1 / -1; }
   .form-grid--pairs select, .form-grid--pairs input:not(.visually-hidden) { min-width: 0; width: 100%; } /* (a file picker hidden inside an image field must stay 1px wide, or the page scrolls sideways) */
+  .form-grid--pairs .field--check input[type=checkbox] { width: 24px; height: 24px; flex: none; } /* a lone checkbox keeps its own size beside its label */
+  .fold__head [data-qtype] { white-space: nowrap; }
   .form-grid--pairs .checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-8); }
   .form-grid--pairs .checks label { min-height: 44px; font-size: .95rem; }
   .form-grid--pairs .checks input[type=checkbox] { width: 24px; height: 24px; flex: none; }
@@ -1216,12 +1220,8 @@ tr.is-clickable { cursor: pointer; }
 
 .chip [data-quick-count]:not(:empty) { margin-left: var(--sp-6); padding: 0 var(--sp-6); border-radius: var(--radius-pill); background: var(--danger); color: #fff; font-size: .8rem; line-height: 1.5; } /* the count on a quick filter, set off from its label */
 
-/* Place Order cutoff headers: taller, brand-colored bands so each cutoff stands out on the page. */
-.fold.toorder[data-foc] > .fold__head { min-height: 56px; padding: var(--sp-14) var(--sp-16); background: #434f62; border-left: 0; color: #fff; }
-.fold.toorder[data-foc] > .fold__head:hover { background: #434f62; filter: brightness(1.12); }
-.fold.toorder[data-foc] > .fold__head h2, .fold.toorder[data-foc] .toorder__count { color: #fff; }
-.fold.toorder[data-foc] .toorder__count { opacity: .85; }
-.fold.toorder[data-foc] > .fold__head:focus-visible { outline-color: var(--brand-accent); }
+/* Place Order cutoff headers are taller so each cutoff stands out on the page. */
+.fold.toorder[data-foc] > .fold__head { min-height: 56px; }
 
 /* Staff list: paint the zebra stripe on the row so the action cell can't fall a pixel short of its neighbours. */
 .staff-table tbody tr:nth-child(even) { background: var(--stripe); }
