@@ -74,7 +74,8 @@ async function edit(listEl, id) {
   const d = listEl;
   const back = () => showList(listEl);
   d.innerHTML = `
-    <p><button class="btn btn--ghost btn--small" type="button" data-back>← Back to events</button></p>
+    <p class="admin-actions"><button class="btn btn--ghost btn--small" type="button" data-back>← Back to events</button>
+      ${id && ev.signup_enabled ? '<button class="btn btn--blue btn--small" type="button" data-signups>View signups</button>' : ''}</p>
     <h1>${id ? 'Edit Event' : 'New Event'}</h1>
     <details class="fold toorder fold--static" open><summary class="fold__head"><h2>Event Details</h2></summary><div class="fold__body">
     <form class="admin-form" novalidate>
@@ -94,7 +95,6 @@ async function edit(listEl, id) {
       </div>
       <div class="admin-actions sticky-actions">
         <button class="btn btn--primary" type="submit">${id ? 'Save' : 'Add event'}</button>
-        ${id && ev.signup_enabled ? '<button class="btn btn--ghost" type="button" data-signups>View signups</button>' : ''}
         ${id ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
         <span class="admin-status" role="status"></span>
       </div>
