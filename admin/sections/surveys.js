@@ -1,8 +1,8 @@
 // Surveys: build a survey, open or close it, and read the answers.
 // Customers answer at survey.html?s=<slug> (no login). Responses are private to staff.
 
-import { $, $$, esc, must, toast, setStatus, slugify, fmtDateTime, downloadCsv, loadScript, solidIcon, friendlyError, setupTabs, fetchAll, hintFold, fmtDate } from '../lib.js';
-import { QR_LIB, svgFor, newSlug, encodedText } from './qr.js';
+import { $, $$, esc, must, toast, setStatus, slugify, fmtDateTime, downloadCsv, solidIcon, friendlyError, setupTabs, fetchAll, hintFold, fmtDate } from '../lib.js';
+import { newSlug } from './qr.js';
 import { SITE_URL } from '../../js/config.js';
 
 const TYPES = { section: 'Section header (title, text and a divider)', text: 'Short answer', long: 'Long answer', choice: 'Pick one', multi: 'Pick any', rating: 'Rating 1–5', yesno: 'Yes / No' };
@@ -103,15 +103,12 @@ async function load(el) {
     // Saved forwarding codes (Admin → QR Codes) for these surveys, keyed by survey link; best effort.
     const saved = new Map();
     try {
-      await loadScript(QR_LIB, 'Couldn’t load the QR code maker.');
       (await must(sb.from('qr_codes').select('slug,target_url,scan_count').eq('forward', true))).forEach((q) => saved.set(q.target_url, q));
     } catch { /* the column just shows direct codes without scan counts */ }
     const qrCell = (s) => {
       const q = saved.get(publicUrl(s.slug));
       if (!q) return `<td><button class="btn btn--ghost btn--small" type="button" data-make-qr="${s.id}">Make QR code</button></td>`;
-      let img = '';
-      try { img = svgFor(encodedText({ forward: true, slug: q.slug }), '#000000', '#ffffff'); } catch { return '<td>—</td>'; }
-      return `<td><a class="survey-qr" href="#qr" aria-label="Open this QR code in QR Codes">${img}</a><br><span class="card__meta">${q.scan_count} scan${Number(q.scan_count) === 1 ? '' : 's'}</span></td>`;
+      return `<td><a class="btn btn--ghost btn--small" href="#qr" title="Opens this survey's code in QR Codes">View QR code</a><br><span class="card__meta">${q.scan_count} scan${Number(q.scan_count) === 1 ? '' : 's'}</span></td>`;
     };
     box.innerHTML = rows.length
       ? `<div class="admin-table-wrap"><table class="admin-table cards"><thead><tr><th scope="col">Survey</th><th scope="col">Status</th><th scope="col">Answers</th><th scope="col">QR code</th><th scope="col">Share</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>${rows
@@ -131,7 +128,7 @@ function questionRow(q, open = false) {
   const uid = `sq-${q.id}`;
   li.innerHTML = `
     <details class="fold"${open ? ' open' : ''}>
-      <summary class="fold__head"><h2 data-qtitle></h2><span class="card__meta" data-qtype></span></summary>
+      <summary class="fold__head"><span class="sq-head"><h2 data-qtitle></h2><span class="card__meta" data-qtype></span></span></summary>
       <div class="fold__body">
     <div class="form-grid form-grid--pairs">
       <div class="field span-2"><label for="${uid}-l" data-label-name>Question</label><input id="${uid}-l" data-label maxlength="300" value="${esc(q.label)}"></div>
@@ -348,11 +345,8 @@ async function renderResults(box, sv) {
 async function renderShare(box, sv) {
   const url = publicUrl(sv.slug);
   let qr = null;
-  let img = '';
   try {
-    await loadScript(QR_LIB, 'Couldn’t load the QR code maker.');
     qr = (await must(sb.from('qr_codes').select('slug,scan_count').eq('forward', true).eq('target_url', url).limit(1)))[0] ?? null;
-    if (qr) img = svgFor(encodedText({ forward: true, slug: qr.slug }), '#000000', '#ffffff');
   } catch { /* the QR section just offers to make one */ }
   box.innerHTML = `
     <details class="fold toorder fold--static" open>
@@ -365,7 +359,7 @@ async function renderShare(box, sv) {
     <details class="fold toorder fold--static" open>
       <summary class="fold__head"><h2>QR Code</h2>${qr ? `<span class="toorder__count">${qr.scan_count} scan${Number(qr.scan_count) === 1 ? '' : 's'}</span>` : ''}</summary>
       <div class="fold__body">
-        ${qr && img ? `<p><a class="survey-qr" href="#qr" aria-label="Open this QR code in QR Codes">${img}</a></p><p class="admin-hint">Print it from Admin → QR Codes. The address can change later without reprinting.</p>`
+        ${qr ? `<p><a class="btn btn--ghost" href="#qr">View QR code</a></p><p class="admin-hint">Print it from Admin → QR Codes. The address can change later without reprinting.</p>`
           : '<p class="admin-hint">Make a QR code that forwards to this survey, with scan counts.</p><p><button class="btn btn--ghost" type="button" data-make-qr>Make QR code</button></p>'}
       </div>
     </details>`;
