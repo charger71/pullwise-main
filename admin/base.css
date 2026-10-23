@@ -5,14 +5,14 @@
   --brand-primary: #c8102e;
   --brand-accent: #ffd100;
   --on-accent: #161616;     /* text on the accent (yellow) in both themes: --ink turns light in the dark theme */
-  --brand-ink: #161616;
-  --brand-paper: #fffaf0;
+  --brand-ink: #131519;
+  --brand-paper: #f6f7f9;
 
   --ink: var(--brand-ink);
   --paper: var(--brand-paper);
   --surface: #ffffff;
-  --muted: #5b5b5b;
-  --line: #e6e0d4;          /* soft divider, not black */
+  --muted: #4e5968;
+  --line: #d6dce4;          /* soft divider, not black */
   --field-line: #8a8a8a;    /* form-field outline: ≥3:1 against white for accessibility */
   --focus: #1a5fff;
 
@@ -53,27 +53,27 @@
   --success-hover: #0f5a2c;
   --info: #2c6aa8;
   --info-hover: #1f5183;
-  --stripe: #faf6ec;     /* alternating-row and callout background */
-  --head-bg: #f6edd3;
-  --head-bg-hover: #f0e3bc;
+  --stripe: #f0f3f6;     /* alternating-row and callout background */
+  --head-bg: #dfe4ea;
+  --head-bg-hover: #cad4e2;
   --header-bg: var(--ink);   /* top bar */
   --header-fg: var(--paper);
 
   /* Tints and shades used by the admin screens. Each has a dark twin in the dark theme below. */
-  --tab-bg: #ece6d8;
-  --tab-hover: #f6e3a0;
-  --hover-bg: #f1ece2;
-  --raised: #faf8f3;
-  --code-bg: #eee7d8;
-  --neutral-bg: #eee;
-  --neutral-bg-2: #f7f7f7;
-  --hover-row: #fbe9a8;
+  --tab-bg: #dce1e8;
+  --tab-hover: #bbc8db;
+  --hover-bg: #e4e9ef;
+  --raised: #f4f6f9;
+  --code-bg: #dde2e9;
+  --neutral-bg: #eaedf2;
+  --neutral-bg-2: #f5f7f9;
+  --hover-row: #c4cfdf;
   --hover-row-danger: #ffd9d9;
   --merge-bg: #fff7d6;
   --keep-bg: #e6f5ea;
   --select-bg: #c3d8ee;
   --select-bg-light: #eaf2fa;
-  --dropzone-bg: #fffdf8;
+  --dropzone-bg: #fbfbfc;
   --dropzone-hover: #fff6f6;
   --pill-open: #f1e3ff;
   --pill-ordered: #e3ecff;
@@ -81,13 +81,13 @@
   --pill-warn: #ffe6cc;
   --pill-off: #e4e4e4;
   --pill-off-text: #444;
-  --card-tint: #f4efe3;
-  --group-bg: #f7f4ed;
+  --card-tint: #e7ebf0;
+  --group-bg: #eff1f5;
   --track-bg: #eef0f3;
-  --media-bg: #f4f1ea;
-  --line-strong: #bdb5a4;
-  --line-dash: #d5cebf;
-  --line-dash-2: #cdbfa3;
+  --media-bg: #ebeef3;
+  --line-strong: #9faec2;
+  --line-dash: #bec8d6;
+  --line-dash-2: #a8b5c8;
   --select-edge: #7fa6cc;
   --warn-text: #8a3b00;
   --bar: #2563a8;
@@ -96,19 +96,19 @@
   --alert-icon: #e0303f;
   --minor-icon: #b45f06;
   --danger-hover: #7d0016;
-  --tool-bg: #fff8dc;
+  --tool-bg: #e9edf2;
   --pill-pink: #ffd6de;
 }
 
 /* Dark theme: set by admin/theme.js (Staff → My Account → Appearance). It only swaps variables. */
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --brand-ink: #f1ead8;
-  --brand-paper: #312f2c;
-  --surface: #3c3a35;
-  --muted: #bdb6a6;
-  --line: #534f47;
-  --field-line: #8c8678;
+  --brand-ink: #e1e4e8;
+  --brand-paper: #272d36;
+  --surface: #2f3742;
+  --muted: #a4afbf;
+  --line: #404b5a;
+  --field-line: #6d7e97;
   --focus: #7aa7ff;
   --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 4px 14px rgb(0 0 0 / .45);
   --danger: #d93a4a;
@@ -118,25 +118,25 @@
   --success-hover: #1b6f3c;
   --info: #3b7fc4;
   --info-hover: #2f68a2;
-  --stripe: #413e37;
-  --head-bg: #474334;
-  --head-bg-hover: #524c39;
-  --header-bg: #2a2927;
-  --header-fg: #f1ead8;
-  --tab-bg: #44413b;
-  --tab-hover: #60593b;
-  --hover-bg: #48453e;
-  --raised: #403d38;
-  --code-bg: #48443c;
-  --neutral-bg: #4c4a44;
-  --neutral-bg-2: #44423d;
-  --hover-row: #625a3b;
+  --stripe: #323a46;
+  --head-bg: #333c48;
+  --head-bg-hover: #3a4451;
+  --header-bg: #22272f;
+  --header-fg: #e1e4e8;
+  --tab-bg: #353e4a;
+  --tab-hover: #404b5b;
+  --hover-bg: #38414e;
+  --raised: #323a46;
+  --code-bg: #37404d;
+  --neutral-bg: #3c4654;
+  --neutral-bg-2: #363f4b;
+  --hover-row: #414c5c;
   --hover-row-danger: #6e4445;
   --merge-bg: #5a5330;
   --keep-bg: #335044;
   --select-bg: #3a536c;
   --select-bg-light: #35485b;
-  --dropzone-bg: #373531;
+  --dropzone-bg: #2b333d;
   --dropzone-hover: #463739;
   --pill-open: #524467;
   --pill-ordered: #3d4c6e;
@@ -144,13 +144,13 @@
   --pill-warn: #694e35;
   --pill-off: #525252;
   --pill-off-text: #d0d0d0;
-  --card-tint: #413e37;
-  --group-bg: #44413b;
-  --track-bg: #4c4a44;
-  --media-bg: #353430;
-  --line-strong: #7d776a;
-  --line-dash: #605c51;
-  --line-dash-2: #6e6959;
+  --card-tint: #323a46;
+  --group-bg: #353e4a;
+  --track-bg: #3c4654;
+  --media-bg: #2a313b;
+  --line-strong: #607087;
+  --line-dash: #495668;
+  --line-dash-2: #536174;
   --select-edge: #4a78a8;
   --warn-text: #e8a463;
   --bar: #5b9be0;
@@ -159,7 +159,7 @@
   --alert-icon: #ff6b78;
   --minor-icon: #e0963a;
   --danger-hover: #b02f3c;
-  --tool-bg: #4b4935;
+  --tool-bg: #353e4b;
   --pill-pink: #6e3d49;
 }
 
