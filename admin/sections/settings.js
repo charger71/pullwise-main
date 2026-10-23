@@ -4,7 +4,7 @@
 import { SOCIAL_ICONS } from '../../js/social-icons.js';
 import { tiersFrom } from '../../js/discount.js';
 import { contrast } from '../theme.js';
-import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs } from '../lib.js';
+import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime } from '../lib.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
@@ -210,7 +210,7 @@ export async function mount(el, { sb }) {
       if (!(await must(sb.from('staff_notice').update({ notice: adminNotice }).eq('id', 1).select('id')))?.length) throw notSaved();
       dirty = false;
       window.dispatchEvent(new CustomEvent('admin-notice', { detail: adminNotice }));
-      setStatus(status, `Saved ${new Date().toLocaleTimeString()} — live on the site now.`, 'ok');
+      setStatus(status, `Saved ${fmtTime()} — live on the site now.`, 'ok');
       toast('Settings saved');
     } catch (err) {
       setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');

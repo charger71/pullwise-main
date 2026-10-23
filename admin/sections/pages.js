@@ -2,7 +2,7 @@
 
 import { PAGE_BLOCKS } from '../../js/page-defaults.js';
 import { PLACEHOLDERS } from '../../js/content.js';
-import { $, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, setupTabs } from '../lib.js';
+import { $, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, setupTabs, fmtTime, fmtDateTime } from '../lib.js';
 
 // Where each block shows on the public site, for the "View page" link.
 const PAGE_URLS = {
@@ -194,7 +194,7 @@ async function load(el, sb, key) {
   setupTabs(wrap, 'admin-pages-tab', 'p0');
   dirty = false;
   const saved = rows.map((r) => r.updated_at).filter(Boolean).sort().pop();
-  if (saved) setStatus(status, `Last saved ${new Date(saved).toLocaleString()}`);
+  if (saved) setStatus(status, `Last saved ${fmtDateTime(saved)}`);
 }
 
 async function save(el, sb, key) {
@@ -252,10 +252,10 @@ async function save(el, sb, key) {
     dirty = false;
     if (screen.custom && newSlug !== screen.key) {
       await mount(el, { sb, isOwner }, newSlug);
-      setStatus($('#page-status', el), `Saved ${new Date().toLocaleTimeString()} — the page is now at page.html?slug=${newSlug}.`, 'ok');
+      setStatus($('#page-status', el), `Saved ${fmtTime()} — the page is now at page.html?slug=${newSlug}.`, 'ok');
       return true;
     }
-    setStatus(status, `Saved ${new Date().toLocaleTimeString()} — page titles and descriptions are live on the site in about a minute.`, 'ok');
+    setStatus(status, `Saved ${fmtTime()} — page titles and descriptions are live on the site in about a minute.`, 'ok');
     return true;
   } catch (err) {
     setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');

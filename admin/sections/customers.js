@@ -7,7 +7,7 @@
 import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter } from '../lib.js';
 import { cutoffPassed } from '../../js/site.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
-import { whenIn, todayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
+import { todayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
 
 const SOURCE = { manual: 'Customer', variant: 'Customer (all covers)', series: 'Series follow', artist: 'Artist follow', staff: 'Staff' };
 const ITEM_FIELDS = 'id,title,issue_number,variant,publisher,price,series_key,foc_date,release_date,status';
@@ -55,8 +55,6 @@ const iconLegend = () =>
     .map((k) => `<li><span class="cust-icon is-solid ${ICON[k][2].includes('is-minor') ? '' : 'is-alert'}${ICON[k][2]}" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[k][0]}</svg></span>${ICON[k][3]}</li>`)
     .join('')}</ul>`;
 
-const whenLabel = (iso) => whenIn(iso, settings.timezone);
-const shortDate = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: settings.timezone || undefined });
 
 /** "Jane Smith (customer)", "Test Staff (staff)", "Guest checkout", "Automatic", or '' when unknown. */
 const whoLabel = (l, c, staffNames) =>
@@ -247,7 +245,7 @@ async function loadList(el) {
             <td class="card-action">${c.email ? `<button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(c.email)}" aria-label="Email ${esc(c.name || c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email</button>` : ''}</td>
             <td class="center card-key card-label">${c.ready_count ? `<span class="pill pill--arrived">${c.ready_count}</span>` : '<span class="card__meta">–</span>'}</td>
             <td class="center card-key card-label">${c.active_count || '<span class="card__meta">–</span>'}</td>
-            <td class="card__meta nowrap card-label" data-label="Updated">${c.last_updated ? esc(shortDate(c.last_updated)) : ''}</td>
+            <td class="card__meta nowrap card-label" data-label="Updated">${c.last_updated ? esc(fmtDate(c.last_updated)) : ''}</td>
             <td class="nowrap card-wide"><span class="cust-status"><span class="cust-icons">${statusIcons(c)}</span>${needsFix(c) ? `<a class="btn btn--primary btn--small" href="#customers" data-open="${c.id}" aria-label="Fix ${esc(listName(c))}">${solidIcon('fix', 16)} Fix</a>` : ''}</span></td></tr>`;
         })
         .join('')
@@ -270,7 +268,7 @@ async function loadNotes(el, c) {
   const stamp = async (r) => {
     if (!r) return (meta.textContent = '');
     const who = r.updated_by ? (await sb.from('staff').select('name').eq('user_id', r.updated_by).maybeSingle()).data?.name : null;
-    meta.textContent = `Last saved ${whenLabel(r.updated_at)}${who ? ` by ${who}` : ''}`;
+    meta.textContent = `Last saved ${fmtDateTime(r.updated_at)}${who ? ` by ${who}` : ''}`;
   };
   stamp(row);
   form.addEventListener('submit', async (e) => {
@@ -510,7 +508,7 @@ async function loadOrders(el, c) {
     const latest = lines.reduce((a, l) => (!a || l.updated_at > a.updated_at ? l : a), null);
     lastUpdate = latest ? { at: latest.updated_at, who: whoLabel(latest, c, staffNames) } : null;
     const lastEl = $('[data-lastupdate]', el);
-    if (lastEl) lastEl.textContent = lastUpdate ? `Last updated ${whenLabel(lastUpdate.at)}${lastUpdate.who ? ` by ${lastUpdate.who}` : ''}` : '';
+    if (lastEl) lastEl.textContent = lastUpdate ? `Last updated ${fmtDateTime(lastUpdate.at)}${lastUpdate.who ? ` by ${lastUpdate.who}` : ''}` : '';
     const shown = lines.filter((l) => state.showCancelled || l.status !== 'cancelled')
       .sort((a, b) => (a.item?.release_date ?? '9999').localeCompare(b.item?.release_date ?? '9999') || itemName(a.item).localeCompare(itemName(b.item)));
     shownLines = shown;
@@ -582,10 +580,10 @@ function groupedRows(lines, c, staffNames) {
 
 function lineRow(l, c, staffNames, alt = false) {
   const closed = cutoffPassed(l.item) && l.status === 'open';
-  const tip = `Last updated ${whenLabel(l.updated_at)}${l.updated_via ? ` by ${whoLabel(l, c, staffNames)}` : ''}`;
+  const tip = `Last updated ${fmtDateTime(l.updated_at)}${l.updated_via ? ` by ${whoLabel(l, c, staffNames)}` : ''}`;
   const rowClass = [l.status === 'cancelled' && 'is-hidden', alt && 'is-alt'].filter(Boolean).join(' ');
   return `<tr${rowClass ? ` class="${rowClass}"` : ''}${autoAddedRecently(l) ? ' data-auto-new' : ''} title="${esc(tip)}">
-    <td class="cl-title">${autoAddedRecently(l) ? `<span class="pill pill--new" title="Added automatically by a follow on ${esc(whenLabel(l.created_at))}">New</span> ` : ''}${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}${l.updated_via && l.updated_via !== 'customer' ? `<br><span class="cust-updated">Updated ${esc(whenLabel(l.updated_at))} by ${esc(whoLabel(l, c, staffNames))}</span>` : ''}${closed ? '<br><span class="cust-warn">Order cutoff has passed — the order may already be in</span>' : ''}</td>
+    <td class="cl-title">${autoAddedRecently(l) ? `<span class="pill pill--new" title="Added automatically by a follow on ${esc(fmtDateTime(l.created_at))}">New</span> ` : ''}${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}${l.updated_via && l.updated_via !== 'customer' ? `<br><span class="cust-updated">Updated ${esc(fmtDateTime(l.updated_at))} by ${esc(whoLabel(l, c, staffNames))}</span>` : ''}${closed ? '<br><span class="cust-warn">Order cutoff has passed — the order may already be in</span>' : ''}</td>
     <td class="nowrap cl-out">${fmtDate(l.item?.release_date, { month: 'short', day: 'numeric' })}</td>
     <td class="cl-qty"><label class="visually-hidden" for="cq-${l.id}">Copies of ${esc(l.item?.title ?? '')}</label>
       <input id="cq-${l.id}" class="cust-qty" type="number" inputmode="numeric" min="1" max="100" value="${l.quantity}" data-qty="${l.id}"></td>
@@ -909,7 +907,7 @@ async function exportCustomerPdf(btn, c) {
   btn.disabled = true;
   try {
     const { buildPullListPdf } = await import('../pull-list-pdf.js');
-    const pdf = await buildPullListPdf({ shop: settings, customerName: c.name || c.email || 'Customer', customerPhone: c.phone, lines: shownLines, holdDays: settings.hold_days ?? 30, today: shopToday(), lastUpdated: lastUpdate ? `Last updated ${whenLabel(lastUpdate.at)}${lastUpdate.who ? ` by ${lastUpdate.who}` : ''}` : '' });
+    const pdf = await buildPullListPdf({ shop: settings, customerName: c.name || c.email || 'Customer', customerPhone: c.phone, lines: shownLines, holdDays: settings.hold_days ?? 30, today: shopToday(), lastUpdated: lastUpdate ? `Last updated ${fmtDateTime(lastUpdate.at)}${lastUpdate.who ? ` by ${lastUpdate.who}` : ''}` : '' });
     if (!pdf.count) {
       btn.disabled = false;
       return void toast('Nothing ready for pickup and nothing due at the next FOC.', 'error');

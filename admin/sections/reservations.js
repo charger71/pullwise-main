@@ -2,7 +2,7 @@
 // status, lookup by name/phone/email, CSV export — plus a "To order" view that
 // totals reserved copies per title for each order cutoff.
 
-import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime } from '../lib.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, todayIn, dayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
 
@@ -841,7 +841,7 @@ async function renderPastOrders(body) {
         const rows = [...groups.get(foc).values()].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
         const copies = rows.reduce((n, r) => n + r.copies, 0);
         return `<details class="fold toorder">
-          <summary class="fold__head"><h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`}<span class="toorder__count">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2></summary>
+          <summary class="fold__head"><h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}<span class="toorder__count">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2></summary>
           <div class="fold__body"><table class="admin-table past-table cards">
             <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Publisher</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col">Status</th></tr></thead>
             <tbody>${rows.map((r) => `<tr><td class="card-title">${esc(itemName(r.item))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="center card-key card-label"><strong>${r.copies}</strong></td><td class="center card-key card-label">${r.orders.size}</td><td class="card-wide">${[...r.status].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`).join(', ')}</td></tr>`).join('')}</tbody>
@@ -883,7 +883,7 @@ function setupOrderTools(box, groups, focs, meta, keep = {}) {
           <button class="btn btn--ghost" type="button" data-ot="pdf">Export PDF</button></span></div>
       </div>
       <p class="card__meta" data-ot-summary></p>
-      <p class="card__meta">Quantities as of ${esc(new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))}. <button class="admin-link-button" type="button" data-ot-refresh>Refresh</button>. Exports always use the latest quantities, whatever this page shows.</p>
+      <p class="card__meta">Quantities as of ${esc(fmtTime())}. <button class="admin-link-button" type="button" data-ot-refresh>Refresh</button>. Exports always use the latest quantities, whatever this page shows.</p>
     </section>`;
   // Keep the same filters after a refresh.
   if (keep.foc && [...$('#ot-foc', box).options].some((o) => o.value === keep.foc)) $('#ot-foc', box).value = keep.foc;

@@ -19,7 +19,6 @@ let isOwner = false;
 const coverSearchUrl = (i) =>
   `https://www.google.com/search?tbm=isch&q=${encodeURIComponent([i.title, i.issue_number && `#${i.issue_number}`, i.variant, i.publisher, 'comic cover', i.upc || i.isbn].filter(Boolean).join(' '))}`;
 
-const shortDate = (iso) => fmtDate(iso, { month: 'short', day: 'numeric', ...(iso.slice(0, 4) === String(new Date().getFullYear()) ? {} : { year: 'numeric' }) });
 
 const DEFAULT_STATE = { q: '', status: '', category: '', flag: '', visibility: '', sort: 'updated', dir: 'desc', offset: 0, foc: '', release: '' };
 
@@ -265,7 +264,7 @@ async function load(el) {
         <td class="tt-thumb">${i.cover_url ? `<img class="thumb" src="${esc(i.cover_url)}" alt="" loading="lazy">` : `<a class="thumb thumb--fix" href="${coverSearchUrl(i)}" target="_blank" rel="noopener noreferrer" title="Find a cover (opens Google Images in a new tab)" aria-label="Find a cover for ${esc(i.title)} (opens Google Images in a new tab)">${solidIcon('fix', 18)}<span>Fix</span></a>`}</td>
         <td class="tt-title"><strong>${esc(i.title)}${i.issue_number ? ` #${esc(i.issue_number)}` : ''}</strong>${i.variant ? `<br><span class="card__meta">${esc(i.variant)}</span>` : ''}<br><span class="card__meta">${esc(i.publisher ?? '')}${i.sku ? ` · ${esc(i.sku)}` : ''}</span></td>
         <td class="tt-status"><label class="visually-hidden" for="st-${i.id}">Status</label><select id="st-${i.id}" data-field="status" class="select--small">${Object.entries(STATUS_LABELS).map(([v, l]) => `<option value="${v}"${v === i.status ? ' selected' : ''}>${l}</option>`).join('')}</select></td>
-        <td class="nowrap tt-dates">${i.foc_date ? `<span><button class="tt-datelink" type="button" data-date-field="foc_date" data-date="${i.foc_date}" title="Show only titles with an order cutoff this week">FOC ${fmtDate(i.foc_date, { month: 'short', day: 'numeric' })}</button></span>` : ''}${i.release_date ? `<span><button class="tt-datelink" type="button" data-date-field="release_date" data-date="${i.release_date}" title="Show only titles out this week">Out ${shortDate(i.release_date)}</button></span>` : ''}</td>
+        <td class="nowrap tt-dates">${i.foc_date ? `<span><button class="tt-datelink" type="button" data-date-field="foc_date" data-date="${i.foc_date}" title="Show only titles with an order cutoff this week">FOC ${fmtDate(i.foc_date, { month: 'short', day: 'numeric' })}</button></span>` : ''}${i.release_date ? `<span><button class="tt-datelink" type="button" data-date-field="release_date" data-date="${i.release_date}" title="Show only titles out this week">Out ${fmtDate(i.release_date)}</button></span>` : ''}</td>
         <td class="center tt-flag tt-flag--1" data-label="Staff"><input type="checkbox" data-field="staff_pick" aria-label="Staff pick"${i.staff_pick ? ' checked' : ''}></td>
         <td class="center tt-flag tt-flag--2" data-label="Home"><input type="checkbox" data-field="featured" aria-label="Show on homepage"${i.featured ? ' checked' : ''}></td>
         <td class="center tt-flag tt-flag--3" data-label="Hide"><input type="checkbox" data-field="hidden" aria-label="Hidden from customers"${i.hidden ? ' checked' : ''}></td>
