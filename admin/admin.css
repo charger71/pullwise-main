@@ -975,9 +975,9 @@ tr.is-clickable { cursor: pointer; }
   .cust-more__body .btn { width: 100%; min-height: 44px; }
   .cust-more__body .cust-export-opt { min-height: 44px; font-size: 1rem; }
   /* One row of tabs that scrolls sideways instead of wrapping onto a second line. */
-  .cust-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-  .cust-tabs::-webkit-scrollbar { display: none; }
-  .cust-tabs .admin-tab { flex: none; white-space: nowrap; }
+  .admin-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .admin-tabs::-webkit-scrollbar { display: none; }
+  .admin-tabs .admin-tab { flex: none; white-space: nowrap; }
   .admin-hint-fold .cust-legend { justify-content: flex-start; padding-bottom: var(--sp-8); }
   .admin-pager > span { white-space: nowrap; }
   /* A customer is a card: name and Email on the first line, phone, the counts, then the status icons and Fix. */
@@ -1046,4 +1046,25 @@ tr.is-clickable { cursor: pointer; }
 @media (max-width: 899px) {
   .cust-grid--new .cust-profile form > button[type=submit] { position: sticky; bottom: var(--sp-8); z-index: 5; box-shadow: 0 0 0 var(--sp-6) var(--surface); }
   .cust-grid--new { max-width: none; }
+}
+
+/* ---------- Dashboard on phones ---------- */
+@media (max-width: 899px) {
+  /* Needs Attention lists only what needs doing: the rows at zero are left off. */
+  .dash-facts li.is-zero { display: none; }
+  .dash-facts li.has-fix .btn { min-height: 44px; }
+}
+@media (max-width: 899px) {
+  /* Latest Reservations: customer, then order, date and titles, then the status pills; the View button is short enough to sit beside the name. */
+  .dash-latest.is-stack > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-12); }
+  .dash-latest.is-stack > tbody > tr > td { display: block; flex: 0 0 auto; order: 3; padding: 0; font-size: .9rem; color: var(--muted); }
+  .dash-latest.is-stack > tbody > tr > td::before { content: none; }
+  .dash-latest.is-stack > tbody > tr::after { content: ''; order: 2; flex: 1 1 100%; height: 0; } /* line break: name and View above, the details below */
+  .dash-latest.is-stack > tbody > tr > td[data-label='Customer'] { order: 0; flex: 1 1 calc(100% - 140px); min-width: 0; font-size: 1.05rem; color: var(--ink); }
+  .dash-latest.is-stack > tbody > tr > td[data-label=''] { order: 1; }
+  .dash-latest__more { display: none; }
+  .dash-latest.is-stack > tbody > tr > td[data-label=''] .btn { min-height: 44px; min-width: 0; padding-inline: var(--sp-16); }
+  .dash-latest.is-stack > tbody > tr > td[data-label='Titles']::before { content: 'Titles '; display: inline; font: inherit; text-transform: none; letter-spacing: 0; }
+  .dash-latest.is-stack > tbody > tr > td[data-label='Status'] { order: 4; flex: 1 1 100%; }
+  .dash-latest.is-stack > tbody > tr > td[data-label='Status'] .dash-pill { display: inline-block; }
 }
