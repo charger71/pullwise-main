@@ -852,3 +852,35 @@ tr.is-clickable { cursor: pointer; }
 .contrast__list li { display: flex; align-items: center; gap: var(--sp-10); }
 .contrast__sample { flex: none; width: 44px; text-align: center; font-weight: 700; padding: var(--sp-4) 0; border: 1px solid var(--line, currentColor); border-radius: 4px; }
 .contrast__list .is-bad { color: var(--danger); }
+
+/* ---------- Ordering lists on phones: compact cards, bigger tap targets ----------
+   Place Order, Past Orders and Received tables stack as cards (see is-stack above). Here a card is the title (and its
+   action on the right) with the details running underneath on a couple of lines, not one labelled row per column. */
+@media (max-width: 899px) {
+  .toorder .admin-table.is-stack > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-12); }
+  .toorder .admin-table.is-stack > tbody > tr > td { display: block; flex: 0 0 auto; padding: 0; font-size: .85rem; color: var(--muted); }
+  .toorder .admin-table.is-stack > tbody > tr > td::before { content: none; }
+  .toorder .admin-table.is-stack > tbody > tr > td[data-label='Title'] { flex: 1 1 0; min-width: 0; order: -1; font-size: 1rem; font-weight: 700; color: var(--ink); }
+  /* The unlabelled cells: the tick box on Received, the "not ordering" button on Place Order. */
+  .toorder .admin-table.is-stack > tbody > tr > td[data-label=''] { flex: 0 0 auto; }
+  .toorder .admin-table.is-stack > tbody > tr > td:has(input[type=checkbox]) { order: -2; }
+  .toorder .admin-table.is-stack > tbody > tr > td:has([data-notordering]) { order: -1; margin-left: auto; }
+  /* Counts keep a short label ("Copies 3") and read as the card's key figures. */
+  .toorder .admin-table.is-stack > tbody > tr > td[data-label='Copies']::before,
+  .toorder .admin-table.is-stack > tbody > tr > td[data-label='Customers']::before { content: attr(data-label) ' '; display: inline; font-size: .85rem; text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .toorder .admin-table.is-stack > tbody > tr > td[data-label='Copies'] { color: var(--ink); }
+  /* An opened customer list takes the whole card width. */
+  .toorder .admin-table.is-stack > tbody > tr.toorder__people > td { flex: 1 1 100%; color: var(--ink); }
+  .toorder .admin-table.is-stack tbody > tr > td input[type=checkbox] { width: 24px; height: 24px; }
+  .toorder .admin-table.is-stack tbody > tr > td :where(.link-button, .icon-btn, input[type=checkbox]) { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .toorder .admin-table.is-stack tbody > tr > td .link-button { justify-content: flex-start; }
+}
+@media (max-width: 700px) {
+  /* Cutoff header: the heading takes the first line and the action sits full width beneath it. */
+  .toorder .fold__head { flex-wrap: wrap; row-gap: var(--sp-6); }
+  .toorder .fold__head h2 { flex: 1 1 100%; }
+  .toorder .fold__head .btn { flex: 1 1 100%; min-height: 44px; }
+  .order-tools__row .btn, .order-tools__row select { min-height: 44px; }
+  .order-tools__btns .btn { flex: 1 1 0; }
+  .order-tools__btns .label { display: none; }
+}
