@@ -131,7 +131,7 @@ function questionRow(q, open = false) {
   const uid = `sq-${q.id}`;
   li.innerHTML = `
     <details class="fold"${open ? ' open' : ''}>
-      <summary class="fold__head"><h2 data-qtitle></h2><span class="card__meta" data-qtype></span></summary>
+      <summary class="fold__head"><span class="sq-head"><h2 data-qtitle></h2><span class="card__meta" data-qtype></span></span></summary>
       <div class="fold__body">
     <div class="form-grid form-grid--pairs">
       <div class="field span-2"><label for="${uid}-l" data-label-name>Question</label><input id="${uid}-l" data-label maxlength="300" value="${esc(q.label)}"></div>
