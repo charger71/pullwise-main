@@ -2,7 +2,7 @@
 // Account changes go through the staff-admin Edge Function; the staff table is read-only here.
 
 import { getTheme, saveTheme, COLOR_VARS, getColors, saveColors, currentMode } from '../theme.js';
-import { $, $$, esc, toast, setStatus, openDialog, fmtDateTime, solidIcon, friendlyError, setupTabs, sortableTable } from '../lib.js';
+import { $, $$, esc, toast, setStatus, openDialog, fmtDateTime, solidIcon, friendlyError, setupTabs, sortableTable, hintFold } from '../lib.js';
 
 let sb;
 
@@ -35,10 +35,10 @@ async function loadLog(el, more = false) {
   if (table) q = q.eq('table_name', table);
   const { data, error } = await q;
   if (error) return void (box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
-  const rowsHtml = data.map((r) => `<tr><td class="card__meta nowrap">${esc(fmtDateTime(r.created_at))}</td><td class="nowrap">${esc(r.staff_name ?? 'Unknown')}</td><td>${esc(describe(r))}</td></tr>`).join('');
+  const rowsHtml = data.map((r) => `<tr><td class="card__meta nowrap card-key">${esc(fmtDateTime(r.created_at))}</td><td class="nowrap card-title">${esc(r.staff_name ?? 'Unknown')}</td><td class="card-wide">${esc(describe(r))}</td></tr>`).join('');
   if (!more) {
     box.innerHTML = data.length
-      ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th></tr></thead><tbody>${rowsHtml}</tbody></table></div><p data-more-wrap></p>`
+      ? `<div class="admin-table-wrap"><table class="admin-table cards"><thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th></tr></thead><tbody>${rowsHtml}</tbody></table></div><p data-more-wrap></p>`
       : '<p class="empty">Nothing logged yet.</p>';
   } else {
     $('tbody', box).insertAdjacentHTML('beforeend', rowsHtml);
@@ -63,7 +63,7 @@ function showPassword(title, email, password) {
   const d = openDialog(title, `
     <p>Share this with <strong>${esc(email)}</strong> privately (in person, or a message only they can see). It is shown only once.</p>
     <dl class="staff-cred"><dt>Sign in at</dt><dd>${esc(new URL('./', location.href).href)}</dd><dt>Email</dt><dd>${esc(email)}</dd><dt>Password</dt><dd><code>${esc(password)}</code></dd></dl>
-    <div class="admin-actions"><button class="btn btn--primary" type="button" data-copy>Copy email and password</button><button class="btn btn--ghost" type="button" data-done>Done</button></div>
+    <div class="admin-actions sticky-actions"><button class="btn btn--primary" type="button" data-copy>Copy email and password</button><button class="btn btn--ghost" type="button" data-done>Done</button></div>
     <p class="field__hint">They can change it any time under Admin → Staff → My account.</p>`);
   $('[data-copy]', d).addEventListener('click', async (e) => {
     try {
@@ -110,15 +110,16 @@ export async function mount(el, ctx) {
       </form>
       <form class="admin-form" data-colors>
         <h3>Admin colors</h3>
-        <p class="field__hint">Pick your own colors for the admin. They apply to the <strong data-colors-mode></strong> theme you are using now (switch Appearance above to set the other one), for you only, on every device you sign in from.</p>
-        <div class="form-grid color-grid">${COLOR_VARS.map(([v, label, hint], i) => `<div class="field"><label for="st-c${i}">${label}</label><input id="st-c${i}" data-var="${v}" type="color"><p class="field__hint">${hint}</p></div>`).join('')}</div>
+        ${hintFold('Pick your own colors for the admin. They apply to the <strong data-colors-mode></strong> theme you are using now (switch Appearance above to set the other one), for you only, on every device you sign in from.')}
+        <div class="form-grid form-grid--pairs color-grid">${COLOR_VARS.map(([v, label, hint], i) => `<div class="field"><label for="st-c${i}">${label}</label><input id="st-c${i}" data-var="${v}" type="color"><p class="field__hint">${hint}</p></div>`).join('')}</div>
         <div class="admin-form__actions"><button class="btn" type="submit">Save colors</button> <button class="btn btn--ghost" type="button" data-colors-reset>Back to standard colors</button></div>
         <p class="admin-status" role="status" data-colors-status></p>
       </form>
       <form class="admin-form" data-password novalidate>
-        <div class="form-grid">
-          <div class="field"><label for="st-new">New password</label><input id="st-new" type="password" autocomplete="new-password" minlength="10"></div>
-          <div class="field"><label for="st-new2">Type it again</label><input id="st-new2" type="password" autocomplete="new-password" minlength="10"></div>
+        <h3>Change my password</h3>
+        <div class="form-grid form-grid--pairs">
+          <div class="field span-2"><label for="st-new">New password</label><input id="st-new" type="password" autocomplete="new-password" minlength="10"></div>
+          <div class="field span-2"><label for="st-new2">Type it again</label><input id="st-new2" type="password" autocomplete="new-password" minlength="10"></div>
         </div>
         <p class="field__hint">At least 10 characters. A few random words make a good password.</p>
         <p class="admin-status" role="status" data-pw-status></p>
@@ -132,19 +133,19 @@ export async function mount(el, ctx) {
     <details class="fold toorder fold--static" open>
       <summary class="fold__head"><h2>Staff List</h2></summary>
       <div class="fold__body">
-      <p class="field__hint">Everyone here can open every admin screen. Owners can also manage this list. Removing someone locks them out of the admin right away. A Super Admin can’t be removed, demoted or have their password reset by an owner.</p>
-      <div class="admin-table-wrap"><table class="admin-table staff-table">
+      ${hintFold('Everyone here can open every admin screen. Owners can also manage this list. Removing someone locks them out of the admin right away. A Super Admin can’t be removed, demoted or have their password reset by an owner.')}
+      <div class="admin-table-wrap"><table class="admin-table staff-table cards">
         <thead><tr><th scope="col" data-sort="text">Name</th><th scope="col" data-sort="text">Role</th><th scope="col" data-sort="text" data-first="desc">Last Signed In</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
         <tbody>${rows.map((r) => {
           const roleKey = r.is_super ? 'super' : r.is_owner ? 'owner' : 'staff';
           return `<tr>
-          <td class="st-who"><strong>${esc(r.name)}</strong>${r.user_id === user.id ? ' <span class="card__meta">(you)</span>' : ''}<br><span class="card__meta">${esc(r.email)}</span></td>
-          <td class="st-role" data-sort="${r.is_super ? 0 : r.is_owner ? 1 : 2}"><span class="role-badge role-badge--${roleKey}">${solidIcon(roleKey === 'super' ? 'shield' : roleKey === 'owner' ? 'crown' : 'person', 14)} ${roleOf(r)}</span></td>
-          <td class="st-last card__meta nowrap" data-sort="${r.last_sign_in_at ?? ''}">${solidIcon('clock', 14)} ${r.last_sign_in_at ? esc(fmtDateTime(r.last_sign_in_at)) : 'Never'}</td>
-          <td class="st-actions staff-actions">
-            ${r.is_super && !viewerSuper ? '' : `<button class="icon-btn" type="button" data-reset="${r.user_id}" aria-label="Reset password for ${esc(r.name)}" title="Reset password">${solidIcon('key')}</button>`}
-            ${r.is_super ? '' : `<button class="icon-btn" type="button" data-owner="${r.user_id}" data-make="${r.is_owner ? '0' : '1'}" aria-label="${r.is_owner ? `Make ${esc(r.name)} regular staff` : `Make ${esc(r.name)} an owner`}" title="${r.is_owner ? 'Make staff' : 'Make owner'}">${solidIcon(r.is_owner ? 'person' : 'crown')}</button>`}
-            ${r.user_id === user.id || r.is_super ? '' : `<button class="icon-btn icon-btn--remove" type="button" data-remove="${r.user_id}" aria-label="Remove ${esc(r.name)} from staff" title="Remove from staff">${solidIcon('remove')}</button>`}
+          <td class="st-who card-title"><strong>${esc(r.name)}</strong>${r.user_id === user.id ? ' <span class="card__meta">(you)</span>' : ''}<br><span class="card__meta">${esc(r.email)}</span></td>
+          <td class="st-role card-key" data-sort="${r.is_super ? 0 : r.is_owner ? 1 : 2}"><span class="role-badge role-badge--${roleKey}">${solidIcon(roleKey === 'super' ? 'shield' : roleKey === 'owner' ? 'crown' : 'person', 14)} ${roleOf(r)}</span></td>
+          <td class="st-last card__meta nowrap card-key card-label" data-sort="${r.last_sign_in_at ?? ''}">${solidIcon('clock', 14)} ${r.last_sign_in_at ? esc(fmtDateTime(r.last_sign_in_at)) : 'Never'}</td>
+          <td class="st-actions staff-actions card-foot">
+            ${r.is_super && !viewerSuper ? '' : `<button class="icon-btn" type="button" data-reset="${r.user_id}" aria-label="Reset password for ${esc(r.name)}" title="Reset password">${solidIcon('key')}<span class="st-act">Reset password</span></button>`}
+            ${r.is_super ? '' : `<button class="icon-btn" type="button" data-owner="${r.user_id}" data-make="${r.is_owner ? '0' : '1'}" aria-label="${r.is_owner ? `Make ${esc(r.name)} regular staff` : `Make ${esc(r.name)} an owner`}" title="${r.is_owner ? 'Make staff' : 'Make owner'}">${solidIcon(r.is_owner ? 'person' : 'crown')}<span class="st-act">${r.is_owner ? 'Make staff' : 'Make owner'}</span></button>`}
+            ${r.user_id === user.id || r.is_super ? '' : `<button class="icon-btn icon-btn--remove" type="button" data-remove="${r.user_id}" aria-label="Remove ${esc(r.name)} from staff" title="Remove from staff">${solidIcon('remove')}<span class="st-act">Remove</span></button>`}
           </td></tr>`;
         }).join('')}</tbody>
       </table></div>
@@ -156,13 +157,12 @@ export async function mount(el, ctx) {
       <summary class="fold__head"><h2>Add a Staff Member</h2></summary>
       <div class="fold__body">
       <form class="admin-form" data-add novalidate>
-        <div class="form-grid">
-          <div class="field"><label for="st-name">Name</label><input id="st-name" maxlength="80" autocomplete="off" required><p class="field__hint">Shown in change logs, such as “changed by Chris”.</p></div>
-          <div class="field"><label for="st-email">Email</label><input id="st-email" type="email" maxlength="254" autocomplete="off" required><p class="field__hint">Their sign-in. Use an address that isn’t already a customer account.</p></div>
-          <div class="field"><label for="st-pass">Starting password (optional)</label><input id="st-pass" type="text" autocomplete="off" minlength="10"><p class="field__hint">Leave blank and one is made for you.</p></div>
+        <div class="form-grid form-grid--pairs">
+          <div class="field span-2"><label for="st-name">Name</label><input id="st-name" maxlength="80" autocomplete="off" required><p class="field__hint">Shown in change logs, such as “changed by Chris”.</p></div>
+          <div class="field span-2"><label for="st-email">Email</label><input id="st-email" type="email" maxlength="254" autocomplete="off" required><p class="field__hint">Their sign-in. Use an address that isn’t already a customer account.</p></div>
+          <div class="field span-2"><label for="st-pass">Starting password (optional)</label><input id="st-pass" type="text" autocomplete="off" minlength="10"><p class="field__hint">Leave blank and one is made for you.</p></div>
         </div>
-        <p class="admin-status" role="status" data-add-status></p>
-        <button class="btn btn--add" type="submit">${solidIcon('add', 18)} Add staff member</button>
+        <div class="admin-actions sticky-actions"><p class="admin-status" role="status" data-add-status></p><button class="btn btn--add" type="submit">${solidIcon('add', 18)} Add staff member</button></div>
       </form>
       </div>
     </details>
@@ -171,7 +171,7 @@ export async function mount(el, ctx) {
     <details class="fold toorder fold--static" open data-log-fold>
       <summary class="fold__head"><h2>Change Log</h2></summary>
       <div class="fold__body">
-      <p class="field__hint">Who changed what in the admin, newest first. Imports and bulk changes show as one line. Customer details list the fields changed, not their values.</p>
+      ${hintFold('Who changed what in the admin, newest first. Imports and bulk changes show as one line. Customer details list the fields changed, not their values.')}
       <div class="field"><label for="log-table">Show</label>
         <select id="log-table"><option value="">Everything</option>${Object.entries(LOG_TABLES).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select></div>
       <div data-log aria-live="polite"></div>

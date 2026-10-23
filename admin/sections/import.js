@@ -6,7 +6,7 @@
 
 import { readWorkbook, parseSheet } from '../../js/import/distributors.js';
 import { planImport, applyImport, logImport } from '../../js/import/apply.js';
-import { $, esc, must, setStatus, toast, fmtDate, fmtDateTime, processImage, loadScript, solidIcon, friendlyError, setupTabs, sortableTable } from '../lib.js';
+import { $, esc, must, setStatus, toast, fmtDate, fmtDateTime, processImage, loadScript, solidIcon, friendlyError, setupTabs, sortableTable, hintFold } from '../lib.js';
 import { tally } from '../../js/util.js';
 import { todayIn } from '../../js/dates.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../js/config.js';
@@ -46,7 +46,7 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-tab="runs">Recent Runs</button>
     </div>
     <div data-tabpane="files">
-    <p class="admin-hint">Drop in this week's sheets as downloaded: Lunar or PRH FOC sheets, Lunar or PRH release sheets, or a Funko pre-order list. Any other spreadsheet (.xlsx, .xls or .csv) works too if it has a header row with a <strong>Title</strong> (or Name / Product) column and details such as Price, UPC, ISBN, SKU, Publisher, Release date or FOC date — pictures in the sheet become covers. You'll see what will change before anything is saved. Incentive covers and retailer bundles are always skipped, plus anything on the list below.</p>
+    ${hintFold(`Drop in this week's sheets as downloaded: Lunar or PRH FOC sheets, Lunar or PRH release sheets, or a Funko pre-order list. Any other spreadsheet (.xlsx, .xls or .csv) works too if it has a header row with a <strong>Title</strong> (or Name / Product) column and details such as Price, UPC, ISBN, SKU, Publisher, Release date or FOC date — pictures in the sheet become covers. You'll see what will change before anything is saved. Incentive covers and retailer bundles are always skipped, plus anything on the list below.`)}
     <label class="dropzone" for="import-files">
       <input id="import-files" type="file" accept=".xlsx,.xlsm,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" multiple class="visually-hidden">
       <strong>Choose spreadsheets</strong> or drop them here
@@ -193,12 +193,12 @@ async function preview(el, card, name, parsed, book) {
     <div data-summary><p class="admin-hint">Checking what's already imported…</p></div>
     ${parsed.columnsUsed ? `<details><summary>Columns used</summary><ul class="skipped">${Object.entries(parsed.columnsUsed).map(([f, h]) => `<li><strong>${esc(FIELD_LABEL[f] ?? f)}</strong> ← “${esc(h)}”</li>`).join('')}${parsed.ignored.length ? `<li class="card__meta">Not used: ${parsed.ignored.map((h) => `“${esc(h)}”`).join(', ')}</li>` : ''}</ul></details>` : ''}
     ${parsed.skipped.length ? `<details><summary>${parsed.skipped.length} skipped ${parsed.skipped.length === 1 ? 'title' : 'titles'}</summary><div><ul class="skipped">${parsed.skipped.map((s) => `<li>${esc(s.title)} <span class="card__meta">— ${esc(s.reason)}</span></li>`).join('')}</ul></div></details>` : ''}
-    <div class="form-grid import-options">
-      <div class="field"><label for="onsale-${n}">Shop on-sale day (optional)</label>
+    <div class="form-grid form-grid--pairs import-options">
+      <div class="field span-2"><label for="onsale-${n}">Shop on-sale day (optional)</label>
         <input id="onsale-${n}" type="date" data-onsale>
         <p class="field__hint">Use for release sheets when your new-release day differs from the distributor's date.</p></div>
     </div>
-    <div class="admin-actions">
+    <div class="admin-actions import-actions">
       <button class="btn btn--primary" type="button" data-go>Import ${parsed.items.length} titles</button>
       <button class="btn btn--ghost" type="button" data-cancel>Remove</button>
       <span class="admin-status" role="status"></span>
@@ -297,15 +297,15 @@ async function loadLog(el) {
     return;
   }
   box.innerHTML = data.length
-    ? `<div class="admin-table-wrap"><table class="admin-table run-log">
+    ? `<div class="admin-table-wrap"><table class="admin-table run-log cards">
         <thead><tr><th scope="col" data-sort="text" data-first="desc">When</th><th scope="col" data-sort="text">Run</th><th scope="col" data-sort="text">Result</th><th scope="col">Details</th></tr></thead>
         <tbody>${data
           .map(
             (j) => `<tr class="${j.ok ? '' : 'is-overdue'}">
-            <td class="nowrap card__meta" data-sort="${esc(j.created_at)}">${fmtDateTime(j.created_at)}</td>
-            <td><strong>${j.job === 'import' ? 'Import' : j.job === 'status_flip' ? 'Daily status update' : j.job === 'catalog_sync' ? 'Master catalog sync' : esc(j.job)}</strong></td>
-            <td>${j.ok ? 'OK' : '<span class="badge badge--sold_out">Failed</span>'}</td>
-            <td class="card__meta">${esc(j.message ?? '')}</td>
+            <td class="nowrap card__meta card-key" data-sort="${esc(j.created_at)}">${fmtDateTime(j.created_at)}</td>
+            <td class="card-title"><strong>${j.job === 'import' ? 'Import' : j.job === 'status_flip' ? 'Daily status update' : j.job === 'catalog_sync' ? 'Master catalog sync' : esc(j.job)}</strong></td>
+            <td class="card-key">${j.ok ? 'OK' : '<span class="badge badge--sold_out">Failed</span>'}</td>
+            <td class="card__meta card-wide">${esc(j.message ?? '')}</td>
           </tr>`,
           )
           .join('')}</tbody>
