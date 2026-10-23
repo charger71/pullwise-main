@@ -78,6 +78,7 @@ async function edit(listEl, id) {
   d.innerHTML = `
     <p><button class="btn btn--ghost btn--small" type="button" data-back>← Back to news</button></p>
     <h1>${id ? 'Edit Post' : 'New Post'}</h1>
+    <details class="fold toorder fold--static" open><summary class="fold__head"><h2>Post Details</h2></summary><div class="fold__body">
     <form class="admin-form" novalidate>
       <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="p-title">Title <span class="req" aria-hidden="true">*</span></label><input id="p-title" name="title" required value="${esc(post.title)}"></div>
@@ -85,7 +86,7 @@ async function edit(listEl, id) {
         <div class="field span-2"><label for="p-excerpt">Summary</label><textarea id="p-excerpt" name="excerpt" rows="2" maxlength="300">${esc(post.excerpt)}</textarea><p class="field__hint">Shown in the News list.</p></div>
         <div class="field span-2"><span class="label" id="p-body-label">Post</span><div class="editor--body"><div data-body></div></div></div>
         <div class="field span-2" data-cover></div>
-        <div class="field field--full"><label><input type="checkbox" name="published"${published ? ' checked' : ''}> Published</label></div>
+        <div class="checks span-2"><label><input type="checkbox" name="published"${published ? ' checked' : ''}> Published</label></div>
         <div class="field field--full"><label for="p-when">Publish time</label><input id="p-when" name="published_at" type="datetime-local" value="${toLocalInput(post.published_at ?? new Date().toISOString())}"><p class="field__hint">A future time schedules the post.</p></div>
       </div>
       <div class="admin-actions sticky-actions">
@@ -93,7 +94,8 @@ async function edit(listEl, id) {
         ${id ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
         <span class="admin-status" role="status"></span>
       </div>
-    </form>`;
+    </form>
+    </div></details>`;
   window.scrollTo(0, 0);
   $('[data-back]', d).addEventListener('click', back);
   const quill = makeEditor($('[data-body]', d), 'body', $('#p-body-label', d));

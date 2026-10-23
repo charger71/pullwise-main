@@ -1098,7 +1098,7 @@ tr.is-clickable { cursor: pointer; }
 @media (max-width: 599px) {
   .form-grid--pairs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-12); align-items: start; }
   .form-grid--pairs .span-2, .form-grid--pairs .field--full, .form-grid--pairs .field:has(input[type=datetime-local]) { grid-column: 1 / -1; }
-  .form-grid--pairs select, .form-grid--pairs input { min-width: 0; width: 100%; }
+  .form-grid--pairs select, .form-grid--pairs input:not(.visually-hidden) { min-width: 0; width: 100%; } /* (a file picker hidden inside an image field must stay 1px wide, or the page scrolls sideways) */
   .form-grid--pairs .checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-8); }
   .form-grid--pairs .checks label { min-height: 44px; font-size: .95rem; }
   .form-grid--pairs .checks input[type=checkbox] { width: 24px; height: 24px; flex: none; }
