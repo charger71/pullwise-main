@@ -83,7 +83,7 @@
 .table-tools__label { font-weight: 700; font-size: .85rem; margin-right: var(--sp-4); }
 .table-tools button { font: 600 .82rem var(--font-body); padding: 5px 9px; min-height: 32px; border: 1px solid var(--field-line); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; }
 .table-tools button:hover { background: var(--hover-bg); }
-.table-tools button.is-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.table-tools button.is-danger { color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger-ink) 40%, transparent); }
 .ql-snow .ql-toolbar button, .ql-snow.ql-toolbar button { width: 30px; }
 .ql-editor blockquote { border: 0 !important; padding: var(--sp-10) var(--sp-12) !important; font-weight: 700; background: var(--brand-accent); color: var(--on-accent); border-radius: var(--radius); }
 
@@ -91,7 +91,7 @@
 .admin-hint code { background: var(--code-bg); padding: 1px 5px; border-radius: var(--radius-sm); font-size: .85rem; }
 .admin-actions { display: flex; align-items: center; gap: var(--sp-14); margin-top: var(--sp-8); }
 .admin-status { font-weight: 700; }
-.admin-status--error { color: var(--danger); }
+.admin-status--error { color: var(--danger-ink); }
 
 /* FAQ manager */
 .faq-items { list-style: none; padding: 0; margin: 0 0 var(--sp-16); counter-reset: faq; }
@@ -102,7 +102,7 @@
 .faq-item__move button { width: 40px; min-height: 40px; padding: 0; }
 .faq-item .field { margin-bottom: var(--sp-10); }
 .faq-item__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-12); margin-top: var(--sp-10); }
-.btn--danger { background: var(--surface); color: var(--danger); box-shadow: inset 0 0 0 1px var(--danger); }
+.btn--danger { background: var(--surface); color: var(--danger-ink); box-shadow: inset 0 0 0 1px var(--danger-ink); }
 .btn--danger:hover { color: #fff; background: var(--danger); }
 .faq-item--unsaved { outline: 2px dashed var(--brand-accent); }
 
@@ -326,7 +326,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .dash-tile--alert a { border-top-color: var(--danger); }
 .dash-tile__label { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .dash-tile__value { font: 2.2rem/1.1 var(--font-display); }
-.dash-tile--alert .dash-tile__value { color: var(--danger); }
+.dash-tile--alert .dash-tile__value { color: var(--danger-ink); }
 .dash-tile__note { font-size: .85rem; color: var(--muted); }
 
 .dash-grid { display: grid; gap: var(--sp-16); grid-template-columns: minmax(0, 1fr); }
@@ -359,7 +359,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .dash-health .is-warn .dash-health__dot { background: var(--warn-dot); }
 .dash-health .is-bad .dash-health__dot { background: var(--danger); }
 .dash-health .is-off { color: var(--muted); }
-.dash-facts strong { display: inline-block; min-width: 3ch; font-size: 1.1rem; color: var(--ink); }
+.dash-facts strong { flex: none; display: inline-block; min-width: 3ch; font-size: 1.1rem; color: var(--ink); }
 
 
 /* ---------- Status pills ----------
@@ -425,7 +425,7 @@ td.dash-top__n { text-align: center; font: 1.1rem var(--font-display); }
 .btn--add:hover { color: #fff; }
 .icon-btn--sm { width: 26px; height: 26px; }
 .icon-btn--add { color: var(--success); }
-.icon-btn--remove { color: var(--danger); }
+.icon-btn--remove { color: var(--danger-ink); }
 .cust-status { display: inline-flex; align-items: center; gap: var(--sp-12); }
 .cust-icons { display: inline-flex; gap: var(--sp-8); align-items: center; }
 .cust-icon { display: inline-flex; }
@@ -447,7 +447,7 @@ td.dash-top__n { text-align: center; font: 1.1rem var(--font-display); }
 .cust-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12); }
 .cust-qty { width: 72px; height: 38px; }
 .cust-toggle { font-weight: 400; display: flex; align-items: center; gap: var(--sp-6); margin: 0; }
-.cust-warn { color: var(--danger); font-weight: 700; font-size: .85rem; }
+.cust-warn { color: var(--danger-ink); font-weight: 700; font-size: .85rem; }
 .cust-link { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); flex-wrap: wrap; }
 .cust-results { list-style: none; margin: 0; padding: 0; }
 .cust-results li { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-12); padding: var(--sp-8) 0; border-bottom: var(--border); flex-wrap: wrap; }
@@ -602,7 +602,7 @@ tr.is-clickable { cursor: pointer; }
 .cust-log__more { margin: var(--sp-6) 0 0; font-size: .78rem; color: var(--muted); }
 
 /* ---------- Batch 3 polish ---------- */
-.req { color: var(--danger); font-weight: 700; }
+.req { color: var(--danger-ink); font-weight: 700; }
 .admin-link-button { background: none; border: 0; padding: 0; font: inherit; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .admin-link-button:hover { color: var(--brand-primary); }
 
@@ -689,7 +689,7 @@ tr.is-clickable { cursor: pointer; }
 
 .staff-actions { display: flex; gap: var(--sp-8); flex-wrap: wrap; justify-content: flex-end; }
 .staff-actions .icon-btn { display: inline-flex; align-items: center; width: auto; height: 36px; padding: 0 var(--sp-12); gap: var(--sp-6); border: var(--border); font-size: .9rem; font-weight: 600; color: var(--ink); } /* an icon with its word, on every screen size */
-.staff-actions .icon-btn--remove { color: var(--danger); border-color: currentColor; }
+.staff-actions .icon-btn--remove { color: var(--danger-ink); border-color: currentColor; }
 .staff-actions .icon-btn svg { width: 20px; height: 20px; }
 .staff-table td { padding: 5px var(--sp-10); }
 .staff-table .st-who { line-height: 1.25; }
@@ -836,7 +836,7 @@ tr.is-clickable { cursor: pointer; }
 
 /* Text */
 .text-muted { color: var(--muted) !important; }
-.text-danger { color: var(--danger) !important; }
+.text-danger { color: var(--danger-ink) !important; }
 .text-success { color: var(--success) !important; }
 .text-right { text-align: right !important; }
 .font-mono { font-family: ui-monospace, Menlo, Consolas, monospace !important; }
@@ -848,7 +848,7 @@ tr.is-clickable { cursor: pointer; }
 .contrast__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-6); }
 .contrast__list li { display: flex; align-items: center; gap: var(--sp-10); }
 .contrast__sample { flex: none; width: 44px; text-align: center; font-weight: 700; padding: var(--sp-4) 0; border: 1px solid var(--line, currentColor); border-radius: 4px; }
-.contrast__list .is-bad { color: var(--danger); }
+.contrast__list .is-bad { color: var(--danger-ink); }
 
 /* ---------- Card lists (phones and tablets) ----------
    One component for every list that becomes cards. Add `cards` to a table (admin.js already tags tables with four or

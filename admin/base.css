@@ -47,6 +47,7 @@
 
   /* Status colors, with their hover shades and a soft background for rows. */
   --danger: #a4001d;
+  --danger-ink: #a4001d;   /* red used as text or an outline on the page (the solid red keeps --danger) */
   --danger-soft: #fff1f1;
   --success: #16723a;
   --success-hover: #0f5a2c;
@@ -105,14 +106,15 @@
   --brand-ink: #f1ead8;
   --brand-paper: #312f2c;
   --surface: #3c3a35;
-  --muted: #aaa396;
+  --muted: #bdb6a6;
   --line: #534f47;
   --field-line: #8c8678;
   --focus: #7aa7ff;
   --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 4px 14px rgb(0 0 0 / .45);
   --danger: #d93a4a;
+  --danger-ink: #ff8693;
   --danger-soft: #523538;
-  --success: #238a4b;
+  --success: #1f7d43;
   --success-hover: #1b6f3c;
   --info: #3b7fc4;
   --info-hover: #2f68a2;
@@ -267,7 +269,7 @@ input[type='checkbox'], input[type='radio'] {
 }
 .field { margin-bottom: 14px; }
 .field__hint { font-size: .85rem; color: var(--muted); margin-top: 4px; }
-.form-error { color: var(--danger); font-weight: 700; }
+.form-error { color: var(--danger-ink); font-weight: 700; }
 /* ---------- Header / nav ---------- */
 .brand { text-decoration: none; display: flex; align-items: center; gap: 10px; }
 .brand__name { font-family: var(--font-display); font-size: 1.2rem; color: var(--brand-primary); line-height: 1.1; }
