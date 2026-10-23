@@ -137,7 +137,7 @@ function renderList(el) {
       <h1>Customers</h1>
       <div class="admin-actions cust-head-actions">
         ${phone ? `<details class="cust-more"><summary>Export &amp; print</summary><div class="cust-more__body">${exportControls}</div></details>` : exportControls}
-        <button class="btn btn--primary" type="button" data-new>+ New customer</button>
+        <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New customer</button>
       </div>
     </div>
     ${hintFold(`Customers who made an account on the site, and ones you add here. Open one to edit their pull list while they're in the store or on the phone.`)}

@@ -23,7 +23,7 @@ function showList(el) {
   el.innerHTML = `
     <div class="admin-title-row">
       <h1>Events</h1>
-      <button class="btn btn--primary" type="button" data-new>+ Add event</button>
+      <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New event</button>
     </div>
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-past="0">Upcoming</button>
@@ -75,7 +75,7 @@ async function edit(listEl, id) {
   const back = () => showList(listEl);
   d.innerHTML = `
     <p><button class="btn btn--ghost btn--small" type="button" data-back>← Back to events</button></p>
-    <h1>${id ? 'Edit Event' : 'Add Event'}</h1>
+    <h1>${id ? 'Edit Event' : 'New Event'}</h1>
     <form class="admin-form" novalidate>
       <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="ev-title">Title</label><input id="ev-title" name="title" required value="${esc(ev.title)}"></div>
@@ -122,7 +122,7 @@ async function edit(listEl, id) {
     setStatus(status, 'Saving…');
     try {
       await must(id ? sb.from('events').update(row).eq('id', id) : sb.from('events').insert(row));
-      toast(id ? 'Event saved' : 'Event added');
+      toast(id ? 'Event saved' : 'Event created');
       back();
     } catch (err) {
       setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');

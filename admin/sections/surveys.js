@@ -20,7 +20,7 @@ function openPage(el, title, bodyHtml) {
   el.innerHTML = `
     <div class="admin-title-row">
       <h1>${esc(title)}</h1>
-      <button class="btn btn--ghost" type="button" data-back>← All surveys</button>
+      <button class="btn btn--ghost" type="button" data-back>← Back to surveys</button>
     </div>
     ${bodyHtml}`;
   el.close = () => ((dirty = false), mount(el, { sb }));
@@ -37,7 +37,7 @@ export async function mount(el, ctx) {
   el.innerHTML = `
     <div class="admin-title-row">
       <h1>Surveys</h1>
-      <button class="btn btn--primary" type="button" data-new>+ New survey</button>
+      <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New survey</button>
     </div>
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-status="all">All</button>

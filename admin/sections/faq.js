@@ -10,7 +10,7 @@ export async function mount(el, { sb }) {
   el.innerHTML = `
     <div class="admin-title-row">
       <h1>FAQ</h1>
-      <button class="btn btn--add" type="button" data-add>${solidIcon('add', 18)} Add question</button>
+      <button class="btn btn--add" type="button" data-add>${solidIcon('add', 18)} New question</button>
     </div>
     ${hintFold(`Questions appear on the FAQ page in this order. A new question is added at the bottom. The FAQ page's intro is under <a href="#pages">Pages → FAQ</a>.`)}
     <ol class="faq-items"></ol>`;
