@@ -4,7 +4,7 @@
 // adding titles goes through staff_pull_list_add(), which can also add past the cutoff.
 // Every change is recorded in pull_list_log and shown under "Recent changes".
 
-import { $, $$, esc, must, toast, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter } from '../lib.js';
 import { cutoffPassed } from '../../js/site.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { whenIn, todayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
@@ -128,7 +128,7 @@ const listName = (c) => [c.last_name, c.first_name].filter(Boolean).join(', ') |
 function renderList(el) {
   state.customerId = null;
   // On phones the export and print controls, the icon key and the help text fold away so the list is on the first screen.
-  const phone = window.matchMedia('(max-width: 899px)').matches;
+  const phone = isPhone();
   const exportControls = `<label class="cust-export-opt" title="Also export picked-up, released and cancelled titles"><input type="checkbox" data-export-history> Include past titles</label>
         <button class="btn btn--ghost" type="button" data-export-all>Export all pull lists (CSV)</button>
         <button class="btn btn--ghost" type="button" data-export-customers title="One page per customer, to print and put in their bag">Print all pull lists (PDF)</button>`;
@@ -140,7 +140,7 @@ function renderList(el) {
         <button class="btn btn--primary" type="button" data-new>+ New customer</button>
       </div>
     </div>
-    ${phone ? '<details class="admin-hint-fold"><summary>How this works</summary>' : ''}<p class="admin-hint">Customers who made an account on the site, and ones you add here. Open one to edit their pull list while they're in the store or on the phone.</p>${phone ? '</details>' : ''}
+    ${hintFold(`Customers who made an account on the site, and ones you add here. Open one to edit their pull list while they're in the store or on the phone.`)}
     <div class="admin-tabs cust-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-show="">All Customers</button>
       <button type="button" class="admin-tab" role="tab" data-show="new_week">New This Week <span class="admin-tab__badge" data-new-count hidden></span></button>
@@ -151,7 +151,7 @@ function renderList(el) {
     </form>
     <p class="results-count" role="status" data-count></p>
     ${phone ? `<details class="admin-hint-fold"><summary>Status icon key</summary>${iconLegend()}</details>` : iconLegend()}
-    <div class="admin-table-wrap"><table class="admin-table cust-list">
+    <div class="admin-table-wrap"><table class="admin-table cust-list cards">
       <thead><tr><th scope="col" class="col-cust-name" data-sort="name">Name</th><th scope="col" data-sort="phone">Phone</th><th scope="col" data-sort="email">Email</th><th scope="col" class="center" data-sort="ready">Ready</th><th scope="col" class="center" data-sort="active">Active</th><th scope="col" data-sort="updated">Last updated</th><th scope="col" data-sort="notes">Status</th></tr></thead>
       <tbody data-rows></tbody>
     </table></div>
@@ -242,13 +242,13 @@ async function loadList(el) {
     ? data
         .map((c) => {
           return `<tr class="is-clickable" data-open="${c.id}">
-            <td><a href="#customers" data-open="${c.id}"><strong>${esc(listName(c))}</strong></a></td>
-            <td class="nowrap">${esc(formatPhone(c.phone))}</td>
-            <td>${c.email ? `<button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(c.email)}" aria-label="Email ${esc(c.name || c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email</button>` : ''}</td>
-            <td class="center">${c.ready_count ? `<span class="dash-pill dash-pill--arrived">${c.ready_count}</span>` : '<span class="card__meta">–</span>'}</td>
-            <td class="center">${c.active_count || '<span class="card__meta">–</span>'}</td>
-            <td class="card__meta nowrap">${c.last_updated ? esc(shortDate(c.last_updated)) : ''}</td>
-            <td class="nowrap"><span class="cust-status"><span class="cust-icons">${statusIcons(c)}</span>${needsFix(c) ? `<a class="btn btn--primary btn--small" href="#customers" data-open="${c.id}" aria-label="Fix ${esc(listName(c))}">${solidIcon('fix', 16)} Fix</a>` : ''}</span></td></tr>`;
+            <td class="card-title"><a href="#customers" data-open="${c.id}"><strong>${esc(listName(c))}</strong></a></td>
+            <td class="nowrap card-line">${esc(formatPhone(c.phone))}</td>
+            <td class="card-action">${c.email ? `<button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(c.email)}" aria-label="Email ${esc(c.name || c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email</button>` : ''}</td>
+            <td class="center card-key card-label">${c.ready_count ? `<span class="dash-pill dash-pill--arrived">${c.ready_count}</span>` : '<span class="card__meta">–</span>'}</td>
+            <td class="center card-key card-label">${c.active_count || '<span class="card__meta">–</span>'}</td>
+            <td class="card__meta nowrap card-label" data-label="Updated">${c.last_updated ? esc(shortDate(c.last_updated)) : ''}</td>
+            <td class="nowrap card-wide"><span class="cust-status"><span class="cust-icons">${statusIcons(c)}</span>${needsFix(c) ? `<a class="btn btn--primary btn--small" href="#customers" data-open="${c.id}" aria-label="Fix ${esc(listName(c))}">${solidIcon('fix', 16)} Fix</a>` : ''}</span></td></tr>`;
         })
         .join('')
     : `<tr><td colspan="7" class="empty">${state.q ? 'No customers match.' : 'No customers yet.'}</td></tr>`;
@@ -360,7 +360,7 @@ async function renderCustomer(el) {
           <summary class="fold__head"><h2 id="cu-add">Add to Pull List</h2></summary>
           <div class="fold__body">
           <form class="cust-search" data-search role="search"><label class="visually-hidden" for="cu-q">Find a pre-order title</label>
-            <input id="cu-q" type="search" placeholder="${window.matchMedia('(max-width: 599px)').matches ? 'Search pre-order titles' : 'Search pre-order titles, covers or creators'}" autocomplete="off"></form>
+            <input id="cu-q" type="search" placeholder="${isPhone(599) ? 'Search pre-order titles' : 'Search pre-order titles, covers or creators'}" autocomplete="off"></form>
           <p class="admin-hint">Adding past an order cutoff or the copy limit is allowed here; you'll be told if the cutoff has passed.</p>
           <div data-results></div>
           </div>

@@ -1,7 +1,7 @@
 // Titles: every item (pre-orders and in-store stock). Search and filter, quick
 // changes in the list (status, staff pick, hidden), and a full edit form.
 
-import { $, $$, esc, must, toast, openDialog, imageField, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, openDialog, imageField, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError } from '../lib.js';
 import { ITEM_BADGES } from '../../js/site.js';
 import { addDays, weekStart } from '../../js/dates.js';
 
@@ -38,7 +38,7 @@ export async function mount(el, ctx) {
   }
   categories = await must(sb.from('categories').select('id,name').order('sort'));
   // On phones the less-used filters fold under "More filters" (open when one of them is set), so the list is on the first screen.
-  const phone = window.matchMedia('(max-width: 899px)').matches;
+  const phone = isPhone();
   const moreOpen = ['flag', 'visibility', 'foc', 'release'].some((k) => state[k]) || (state.sort && state.sort !== 'updated');
   el.innerHTML = `
     <div class="admin-title-row">
@@ -281,7 +281,7 @@ async function edit(listEl, id) {
   const opt = (v, label, cur) => `<option value="${esc(v)}"${String(v) === String(cur ?? '') ? ' selected' : ''}>${esc(label)}</option>`;
   const d = openDialog(id ? 'Edit title' : 'Add title', `
     <form class="admin-form" novalidate>
-      <div class="form-grid">
+      <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="e-title">Title</label><input id="e-title" name="title" required autocapitalize="words" value="${esc(item.title)}"></div>
         <div class="field"><label for="e-issue">Issue #</label><input id="e-issue" name="issue_number" value="${esc(item.issue_number)}"></div>
         <div class="field"><label for="e-publisher">Publisher</label><input id="e-publisher" name="publisher" autocapitalize="words" value="${esc(item.publisher)}"></div>
@@ -293,7 +293,7 @@ async function edit(listEl, id) {
         <p class="field__hint span-2">Shop price is what customers are charged instead of retail (blank = sell at retail). Kept when the title is re-imported.</p>
         <div class="field"><label for="e-foc">Order cutoff (FOC)</label><input id="e-foc" name="foc_date" type="date" value="${item.foc_date ?? ''}"></div>
         <div class="field"><label for="e-release">Release date</label><input id="e-release" name="release_date" type="date" value="${item.release_date ?? ''}"></div>
-        <div class="field"><label for="e-creators">Creators</label><input id="e-creators" name="creators" autocapitalize="words" value="${esc(item.creators)}"></div>
+        <div class="field field--full"><label for="e-creators">Creators</label><input id="e-creators" name="creators" autocapitalize="words" value="${esc(item.creators)}"></div>
         <div class="field"><label for="e-upc">UPC</label><input id="e-upc" name="upc" inputmode="numeric" value="${esc(item.upc)}"></div>
         <div class="field"><label for="e-isbn">ISBN</label><input id="e-isbn" name="isbn" value="${esc(item.isbn)}"></div>
         <div class="field span-2"><label for="e-desc">Description</label><textarea id="e-desc" name="description" rows="4">${esc(item.description)}</textarea></div>
@@ -310,7 +310,7 @@ async function edit(listEl, id) {
       </div>
       ${item.catalog_id ? `<p class="admin-hint">From the master catalog. Its title, retail price, dates, description, creators and cover follow the catalog (checked hourly); your shop price, status, category, badges, staff pick, homepage and hidden are yours and never change.</p>` : ''}
       ${!item.catalog_id && item.distributor && item.distributor !== 'other' ? `<p class="admin-hint">Imported from ${item.distributor === 'lunar' ? 'Lunar' : 'PRH'} (${esc(item.sku)}). Re-importing its sheet refreshes title, retail price, dates and description, but never the shop price, status, category, badges, staff pick, homepage or hidden.</p>` : ''}
-      <div class="admin-actions">
+      <div class="admin-actions sticky-actions">
         <button class="btn btn--primary" type="submit">${id ? 'Save' : 'Add title'}</button>
         ${id && isOwner ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
         <span class="admin-status" role="status"></span>

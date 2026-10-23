@@ -853,24 +853,51 @@ tr.is-clickable { cursor: pointer; }
 .contrast__sample { flex: none; width: 44px; text-align: center; font-weight: 700; padding: var(--sp-4) 0; border: 1px solid var(--line, currentColor); border-radius: 4px; }
 .contrast__list .is-bad { color: var(--danger); }
 
-/* ---------- Ordering lists on phones: compact cards, bigger tap targets ----------
-   Place Order, Past Orders and Received tables stack as cards (see is-stack above). A card is the title on its own
-   line (its action at the right), then the key figures (copies, customers), then the small print on one or two lines. */
+/* ---------- Card lists (phones and tablets) ----------
+   One component for every list that becomes cards. Add `cards` to a table (admin.js already tags tables with four or
+   more columns as .is-stack and copies each heading onto its cells as data-label), then say what each cell is:
+     .card-title   the name; fills the first line         .card-action  a button at the end of the first line
+     .card-lead    a tick box before the title            .card-line    a line of its own under the title (phone)
+     .card-key     a figure that matters (copies, ...)   .card-wide    a line of its own at the end (status, notes)
+     .card-foot    buttons on a last line                 .card-label   put the column heading in front ("Copies 4")
+   A cell with none of these is small print, in the order it comes. Cards that have an action leave room for it on
+   the title line: `cards--slim` for a narrow one (an icon button). */
 @media (max-width: 899px) {
-  .toorder .admin-table.is-stack > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4) var(--sp-16); }
-  .toorder .admin-table.is-stack > tbody > tr > td { display: block; flex: 0 0 auto; order: 3; padding: 0; font-size: .85rem; color: var(--muted); }
-  .toorder .admin-table.is-stack > tbody > tr > td::before { content: none; }
-  /* The title fills its line; the action (tick box or "not ordering") sits at the end of it. */
-  .toorder .admin-table.is-stack > tbody > tr > td[data-label='Title'] { order: 0; flex: 1 1 calc(100% - 76px); min-width: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
-  .toorder .admin-table.is-stack > tbody > tr > td[data-label=''] { order: 1; flex: 0 0 auto; }
-  .toorder .admin-table.is-stack > tbody > tr > td:has(input[type=checkbox]) { order: -1; }
-  .toorder .admin-table.is-stack > tbody > tr > td[data-label='Copies'], .toorder .admin-table.is-stack > tbody > tr > td[data-label='Customers'] { order: 2; color: var(--ink); font-size: .95rem; }
-  .toorder .admin-table.is-stack > tbody > tr > td[data-label='Copies']::before, .toorder .admin-table.is-stack > tbody > tr > td[data-label='Customers']::before { content: attr(data-label) ' '; display: inline; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
-  /* An opened customer list takes the whole card width. */
-  .toorder .admin-table.is-stack > tbody > tr.toorder__people > td { flex: 1 1 100%; order: 0; color: var(--ink); font-size: .9rem; }
-  .toorder .admin-table.is-stack tbody > tr > td input[type=checkbox] { width: 24px; height: 24px; margin: 10px; }
-  .toorder .admin-table.is-stack tbody > tr > td :where(.link-button, .icon-btn) { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
-  .toorder .admin-table.is-stack tbody > tr > td .link-button { min-width: 0; padding: 0 var(--sp-8); background: none; border: 0; font: inherit; font-weight: 700; color: var(--ink); text-decoration: underline; }
+  .cards.is-stack { --card-action: 100px; --card-lead: 0px; }
+  .cards--slim.is-stack { --card-action: 76px; }
+  .cards.is-stack > tbody > tr:not(.order-expand):has(> .card-lead) { --card-lead: 56px; }
+  .cards.is-stack > tbody > tr:not(.order-expand):not(:has(> .card-action)) { --card-action: 0px; }
+  .cards.is-stack > tbody > tr:not(.order-expand) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-12); }
+  .cards.is-stack > tbody > tr:not(.order-expand) > td { display: block; flex: 0 0 auto; order: 5; padding: 0; font-size: .9rem; color: var(--muted); }
+  .cards.is-stack > tbody > tr:not(.order-expand) > td::before { content: none; }
+  .cards.is-stack > tbody > tr:not(.order-expand)::after { content: ''; order: 2; flex: 1 1 100%; height: 0; } /* line break after the title and its action */
+  .cards.is-stack > tbody > tr > td.card-title { order: 0; flex: 1 1 calc(100% - var(--card-action) - var(--card-lead)); min-width: 0; font-size: 1.05rem; font-weight: 700; color: var(--ink); }
+  .cards.is-stack > tbody > tr > td.card-title br { display: none; }
+  .cards.is-stack > tbody > tr > td.card-title .card__meta { display: block; font-size: .85rem; font-weight: 400; }
+  .cards.is-stack > tbody > tr > td.card-lead { order: -1; }
+  .cards.is-stack > tbody > tr > td.card-action { order: 1; }
+  .cards.is-stack > tbody > tr > td.card-line { order: 3; flex: 1 1 100%; color: var(--ink); }
+  .cards.is-stack > tbody > tr > td.card-key { order: 4; color: var(--ink); font-size: .95rem; }
+  .cards.is-stack > tbody > tr > td.card-wide { order: 6; flex: 1 1 100%; color: var(--ink); font-size: .95rem; }
+  .cards.is-stack > tbody > tr > td.card-foot { order: 7; margin-top: var(--sp-4); }
+  .cards.is-stack > tbody > tr > td.card-foot ~ td.card-foot { margin-left: auto; } /* a second foot button goes to the far end */
+  .cards.is-stack > tbody > tr > td .icon-btn svg { width: 28px; height: 28px; }
+  .cards.is-stack > tbody > tr > td.card-label::before { content: attr(data-label) ' '; display: inline; font: inherit; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+  /* Tap targets: 44px for anything you press, a bigger tick box for the lead cell. */
+  .cards.is-stack > tbody > tr > td :where(.btn, .icon-btn, .link-button) { min-height: 44px; min-width: 44px; }
+  .cards.is-stack > tbody > tr > td .btn { min-width: 0; padding-inline: var(--sp-16); }
+  .cards.is-stack > tbody > tr > td .icon-btn { display: inline-flex; align-items: center; justify-content: center; }
+  .cards.is-stack > tbody > tr > td.card-lead input[type=checkbox] { width: 28px; height: 28px; margin: 8px; }
+  .cards.is-stack > tbody > tr:has(input[type=checkbox]:not([disabled])) { cursor: pointer; }
+  /* A count that opens a list ("3" under Customers) reads as a link. */
+  .cards.is-stack .link-button { min-width: 0; padding: 0 var(--sp-8); background: none; border: 0; font: inherit; font-weight: 700; color: var(--ink); text-decoration: underline; }
+  /* A row that opens under a card (customers who reserved a title) takes the whole width. */
+  .cards.is-stack > tbody > tr.toorder__people > td { display: block; flex: 1 1 100%; order: 0; color: var(--ink); font-size: .9rem; padding: 0; }
+  /* Specifics: Past Orders shows what became of the copies in bold; a customer with no icons and nothing to fix has no status line; status pills stay inline. */
+  .past-table.cards > tbody > tr > td.card-wide { font-weight: 600; }
+  .cust-list.cards > tbody > tr > td.card-wide:not(:has(.cust-icon, .btn)) { display: none; }
+  .cards .dash-pill { display: inline-block; }
+  .dash-latest__more { display: none; }
 }
 @media (max-width: 700px) {
   /* Cutoff header: the heading takes the first line and the action sits full width beneath it. */
@@ -900,16 +927,6 @@ tr.is-clickable { cursor: pointer; }
   .orders-filters .field--search input, .orders-filters select, .orders-filters .btn { min-height: 44px; }
   .orders-filters select { width: 100%; }
   /* An order is a card: customer and View on the first line, the details under them, then the status. */
-  .orders-table.is-stack > tbody > tr:not(.order-expand) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-12); }
-  .orders-table.is-stack > tbody > tr:not(.order-expand) > td { display: block; flex: 0 0 auto; order: 3; padding: 0; font-size: .85rem; color: var(--muted); }
-  .orders-table.is-stack > tbody > tr:not(.order-expand) > td::before { content: none; }
-  .orders-table.is-stack > tbody > tr > td[data-label='Customer'] { order: 0; flex: 1 1 calc(100% - 100px); min-width: 0; font-size: 1rem; color: var(--ink); }
-  .orders-table.is-stack > tbody > tr > td[data-label='Customer'] br { display: none; }
-  .orders-table.is-stack > tbody > tr > td[data-label='Customer'] .card__meta { display: block; font-size: .85rem; }
-  .orders-table.is-stack > tbody > tr > td[data-label=''] { order: 1; flex: 0 0 auto; }
-  .orders-table.is-stack > tbody > tr > td[data-label=''] .btn { min-height: 44px; min-width: 88px; }
-  .orders-table.is-stack > tbody > tr:not(.order-expand) > td[data-label='Titles']::before { content: 'Titles '; display: inline; font: inherit; text-transform: none; letter-spacing: 0; }
-  .orders-table.is-stack > tbody > tr > td[data-label='Status'] { order: 4; flex: 1 1 100%; color: var(--ink); font-size: .95rem; }
 }
 
 /* ---------- Order detail panel on phones ----------
@@ -937,9 +954,6 @@ tr.is-clickable { cursor: pointer; }
   .field .cust-export-opt { min-height: 44px; font-size: 1rem; white-space: normal; }
   /* The Mark Ready button stays on screen under the page header while the list scrolls. */
   .toorder.fold--static > .fold__head { position: sticky; top: 60px; z-index: 5; }
-  .toorder .admin-table.is-stack > tbody > tr > td[data-label='Out']::before { content: 'Out '; display: inline; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
-  .toorder .admin-table.is-stack > tbody > tr > td input[type=checkbox] { width: 28px; height: 28px; margin: 8px; }
-  .toorder .admin-table.is-stack > tbody > tr:has(input[type=checkbox]:not([disabled])) { cursor: pointer; }
 }
 @media (max-width: 899px) {
   .admin-filters .field:has(.cust-export-opt) { grid-column: 1 / -1; }
@@ -960,9 +974,6 @@ tr.is-clickable { cursor: pointer; }
 
 /* ---------- Past Orders on phones: title, then the figures, then what became of the copies ---------- */
 @media (max-width: 899px) {
-  .toorder .past-table.is-stack > tbody > tr > td[data-label='Title'] { flex: 1 1 100%; }
-  .past-table.is-stack > tbody > tr > td[data-label='Publisher'] { order: 3; }
-  .past-table.is-stack > tbody > tr > td[data-label='Status'] { order: 4; flex: 1 1 100%; color: var(--ink); font-size: .95rem; font-weight: 600; }
 }
 
 /* ---------- Customers list on phones ---------- */
@@ -981,22 +992,9 @@ tr.is-clickable { cursor: pointer; }
   .admin-hint-fold .cust-legend { justify-content: flex-start; padding-bottom: var(--sp-8); }
   .admin-pager > span { white-space: nowrap; }
   /* A customer is a card: name and Email on the first line, phone, the counts, then the status icons and Fix. */
-  .cust-list.is-stack > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-16); }
-  .cust-list.is-stack > tbody > tr > td { display: block; flex: 0 0 auto; order: 3; padding: 0; font-size: .9rem; color: var(--muted); }
-  .cust-list.is-stack > tbody > tr > td::before { content: none; }
-  .cust-list.is-stack > tbody > tr > td[data-label='Name'] { order: 0; flex: 1 1 100%; min-width: 0; font-size: 1.05rem; color: var(--ink); }
-  .cust-list.is-stack > tbody > tr:has(.cust-email) > td[data-label='Name'] { flex-basis: calc(100% - 96px); }
   .admin-pager { gap: var(--sp-8); }
   .admin-pager .btn { flex: 1 1 0; min-width: 0; padding-inline: var(--sp-8); min-height: 44px; }
   .admin-pager > span { flex: none; }
-  .cust-list.is-stack > tbody > tr > td[data-label='Email'] { order: 1; }
-  .cust-list.is-stack > tbody > tr > td[data-label='Email'] .btn { min-height: 44px; min-width: 80px; }
-  .cust-list.is-stack > tbody > tr > td[data-label='Phone'] { order: 2; flex: 1 1 100%; color: var(--ink); }
-  .cust-list.is-stack > tbody > tr > td[data-label='Ready']::before, .cust-list.is-stack > tbody > tr > td[data-label='Active']::before { content: attr(data-label) ' '; display: inline; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
-  .cust-list.is-stack > tbody > tr > td[data-label='Last updated']::before { content: 'Updated '; display: inline; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; }
-  .cust-list.is-stack > tbody > tr > td[data-label='Status'] { order: 5; flex: 1 1 100%; }
-  .cust-list.is-stack > tbody > tr > td[data-label='Status']:not(:has(.cust-icon, .btn)) { display: none; }
-  .cust-list.is-stack > tbody > tr > td[data-label='Status'] .btn { min-height: 44px; }
 }
 
 /* ---------- Customer detail on phones ---------- */
@@ -1056,17 +1054,6 @@ tr.is-clickable { cursor: pointer; }
 }
 @media (max-width: 899px) {
   /* Latest Reservations: customer, then order, date and titles, then the status pills; the View button is short enough to sit beside the name. */
-  .dash-latest.is-stack > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-12); }
-  .dash-latest.is-stack > tbody > tr > td { display: block; flex: 0 0 auto; order: 3; padding: 0; font-size: .9rem; color: var(--muted); }
-  .dash-latest.is-stack > tbody > tr > td::before { content: none; }
-  .dash-latest.is-stack > tbody > tr::after { content: ''; order: 2; flex: 1 1 100%; height: 0; } /* line break: name and View above, the details below */
-  .dash-latest.is-stack > tbody > tr > td[data-label='Customer'] { order: 0; flex: 1 1 calc(100% - 140px); min-width: 0; font-size: 1.05rem; color: var(--ink); }
-  .dash-latest.is-stack > tbody > tr > td[data-label=''] { order: 1; }
-  .dash-latest__more { display: none; }
-  .dash-latest.is-stack > tbody > tr > td[data-label=''] .btn { min-height: 44px; min-width: 0; padding-inline: var(--sp-16); }
-  .dash-latest.is-stack > tbody > tr > td[data-label='Titles']::before { content: 'Titles '; display: inline; font: inherit; text-transform: none; letter-spacing: 0; }
-  .dash-latest.is-stack > tbody > tr > td[data-label='Status'] { order: 4; flex: 1 1 100%; }
-  .dash-latest.is-stack > tbody > tr > td[data-label='Status'] .dash-pill { display: inline-block; }
 }
 
 /* ---------- Titles on phones ---------- */
@@ -1095,20 +1082,27 @@ tr.is-clickable { cursor: pointer; }
   .titles-table .tt-datelink { min-height: 32px; }
 }
 
-/* ---------- Add / Edit title on phones: a full-screen sheet with Save pinned to the bottom ---------- */
+/* ---------- Forms on phones (every admin form) ----------
+   form-grid--pairs: short fields sit two to a row; .span-2, .field--full, a date-time or a text area keep the whole row.
+   sticky-actions:   Save (and Delete) stay at the bottom of the screen however far the form is scrolled; on a page they
+                     sit on the page, in a dialog they sit on the dialog.
+   admin-dialog--wide becomes a full-screen sheet. */
 @media (max-width: 599px) {
+  .form-grid--pairs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-12); align-items: start; }
+  .form-grid--pairs .span-2, .form-grid--pairs .field--full, .form-grid--pairs .field:has(input[type=datetime-local]) { grid-column: 1 / -1; }
+  .form-grid--pairs select, .form-grid--pairs input { min-width: 0; width: 100%; }
+  .form-grid--pairs .checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-8); }
+  .form-grid--pairs .checks label { min-height: 44px; font-size: .95rem; }
+  .form-grid--pairs .checks input[type=checkbox] { width: 24px; height: 24px; flex: none; }
+  .form-grid--pairs .image-field__controls .btn { min-height: 44px; }
   .admin-dialog--wide { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
   .admin-dialog--wide .dialog__close { width: 44px; height: 44px; }
-  /* Short fields sit two to a row; long ones (title, variant, description, creators, cover) keep the whole width. */
-  .admin-dialog--wide .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-12); align-items: start; }
-  .admin-dialog--wide .form-grid .span-2, .admin-dialog--wide .form-grid .field:has(#e-creators) { grid-column: 1 / -1; }
-  .admin-dialog--wide .form-grid select, .admin-dialog--wide .form-grid input { min-width: 0; width: 100%; }
-  .admin-dialog--wide .checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-8); }
-  .admin-dialog--wide .checks label { min-height: 44px; font-size: .95rem; }
-  .admin-dialog--wide .checks input[type=checkbox] { width: 24px; height: 24px; flex: none; }
-  .admin-dialog--wide .image-field__controls .btn { min-height: 44px; }
-  /* Save and Delete stay in view however far the form is scrolled. */
-  .admin-dialog--wide .admin-actions { position: sticky; bottom: 0; z-index: 3; margin: var(--sp-12) calc(-1 * var(--sp-16)) calc(-1 * var(--sp-16)); padding: var(--sp-10) var(--sp-16); background: var(--surface); border-top: var(--border); flex-wrap: wrap; gap: var(--sp-8); }
-  .admin-dialog--wide .admin-actions .btn { flex: 1 1 0; min-height: 48px; justify-content: center; }
-  .admin-dialog--wide .admin-actions .admin-status { flex: 1 1 100%; order: -1; margin: 0; }
 }
+@media (max-width: 899px) {
+  .sticky-actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); padding: var(--sp-10) 0; border-top: var(--border); }
+  .sticky-actions .btn { flex: 0 0 auto; min-height: 48px; justify-content: center; }
+  .sticky-actions .btn--primary { flex: 1 1 0; }
+  .sticky-actions .admin-status { flex: 1 1 100%; order: -1; margin: 0; }
+  .sticky-actions .admin-status:empty { display: none; }
+}
+.admin-dialog .sticky-actions { z-index: 3; background: var(--surface); margin: var(--sp-12) calc(-1 * var(--sp-16)) calc(-1 * var(--sp-16)); padding: var(--sp-10) var(--sp-16); border-top: var(--border); }

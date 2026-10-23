@@ -2,7 +2,7 @@
 // status, lookup by name/phone/email, CSV export — plus a "To order" view that
 // totals reserved copies per title for each order cutoff.
 
-import { $, $$, esc, must, toast, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField } from '../lib.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, todayIn, dayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
 
@@ -129,7 +129,7 @@ function renderOrders(body) {
     </form>
     <p class="results-count" role="status" data-count></p>
     <div data-orders>
-      <div class="admin-table-wrap"><table class="admin-table orders-table">
+      <div class="admin-table-wrap"><table class="admin-table orders-table cards">
         <thead><tr><th scope="col" data-sort="name">Customer</th><th scope="col" class="center">Titles</th><th scope="col" data-sort="placed" data-first="desc">Placed</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Open</span></th></tr></thead>
         <tbody data-rows></tbody>
       </table></div>
@@ -408,12 +408,12 @@ async function loadOrders(body) {
         return l.status === 'arrived' && until && until < t;
       });
       return `<tr class="is-clickable${overdue ? ' is-overdue' : ''}" data-open="${o.id}">
-        <td><a href="#reservations" data-open="${o.id}"><strong>${esc(o.name)}</strong></a><br><span class="card__meta">Order #${o.id}</span></td>
-        <td class="center">${lines.length}</td>
+        <td class="card-title"><a href="#reservations" data-open="${o.id}"><strong>${esc(o.name)}</strong></a><br><span class="card__meta">Order #${o.id}</span></td>
+        <td class="center card-label">${lines.length}</td>
         <td class="nowrap card__meta">${fmtDateTime(o.created_at)}</td>
         <td><span class="order__badge order__badge--${o.kind === 'pull_list' ? 'pull' : 'guest'}">${o.kind === 'pull_list' ? 'Pull list' : 'Guest order'}</span></td>
-        <td><span>${esc(summary)}${overdue ? ' · <strong>past pickup</strong>' : ''}</span></td>
-        <td class="nowrap">${o.unlinked_match ? `<a class="btn btn--primary btn--small" href="#customers" data-customer="${o.customer_id}" title="This guest order matches ${esc(o.name)}: open the customer to link it" aria-label="Fix: link guest order ${o.id} to ${esc(o.name)}">${solidIcon('fix', 16)} Fix</a> ` : ''}<button class="btn btn--ghost btn--small" type="button" data-open="${o.id}">View<span class="visually-hidden"> order ${o.id}</span></button></td>
+        <td class="card-wide"><span>${esc(summary)}${overdue ? ' · <strong>past pickup</strong>' : ''}</span></td>
+        <td class="nowrap card-action">${o.unlinked_match ? `<a class="btn btn--primary btn--small" href="#customers" data-customer="${o.customer_id}" title="This guest order matches ${esc(o.name)}: open the customer to link it" aria-label="Fix: link guest order ${o.id} to ${esc(o.name)}">${solidIcon('fix', 16)} Fix</a> ` : ''}<button class="btn btn--ghost btn--small" type="button" data-open="${o.id}">View<span class="visually-hidden"> order ${o.id}</span></button></td>
       </tr>`;
     })
     .join('');
@@ -470,8 +470,7 @@ async function exportCsv() {
 /** Open, ordered and reordered reservations, totalled per title. Titles releasing after this week (Sunday to Saturday) are listed only when asked for. */
 async function renderReady(body) {
   // The instructions are long: folded away on phones, where they would fill the first screen.
-  const hintOpen = window.matchMedia('(max-width: 899px)').matches ? '' : ' open';
-  body.innerHTML = `<details class="admin-hint-fold"${hintOpen}><summary>How this works</summary><p class="admin-hint">Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.</p></details>
+  body.innerHTML = `${hintFold(`Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.`)}
     <form class="filters admin-filters" role="search" aria-label="Find titles">
       <div class="field field--search"><label for="rd-q">Title</label><input id="rd-q" type="search" placeholder="Filter by title or publisher"></div>
       <div class="field"><span class="label">&nbsp;</span><label class="cust-export-opt" for="rd-future"><input type="checkbox" id="rd-future"> Include titles releasing after this week</label></div>
@@ -550,8 +549,8 @@ async function renderReady(body) {
         </summary>
         <div class="fold__body">
         <p><button type="button" class="btn btn--ghost btn--small" data-pick="all">Tick all shown</button> <button type="button" class="btn btn--ghost btn--small" data-pick="none">Clear ticks</button></p>
-      <table class="admin-table"><thead><tr><th scope="col"><span class="visually-hidden">Ready</span></th><th scope="col">Title</th><th scope="col">Publisher</th><th scope="col">Out</th><th scope="col" class="col-qty">Copies</th><th scope="col" class="col-qty">Customers</th></tr></thead>
-      <tbody>${list.map((r) => `<tr><td><input type="checkbox" data-item="${r.item.id}" aria-label="Ready: ${esc(itemName(r.item))}"${picked.has(r.item.id) ? ' checked' : ''}${r.lineIds.length ? '' : ' disabled title="Nobody has reserved this title"'}></td><td>${esc(itemName(r.item))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="nowrap">${r.item.release_date ? fmtDate(r.item.release_date, { month: 'short', day: 'numeric' }) : ''}</td><td class="center">${r.copies ? `<strong>${r.copies}</strong>` : '—'}</td><td class="center">${r.orders.size || '—'}</td></tr>`).join('')}</tbody></table>
+      <table class="admin-table cards"><thead><tr><th scope="col"><span class="visually-hidden">Ready</span></th><th scope="col">Title</th><th scope="col">Publisher</th><th scope="col">Out</th><th scope="col" class="col-qty">Copies</th><th scope="col" class="col-qty">Customers</th></tr></thead>
+      <tbody>${list.map((r) => `<tr><td class="card-lead"><input type="checkbox" data-item="${r.item.id}" aria-label="Ready: ${esc(itemName(r.item))}"${picked.has(r.item.id) ? ' checked' : ''}${r.lineIds.length ? '' : ' disabled title="Nobody has reserved this title"'}></td><td class="card-title">${esc(itemName(r.item))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="nowrap card-label">${r.item.release_date ? fmtDate(r.item.release_date, { month: 'short', day: 'numeric' }) : ''}</td><td class="center card-key card-label">${r.copies ? `<strong>${r.copies}</strong>` : '—'}</td><td class="center card-key card-label">${r.orders.size || '—'}</td></tr>`).join('')}</tbody></table>
         </div>
       </details>`;
   }
@@ -567,7 +566,7 @@ async function renderReady(body) {
   box.addEventListener('click', async (e) => {
     if (e.target.closest('summary') && !e.target.closest('button')) e.preventDefault();
     const card = !e.target.closest('input, button, a, label, select') && e.target.closest('tbody tr');
-    if (card && window.matchMedia('(max-width: 899px)').matches) {
+    if (card && isPhone()) {
       const cb = $('input[data-item]:not([disabled])', card);
       if (cb) {
         cb.checked = !cb.checked;
@@ -649,8 +648,7 @@ async function renderToOrder(body) {
   // Titles whose customer list is open, so a refresh can open them again.
   const openPeople = $$('[data-customers][aria-expanded="true"]', body).map((b) => b.dataset.customers);
   // The instructions are folded away on phones, where they would push the cutoffs off the first screen.
-  const hintOpen = window.matchMedia('(max-width: 899px)').matches ? '' : ' open';
-  body.innerHTML = `<details class="admin-hint-fold"${hintOpen}><summary>How this works</summary><p class="admin-hint">Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it.</p></details><div data-order-tools></div><div data-groups aria-busy="true"></div>`;
+  body.innerHTML = `${hintFold(`Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it.`)}<div data-order-tools></div><div data-groups aria-busy="true"></div>`;
   const box = $('[data-groups]', body);
   let loaded;
   try {
@@ -680,9 +678,9 @@ async function renderToOrder(body) {
           <button class="btn btn--small btn--green" type="button" data-ordered title="After you place this cutoff's order with the distributor">Mark ${copies} ${copies === 1 ? 'copy' : 'copies'} ordered</button>
         </summary>
         <div class="fold__body">
-        <table class="admin-table">
+        <table class="admin-table cards cards--slim">
           <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col" data-sort="text">Publisher</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col"><span class="visually-hidden">Not ordering</span></th></tr></thead>
-          <tbody>${rows.map((r) => `<tr><td>${esc(itemName(r.item))}</td><td>${esc(distributorName(loaded.meta.get(r.item.id)?.distributor ?? null))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="nowrap"></td><td class="center"><strong>${r.copies}</strong></td><td class="center"><button type="button" class="link-button" data-customers="${r.item.id}" title="See who reserved this title">${r.orders.size}</button></td><td class="center"><button type="button" class="icon-btn icon-btn--remove" data-notordering="${r.item.id}" aria-label="Not ordering ${esc(itemName(r.item))}" title="We are not ordering this title">${solidIcon('skip')}</button></td></tr>`).join('')}</tbody>
+          <tbody>${rows.map((r) => `<tr><td class="card-title">${esc(itemName(r.item))}</td><td>${esc(distributorName(loaded.meta.get(r.item.id)?.distributor ?? null))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="nowrap"></td><td class="center card-key card-label"><strong>${r.copies}</strong></td><td class="center card-key card-label"><button type="button" class="link-button" data-customers="${r.item.id}" title="See who reserved this title">${r.orders.size}</button></td><td class="center card-action"><button type="button" class="icon-btn icon-btn--remove" data-notordering="${r.item.id}" aria-label="Not ordering ${esc(itemName(r.item))}" title="We are not ordering this title">${solidIcon('skip')}</button></td></tr>`).join('')}</tbody>
         </table>
         </div>
       </details>`;
@@ -812,8 +810,7 @@ const PAST_STATUSES = ['ordered', 'reordered', 'arrived', 'picked_up'];
 
 async function renderPastOrders(body) {
   // The instructions are folded away on phones, where they would push the cutoffs down the screen.
-  const hintOpen = window.matchMedia('(max-width: 899px)').matches ? '' : ' open';
-  body.innerHTML = `<details class="admin-hint-fold"${hintOpen}><summary>How this works</summary><p class="admin-hint">Cutoffs that have already been ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.</p></details><div data-groups aria-busy="true"></div>`;
+  body.innerHTML = `${hintFold(`Cutoffs that have already been ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.`)}<div data-groups aria-busy="true"></div>`;
   const box = $('[data-groups]', body);
   try {
     const lines = [];
@@ -845,9 +842,9 @@ async function renderPastOrders(body) {
         const copies = rows.reduce((n, r) => n + r.copies, 0);
         return `<details class="fold toorder">
           <summary class="fold__head"><h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`}<span class="toorder__count">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2></summary>
-          <div class="fold__body"><table class="admin-table past-table">
+          <div class="fold__body"><table class="admin-table past-table cards">
             <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Publisher</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col">Status</th></tr></thead>
-            <tbody>${rows.map((r) => `<tr><td>${esc(itemName(r.item))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="center"><strong>${r.copies}</strong></td><td class="center">${r.orders.size}</td><td>${[...r.status].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`).join(', ')}</td></tr>`).join('')}</tbody>
+            <tbody>${rows.map((r) => `<tr><td class="card-title">${esc(itemName(r.item))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="center card-key card-label"><strong>${r.copies}</strong></td><td class="center card-key card-label">${r.orders.size}</td><td class="card-wide">${[...r.status].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`).join(', ')}</td></tr>`).join('')}</tbody>
           </table></div>
         </details>`;
       })

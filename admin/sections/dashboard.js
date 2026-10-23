@@ -225,7 +225,7 @@ async function renderLatest(box, loc = null, stale = () => false) {
     box.innerHTML = '<p class="empty">No reservations yet.</p>';
     return;
   }
-  box.innerHTML = `<div class="admin-table-wrap"><table class="admin-table dash-latest">
+  box.innerHTML = `<div class="admin-table-wrap"><table class="admin-table dash-latest cards">
     <thead><tr><th scope="col" data-sort="text">Customer</th><th scope="col" data-sort="num" data-first="desc">Order</th><th scope="col" data-sort="text" data-first="desc">Placed</th><th scope="col" data-sort="num" data-first="desc">Titles</th><th scope="col" data-sort="text">Status</th><th scope="col"><span class="visually-hidden">View</span></th></tr></thead>
     <tbody>${orders
       .map((o) => {
@@ -233,12 +233,12 @@ async function renderLatest(box, loc = null, stale = () => false) {
         const copies = lines.reduce((n, l) => n + l.quantity, 0);
         const byStatus = Object.entries(lines.reduce((m, l) => ((m[l.status] = (m[l.status] ?? 0) + 1), m), {}));
         return `<tr>
-          <td><strong>${esc(o.name)}</strong></td>
+          <td class="card-title"><strong>${esc(o.name)}</strong></td>
           <td class="nowrap" data-sort="${o.id}">#${o.id}</td>
           <td class="nowrap" data-sort="${esc(o.created_at)}">${fmtDateTime(o.created_at)}</td>
-          <td class="center" data-sort="${lines.length}">${lines.length}${copies !== lines.length ? `<span class="card__meta"> (${copies} copies)</span>` : ''}</td>
-          <td>${byStatus.map(([s, n]) => `<span class="dash-pill dash-pill--${s}">${n > 1 || byStatus.length > 1 ? `${n} ` : ''}${LINE_STATUS_SHORT[s]}</span>`).join(' ')}</td>
-          <td class="nowrap">${o.customer_id ? `<a class="btn btn--ghost btn--small" href="#customers" data-customer="${o.customer_id}" aria-label="View customer ${esc(o.name)}">View<span class="dash-latest__more" aria-hidden="true"> customer</span></a>` : `<a class="btn btn--ghost btn--small" href="#reservations" data-guest="${o.id}" aria-label="View order ${o.id}">View<span class="dash-latest__more" aria-hidden="true"> order</span></a>`}</td>
+          <td class="center card-label" data-sort="${lines.length}">${lines.length}${copies !== lines.length ? `<span class="card__meta"> (${copies} copies)</span>` : ''}</td>
+          <td class="card-wide">${byStatus.map(([s, n]) => `<span class="dash-pill dash-pill--${s}">${n > 1 || byStatus.length > 1 ? `${n} ` : ''}${LINE_STATUS_SHORT[s]}</span>`).join(' ')}</td>
+          <td class="nowrap card-action">${o.customer_id ? `<a class="btn btn--ghost btn--small" href="#customers" data-customer="${o.customer_id}" aria-label="View customer ${esc(o.name)}">View<span class="dash-latest__more" aria-hidden="true"> customer</span></a>` : `<a class="btn btn--ghost btn--small" href="#reservations" data-guest="${o.id}" aria-label="View order ${o.id}">View<span class="dash-latest__more" aria-hidden="true"> order</span></a>`}</td>
         </tr>`;
       })
       .join('')}</tbody>

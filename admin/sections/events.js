@@ -61,8 +61,8 @@ async function load(el) {
   const box = $('[data-list]', el);
   if (error) return (box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
   box.innerHTML = data.length
-    ? `<table class="admin-table"><thead><tr><th scope="col" data-sort="text">When</th><th scope="col" data-sort="text">Event</th><th scope="col" data-sort="text">Type</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead><tbody>${data
-        .map((e) => `<tr><td class="nowrap" data-sort="${esc(e.starts_at)}">${fmtDateTime(e.starts_at)}</td><td><strong>${esc(e.title)}</strong>${placeOf(e) ? `<br><span class="card__meta">${esc(placeOf(e))}</span>` : ''}</td><td>${TYPES[e.event_type] ?? e.event_type}</td><td><button class="btn btn--ghost btn--small" type="button" data-edit="${e.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(e.title)}</span></button></td></tr>`)
+    ? `<table class="admin-table cards"><thead><tr><th scope="col" data-sort="text">When</th><th scope="col" data-sort="text">Event</th><th scope="col" data-sort="text">Type</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead><tbody>${data
+        .map((e) => `<tr><td class="nowrap" data-sort="${esc(e.starts_at)}">${fmtDateTime(e.starts_at)}</td><td class="card-title"><strong>${esc(e.title)}</strong>${placeOf(e) ? `<br><span class="card__meta">${esc(placeOf(e))}</span>` : ''}</td><td>${TYPES[e.event_type] ?? e.event_type}</td><td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-edit="${e.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(e.title)}</span></button></td></tr>`)
         .join('')}</tbody></table>`
     : `<p class="empty">${showPast ? 'No past events.' : 'No upcoming events — add one so it shows on the calendar and the home page.'}</p>`;
   if (data.length) sortableTable($('table', box));
@@ -77,7 +77,7 @@ async function edit(listEl, id) {
     <p><button class="btn btn--ghost btn--small" type="button" data-back>← Back to events</button></p>
     <h1>${id ? 'Edit Event' : 'Add Event'}</h1>
     <form class="admin-form" novalidate>
-      <div class="form-grid">
+      <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="ev-title">Title</label><input id="ev-title" name="title" required value="${esc(ev.title)}"></div>
         <div class="field"><label for="ev-type">Type</label><select id="ev-type" name="event_type">${Object.entries(TYPES).map(([v, l]) => `<option value="${v}"${v === ev.event_type ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
         ${locations.length ? `<div class="field"><label for="ev-store">Location</label><select id="ev-store" name="location_id"><option value="">All locations</option>${locations.map((l) => `<option value="${l.id}"${l.id === ev.location_id ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>` : ''}
@@ -91,7 +91,7 @@ async function edit(listEl, id) {
         <div class="field field--check span-2"><input id="ev-signup" name="signup_enabled" type="checkbox"${ev.signup_enabled ? ' checked' : ''}><label for="ev-signup">Show a signup form on the event page</label></div>
         <div class="field"><label for="ev-cap">Spots available (optional)</label><input id="ev-cap" name="signup_capacity" type="number" min="1" max="1000" value="${esc(ev.signup_capacity)}"><p class="field__hint">Counts people, not signups. Leave blank for no limit.</p></div>
       </div>
-      <div class="admin-actions">
+      <div class="admin-actions sticky-actions">
         <button class="btn btn--primary" type="submit">${id ? 'Save' : 'Add event'}</button>
         ${id && ev.signup_enabled ? '<button class="btn btn--ghost" type="button" data-signups>View signups</button>' : ''}
         ${id ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
@@ -143,8 +143,8 @@ async function edit(listEl, id) {
 
 /** The signups table (with email and remove buttons) for one event's rows. */
 function signupsTable(rows) {
-  return `<table class="admin-table"><thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col">People</th><th scope="col">Notes</th><th scope="col"><span class="visually-hidden">Remove</span></th></tr></thead><tbody>${rows
-      .map((r) => `<tr><td>${esc(r.name)}</td><td class="nowrap">${esc(formatPhone(r.phone))}</td><td><button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(r.email)}" aria-label="Email ${esc(r.name)}" data-email-to="${esc(r.email)}" data-email-name="${esc(r.name)}">Email</button></td><td>${r.party_size}</td><td>${esc(r.notes)}</td><td><button class="icon-btn icon-btn--remove" type="button" data-remove="${r.id}" aria-label="Remove ${esc(r.name)}'s signup" title="Remove signup">${solidIcon('remove')}</button></td></tr>`)
+  return `<table class="admin-table cards"><thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col">People</th><th scope="col">Notes</th><th scope="col"><span class="visually-hidden">Remove</span></th></tr></thead><tbody>${rows
+      .map((r) => `<tr><td class="card-title">${esc(r.name)}</td><td class="nowrap card-line">${esc(formatPhone(r.phone))}</td><td class="card-foot"><button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(r.email)}" aria-label="Email ${esc(r.name)}" data-email-to="${esc(r.email)}" data-email-name="${esc(r.name)}">Email</button></td><td class="card-key card-label">${r.party_size}</td><td class="card-wide">${esc(r.notes)}</td><td class="card-foot"><button class="icon-btn icon-btn--remove" type="button" data-remove="${r.id}" aria-label="Remove ${esc(r.name)}'s signup" title="Remove signup">${solidIcon('remove')}</button></td></tr>`)
       .join('')}</tbody></table>`;
 }
 
