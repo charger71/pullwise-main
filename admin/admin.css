@@ -947,3 +947,13 @@ tr.is-clickable { cursor: pointer; }
   .field .cust-export-opt { width: 100%; gap: var(--sp-10); }
   .field .cust-export-opt input { width: 24px; height: 24px; flex: none; }
 }
+
+/* ---------- Place Order filters on phones: cutoff and distributor side by side, exports under them ---------- */
+@media (max-width: 699px) {
+  .order-tools__hint { display: none; }
+  .order-tools__row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-8) var(--sp-12); }
+  .order-tools__row .field { margin-bottom: 0; }
+  .order-tools__row select { width: 100%; padding-inline: var(--sp-8) var(--sp-24); font-size: .9rem; text-overflow: ellipsis; }
+  .order-tools__btns { grid-column: 1 / -1; margin-bottom: var(--sp-8); }
+  .order-tools [data-ot-summary] { font-weight: 600; color: var(--ink); margin-top: var(--sp-8); }
+}

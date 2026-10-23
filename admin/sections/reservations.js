@@ -648,7 +648,9 @@ async function renderToOrder(body) {
   toOrderBody = body;
   // Titles whose customer list is open, so a refresh can open them again.
   const openPeople = $$('[data-customers][aria-expanded="true"]', body).map((b) => b.dataset.customers);
-  body.innerHTML = `<p class="admin-hint">Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it.</p><div data-order-tools></div><div data-groups aria-busy="true"></div>`;
+  // The instructions are folded away on phones, where they would push the cutoffs off the first screen.
+  const hintOpen = window.matchMedia('(max-width: 899px)').matches ? '' : ' open';
+  body.innerHTML = `<details class="admin-hint-fold"${hintOpen}><summary>How this works</summary><p class="admin-hint">Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it.</p></details><div data-order-tools></div><div data-groups aria-busy="true"></div>`;
   const box = $('[data-groups]', body);
   let loaded;
   try {
@@ -867,7 +869,7 @@ function setupOrderTools(box, groups, focs, meta, keep = {}) {
   box.innerHTML = `
     <section class="panel order-tools" aria-labelledby="ot-h">
       <h2 id="ot-h">Distributor Order List</h2>
-      <p class="admin-hint">Titles and copy counts to order, grouped by distributor with the product code. These are customer reservations (including pull lists) only.</p>
+      <p class="admin-hint order-tools__hint">Titles and copy counts to order, grouped by distributor with the product code. These are customer reservations (including pull lists) only.</p>
       <div class="order-tools__row">
         <div class="field"><label for="ot-foc">Order cutoff</label><select id="ot-foc">
           <option value="">All open cutoffs</option>
