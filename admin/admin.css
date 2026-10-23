@@ -149,6 +149,10 @@
 .admin-subhead { font-size: 1.2rem; margin-top: var(--sp-32); }
 .admin-title-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-10) var(--sp-16); margin-bottom: var(--sp-12); }
 .admin-title-row h1, .admin-title-row h2 { margin: 0; }
+.admin-title-row:has(> h1) { margin-bottom: calc(var(--fs-h1) * .5); } /* the same gap under a page title with or without buttons beside it */
+.btn svg, .icon-btn svg { flex: none; }
+.admin-table td > .btn { vertical-align: middle; }
+.fold .sticky-actions, .panel .sticky-actions { background: var(--surface); } /* a save bar inside a card matches the card, not the page */
 .admin-status--ok { color: var(--success); }
 
 /* ---------- Filters & tables ---------- */
@@ -683,7 +687,10 @@ tr.is-clickable { cursor: pointer; }
 .cust-messages summary { padding: 0; cursor: pointer; display: flex; gap: var(--sp-10); flex-wrap: wrap; align-items: baseline; }
 .cust-messages__body { white-space: pre-wrap; margin: var(--sp-6) 0 var(--sp-4); padding: var(--sp-10) var(--sp-12); background: var(--stripe); border-radius: var(--radius-sm); }
 
-.staff-actions { display: flex; gap: var(--sp-2); flex-wrap: nowrap; justify-content: flex-end; }
+.staff-actions { display: flex; gap: var(--sp-8); flex-wrap: wrap; justify-content: flex-end; }
+.staff-actions .icon-btn { display: inline-flex; align-items: center; width: auto; height: 36px; padding: 0 var(--sp-12); gap: var(--sp-6); border: var(--border); font-size: .9rem; font-weight: 600; color: var(--ink); } /* an icon with its word, on every screen size */
+.staff-actions .icon-btn--remove { color: var(--danger); border-color: currentColor; }
+.staff-actions .icon-btn svg { width: 20px; height: 20px; }
 .staff-table td { padding: 5px var(--sp-10); }
 .staff-table .st-who { line-height: 1.25; }
 .staff-table .st-last svg, .pill svg { vertical-align: -2px; }
@@ -1180,9 +1187,8 @@ tr.is-clickable { cursor: pointer; }
   [data-colors] .admin-form__actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
   [data-colors] .admin-form__actions .btn, [data-password] .btn { flex: 1 1 auto; min-height: 48px; justify-content: center; }
   [data-password], [data-theme-form] { margin-top: var(--sp-16); }
-  .cards.is-stack .staff-actions .icon-btn { width: auto; padding: 0 var(--sp-12); gap: var(--sp-6); border: var(--border); font-size: .9rem; font-weight: 600; }
-  .cards.is-stack .staff-actions .icon-btn--remove { border-color: currentColor; }
-  .cards.is-stack .staff-actions .icon-btn svg { width: 20px; height: 20px; }
+  .cards.is-stack > tbody > tr > td.staff-actions .icon-btn { height: 44px; }
+  .cards.is-stack > tbody > tr > td.staff-actions .icon-btn svg { width: 20px; height: 20px; }
   .sticky-actions .btn--add { flex: 1 1 0; }
   .import-actions .btn { min-height: 48px; }
   .import-actions .btn--primary { flex: 1 1 100%; }
@@ -1194,4 +1200,3 @@ tr.is-clickable { cursor: pointer; }
   .exclusions__mature input { width: 24px; height: 24px; }
   .dropzone { padding: var(--sp-24) var(--sp-16); }
 }
-@media (min-width: 900px) { .st-act { display: none; } }
