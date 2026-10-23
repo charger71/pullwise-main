@@ -78,11 +78,11 @@ async function edit(listEl, id) {
     <h1>${id ? 'Edit Event' : 'New Event'}</h1>
     <form class="admin-form" novalidate>
       <div class="form-grid form-grid--pairs">
-        <div class="field span-2"><label for="ev-title">Title</label><input id="ev-title" name="title" required value="${esc(ev.title)}"></div>
+        <div class="field span-2"><label for="ev-title">Title <span class="req" aria-hidden="true">*</span></label><input id="ev-title" name="title" required value="${esc(ev.title)}"></div>
         <div class="field"><label for="ev-type">Type</label><select id="ev-type" name="event_type">${Object.entries(TYPES).map(([v, l]) => `<option value="${v}"${v === ev.event_type ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
         ${locations.length ? `<div class="field"><label for="ev-store">Location</label><select id="ev-store" name="location_id"><option value="">All locations</option>${locations.map((l) => `<option value="${l.id}"${l.id === ev.location_id ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>` : ''}
         <div class="field"><label for="ev-loc">${locations.length ? 'Where in the store (optional)' : 'Location'}</label><input id="ev-loc" name="location" placeholder="${locations.length ? 'e.g. back room' : 'In store'}" value="${esc(ev.location)}"></div>
-        <div class="field"><label for="ev-start">Starts</label><input id="ev-start" name="starts_at" type="datetime-local" required value="${toLocalInput(ev.starts_at)}"></div>
+        <div class="field"><label for="ev-start">Starts <span class="req" aria-hidden="true">*</span></label><input id="ev-start" name="starts_at" type="datetime-local" required value="${toLocalInput(ev.starts_at)}"></div>
         <div class="field"><label for="ev-end">Ends (optional)</label><input id="ev-end" name="ends_at" type="datetime-local" value="${toLocalInput(ev.ends_at)}"></div>
         <div class="field span-2"><label for="ev-summary">Short description</label><textarea id="ev-summary" name="summary" rows="2" maxlength="300">${esc(ev.summary)}</textarea>
           <p class="field__hint">One or two sentences, shown on the Calendar page next to a “More details” link. Leave it blank to show the start of the full description instead.</p></div>

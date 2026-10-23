@@ -757,7 +757,7 @@ export function mountEmailForm(box, { to, name = '', customerId = null }) {
  */
 export function openEmailDialog({ to, name = '', customerId = null }) {
   const first = String(name).trim().split(/\s+/)[0];
-  const d = openDialog('Email customer', `
+  const d = openDialog('Email Customer', `
     <form class="admin-form" novalidate>
       <div class="field"><label for="em-to">To</label><input id="em-to" value="${esc(to)}" readonly></div>
       <div class="field"><label for="em-subject">Subject</label><input id="em-subject" maxlength="200" autocomplete="off"></div>

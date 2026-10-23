@@ -80,7 +80,7 @@ async function edit(listEl, id) {
     <h1>${id ? 'Edit Post' : 'New Post'}</h1>
     <form class="admin-form" novalidate>
       <div class="form-grid form-grid--pairs">
-        <div class="field span-2"><label for="p-title">Title</label><input id="p-title" name="title" required value="${esc(post.title)}"></div>
+        <div class="field span-2"><label for="p-title">Title <span class="req" aria-hidden="true">*</span></label><input id="p-title" name="title" required value="${esc(post.title)}"></div>
         <div class="field span-2"><label for="p-slug">Web address</label><input id="p-slug" name="slug" value="${esc(post.slug)}" aria-describedby="p-slug-hint"><p class="field__hint" id="p-slug-hint">post.html?slug=<span data-slug-preview>${esc(post.slug ?? '')}</span> — made from the title if left blank.</p></div>
         <div class="field span-2"><label for="p-excerpt">Summary</label><textarea id="p-excerpt" name="excerpt" rows="2" maxlength="300">${esc(post.excerpt)}</textarea><p class="field__hint">Shown in the News list.</p></div>
         <div class="field span-2"><span class="label" id="p-body-label">Post</span><div class="editor--body"><div data-body></div></div></div>

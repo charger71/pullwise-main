@@ -194,7 +194,7 @@ async function edit(listEl, id, startTab) {
       <div data-tabpane="details">
       <details class="fold toorder fold--static" open><summary class="fold__head"><h2>Details</h2></summary><div class="fold__body">
       <div class="form-grid form-grid--pairs">
-        <div class="field span-2"><label for="sv-title">Title</label><input id="sv-title" name="title" required maxlength="150" value="${esc(sv.title)}"></div>
+        <div class="field span-2"><label for="sv-title">Title <span class="req" aria-hidden="true">*</span></label><input id="sv-title" name="title" required maxlength="150" value="${esc(sv.title)}"></div>
         <div class="field span-2"><label for="sv-slug">Link name</label><input id="sv-slug" name="slug" maxlength="80" value="${esc(sv.slug)}" placeholder="customer-survey"><p class="field__hint">Used in the link: survey.html?s=<em>link-name</em>. Letters, numbers and dashes. Leave blank to make one from the title.</p></div>
         <div class="field span-2"><label for="sv-intro">Introduction</label><textarea id="sv-intro" name="intro" rows="3">${esc(sv.intro)}</textarea></div>
         <div class="field span-2"><label for="sv-thanks">Thank-you message</label><textarea id="sv-thanks" name="thank_you" rows="2">${esc(sv.thank_you)}</textarea></div>
