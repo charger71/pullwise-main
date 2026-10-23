@@ -260,7 +260,7 @@ function orderPanelHtml(o) {
   const arrivedIds = lines.filter((l) => l.status === 'arrived').map((l) => l.id);
   return `<div class="order order--inline" data-order="${o.id}">
         <div class="order__toolbar">
-          <p class="card__meta order__meta"><span class="order__id">Order #${o.id}</span> <span class="order__badge order__badge--${o.kind === 'pull_list' ? 'pull' : 'guest'}">${o.kind === 'pull_list' ? 'Pull list' : 'Guest order'}</span> <span>${lines.length} ${lines.length === 1 ? 'title' : 'titles'}</span> <span>${fmtDateTime(o.created_at)}</span></p>
+          <p class="card__meta order__meta"><span class="order__id">Order #${o.id}</span> <span class="pill pill--${o.kind === 'pull_list' ? 'pull' : 'guest'}">${o.kind === 'pull_list' ? 'Pull list' : 'Guest order'}</span> <span>${lines.length} ${lines.length === 1 ? 'title' : 'titles'}</span> <span>${fmtDateTime(o.created_at)}</span></p>
           <div class="order__actions">
             ${o.unlinked_match ? `<a class="btn btn--primary btn--small" href="#customers" data-customer="${o.customer_id}" title="This guest order matches ${esc(o.name)}: open the customer to link it" aria-label="Fix: link guest order ${o.id} to ${esc(o.name)}">${solidIcon('fix', 16)} Fix</a>` : ''}
             ${arrivedIds.length > 1 ? `<button class="btn btn--small btn--green" type="button" data-all="picked_up" data-lines="${arrivedIds.join(',')}">Mark all ${arrivedIds.length} arrived titles picked up</button>` : ''}
@@ -298,7 +298,7 @@ async function renderGuest(body, orderId) {
     const orders = await must(sb.from('reservation_orders').select(`id,name,kind,created_at,reservations(id,quantity,status,item:items(${ITEM_FIELDS}))`).or(ors).order('created_at', { ascending: false }));
     body.innerHTML = `
       <p><button class="btn btn--ghost btn--small" type="button" data-back>← Back to reservations</button></p>
-      <h2>${esc(first.name)} <span class="order__badge order__badge--guest">Guest order</span></h2>
+      <h2>${esc(first.name)} <span class="pill pill--guest">Guest order</span></h2>
       <p class="admin-hint">Not signed up for a pull list. ${first.phone ? `<a href="tel:${esc(first.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(first.phone))}</a>` : ''}${first.phone && first.email ? ' · ' : ''}${first.email ? `<a href="mailto:${esc(first.email)}">${esc(first.email)}</a>` : ''}</p>
       ${first.notes ? `<p>${esc(first.notes)}</p>` : ''}
       ${first.email ? `<details class="order__messages" data-messages-for data-customer="" data-email="${esc(first.email)}"><summary>Messages sent <span class="card__meta" data-messages-sum></span></summary><div data-messages></div></details>` : ''}
@@ -411,7 +411,7 @@ async function loadOrders(body) {
         <td class="card-title"><a href="#reservations" data-open="${o.id}"><strong>${esc(o.name)}</strong></a><br><span class="card__meta">Order #${o.id}</span></td>
         <td class="center card-label">${lines.length}</td>
         <td class="nowrap card__meta">${fmtDateTime(o.created_at)}</td>
-        <td><span class="order__badge order__badge--${o.kind === 'pull_list' ? 'pull' : 'guest'}">${o.kind === 'pull_list' ? 'Pull list' : 'Guest order'}</span></td>
+        <td><span class="pill pill--${o.kind === 'pull_list' ? 'pull' : 'guest'}">${o.kind === 'pull_list' ? 'Pull list' : 'Guest order'}</span></td>
         <td class="card-wide"><span>${esc(summary)}${overdue ? ' · <strong>past pickup</strong>' : ''}</span></td>
         <td class="nowrap card-action">${o.unlinked_match ? `<a class="btn btn--primary btn--small" href="#customers" data-customer="${o.customer_id}" title="This guest order matches ${esc(o.name)}: open the customer to link it" aria-label="Fix: link guest order ${o.id} to ${esc(o.name)}">${solidIcon('fix', 16)} Fix</a> ` : ''}<button class="btn btn--ghost btn--small" type="button" data-open="${o.id}">View<span class="visually-hidden"> order ${o.id}</span></button></td>
       </tr>`;

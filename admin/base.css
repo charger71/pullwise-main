@@ -332,22 +332,6 @@ address { font-style: normal; margin-bottom: 1em; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
 .chips li { font-size: .7rem; font-weight: 700; line-height: 1; padding: 4px 7px; border-radius: 4px; background: var(--ink); color: var(--brand-accent); }
 .cover { aspect-ratio: 2 / 3; width: 100%; object-fit: contain; background: #fff; }
-/* ---------- Status badges (icon + text, never color alone) ---------- */
-.badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: .75rem; font-weight: 700; line-height: 1; letter-spacing: .02em;
-  padding: 5px 8px; border-radius: 999px;
-  background: var(--surface); color: var(--ink); white-space: nowrap;
-}
-.badge--available    { background: var(--pill-done); }
-.badge--just_arrived,
-.badge--new_this_wednesday { background: var(--brand-accent); color: var(--on-accent); }
-.badge--sold_out     { background: var(--pill-off); color: var(--pill-off-text); }
-.badge--backorder    { background: var(--pill-ordered); }
-.badge--pre_order    { background: var(--pill-open); }
-.badge--low_stock    { background: var(--pill-warn); }
-.badge--sale         { background: var(--brand-primary); color: #fff; }
-.badge--clearance    { background: var(--pill-pink); }
 .foc { font-size: .8rem; font-weight: 700; }
 /* ---------- Filters ---------- */
 /* Checkbox dropdown (multi-select filter) — the button matches a <select>. */

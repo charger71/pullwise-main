@@ -207,7 +207,7 @@ function setupLog(sb, el) {
   let loaded = false;
 
   const kindLabel = (k) => LOG_KINDS[k] ?? k;
-  const statusCell = (r) => (r.status === 'failed' ? '<span class="order__badge order__badge--failed">Failed</span>' : 'Sent');
+  const statusCell = (r) => (r.status === 'failed' ? '<span class="pill pill--failed">Failed</span>' : 'Sent');
   const emailRow = (r, { member = false } = {}) => {
     byId.set(r.id, r);
     return `<tr class="${member ? 'email-log__member' : ''}${r.status === 'failed' ? ' is-overdue' : ''}">
@@ -223,7 +223,7 @@ function setupLog(sb, el) {
       <td class="nowrap card__meta">${esc(fmtDateTime(g.created_at))}</td>
       <td>${esc(kindLabel(g.kind))}</td>
       <td colspan="2" class="card-title"><strong>${g.total} ${g.total === 1 ? 'email' : 'emails'}</strong>${g.sent_by ? ` <span class="card__meta">· ${esc(g.sent_by)}</span>` : ''}</td>
-      <td class="card-key">${g.failed ? `<span class="order__badge order__badge--failed">${g.failed} failed</span>` : 'Sent'}</td>
+      <td class="card-key">${g.failed ? `<span class="pill pill--failed">${g.failed} failed</span>` : 'Sent'}</td>
       <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-log-run="${esc(g.run_id)}" aria-expanded="false">Show</button></td>
     </tr>`;
   // An entry with no run is one email: show it like any other row, and fetch its text when View is clicked.
@@ -232,7 +232,7 @@ function setupLog(sb, el) {
       <td>${esc(kindLabel(g.kind))}</td>
       <td class="email-log__to card-title">${esc(g.to_email)}</td>
       <td class="email-log__subject card-line">${esc(g.subject)}</td>
-      <td class="card-key">${g.failed ? '<span class="order__badge order__badge--failed">Failed</span>' : 'Sent'}</td>
+      <td class="card-key">${g.failed ? '<span class="pill pill--failed">Failed</span>' : 'Sent'}</td>
       <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-log-view="${g.first_id}">View</button></td>
     </tr>`;
   const table = (body) => `<div class="admin-table-wrap"><table class="admin-table email-log__table cards">
