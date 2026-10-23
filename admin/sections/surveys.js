@@ -1,7 +1,7 @@
 // Surveys: build a survey, open or close it, and read the answers.
 // Customers answer at survey.html?s=<slug> (no login). Responses are private to staff.
 
-import { $, $$, esc, must, toast, setStatus, slugify, fmtDateTime, downloadCsv, loadScript, solidIcon, friendlyError, setupTabs, fetchAll } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, slugify, fmtDateTime, downloadCsv, loadScript, solidIcon, friendlyError, setupTabs, fetchAll, hintFold } from '../lib.js';
 import { QR_LIB, svgFor, newSlug, encodedText } from './qr.js';
 import { SITE_URL } from '../../js/config.js';
 
@@ -44,7 +44,7 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-status="open">Open <span class="admin-tab__badge" data-open-count hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-status="closed">Closed</button>
     </div>
-    <p class="admin-hint">Customers answer without signing in, at the survey's link. Only an open survey can be answered. Link to it from a news post, the Dashboard announcement or a custom page.</p>
+    ${hintFold('Customers answer without signing in, at the survey\'s link. Only an open survey can be answered. Link to it from a news post, the Dashboard announcement or a custom page.')}
     <div data-list></div>`;
   try {
     listTab = sessionStorage.getItem('admin-surveys-tab') || listTab;

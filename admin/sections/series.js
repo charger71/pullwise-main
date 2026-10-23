@@ -28,7 +28,7 @@ export async function mount(el, ctx) {
         <div class="field span-2"><label for="sa-file">CSV file</label><input id="sa-file" type="file" accept=".csv,text/csv"></div>
         <div class="field span-2"><label for="sa-text">Or paste series names, one per line</label><textarea id="sa-text" rows="5" placeholder="Absolute Batman&#10;Ultimate Spider-Man"></textarea></div>
       </div>
-      <div class="admin-actions"><button class="btn btn--add" type="button" data-sa-go>${solidIcon('add', 18)} Add series</button><span class="admin-status" role="status" data-sa-status></span></div>
+      <div class="admin-actions sticky-actions"><button class="btn btn--add" type="button" data-sa-go>${solidIcon('add', 18)} Add series</button><span class="admin-status" role="status" data-sa-status></span></div>
       </div>
     </details>
     </div>
@@ -161,7 +161,7 @@ export async function mount(el, ctx) {
       const key = coverBtn.dataset.cover;
       const d = openDialog(`Series cover — ${labels.get(key)}`, `<div data-cover-field></div>
         <p class="field__hint">Shown with the series when customers search for it and in their Following list. Upload one here (cropped to a 2:3 cover shape), or choose a shared image from the Media Library so it is stored once and reused.</p>
-        <div class="admin-actions"><button class="btn btn--primary" type="button" data-cover-save>Save cover</button><span class="admin-status" role="status"></span></div>`);
+        <div class="admin-actions sticky-actions"><button class="btn btn--primary" type="button" data-cover-save>Save cover</button><span class="admin-status" role="status"></span></div>`);
       const field = imageField($('[data-cover-field]', d), { folder: 'series', crop: 'cover', maxSize: 700, label: 'Cover image', library: true, thumb: true });
       field.set(covers.get(key));
       $('[data-cover-save]', d).addEventListener('click', async () => {
@@ -339,10 +339,10 @@ function mountArtists(el, sb, isOwner) {
         $('.dialog__body', dlg).innerHTML = `<p class="admin-hint">${kind === 'covers'
           ? 'Titles whose cover is by this creative: credited as the cover artist, or named in the cover text.'
           : 'Titles that credit this person.'} ${rows.length.toLocaleString()} ${rows.length === 1 ? 'title' : 'titles'}; faded ones are hidden on the site.</p>
-          ${rows.length ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th scope="col">Cover</th><th scope="col">Title</th><th scope="col">Publisher</th><th scope="col">Release</th></tr></thead><tbody>${rows
+          ${rows.length ? `<div class="admin-table-wrap"><table class="admin-table cards"><thead><tr><th scope="col">Cover</th><th scope="col">Title</th><th scope="col">Publisher</th><th scope="col">Release</th></tr></thead><tbody>${rows
             .map((t) => `<tr${t.hidden ? ' class="is-hidden"' : ''}><td>${t.cover_url ? `<img class="thumb thumb--sm" src="${esc(t.cover_url)}" alt="" loading="lazy">` : ''}</td>
-              <td><strong>${esc(t.title)}${t.issue_number ? ` #${esc(t.issue_number)}` : ''}</strong>${t.variant ? `<br><span class="card__meta">${esc(t.variant)}</span>` : ''}</td>
-              <td>${esc(t.publisher)}</td><td class="nowrap">${t.release_date ? fmtDate(t.release_date) : ''}</td></tr>`)
+              <td class="card-title"><strong>${esc(t.title)}${t.issue_number ? ` #${esc(t.issue_number)}` : ''}</strong>${t.variant ? `<br><span class="card__meta">${esc(t.variant)}</span>` : ''}</td>
+              <td class="card-key">${esc(t.publisher)}</td><td class="nowrap card-key card-label">${t.release_date ? fmtDate(t.release_date) : ''}</td></tr>`)
             .join('')}</tbody></table></div>` : '<p class="empty">No titles.</p>'}`;
       } catch (err) {
         $('.dialog__body', dlg).innerHTML = `<p class="form-error" role="alert">${esc(friendlyError(err))}</p>`;

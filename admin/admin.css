@@ -221,7 +221,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .toast--error { background: var(--danger); }
 
 /* ---------- Import ---------- */
-.import-card h2 { font-size: 1.15rem; word-break: break-all; }
+.import-card h2 { font-size: var(--fs-card); word-break: break-all; }
 .import-stats { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-6) 22px; margin: var(--sp-8) 0; }
 .import-options { margin-top: var(--sp-10); }
 .skipped { font-size: .9rem; max-height: 240px; overflow: auto; }
@@ -244,7 +244,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .fold__head:hover { background: var(--head-bg-hover); }
 .fold__head:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .fold[open] > .fold__head { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-.fold__head h2 { margin: 0; font-size: 1.15rem; }
+.fold__head h2 { margin: 0; font-size: var(--fs-card); }
 .fold__body { padding: var(--sp-16); }
 /* A fold that is always open (e.g. a new customer's profile): no chevron, not clickable. */
 .fold--static > .fold__head { cursor: default; }
@@ -287,8 +287,8 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 }
 .order__lines tr.is-overdue { background: var(--danger-soft); }
 .toorder .fold__head { padding: 5px var(--sp-12); }
-.toorder .fold__head h2 { flex: 1 1 0; min-width: 0; font-size: 1rem; }
-.toorder .fold__head .btn { flex: none; min-height: 30px; padding: var(--sp-2) var(--sp-10); }
+.toorder .fold__head h2 { flex: 1 1 0; min-width: 0; }
+.toorder .fold__head .btn { flex: none; }
 /* Orders tab: same compact header as To order, name left, details and the green action right. */
 .order.toorder .fold__head { flex-wrap: nowrap; }
 .order.toorder .order__who { flex: 1 1 0; }
@@ -302,7 +302,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .media-item img { width: 100%; aspect-ratio: 1; object-fit: contain; background: var(--media-bg); border-radius: var(--radius-sm); }
 .media-item__name { margin: 0; font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-item__actions { display: flex; flex-direction: column; gap: var(--sp-4); }
-.media-item__actions .btn { width: 100%; min-height: 30px; padding: 3px var(--sp-8); font-size: .78rem; }
+.media-item__actions .btn { width: 100%; min-width: 0; }
 /* Library: the file name across the top, then the thumbnail on the left with its three buttons on the right. */
 .media-grid:not(.media-pick) { grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); }
 .media-grid:not(.media-pick) .media-item { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--sp-6) var(--sp-10); align-items: start; }
@@ -329,7 +329,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .dash-grid > * { margin-bottom: 0; }
 @media (min-width: 1000px) { .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dash-card--wide { grid-column: 1 / -1; } }
 .dash-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; min-width: 0; }
-.dash-card h2 { font-size: 1.15rem; margin: 0 0 var(--sp-8); }
+.dash-card h2 { font-size: var(--fs-card); margin: 0 0 var(--sp-8); }
 .dash-card .admin-title-row { margin-bottom: var(--sp-8); }
 /* The button in a card's top right: the same width on every card (wide enough for the longest label). */
 .dash-card .admin-title-row .btn { min-width: 10rem; justify-content: center; text-align: center; white-space: nowrap; }
@@ -614,7 +614,7 @@ tr.is-clickable { cursor: pointer; }
 .dash-announce__row { display: flex; gap: var(--sp-8); align-items: center; }
 .dash-announce__row input { flex: 1; }
 .email-tools { margin: var(--sp-6) 0 var(--sp-14); padding: var(--sp-12) var(--sp-14); background: var(--stripe); border-radius: var(--radius); }
-.email-tools__title { margin: 0 0 var(--sp-6); font-size: .95rem; }
+.email-tools__title { margin: 0 0 var(--sp-6); font-size: var(--fs-sub); }
 .email-tools .field__hint { margin: var(--sp-6) 0 0; }
 .email-tools__send { margin-top: var(--sp-14); padding-top: var(--sp-12); border-top: 1px solid var(--line); }
 .email-tools__dirty { margin: var(--sp-10) 0 0; font-weight: 600; color: var(--warn-text); }
@@ -750,7 +750,6 @@ tr.is-clickable { cursor: pointer; }
 .order-expand .order--inline { padding: var(--sp-10) var(--sp-14) var(--sp-14); border-left: 4px solid var(--brand-accent); }
 .order__toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-8); }
 .order__toolbar .order__meta { margin: 0; flex-wrap: wrap; }
-.order__actions .btn--blue { min-width: 0; min-height: 28px; padding: var(--sp-2) var(--sp-10); font-size: .75rem; }
 .order__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-6); margin-left: auto; }
 .orders-table tr[aria-expanded='true'] td { border-bottom: 0; }
 /* The order that is open gets the active (blue) colour on its own line, matching its title list below. */

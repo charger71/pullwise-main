@@ -1,7 +1,7 @@
 // Titles: every item (pre-orders and in-store stock). Search and filter, quick
 // changes in the list (status, staff pick, hidden), and a full edit form.
 
-import { $, $$, esc, must, toast, isPhone, openDialog, imageField, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, openDialog, imageField, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold } from '../lib.js';
 import { ITEM_BADGES } from '../../js/site.js';
 import { addDays, weekStart } from '../../js/dates.js';
 
@@ -308,8 +308,8 @@ async function edit(listEl, id) {
         </fieldset>
         <div class="field span-2" data-cover></div>
       </div>
-      ${item.catalog_id ? `<p class="admin-hint">From the master catalog. Its title, retail price, dates, description, creators and cover follow the catalog (checked hourly); your shop price, status, category, badges, staff pick, homepage and hidden are yours and never change.</p>` : ''}
-      ${!item.catalog_id && item.distributor && item.distributor !== 'other' ? `<p class="admin-hint">Imported from ${item.distributor === 'lunar' ? 'Lunar' : 'PRH'} (${esc(item.sku)}). Re-importing its sheet refreshes title, retail price, dates and description, but never the shop price, status, category, badges, staff pick, homepage or hidden.</p>` : ''}
+      ${item.catalog_id ? hintFold('From the master catalog. Its title, retail price, dates, description, creators and cover follow the catalog (checked hourly); your shop price, status, category, badges, staff pick, homepage and hidden are yours and never change.') : ''}
+      ${!item.catalog_id && item.distributor && item.distributor !== 'other' ? hintFold(`Imported from ${item.distributor === 'lunar' ? 'Lunar' : 'PRH'} (${esc(item.sku)}). Re-importing its sheet refreshes title, retail price, dates and description, but never the shop price, status, category, badges, staff pick, homepage or hidden.`) : ''}
       <div class="admin-actions sticky-actions">
         <button class="btn btn--primary" type="submit">${id ? 'Save' : 'Add title'}</button>
         ${id && isOwner ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
