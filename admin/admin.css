@@ -378,7 +378,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .pill--ordered, .pill--reordered, .pill--backorder, .pill--info { background: var(--pill-ordered); }
 .pill--done, .pill--picked_up, .pill--available { background: var(--pill-done); }
 .pill--warn, .pill--not_ordered, .pill--low_stock { background: var(--pill-warn); }
-.pill--off, .pill--released, .pill--cancelled, .pill--sold_out { background: var(--pill-off); color: var(--pill-off-text); }
+.pill--off, .pill--staff, .pill--released, .pill--cancelled, .pill--sold_out { background: var(--pill-off); color: var(--pill-off-text); }
 .pill--accent, .pill--arrived, .pill--new, .pill--pull, .pill--owner, .pill--just_arrived, .pill--new_this_wednesday { background: var(--brand-accent); color: var(--on-accent); }
 .pill--clearance { background: var(--pill-pink); }
 .pill--sale { background: var(--brand-primary); color: #fff; }
