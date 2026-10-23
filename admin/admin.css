@@ -885,3 +885,230 @@ tr.is-clickable { cursor: pointer; }
 /* "Not ordering" (the red X) on Place Order: a big target with a big icon, on phones and desktop alike. */
 .toorder [data-notordering] { width: 52px; height: 52px; min-width: 52px; min-height: 52px; }
 .toorder [data-notordering] svg { width: 36px; height: 36px; }
+
+/* ---------- Reservations: quick status chips, compact phone cards ---------- */
+.status-chips { display: flex; gap: var(--sp-8); overflow-x: auto; padding-bottom: var(--sp-2); scrollbar-width: none; }
+.status-chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; min-height: 40px; padding: 0 var(--sp-14); border: var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.chip:hover { background: var(--head-bg); }
+.chip[aria-pressed='true'] { background: var(--brand-accent); border-color: var(--brand-accent); color: var(--on-accent); }
+.chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (min-width: 900px) { .orders-filters { grid-template-columns: 2fr auto repeat(2, 1fr); align-items: end; } }
+@media (max-width: 899px) {
+  .orders-filters { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-10); align-items: end; }
+  .orders-filters .field--search, .orders-filters .status-chips { grid-column: 1 / -1; }
+  .orders-filters .field--search input, .orders-filters select, .orders-filters .btn { min-height: 44px; }
+  .orders-filters select { width: 100%; }
+  /* An order is a card: customer and View on the first line, the details under them, then the status. */
+  .orders-table.is-stack > tbody > tr:not(.order-expand) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-12); }
+  .orders-table.is-stack > tbody > tr:not(.order-expand) > td { display: block; flex: 0 0 auto; order: 3; padding: 0; font-size: .85rem; color: var(--muted); }
+  .orders-table.is-stack > tbody > tr:not(.order-expand) > td::before { content: none; }
+  .orders-table.is-stack > tbody > tr > td[data-label='Customer'] { order: 0; flex: 1 1 calc(100% - 100px); min-width: 0; font-size: 1rem; color: var(--ink); }
+  .orders-table.is-stack > tbody > tr > td[data-label='Customer'] br { display: none; }
+  .orders-table.is-stack > tbody > tr > td[data-label='Customer'] .card__meta { display: block; font-size: .85rem; }
+  .orders-table.is-stack > tbody > tr > td[data-label=''] { order: 1; flex: 0 0 auto; }
+  .orders-table.is-stack > tbody > tr > td[data-label=''] .btn { min-height: 44px; min-width: 88px; }
+  .orders-table.is-stack > tbody > tr:not(.order-expand) > td[data-label='Titles']::before { content: 'Titles '; display: inline; font: inherit; text-transform: none; letter-spacing: 0; }
+  .orders-table.is-stack > tbody > tr > td[data-label='Status'] { order: 4; flex: 1 1 100%; color: var(--ink); font-size: .95rem; }
+}
+
+/* ---------- Order detail panel on phones ----------
+   Header on the left (order, type, count, date), then full-width buttons; every title is a card: name, quantity and
+   release date, then a full-width status dropdown that is easy to hit, then the hold note. */
+@media (max-width: 599px) {
+  .order-expand .order--inline { padding: var(--sp-10) var(--sp-12) var(--sp-12); }
+  .order--inline .order__toolbar { display: block; margin-bottom: var(--sp-10); }
+  .order--inline .order__meta { justify-content: flex-start; gap: var(--sp-4) var(--sp-10); text-align: left; margin-bottom: var(--sp-10); }
+  .order--inline .order__actions { display: flex; flex-direction: column; gap: var(--sp-8); }
+  .order--inline .order__actions .btn { width: 100%; min-height: 44px; justify-content: center; text-align: center; }
+  .order--inline .order__lines tr { grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2) var(--sp-12); padding: var(--sp-10) var(--sp-6); }
+  .order--inline .order__lines td.col-title { padding-top: 0; }
+  .order--inline .order__lines td.col-qty, .order--inline .order__lines td.col-out { padding-block: 0; color: var(--muted); font-size: .9rem; }
+  .order--inline .order__lines td.col-status { grid-column: 1 / -1; padding: var(--sp-6) var(--sp-6) 0; }
+  .order--inline .order__lines td.col-status select.select--small { width: 100%; max-width: none; height: 44px; font-size: 1rem; margin: 0; }
+  .order--inline .order__lines td.col-status .card__meta { margin-top: var(--sp-6); }
+}
+
+/* ---------- Received tab on phones ---------- */
+.admin-hint-fold { margin-bottom: var(--sp-12); }
+.admin-hint-fold > summary { cursor: pointer; font-weight: 600; color: var(--muted); min-height: 44px; display: flex; align-items: center; }
+.admin-hint-fold .admin-hint { margin-top: 0; }
+@media (max-width: 899px) {
+  .field .cust-export-opt { min-height: 44px; font-size: 1rem; white-space: normal; }
+  /* The Mark Ready button stays on screen under the page header while the list scrolls. */
+  .toorder.fold--static > .fold__head { position: sticky; top: 60px; z-index: 5; }
+  .toorder .admin-table.is-stack > tbody > tr > td[data-label='Out']::before { content: 'Out '; display: inline; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+  .toorder .admin-table.is-stack > tbody > tr > td input[type=checkbox] { width: 28px; height: 28px; margin: 8px; }
+  .toorder .admin-table.is-stack > tbody > tr:has(input[type=checkbox]:not([disabled])) { cursor: pointer; }
+}
+@media (max-width: 899px) {
+  .admin-filters .field:has(.cust-export-opt) { grid-column: 1 / -1; }
+  .admin-filters .field:has(.cust-export-opt) > .label { display: none; }
+  .field .cust-export-opt { width: 100%; gap: var(--sp-10); }
+  .field .cust-export-opt input { width: 24px; height: 24px; flex: none; }
+}
+
+/* ---------- Place Order filters on phones: cutoff and distributor side by side, exports under them ---------- */
+@media (max-width: 699px) {
+  .order-tools__hint { display: none; }
+  .order-tools__row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-8) var(--sp-12); }
+  .order-tools__row .field { margin-bottom: 0; }
+  .order-tools__row select { width: 100%; padding-inline: var(--sp-8) var(--sp-24); font-size: .9rem; text-overflow: ellipsis; }
+  .order-tools__btns { grid-column: 1 / -1; margin-bottom: var(--sp-8); }
+  .order-tools [data-ot-summary] { font-weight: 600; color: var(--ink); margin-top: var(--sp-8); }
+}
+
+/* ---------- Past Orders on phones: title, then the figures, then what became of the copies ---------- */
+@media (max-width: 899px) {
+  .toorder .past-table.is-stack > tbody > tr > td[data-label='Title'] { flex: 1 1 100%; }
+  .past-table.is-stack > tbody > tr > td[data-label='Publisher'] { order: 3; }
+  .past-table.is-stack > tbody > tr > td[data-label='Status'] { order: 4; flex: 1 1 100%; color: var(--ink); font-size: .95rem; font-weight: 600; }
+}
+
+/* ---------- Customers list on phones ---------- */
+.cust-more > summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.cust-more__body { display: grid; gap: var(--sp-8); padding-bottom: var(--sp-8); }
+@media (max-width: 899px) {
+  .cust-head-actions { flex: 1 1 100%; margin: 0; display: flex; flex-direction: column-reverse; align-items: stretch; gap: var(--sp-8); }
+  .cust-head-actions > .btn { width: 100%; min-height: 48px; justify-content: center; }
+  .cust-more { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 0 var(--sp-14); }
+  .cust-more__body .btn { width: 100%; min-height: 44px; }
+  .cust-more__body .cust-export-opt { min-height: 44px; font-size: 1rem; }
+  /* One row of tabs that scrolls sideways instead of wrapping onto a second line. */
+  .admin-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .admin-tabs::-webkit-scrollbar { display: none; }
+  .admin-tabs .admin-tab { flex: none; white-space: nowrap; }
+  .admin-hint-fold .cust-legend { justify-content: flex-start; padding-bottom: var(--sp-8); }
+  .admin-pager > span { white-space: nowrap; }
+  /* A customer is a card: name and Email on the first line, phone, the counts, then the status icons and Fix. */
+  .cust-list.is-stack > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-16); }
+  .cust-list.is-stack > tbody > tr > td { display: block; flex: 0 0 auto; order: 3; padding: 0; font-size: .9rem; color: var(--muted); }
+  .cust-list.is-stack > tbody > tr > td::before { content: none; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Name'] { order: 0; flex: 1 1 100%; min-width: 0; font-size: 1.05rem; color: var(--ink); }
+  .cust-list.is-stack > tbody > tr:has(.cust-email) > td[data-label='Name'] { flex-basis: calc(100% - 96px); }
+  .admin-pager { gap: var(--sp-8); }
+  .admin-pager .btn { flex: 1 1 0; min-width: 0; padding-inline: var(--sp-8); min-height: 44px; }
+  .admin-pager > span { flex: none; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Email'] { order: 1; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Email'] .btn { min-height: 44px; min-width: 80px; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Phone'] { order: 2; flex: 1 1 100%; color: var(--ink); }
+  .cust-list.is-stack > tbody > tr > td[data-label='Ready']::before, .cust-list.is-stack > tbody > tr > td[data-label='Active']::before { content: attr(data-label) ' '; display: inline; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+  .cust-list.is-stack > tbody > tr > td[data-label='Last updated']::before { content: 'Updated '; display: inline; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Status'] { order: 5; flex: 1 1 100%; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Status']:not(:has(.cust-icon, .btn)) { display: none; }
+  .cust-list.is-stack > tbody > tr > td[data-label='Status'] .btn { min-height: 44px; }
+}
+
+/* ---------- Customer detail on phones ---------- */
+@media (max-width: 899px) {
+  .cust-title-row h1 { font-size: 1.6rem; overflow-wrap: anywhere; }
+  .cust-title-row .cust-contact { flex: 1 1 100%; }
+  .cust-title-row .cust-contact__phone, .cust-title-row .cust-contact .btn { display: inline-flex; align-items: center; min-height: 44px; }
+  [data-back] { display: inline-flex; align-items: center; min-height: 44px; }
+  /* Pull List header: the heading on its own line, then "Show cancelled" and a small Export PDF on one row. */
+  .cust-main .toorder .fold__head { flex-wrap: wrap; row-gap: var(--sp-6); }
+  .cust-main .toorder .fold__head .cust-toggle { flex: 1 1 auto; min-height: 44px; font-size: .95rem; }
+  .cust-main .toorder .fold__head .btn { flex: 0 0 auto; min-width: 7rem; min-height: 44px; }
+  /* The remove button is a real tap target. */
+  .cust-lines .cl-rm .icon-btn { width: 48px; height: 48px; }
+  .cust-lines .cl-rm .icon-btn svg { width: 30px; height: 30px; }
+  .cust-lines .cust-qty, .cust-lines .select--small { min-height: 44px; }
+}
+@media (max-width: 899px) {
+  .cust-profile form > .btn, [data-notes] > .btn { min-height: 48px; }
+  .cust-profile form > .btn { display: flex; width: 100%; justify-content: center; margin: 0 0 var(--sp-8); }
+  .cust-profile .field--check { min-height: 44px; align-items: center; }
+  .cust-profile .field--check input { width: 24px; height: 24px; flex: none; }
+}
+
+/* ---------- Customer Messages and Changes tabs on phones ---------- */
+@media (max-width: 899px) {
+  /* Compose: Send is a big button with the "own mail app" link centred under it. */
+  [data-compose] .admin-actions { flex-direction: column; align-items: stretch; gap: var(--sp-6); }
+  [data-compose] .admin-actions .btn { width: 100%; min-height: 48px; justify-content: center; }
+  [data-compose] .admin-actions .field__hint { display: flex; align-items: center; justify-content: center; min-height: 44px; margin: 0; text-align: center; }
+  [data-compose] textarea { min-height: 10rem; }
+  /* Messages sent: date and sender on one line, the subject under them, 44px to tap. */
+  .cust-messages summary { min-height: 44px; align-items: center; gap: var(--sp-2) var(--sp-10); }
+  .cust-messages summary .job-log__when { order: 0; font-size: .85rem; }
+  .cust-messages summary .card__meta { order: 1; }
+  .cust-messages summary strong { order: 2; flex: 1 1 100%; font-size: 1rem; }
+  .cust-messages summary::after { order: 1; margin-left: auto; }
+  .cust-messages__body { font-size: .95rem; }
+  /* Recent changes: when and who on one line, what changed under it at a readable size. */
+  .cust-log .job-log li { grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2) var(--sp-10); padding: var(--sp-10) var(--sp-12); font-size: .9rem; }
+  .cust-log .job-log li > span:nth-child(2) { text-align: right; font-weight: 600; }
+  .cust-log .job-log li .job-log__msg { grid-column: 1 / -1; color: var(--ink); font-size: .95rem; }
+  .cust-log .job-log li .job-log__when { font-size: .85rem; }
+}
+
+/* ---------- New customer form on phones: Create customer stays in reach while you fill in the fields ---------- */
+@media (max-width: 899px) {
+  .cust-grid--new .cust-profile form > button[type=submit] { position: sticky; bottom: var(--sp-8); z-index: 5; box-shadow: 0 0 0 var(--sp-6) var(--surface); }
+  .cust-grid--new { max-width: none; }
+}
+
+/* ---------- Dashboard on phones ---------- */
+@media (max-width: 899px) {
+  /* Needs Attention lists only what needs doing: the rows at zero are left off. */
+  .dash-facts li.is-zero { display: none; }
+  .dash-facts li.has-fix .btn { min-height: 44px; }
+}
+@media (max-width: 899px) {
+  /* Latest Reservations: customer, then order, date and titles, then the status pills; the View button is short enough to sit beside the name. */
+  .dash-latest.is-stack > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-12); }
+  .dash-latest.is-stack > tbody > tr > td { display: block; flex: 0 0 auto; order: 3; padding: 0; font-size: .9rem; color: var(--muted); }
+  .dash-latest.is-stack > tbody > tr > td::before { content: none; }
+  .dash-latest.is-stack > tbody > tr::after { content: ''; order: 2; flex: 1 1 100%; height: 0; } /* line break: name and View above, the details below */
+  .dash-latest.is-stack > tbody > tr > td[data-label='Customer'] { order: 0; flex: 1 1 calc(100% - 140px); min-width: 0; font-size: 1.05rem; color: var(--ink); }
+  .dash-latest.is-stack > tbody > tr > td[data-label=''] { order: 1; }
+  .dash-latest__more { display: none; }
+  .dash-latest.is-stack > tbody > tr > td[data-label=''] .btn { min-height: 44px; min-width: 0; padding-inline: var(--sp-16); }
+  .dash-latest.is-stack > tbody > tr > td[data-label='Titles']::before { content: 'Titles '; display: inline; font: inherit; text-transform: none; letter-spacing: 0; }
+  .dash-latest.is-stack > tbody > tr > td[data-label='Status'] { order: 4; flex: 1 1 100%; }
+  .dash-latest.is-stack > tbody > tr > td[data-label='Status'] .dash-pill { display: inline-block; }
+}
+
+/* ---------- Titles on phones ---------- */
+.filters-more { grid-column: 1 / -1; }
+.filters-more > summary { cursor: pointer; font-weight: 600; color: var(--muted); min-height: 44px; display: flex; align-items: center; }
+.filters-more__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-12); }
+@media (max-width: 899px) {
+  .filters-more__grid select { width: 100%; text-overflow: ellipsis; font-size: .85rem; padding-inline: var(--sp-8) var(--sp-24); }
+  .admin-actions .btn { min-height: 44px; }
+  /* A title is a card that fits the screen: cover and name side by side, the dates, a full-width status dropdown with
+     Edit beside it, then the three tick boxes under the name. */
+  .titles-table tr { grid-template-columns: 72px repeat(3, minmax(0, 1fr)); gap: var(--sp-8) var(--sp-10); }
+  .titles-table .tt-thumb { grid-column: 1; grid-row: 1 / span 2; align-self: start; }
+  .titles-table .tt-thumb .thumb { width: 72px; min-width: 0; max-width: 72px; height: 108px; }
+  .titles-table .tt-title { grid-column: 2 / -1; grid-row: 1; }
+  .titles-table .tt-dates { grid-column: 2 / -1; grid-row: 2; align-self: start; }
+  .titles-table .tt-status { grid-column: 1 / 4; grid-row: 3; }
+  .titles-table .tt-status select { width: 100%; min-height: 44px; font-size: 1rem; }
+  .titles-table .tt-edit { grid-column: 4; grid-row: 3; justify-self: stretch; }
+  .titles-table .tt-edit .btn { width: 100%; min-width: 0; min-height: 44px; padding-inline: var(--sp-6); justify-content: center; }
+  .titles-table .tt-flag { grid-row: 4; min-height: 44px; font-size: .9rem; gap: var(--sp-6); }
+  .titles-table .tt-flag input { width: 24px; height: 24px; flex: none; }
+  .titles-table .tt-flag--1 { grid-column: 2; }
+  .titles-table .tt-flag--2 { grid-column: 3; }
+  .titles-table .tt-flag--3 { grid-column: 4; }
+  .titles-table .tt-datelink { min-height: 32px; }
+}
+
+/* ---------- Add / Edit title on phones: a full-screen sheet with Save pinned to the bottom ---------- */
+@media (max-width: 599px) {
+  .admin-dialog--wide { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
+  .admin-dialog--wide .dialog__close { width: 44px; height: 44px; }
+  /* Short fields sit two to a row; long ones (title, variant, description, creators, cover) keep the whole width. */
+  .admin-dialog--wide .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-12); align-items: start; }
+  .admin-dialog--wide .form-grid .span-2, .admin-dialog--wide .form-grid .field:has(#e-creators) { grid-column: 1 / -1; }
+  .admin-dialog--wide .form-grid select, .admin-dialog--wide .form-grid input { min-width: 0; width: 100%; }
+  .admin-dialog--wide .checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-8); }
+  .admin-dialog--wide .checks label { min-height: 44px; font-size: .95rem; }
+  .admin-dialog--wide .checks input[type=checkbox] { width: 24px; height: 24px; flex: none; }
+  .admin-dialog--wide .image-field__controls .btn { min-height: 44px; }
+  /* Save and Delete stay in view however far the form is scrolled. */
+  .admin-dialog--wide .admin-actions { position: sticky; bottom: 0; z-index: 3; margin: var(--sp-12) calc(-1 * var(--sp-16)) calc(-1 * var(--sp-16)); padding: var(--sp-10) var(--sp-16); background: var(--surface); border-top: var(--border); flex-wrap: wrap; gap: var(--sp-8); }
+  .admin-dialog--wide .admin-actions .btn { flex: 1 1 0; min-height: 48px; justify-content: center; }
+  .admin-dialog--wide .admin-actions .admin-status { flex: 1 1 100%; order: -1; margin: 0; }
+}

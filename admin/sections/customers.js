@@ -127,18 +127,21 @@ const listName = (c) => [c.last_name, c.first_name].filter(Boolean).join(', ') |
 
 function renderList(el) {
   state.customerId = null;
+  // On phones the export and print controls, the icon key and the help text fold away so the list is on the first screen.
+  const phone = window.matchMedia('(max-width: 899px)').matches;
+  const exportControls = `<label class="cust-export-opt" title="Also export picked-up, released and cancelled titles"><input type="checkbox" data-export-history> Include past titles</label>
+        <button class="btn btn--ghost" type="button" data-export-all>Export all pull lists (CSV)</button>
+        <button class="btn btn--ghost" type="button" data-export-customers title="One page per customer, to print and put in their bag">Print all pull lists (PDF)</button>`;
   el.innerHTML = `
     <div class="admin-title-row">
       <h1>Customers</h1>
       <div class="admin-actions cust-head-actions">
-        <label class="cust-export-opt" title="Also export picked-up, released and cancelled titles"><input type="checkbox" data-export-history> Include past titles</label>
-        <button class="btn btn--ghost" type="button" data-export-all>Export all pull lists (CSV)</button>
-        <button class="btn btn--ghost" type="button" data-export-customers title="One page per customer, to print and put in their bag">Print all pull lists (PDF)</button>
+        ${phone ? `<details class="cust-more"><summary>Export &amp; print</summary><div class="cust-more__body">${exportControls}</div></details>` : exportControls}
         <button class="btn btn--primary" type="button" data-new>+ New customer</button>
       </div>
     </div>
-    <p class="admin-hint">Customers who made an account on the site, and ones you add here. Open one to edit their pull list while they're in the store or on the phone.</p>
-    <div class="admin-tabs" role="tablist">
+    ${phone ? '<details class="admin-hint-fold"><summary>How this works</summary>' : ''}<p class="admin-hint">Customers who made an account on the site, and ones you add here. Open one to edit their pull list while they're in the store or on the phone.</p>${phone ? '</details>' : ''}
+    <div class="admin-tabs cust-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-show="">All Customers</button>
       <button type="button" class="admin-tab" role="tab" data-show="new_week">New This Week <span class="admin-tab__badge" data-new-count hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-show="to_fix">Needs Attention</button>
@@ -147,8 +150,8 @@ function renderList(el) {
       <div class="field field--search"><label for="c-q">Customer</label><input id="c-q" name="q" type="search" placeholder="Name, phone or email" value="${esc(state.q)}"></div>
     </form>
     <p class="results-count" role="status" data-count></p>
-    ${iconLegend()}
-    <div class="admin-table-wrap"><table class="admin-table">
+    ${phone ? `<details class="admin-hint-fold"><summary>Status icon key</summary>${iconLegend()}</details>` : iconLegend()}
+    <div class="admin-table-wrap"><table class="admin-table cust-list">
       <thead><tr><th scope="col" class="col-cust-name" data-sort="name">Name</th><th scope="col" data-sort="phone">Phone</th><th scope="col" data-sort="email">Email</th><th scope="col" class="center" data-sort="ready">Ready</th><th scope="col" class="center" data-sort="active">Active</th><th scope="col" data-sort="updated">Last updated</th><th scope="col" data-sort="notes">Status</th></tr></thead>
       <tbody data-rows></tbody>
     </table></div>
@@ -298,8 +301,8 @@ async function renderCustomer(el) {
   const field = (id, label, value, attrs = '') => `<div class="field"><label for="cu-${id}">${label}</label><input id="cu-${id}" name="${id}" value="${esc(value)}" ${attrs}></div>`;
   el.innerHTML = `
     <p><a href="#customers" data-back>← All customers</a></p>
-    <div class="admin-title-row"><h1>${isNew ? 'New Customer' : esc(c.name || c.email || '(no name)')}</h1>${isNew ? '' : `<div class="cust-contact">${c.phone ? `<a class="cust-contact__phone" href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(c.phone))}</a>` : ''}${c.email ? `<a class="btn btn--ghost btn--small" href="mailto:${esc(c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email customer</a>` : ''}</div>`}</div>
-    ${isNew ? '' : `<div class="admin-tabs" role="tablist">
+    <div class="admin-title-row cust-title-row"><h1>${isNew ? 'New Customer' : esc(c.name || c.email || '(no name)')}</h1>${isNew ? '' : `<div class="cust-contact">${c.phone ? `<a class="cust-contact__phone" href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(c.phone))}</a>` : ''}${c.email ? `<a class="btn btn--ghost btn--small" href="mailto:${esc(c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email customer</a>` : ''}</div>`}</div>
+    ${isNew ? '' : `<div class="admin-tabs cust-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-ctab="pull">Pull List</button>
       <button type="button" class="admin-tab" role="tab" data-ctab="profile">Profile</button>
       <button type="button" class="admin-tab" role="tab" data-ctab="messages">Messages</button>
@@ -312,15 +315,15 @@ async function renderCustomer(el) {
           <summary class="fold__head"><h2 id="cu-profile">Profile</h2>${isNew ? '' : `<span class="card__meta cust-profile__sum">${esc([c.email, formatPhone(c.phone), [c.city, c.state].filter(Boolean).join(', ')].filter(Boolean).join(' · '))}</span>`}</summary>
         <div class="fold__body"><form data-profile novalidate>
           <div class="cust-fields">
-          ${field('first_name', 'First name <span class="req" aria-hidden="true">*</span>', c.first_name, 'maxlength="80" required autocomplete="off"')}
-          ${field('last_name', 'Last name <span class="req" aria-hidden="true">*</span>', c.last_name, 'maxlength="80" required autocomplete="off"')}
+          ${field('first_name', 'First name <span class="req" aria-hidden="true">*</span>', c.first_name, 'maxlength="80" required autocomplete="off" autocapitalize="words" enterkeyhint="next"')}
+          ${field('last_name', 'Last name <span class="req" aria-hidden="true">*</span>', c.last_name, 'maxlength="80" required autocomplete="off" autocapitalize="words" enterkeyhint="next"')}
           ${field('email', 'Email <span class="req" aria-hidden="true">*</span>', c.email, `type="email" maxlength="254" required autocomplete="off"${c.user_id ? ' readonly' : ''}`)}
           ${field('phone', 'Phone <span class="req" aria-hidden="true">*</span>', c.phone, 'type="tel" maxlength="40" required autocomplete="off"')}
           <p class="field__hint span-all">${c.user_id ? 'This customer has an account, so the email can’t be changed here. <span class="req">*</span> = required.' : 'The email lets them log in and get the weekly email. <span class="req">*</span> = required.'}</p>
           ${locationField}
-          ${field('address1', 'Address', c.address1, 'maxlength="200" autocomplete="off"').replace('class="field"', 'class="field span-all"')}
-          ${field('city', 'City', c.city, 'maxlength="100" autocomplete="off"')}
-          <div class="cust-row">${field('state', 'State', c.state, 'maxlength="50" autocomplete="off"')}${field('zip', 'Zip code', c.zip, 'maxlength="20" autocomplete="off"')}</div>
+          ${field('address1', 'Address', c.address1, 'maxlength="200" autocomplete="off" autocapitalize="words" enterkeyhint="next"').replace('class="field"', 'class="field span-all"')}
+          ${field('city', 'City', c.city, 'maxlength="100" autocomplete="off" autocapitalize="words" enterkeyhint="next"')}
+          <div class="cust-row">${field('state', 'State', c.state, 'maxlength="50" autocomplete="off" autocapitalize="words" enterkeyhint="next"')}${field('zip', 'Zip code', c.zip, 'maxlength="20" autocomplete="off"')}</div>
           </div>
           <div class="field field--check"><input id="cu-ship" name="ship_arrivals" type="checkbox"${c.ship_arrivals ? ' checked' : ''}><label for="cu-ship">Ship this customer’s arrivals (pays by phone)</label></div>
           <div class="field field--check"><input id="cu-optin" name="email_opt_in" type="checkbox"${c.email_opt_in ? ' checked' : ''}><label for="cu-optin">Send the weekly pull list email</label></div>
@@ -357,7 +360,7 @@ async function renderCustomer(el) {
           <summary class="fold__head"><h2 id="cu-add">Add to Pull List</h2></summary>
           <div class="fold__body">
           <form class="cust-search" data-search role="search"><label class="visually-hidden" for="cu-q">Find a pre-order title</label>
-            <input id="cu-q" type="search" placeholder="Search pre-order titles, covers or creators" autocomplete="off"></form>
+            <input id="cu-q" type="search" placeholder="${window.matchMedia('(max-width: 599px)').matches ? 'Search pre-order titles' : 'Search pre-order titles, covers or creators'}" autocomplete="off"></form>
           <p class="admin-hint">Adding past an order cutoff or the copy limit is allowed here; you'll be told if the cutoff has passed.</p>
           <div data-results></div>
           </div>
@@ -439,7 +442,7 @@ async function renderCustomer(el) {
     const { home_location_id: homeLocation, ...rest } = v; // saved on its own below (the profile function doesn't take it)
     const payload = { ...rest, ship_arrivals: form.elements.ship_arrivals.checked, email_opt_in: form.elements.email_opt_in.checked, notify_arrivals: form.elements.notify_arrivals.checked };
     const { data: id, error } = await sb.rpc('staff_save_customer', { p_id: isNew ? null : c.id, p: payload });
-    if (error) return void (err.textContent = friendlyError(error));
+    if (error) return void ((err.textContent = friendlyError(error)), err.scrollIntoView({ block: 'center' })); // the button is pinned to the bottom on phones, so show why it didn't save
     if (homeLocation) {
       const { error: locError } = await sb.from('customers').update({ home_location_id: Number(homeLocation) }).eq('id', id);
       if (locError) return void (err.textContent = `Saved, but not the pickup location: ${friendlyError(locError)}`);

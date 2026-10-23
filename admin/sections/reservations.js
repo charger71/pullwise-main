@@ -19,6 +19,8 @@ const STALE_MS = 30000;
 
 let state = { view: 'orders', q: '', location: '', status: 'active', sort: 'placed', dir: 'desc', offset: 0 };
 // The status choices: the common views first, then each individual title status.
+/** The one-tap filters above the list (the dropdown has every status). */
+const QUICK_STATUS = { active: 'Active', arrived: 'Ready', overdue: 'Past pickup', ordered: 'Ordered', all: 'All' };
 const ORDER_FILTERS = { active: 'Active (open, ordered or ready)', overdue: 'Past pickup window', all: 'Any status', ...LINE_STATUS };
 
 /** Limit a reservations query to the location picked at the top of the screen (all locations when none is). */
@@ -119,8 +121,9 @@ function render(el) {
 function renderOrders(body) {
   if (!ORDER_FILTERS[state.status]) state.status = 'active';
   body.innerHTML = `
-    <form class="filters admin-filters" role="search" aria-label="Find reservations">
-      <div class="field field--search"><label for="r-q">Customer</label><input id="r-q" name="q" type="search" placeholder="Name, phone or email" value="${esc(state.q)}"></div>
+    <form class="filters admin-filters orders-filters" role="search" aria-label="Find reservations">
+      <div class="field field--search"><label for="r-q">Search</label><input id="r-q" name="q" type="search" placeholder="Customer name, phone, email or title" value="${esc(state.q)}"></div>
+      <div class="status-chips" role="group" aria-label="Quick filters">${Object.entries(QUICK_STATUS).map(([v, l]) => `<button type="button" class="chip" data-quick="${v}" aria-pressed="${state.status === v}">${l}<span data-quick-count="${v}"></span></button>`).join('')}</div>
       <div class="field"><label for="r-status">Titles that are</label><select id="r-status" name="status">${Object.entries(ORDER_FILTERS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
       <div class="field"><span class="label">&nbsp;</span><button class="btn btn--ghost" type="button" data-csv>Export CSV</button></div>
     </form>
@@ -143,6 +146,16 @@ function renderOrders(body) {
     }, e.target.type === 'search' ? 300 : 0);
   });
   form.addEventListener('submit', (e) => e.preventDefault());
+  const syncChips = () => $$('[data-quick]', form).forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.quick === form.elements.status.value)));
+  form.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-quick]');
+    if (!chip) return;
+    form.elements.status.value = chip.dataset.quick;
+    state = { ...state, ...Object.fromEntries(new FormData(form)), offset: 0 };
+    syncChips();
+    loadOrders(body);
+  });
+  form.elements.status.addEventListener('change', syncChips);
   sortableTable($('table', body), { sort: state.sort, dir: state.dir, onSort: (sort, dir) => ((state = { ...state, sort, dir, offset: 0 }), loadOrders(body)) });
   $('[data-prev]', body).addEventListener('click', () => ((state.offset = Math.max(0, state.offset - PAGE)), loadOrders(body)));
   $('[data-next]', body).addEventListener('click', () => ((state.offset += PAGE), loadOrders(body)));
@@ -168,6 +181,8 @@ function renderOrders(body) {
     .then(({ count }) => {
       const opt = $('option[value="overdue"]', form);
       if (opt && count) opt.textContent = `${ORDER_FILTERS.overdue} (${count})`;
+      const chip = $('[data-quick-count="overdue"]', form);
+      if (chip && count) chip.textContent = ` ${count}`;
     });
   loadOrders(body);
 }
@@ -310,6 +325,19 @@ function watchMessages(box) {
   window.addEventListener('customer-email-sent', messagesHandler);
 }
 
+/** Ids of the orders that have a line for a title matching `text` (title, with or without the issue number). Capped, newest first. */
+async function orderIdsForTitle(text) {
+  const t = text.trim().replace(/[%,()*\\]/g, ' ').replace(/\s+/g, ' ');
+  if (t.length < 3) return [];
+  const m = t.match(/^(.*?)\s*#?\s*(\d+)$/);
+  let q = sb.from('items').select('id').limit(100);
+  q = m && m[1] ? q.ilike('title', `%${m[1]}%`).eq('issue_number', m[2]) : q.ilike('title', `%${t}%`);
+  const { data: items } = await q;
+  if (!items?.length) return [];
+  const { data: lines } = await atLocation(sb.from('reservations').select('order_id').in('item_id', items.map((i) => i.id))).order('id', { ascending: false }).limit(300);
+  return [...new Set((lines ?? []).map((l) => Number(l.order_id)))];
+}
+
 /**
  * `.or()` filter for the Customer search box. Matches the name/phone/email an order was placed under, and
  * also customers who match today (by linked id or by email), so a renamed customer is found by their new name.
@@ -318,9 +346,12 @@ async function orderMatch(text) {
   const base = customerFilter(text);
   if (!base) return '';
   const { data } = await sb.from('customers').select('id,email').or(customerFilter(text, { words: true })).limit(200);
+  // Orders with a title matching the text too ("who reserved Batman #12?").
+  const orderIds = await orderIdsForTitle(text);
   return anyOf(
     base,
     data?.length ? `customer_id.in.(${data.map((c) => Number(c.id)).join(',')})` : '',
+    orderIds.length ? `id.in.(${orderIds.join(',')})` : '',
     (data ?? []).slice(0, 50).map((c) => emailMatch('email', c.email)),
   );
 }
@@ -438,7 +469,9 @@ async function exportCsv() {
 
 /** Open, ordered and reordered reservations, totalled per title. Titles releasing after this week (Sunday to Saturday) are listed only when asked for. */
 async function renderReady(body) {
-  body.innerHTML = `<p class="admin-hint">Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.</p>
+  // The instructions are long: folded away on phones, where they would fill the first screen.
+  const hintOpen = window.matchMedia('(max-width: 899px)').matches ? '' : ' open';
+  body.innerHTML = `<details class="admin-hint-fold"${hintOpen}><summary>How this works</summary><p class="admin-hint">Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.</p></details>
     <form class="filters admin-filters" role="search" aria-label="Find titles">
       <div class="field field--search"><label for="rd-q">Title</label><input id="rd-q" type="search" placeholder="Filter by title or publisher"></div>
       <div class="field"><span class="label">&nbsp;</span><label class="cust-export-opt" for="rd-future"><input type="checkbox" id="rd-future"> Include titles releasing after this week</label></div>
@@ -533,6 +566,15 @@ async function renderReady(body) {
   });
   box.addEventListener('click', async (e) => {
     if (e.target.closest('summary') && !e.target.closest('button')) e.preventDefault();
+    const card = !e.target.closest('input, button, a, label, select') && e.target.closest('tbody tr');
+    if (card && window.matchMedia('(max-width: 899px)').matches) {
+      const cb = $('input[data-item]:not([disabled])', card);
+      if (cb) {
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      return;
+    }
     const pick = e.target.closest('[data-pick]');
     if (pick) {
       visible().filter((r) => r.lineIds.length).forEach((r) => (pick.dataset.pick === 'all' ? picked.add(r.item.id) : picked.delete(r.item.id)));
@@ -606,7 +648,9 @@ async function renderToOrder(body) {
   toOrderBody = body;
   // Titles whose customer list is open, so a refresh can open them again.
   const openPeople = $$('[data-customers][aria-expanded="true"]', body).map((b) => b.dataset.customers);
-  body.innerHTML = `<p class="admin-hint">Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it.</p><div data-order-tools></div><div data-groups aria-busy="true"></div>`;
+  // The instructions are folded away on phones, where they would push the cutoffs off the first screen.
+  const hintOpen = window.matchMedia('(max-width: 899px)').matches ? '' : ' open';
+  body.innerHTML = `<details class="admin-hint-fold"${hintOpen}><summary>How this works</summary><p class="admin-hint">Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it.</p></details><div data-order-tools></div><div data-groups aria-busy="true"></div>`;
   const box = $('[data-groups]', body);
   let loaded;
   try {
@@ -767,7 +811,9 @@ async function toggleCustomers(btn) {
 const PAST_STATUSES = ['ordered', 'reordered', 'arrived', 'picked_up'];
 
 async function renderPastOrders(body) {
-  body.innerHTML = `<p class="admin-hint">Cutoffs that have already been ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.</p><div data-groups aria-busy="true"></div>`;
+  // The instructions are folded away on phones, where they would push the cutoffs down the screen.
+  const hintOpen = window.matchMedia('(max-width: 899px)').matches ? '' : ' open';
+  body.innerHTML = `<details class="admin-hint-fold"${hintOpen}><summary>How this works</summary><p class="admin-hint">Cutoffs that have already been ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.</p></details><div data-groups aria-busy="true"></div>`;
   const box = $('[data-groups]', body);
   try {
     const lines = [];
@@ -799,7 +845,7 @@ async function renderPastOrders(body) {
         const copies = rows.reduce((n, r) => n + r.copies, 0);
         return `<details class="fold toorder">
           <summary class="fold__head"><h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`}<span class="toorder__count">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2></summary>
-          <div class="fold__body"><table class="admin-table">
+          <div class="fold__body"><table class="admin-table past-table">
             <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Publisher</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col">Status</th></tr></thead>
             <tbody>${rows.map((r) => `<tr><td>${esc(itemName(r.item))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="center"><strong>${r.copies}</strong></td><td class="center">${r.orders.size}</td><td>${[...r.status].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`).join(', ')}</td></tr>`).join('')}</tbody>
           </table></div>
@@ -825,7 +871,7 @@ function setupOrderTools(box, groups, focs, meta, keep = {}) {
   box.innerHTML = `
     <section class="panel order-tools" aria-labelledby="ot-h">
       <h2 id="ot-h">Distributor Order List</h2>
-      <p class="admin-hint">Titles and copy counts to order, grouped by distributor with the product code. These are customer reservations (including pull lists) only.</p>
+      <p class="admin-hint order-tools__hint">Titles and copy counts to order, grouped by distributor with the product code. These are customer reservations (including pull lists) only.</p>
       <div class="order-tools__row">
         <div class="field"><label for="ot-foc">Order cutoff</label><select id="ot-foc">
           <option value="">All open cutoffs</option>
