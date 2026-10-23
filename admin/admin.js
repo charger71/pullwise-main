@@ -259,7 +259,7 @@ document.addEventListener('keydown', (e) => e.key === 'Escape' && setNavOpen(fal
 document.addEventListener('click', (e) => !e.target.closest('.admin-nav') && setNavOpen(false));
 
 // Wide list tables (4+ columns) become stacked cards on phones: tag them and copy each column heading onto its cells.
-const NO_STACK = '.titles-table, .order__lines, .cust-lines, .staff-table, .dash-top';
+const NO_STACK = '.titles-table, .order__lines, .cust-lines, .dash-top';
 const stackTables = (root) => {
   root.querySelectorAll('table.admin-table').forEach((table) => {
     if (table.matches(NO_STACK)) return;

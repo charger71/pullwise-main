@@ -563,19 +563,8 @@ tr.is-clickable { cursor: pointer; }
   .dash-top td:nth-child(4):not(:empty)::before { content: 'Out '; }
   .dash-top td.dash-top__n { grid-column: 3; grid-row: 3; text-align: left; font-size: 1rem; }
   .dash-top td.dash-top__n::after { content: ' copies'; font: .82rem var(--font-body); color: var(--muted); }
-  .staff-table thead { display: none; }
-  .staff-table, .staff-table tbody { display: block; width: 100%; }
-  .staff-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-2) var(--sp-8); align-items: center; padding: var(--sp-8) var(--sp-12); border-bottom: var(--border); }
-  .staff-table td { display: block; padding: 0; border: 0; }
-  .staff-table .st-who { grid-column: 1; grid-row: 1; overflow-wrap: anywhere; }
-  .staff-table .st-role { grid-column: 2; grid-row: 1; justify-self: end; }
-  .staff-table .st-last { grid-column: 1; grid-row: 2; font-size: .8rem; }
-  .staff-table .st-actions { grid-column: 2; grid-row: 2; justify-self: end; }
 }
 @media (max-width: 420px) {
-  .staff-table tr { grid-template-columns: minmax(0, 1fr); }
-  .staff-table .st-who, .staff-table .st-role, .staff-table .st-last, .staff-table .st-actions { grid-column: 1; justify-self: start; }
-  .staff-table .st-who { grid-row: 1; } .staff-table .st-role { grid-row: 2; } .staff-table .st-last { grid-row: 3; } .staff-table .st-actions { grid-row: 4; justify-self: end; }
   .titles-table tbody tr.is-overdue, .admin-table.is-stack > tbody > tr.is-overdue { background: var(--danger-soft); }
   .titles-table tbody tr:hover, .admin-table.is-stack > tbody > tr:hover { background: var(--hover-row); }
 }
@@ -1180,3 +1169,27 @@ tr.is-clickable { cursor: pointer; }
   .form-grid--pairs .checks.span-2 { grid-template-columns: 1fr; } /* a lone tick-box gets the whole row so its label doesn't wrap narrow */
   .series-table.cards td.series-table__tick { display: flex; align-items: center; gap: var(--sp-8); }
 }
+
+/* ---------- Staff and Import on phones ----------
+   Everything here is the shared pieces (`cards` lists, `form-grid--pairs`, `sticky-actions`, `hintFold`); this is only the
+   staff action buttons gaining a word beside the icon (the bare key / crown / cross can't be told apart on a phone). */
+@media (max-width: 899px) {
+  .cards.is-stack > tbody > tr > td.staff-actions { flex: 1 1 100%; min-width: 0; justify-content: flex-start; flex-wrap: wrap; gap: var(--sp-8); }
+  [data-colors] .admin-form__actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+  [data-colors] .admin-form__actions .btn, [data-password] .btn { flex: 1 1 auto; min-height: 48px; justify-content: center; }
+  [data-password] { margin-top: var(--sp-16); }
+  .cards.is-stack .staff-actions .icon-btn { width: auto; padding: 0 var(--sp-12); gap: var(--sp-6); border: var(--border); font-size: .9rem; font-weight: 600; }
+  .cards.is-stack .staff-actions .icon-btn--remove { border-color: currentColor; }
+  .cards.is-stack .staff-actions .icon-btn svg { width: 20px; height: 20px; }
+  .sticky-actions .btn--add { flex: 1 1 0; }
+  .import-actions .btn { min-height: 48px; }
+  .import-actions .btn--primary { flex: 1 1 100%; }
+  .import-actions .btn--ghost { flex: 1 1 auto; }
+  .exclusions__form select, .exclusions__form input[name="value"] { flex: 1 1 100%; min-height: 44px; }
+  .exclusions__form .btn { flex: 1 1 100%; min-height: 48px; justify-content: center; }
+  .exclusions__chip .icon-btn--sm { width: 44px; height: 44px; }
+  .exclusions__mature { margin-left: 0; min-height: 44px; display: flex; align-items: center; gap: var(--sp-8); }
+  .exclusions__mature input { width: 24px; height: 24px; }
+  .dropzone { padding: var(--sp-24) var(--sp-16); }
+}
+@media (min-width: 900px) { .st-act { display: none; } }
