@@ -688,6 +688,8 @@ tr.is-clickable { cursor: pointer; }
 .staff-table .st-who { line-height: 1.25; }
 .staff-table .st-last svg, .pill svg { vertical-align: -2px; }
 .staff-table .st-last svg { margin-right: var(--sp-2); }
+/* the forms under My Account (password, appearance) are separated on every screen size */
+[data-password], [data-theme-form] { margin-top: var(--sp-24); }
 .staff-cred { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-6) var(--sp-14); margin: var(--sp-14) 0; }
 .staff-cred dt { font-weight: 700; }
 .staff-cred dd { margin: 0; overflow-wrap: anywhere; }
@@ -1179,7 +1181,6 @@ tr.is-clickable { cursor: pointer; }
   .cards.is-stack > tbody > tr > td.staff-actions { flex: 1 1 100%; min-width: 0; justify-content: flex-start; flex-wrap: wrap; gap: var(--sp-8); }
   [data-colors] .admin-form__actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
   [data-colors] .admin-form__actions .btn, [data-password] .btn { flex: 1 1 auto; min-height: 48px; justify-content: center; }
-  [data-password], [data-theme-form] { margin-top: var(--sp-16); }
   .cards.is-stack .staff-actions .icon-btn { width: auto; padding: 0 var(--sp-12); gap: var(--sp-6); border: var(--border); font-size: .9rem; font-weight: 600; }
   .cards.is-stack .staff-actions .icon-btn--remove { border-color: currentColor; }
   .cards.is-stack .staff-actions .icon-btn svg { width: 20px; height: 20px; }
