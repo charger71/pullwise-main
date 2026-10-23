@@ -30,6 +30,7 @@
   /* Type roles below the page title (h1) and section heading (h2): use these instead of one-off sizes. */
   --fs-title: 1.25rem;   /* panel, month, post and dialog titles */
   --fs-sub: 1.1rem;      /* sub-headings: h3, group headings, footer headings */
+  --fs-card: 1.15rem;    /* the heading of a card, panel or fold (h2 inside a card) */
   --fs-compact: 1rem;    /* titles inside dense lists */
   --space-block: 24px;   /* gap under a page title block */
 
@@ -389,7 +390,7 @@ dialog::backdrop { background: #000a; }
 /* Smaller version for the home page's "Coming up" list */
 /* ---------- Misc blocks ---------- */
 .panel { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
-.panel h2 { font-size: 1.15rem; }
+.panel h2 { font-size: var(--fs-card); }
 .map { display: block; width: 100%; aspect-ratio: 4 / 3; border: 0; border-radius: var(--radius); box-shadow: var(--shadow); background: #e8e4dc; }
 /* Visit page: fills the right-hand column, at least as tall as the contact details. */
 #map { display: flex; flex-direction: column; }

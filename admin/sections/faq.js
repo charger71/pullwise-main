@@ -40,8 +40,8 @@ function addItem(sb, list, f, open = false) {
         <span class="faq-item__num"></span>
         <span class="faq-item__q" data-q></span>
         <span class="faq-item__move">
-          <button class="btn btn--ghost" type="button" data-move="-1" aria-label="Move question up">↑</button>
-          <button class="btn btn--ghost" type="button" data-move="1" aria-label="Move question down">↓</button>
+          <button class="btn btn--ghost btn--small" type="button" data-move="-1" aria-label="Move question up">↑</button>
+          <button class="btn btn--ghost btn--small" type="button" data-move="1" aria-label="Move question down">↓</button>
         </span>
       </summary>
       <div class="fold__body">

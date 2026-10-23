@@ -303,8 +303,8 @@ async function renderGuest(body, orderId) {
       ${first.notes ? `<p>${esc(first.notes)}</p>` : ''}
       ${first.email ? `<details class="order__messages" data-messages-for data-customer="" data-email="${esc(first.email)}"><summary>Messages sent <span class="card__meta" data-messages-sum></span></summary><div data-messages></div></details>` : ''}
       ${orders.map((o) => `<h3>Order #${o.id} <span class="order__when">${fmtDateTime(o.created_at)}</span></h3>
-        <table class="admin-table"><thead><tr><th scope="col">Title</th><th scope="col" class="col-qty">Qty</th><th scope="col">Out</th><th scope="col">Status</th></tr></thead>
-        <tbody>${o.reservations.map((l) => `<tr><td>${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}</td><td class="center">${l.quantity}</td><td class="nowrap">${fmtDate(l.item?.release_date, { month: 'short', day: 'numeric' })}</td><td>${esc(LINE_STATUS[l.status] ?? l.status)}</td></tr>`).join('')}</tbody></table>`).join('')}`;
+        <table class="admin-table cards"><thead><tr><th scope="col">Title</th><th scope="col" class="col-qty">Qty</th><th scope="col">Out</th><th scope="col">Status</th></tr></thead>
+        <tbody>${o.reservations.map((l) => `<tr><td class="card-title">${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}</td><td class="center card-key card-label">${l.quantity}</td><td class="nowrap card-key card-label">${fmtDate(l.item?.release_date, { month: 'short', day: 'numeric' })}</td><td class="card-key">${esc(LINE_STATUS[l.status] ?? l.status)}</td></tr>`).join('')}</tbody></table>`).join('')}`;
   } catch (err) {
     body.innerHTML = `<p><button class="btn btn--ghost btn--small" type="button" data-back>← Back to reservations</button></p><p class="form-error">${esc(friendlyError(err))}</p>`;
   }
@@ -545,7 +545,7 @@ async function renderReady(body) {
     box.innerHTML = `<details class="fold fold--static toorder" open>
         <summary class="fold__head">
           <h2>Arriving This Week<span class="toorder__count">${list.length} ${list.length === 1 ? 'title' : 'titles'} · ${chosen.length} ticked</span></h2>
-          <button type="button" class="btn btn--green" data-go${chosen.length ? '' : ' disabled'}>Mark ${chosen.length} ${chosen.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) ready</button>
+          <button type="button" class="btn btn--small btn--green" data-go${chosen.length ? '' : ' disabled'}>Mark ${chosen.length} ${chosen.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) ready</button>
         </summary>
         <div class="fold__body">
         <p><button type="button" class="btn btn--ghost btn--small" data-pick="all">Tick all shown</button> <button type="button" class="btn btn--ghost btn--small" data-pick="none">Clear ticks</button></p>
@@ -868,7 +868,7 @@ function setupOrderTools(box, groups, focs, meta, keep = {}) {
   box.innerHTML = `
     <section class="panel order-tools" aria-labelledby="ot-h">
       <h2 id="ot-h">Distributor Order List</h2>
-      <p class="admin-hint order-tools__hint">Titles and copy counts to order, grouped by distributor with the product code. These are customer reservations (including pull lists) only.</p>
+      ${hintFold('Titles and copy counts to order, grouped by distributor with the product code. These are customer reservations (including pull lists) only.')}
       <div class="order-tools__row">
         <div class="field"><label for="ot-foc">Order cutoff</label><select id="ot-foc">
           <option value="">All open cutoffs</option>
