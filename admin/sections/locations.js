@@ -1,7 +1,7 @@
 // Locations: the shop's pickup locations (owners only). A shop with one location edits its address and hours in
 // Shop Settings, which keeps that location in step; once there are two or more, each is edited here.
 
-import { $, $$, esc, must, toast, setStatus, solidIcon, friendlyError } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, solidIcon, friendlyError, hintFold, isPhone } from '../lib.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 
@@ -15,7 +15,7 @@ export async function mount(el, { sb }) {
       <h1>Locations</h1>
       <button class="btn btn--add" type="button" data-add>${solidIcon('add', 18)} Add a location</button>
     </div>
-    <p class="admin-hint" data-hint></p>
+    <div data-hint></div>
     <div data-list></div>`;
   const list = $('[data-list]', el);
   let rows;
@@ -26,9 +26,9 @@ export async function mount(el, { sb }) {
     return;
   }
   const shared = rows.length === 1; // a lone location mirrors Shop Settings
-  $('[data-hint]', el).innerHTML = shared
+  $('[data-hint]', el).innerHTML = hintFold(shared
     ? 'This shop has one location, so its address and hours are edited in <a href="#settings">Shop Settings</a>. Add a second location and each one is edited here. Customers then choose which one they pick up at.'
-    : 'Customers choose which location they pick up at. Their emails show that location’s address and hours.';
+    : 'Customers choose which location they pick up at. Their emails show that location’s address and hours.');
   rows.forEach((l) => addCard(sb, list, l, { locked: shared, remount: () => mount(el, { sb }) }));
   $('[data-add]', el).addEventListener('click', () => {
     if (cards.some((c) => !c.id)) return;
@@ -39,34 +39,40 @@ export async function mount(el, { sb }) {
 }
 
 function addCard(sb, list, l, { locked, remount }) {
-  const el = document.createElement('section');
-  el.className = 'panel';
+  const el = document.createElement('details');
+  el.className = 'fold toorder';
+  el.open = !l.id || !isPhone();
   const n = Math.random().toString(36).slice(2);
-  const input = (key, label, extra = '') => `<div class="field"><label for="${key}-${n}">${label}</label><input id="${key}-${n}" name="${key}" maxlength="200" value="${esc(l[key])}"${extra}></div>`;
+  const input = (key, label, extra = '', cls = '') => `<div class="field${cls}"><label for="${key}-${n}">${label}</label><input id="${key}-${n}" name="${key}" maxlength="200" value="${esc(l[key])}"${extra}></div>`;
   const dis = locked ? ' disabled' : '';
+  const where = [l.street, l.city].filter(Boolean).join(', ');
   el.innerHTML = `
-    <h2>${l.id ? esc(l.name) : 'New location'}${l.is_default ? ' <small class="admin-hint">First location</small>' : ''}</h2>
+    <summary class="fold__head"><h2>${l.id ? esc(l.name) : 'New location'}${l.is_default ? '<span class="toorder__count">First location</span>' : where ? `<span class="toorder__count">${esc(where)}</span>` : ''}</h2></summary>
+    <div class="fold__body">
     <form novalidate>
-      ${input('name', 'Name (shown to customers, e.g. “Downtown”)', ` required${dis}`)}
-      ${input('street', 'Street address', dis)}
-      <div class="account-row">
-        ${input('city', 'City', dis)}
+      <div class="form-grid form-grid--pairs">
+        ${input('name', 'Name (shown to customers, e.g. “Downtown”)', ` required${dis}`, ' span-2')}
+        ${input('street', 'Street address', dis, ' span-2')}
+        ${input('city', 'City', dis, ' span-2')}
         ${input('region', 'State', dis)}
         ${input('postal_code', 'Zip code', dis)}
+        ${input('phone', 'Phone', dis, ' span-2')}
       </div>
-      ${input('phone', 'Phone', dis)}
       <fieldset class="account-fieldset"${dis}>
         <legend>Hours</legend>
         <div data-hours></div>
         ${locked ? '' : `<button class="btn btn--add btn--small" type="button" data-add-hours>${solidIcon('add', 16)} Add hours</button>`}
       </fieldset>
-      ${input('map_embed_url', 'Map embed link (optional)', dis)}
-      ${locked ? '' : `<div class="faq-item__actions">
+      <div class="form-grid form-grid--pairs">
+        ${input('map_embed_url', 'Map embed link (optional)', dis, ' span-2')}
+      </div>
+      ${locked ? '' : `<div class="admin-actions sticky-actions">
         <button class="btn btn--primary" type="submit">Save</button>
         ${l.id && !l.is_default ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
         <span class="admin-status" role="status"></span>
       </div>`}
-    </form>`;
+    </form>
+    </div>`;
   list.append(el);
   const card = { el, id: l.id, dirty: !l.id };
   cards.push(card);
@@ -138,7 +144,7 @@ function addHours(box, h, locked, onChange) {
   const n = Math.random().toString(36).slice(2);
   const dis = locked ? ' disabled' : '';
   row.innerHTML = `
-    <div class="hours-row__days" role="group" aria-label="Days">${DAYS.map(([d, label]) => `<label><input type="checkbox" data-day="${d}"${h.days?.includes(d) ? ' checked' : ''}${dis}> ${label}</label>`).join('')}</div>
+    <div class="hours-row__days" role="group" aria-label="Days">${DAYS.map(([d, label]) => `<label class="chip"><input type="checkbox" data-day="${d}"${h.days?.includes(d) ? ' checked' : ''}${dis}> ${label}</label>`).join('')}</div>
     <div class="field"><label for="open-${n}">Open</label><input id="open-${n}" type="time" data-open value="${esc(h.open)}"${dis}></div>
     <div class="field"><label for="close-${n}">Close</label><input id="close-${n}" type="time" data-close value="${esc(h.close)}"${dis}></div>
     ${locked ? '' : `<button class="btn btn--danger btn--small" type="button" aria-label="Remove these hours">${solidIcon('remove', 16)} Remove</button>`}`;
