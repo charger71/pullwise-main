@@ -2,7 +2,7 @@
 // once (resized and optionally cropped in the browser), copy each one's link,
 // delete ones no longer needed. Stored in Storage under media/library/.
 
-import { $, esc, must, toast, uploadImage, replaceImage, thumbPath, CROPS, setStatus, solidIcon, friendlyError, setupTabs, listAllFiles } from '../lib.js';
+import { $, esc, must, toast, hintFold, uploadImage, replaceImage, thumbPath, CROPS, setStatus, solidIcon, friendlyError, setupTabs, listAllFiles } from '../lib.js';
 
 const FOLDER = 'library';
 let sb;
@@ -38,10 +38,10 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-tab="library">Library <span class="admin-tab__badge" data-image-count hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-tab="upload">Upload</button>
     </div>
-    <p class="admin-hint">Images for news posts, emails, social media and series covers. Each upload is resized to the chosen size — the original file is never changed. To fix or update a picture without breaking anything that uses it, press <strong>Replace</strong> on it: the new image takes the old one’s place under the same link (it uses the Crop and Longest side chosen below, and can take up to an hour to show for people who already loaded the old one).</p>
+    ${hintFold(`Images for news posts, emails, social media and series covers. Each upload is resized to the chosen size — the original file is never changed. To fix or update a picture without breaking anything that uses it, press <strong>Replace</strong> on it: the new image takes the old one’s place under the same link (it uses the Crop and Longest side chosen below, and can take up to an hour to show for people who already loaded the old one).`)}
     <div data-tabpane="upload">
     <div class="panel media-upload">
-      <div class="form-grid">
+      <div class="form-grid form-grid--pairs">
         <div class="field"><label for="m-crop">Crop</label><select id="m-crop">${Object.entries(CROPS).map(([k, c]) => `<option value="${k}">${c.label}</option>`).join('')}</select></div>
         <div class="field"><label for="m-size">Longest side</label><select id="m-size"><option value="2000">Large (2000px)</option><option value="1600" selected>Medium (1600px)</option><option value="1080">Social (1080px)</option><option value="800">Small (800px)</option><option value="400">Extra Small (400px)</option></select></div>
       </div>

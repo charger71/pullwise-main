@@ -880,7 +880,7 @@ tr.is-clickable { cursor: pointer; }
   .cards.is-stack > tbody > tr > td.card-line { order: 3; flex: 1 1 100%; color: var(--ink); }
   .cards.is-stack > tbody > tr > td.card-key { order: 4; color: var(--ink); font-size: .95rem; }
   .cards.is-stack > tbody > tr > td.card-wide { order: 6; flex: 1 1 100%; color: var(--ink); font-size: .95rem; }
-  .cards.is-stack > tbody > tr > td.card-foot { order: 7; margin-top: var(--sp-4); }
+  .cards.is-stack > tbody > tr:not(.card-expand) > td.card-foot { order: 7; margin-top: var(--sp-4); display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
   .cards.is-stack > tbody > tr > td.card-foot ~ td.card-foot { margin-left: auto; } /* a second foot button goes to the far end */
   .cards.is-stack > tbody > tr > td .icon-btn svg { width: 28px; height: 28px; }
   .cards.is-stack > tbody > tr > td.card-label::before { content: attr(data-label) ' '; display: inline; font: inherit; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
@@ -1142,4 +1142,41 @@ tr.is-clickable { cursor: pointer; }
   .tier-row .field input { width: 100%; min-height: 44px; }
   .hours-row .btn, .tier-row .btn, .settings-form [data-add-hours], .settings-form [data-add-tier] { min-height: 44px; justify-content: center; }
   .settings-form [data-add-hours], .settings-form [data-add-tier] { width: 100%; }
+}
+
+/* ---------- Content sections on phones (Media, Pages, News, FAQ, Surveys, QR Codes, Series) ----------
+   Mostly the shared pieces: `cards` lists, `form-grid--pairs`, `sticky-actions`, `hintFold`. What is here is what those
+   don't cover: rich-text toolbars, the little up / down arrows, and the per-section buttons. */
+[data-move] { min-width: 0; width: 44px; padding: 0; } /* the up / down arrows (the global .btn minimum width made them 136px) */
+.faq-item__move button { min-width: 0; }
+@media (max-width: 899px) {
+  .sticky-actions[hidden] { display: none; }
+  .fold .sticky-actions { background: var(--surface); }
+  [data-move] { min-height: 44px; }
+  /* Rich-text editor: finger-sized toolbar buttons and pickers. */
+  .ql-snow.ql-toolbar button, .ql-snow .ql-toolbar button { width: 40px; height: 40px; }
+  .ql-snow.ql-toolbar .ql-picker-label, .ql-snow .ql-toolbar .ql-picker-label { display: flex; align-items: center; min-height: 40px; }
+  /* Pages: the page chooser takes the row, View and Delete share the next one. */
+  .admin-toolbar .field { flex: 1 1 100%; min-width: 100%; }
+  .admin-toolbar > .btn { flex: 1 1 0; min-width: 0; min-height: 44px; justify-content: center; }
+  /* Media: every button is 44px and Delete is as wide as the rest. */
+  .media-item__actions .btn { min-height: 44px; font-size: .9rem; }
+  .media-grid:not(.media-pick) .media-item__actions .btn--danger { width: 100%; align-self: stretch; }
+  /* FAQ: the question wraps instead of disappearing behind the arrows. */
+  .faq-item__q { white-space: normal; overflow-wrap: anywhere; }
+  .faq-item__actions .btn, .qr-item__actions .btn { flex: 1 1 0; min-width: 0; }
+  /* QR Codes: the two colour pickers share a row; the download buttons are full-size. */
+  .qr-item__colors { flex-wrap: nowrap; }
+  .qr-item__colors .field { flex: 1 1 0; }
+  .qr-item__colors input[type=color] { width: 100%; height: 44px; }
+  .qr-item__downloads .btn { flex: 1 1 0; min-height: 44px; min-width: 0; }
+  .qr-item__preview { max-width: none; }
+  .qr-item__img { max-width: 260px; margin-inline: auto; }
+  /* Series: a ticked series is a card too; the merge ticks are real tap targets. */
+  .series-table__tick input { width: 24px; height: 24px; }
+  .series-table.cards > tbody > tr > td.series-table__tick { width: auto; text-align: left; }
+}
+@media (max-width: 899px) {
+  .form-grid--pairs .checks.span-2 { grid-template-columns: 1fr; } /* a lone tick-box gets the whole row so its label doesn't wrap narrow */
+  .series-table.cards td.series-table__tick { display: flex; align-items: center; gap: var(--sp-8); }
 }

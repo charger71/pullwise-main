@@ -2,7 +2,7 @@
 
 import { PAGE_BLOCKS } from '../../js/page-defaults.js';
 import { PLACEHOLDERS } from '../../js/content.js';
-import { $, esc, must, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, setupTabs } from '../lib.js';
+import { $, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, setupTabs } from '../lib.js';
 
 // Where each block shows on the public site, for the "View page" link.
 const PAGE_URLS = {
@@ -54,8 +54,8 @@ export async function mount(el, { sb, isOwner: owner }, selectKey) {
       <button class="btn btn--danger" type="button" id="page-delete" hidden>${solidIcon('trash', 16)} Delete this page</button>
     </div>
     <div id="page-editors"></div>
-    <p class="admin-hint">Placeholders are filled in from shop settings: ${PLACEHOLDERS.map((p) => `<code>{${p}}</code>`).join(' ')}. The <strong>quote</strong> button makes a highlighted callout box.</p>
-    <div class="admin-actions">
+    ${hintFold(`Placeholders are filled in from shop settings: ${PLACEHOLDERS.map((p) => `<code>{${p}}</code>`).join(' ')}. The <strong>quote</strong> button makes a highlighted callout box.`)}
+    <div class="admin-actions sticky-actions">
       <button class="btn btn--primary" type="button" id="page-save">Save</button>
       <span class="admin-status" id="page-status" role="status"></span>
     </div>`;

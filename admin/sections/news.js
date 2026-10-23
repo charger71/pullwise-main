@@ -60,10 +60,10 @@ async function load(el) {
   if (badge) (badge.textContent = drafts), (badge.hidden = !drafts);
   const data = all.filter((p) => tab === 'all' || kindOf(p, now) === tab);
   box.innerHTML = data.length
-    ? `<table class="admin-table"><thead><tr><th scope="col" data-sort="text">Post</th><th scope="col" data-sort="text" data-first="desc">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>${data
+    ? `<table class="admin-table cards"><thead><tr><th scope="col" data-sort="text">Post</th><th scope="col" data-sort="text" data-first="desc">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>${data
         .map((p) => {
           const state = !p.published_at ? '<span class="badge">Draft</span>' : p.published_at > now ? `<span class="badge badge--backorder">Scheduled ${fmtDateTime(p.published_at)}</span>` : `<span class="badge badge--available">Published ${fmtDateTime(p.published_at)}</span>`;
-          return `<tr><td><strong>${esc(p.title)}</strong></td><td data-sort="${p.published_at ?? ''}">${state}</td><td class="nowrap"><button class="btn btn--ghost btn--small" type="button" data-edit="${p.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(p.title)}</span></button> ${p.published_at && p.published_at <= now ? `<a class="btn btn--ghost btn--small" href="../post.html?slug=${encodeURIComponent(p.slug)}" target="_blank" rel="noopener">View ↗</a>` : ''}</td></tr>`;
+          return `<tr><td class="card-title"><strong>${esc(p.title)}</strong></td><td class="card-wide" data-sort="${p.published_at ?? ''}">${state}</td><td class="nowrap card-foot"><button class="btn btn--ghost btn--small" type="button" data-edit="${p.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(p.title)}</span></button> ${p.published_at && p.published_at <= now ? `<a class="btn btn--ghost btn--small" href="../post.html?slug=${encodeURIComponent(p.slug)}" target="_blank" rel="noopener">View ↗</a>` : ''}</td></tr>`;
         })
         .join('')}</tbody></table>`
     : `<p class="empty">${all.length ? `No ${tab} posts.` : 'No posts yet.'}</p>`;
@@ -79,16 +79,16 @@ async function edit(listEl, id) {
     <p><button class="btn btn--ghost btn--small" type="button" data-back>← Back to news</button></p>
     <h1>${id ? 'Edit Post' : 'New Post'}</h1>
     <form class="admin-form" novalidate>
-      <div class="form-grid">
+      <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="p-title">Title</label><input id="p-title" name="title" required value="${esc(post.title)}"></div>
         <div class="field span-2"><label for="p-slug">Web address</label><input id="p-slug" name="slug" value="${esc(post.slug)}" aria-describedby="p-slug-hint"><p class="field__hint" id="p-slug-hint">post.html?slug=<span data-slug-preview>${esc(post.slug ?? '')}</span> — made from the title if left blank.</p></div>
         <div class="field span-2"><label for="p-excerpt">Summary</label><textarea id="p-excerpt" name="excerpt" rows="2" maxlength="300">${esc(post.excerpt)}</textarea><p class="field__hint">Shown in the News list.</p></div>
         <div class="field span-2"><span class="label" id="p-body-label">Post</span><div class="editor--body"><div data-body></div></div></div>
         <div class="field span-2" data-cover></div>
-        <div class="field"><label><input type="checkbox" name="published"${published ? ' checked' : ''}> Published</label></div>
-        <div class="field"><label for="p-when">Publish time</label><input id="p-when" name="published_at" type="datetime-local" value="${toLocalInput(post.published_at ?? new Date().toISOString())}"><p class="field__hint">A future time schedules the post.</p></div>
+        <div class="field field--full"><label><input type="checkbox" name="published"${published ? ' checked' : ''}> Published</label></div>
+        <div class="field field--full"><label for="p-when">Publish time</label><input id="p-when" name="published_at" type="datetime-local" value="${toLocalInput(post.published_at ?? new Date().toISOString())}"><p class="field__hint">A future time schedules the post.</p></div>
       </div>
-      <div class="admin-actions">
+      <div class="admin-actions sticky-actions">
         <button class="btn btn--primary" type="submit">Save</button>
         ${id ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
         <span class="admin-status" role="status"></span>

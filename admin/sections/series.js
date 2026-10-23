@@ -4,7 +4,7 @@
 // Customers following a merged-away series move to the one you keep, and future imports of the
 // old title land on it too.
 
-import { $, $$, esc, must, toast, setStatus, imageField, openDialog, sortableTable, debounce, solidIcon, friendlyError, setupTabs, fetchAll, fmtDate } from '../lib.js';
+import { $, $$, esc, must, hintFold, toast, setStatus, imageField, openDialog, sortableTable, debounce, solidIcon, friendlyError, setupTabs, fetchAll, fmtDate } from '../lib.js';
 
 let sb;
 let isOwner = false;
@@ -23,9 +23,9 @@ export async function mount(el, ctx) {
     <details class="fold toorder fold--static series-add" open>
       <summary class="fold__head"><h2 id="series-add-h">Add Active Series</h2></summary>
       <div class="fold__body">
-      <p class="admin-hint">Customers can only follow a series that is in the system, and a series appears when one of its issues is imported. Add the ongoing series here so they can be followed right away; each issue is added to followers’ pull lists as it is imported later. Upload a CSV with a <strong>Series</strong> column (optional <strong>Publisher</strong> and <strong>Cover URL</strong>, an https:// link to the cover image) or paste one series per line. Series already in the system are left alone, except that a Cover URL sets their cover. To remove one, find it below and press Delete (only series with no imported titles can be deleted). <span data-count></span></p>
-      <div class="form-grid">
-        <div class="field"><label for="sa-file">CSV file</label><input id="sa-file" type="file" accept=".csv,text/csv"></div>
+      ${hintFold(`Customers can only follow a series that is in the system, and a series appears when one of its issues is imported. Add the ongoing series here so they can be followed right away; each issue is added to followers’ pull lists as it is imported later. Upload a CSV with a <strong>Series</strong> column (optional <strong>Publisher</strong> and <strong>Cover URL</strong>, an https:// link to the cover image) or paste one series per line. Series already in the system are left alone, except that a Cover URL sets their cover. To remove one, find it below and press Delete (only series with no imported titles can be deleted). <span data-count></span>`)}
+      <div class="form-grid form-grid--pairs">
+        <div class="field span-2"><label for="sa-file">CSV file</label><input id="sa-file" type="file" accept=".csv,text/csv"></div>
         <div class="field span-2"><label for="sa-text">Or paste series names, one per line</label><textarea id="sa-text" rows="5" placeholder="Absolute Batman&#10;Ultimate Spider-Man"></textarea></div>
       </div>
       <div class="admin-actions"><button class="btn btn--add" type="button" data-sa-go>${solidIcon('add', 18)} Add series</button><span class="admin-status" role="status" data-sa-status></span></div>
@@ -36,7 +36,7 @@ export async function mount(el, ctx) {
     <details class="fold toorder fold--static series-add" open>
       <summary class="fold__head"><h2 id="artist-add-h">Add or Block Creatives</h2></summary>
       <div class="fold__body">
-      <p class="admin-hint">The list of writers, artists, colorists, editors and other creatives, and what the artist search on the site checks. Everyone credited on an imported title is added automatically. Add a cover artist who only appears in cover text (for example “CVR A PEACH MOMOKO”) so the search finds that exact name. Block a name that keeps showing up as a creative but isn’t one (for example a series); blocked names are never offered to customers. Use Edit in the list below to fix a spelling.</p>
+      ${hintFold(`The list of writers, artists, colorists, editors and other creatives, and what the artist search on the site checks. Everyone credited on an imported title is added automatically. Add a cover artist who only appears in cover text (for example “CVR A PEACH MOMOKO”) so the search finds that exact name. Block a name that keeps showing up as a creative but isn’t one (for example a series); blocked names are never offered to customers. Use Edit in the list below to fix a spelling.`)}
       <div class="form-grid artist-add">
         <div class="field"><label for="ar-add">Add creatives, one per line</label><textarea id="ar-add" rows="3" placeholder="Peach Momoko"></textarea>
           <div class="admin-actions"><button class="btn btn--add" type="button" data-ar-add>${solidIcon('add', 18)} Add creatives</button></div></div>
@@ -54,7 +54,7 @@ export async function mount(el, ctx) {
     <div data-ar-results></div>
     </div>
     <div data-tabpane="list">
-    <p class="admin-hint">Find series that are really the same book, tick them, pick which one to keep, and merge. Every series is listed; type part of a title or publisher to narrow the list.</p>
+    ${hintFold(`Find series that are really the same book, tick them, pick which one to keep, and merge. Every series is listed; type part of a title or publisher to narrow the list.`)}
     <form class="filters admin-filters admin-filters--one" role="search" aria-label="Find series">
       <div class="field field--search"><label for="s-q">Series</label><input id="s-q" type="search" placeholder="e.g. batman" autocomplete="off"></div>
     </form>
@@ -105,14 +105,14 @@ export async function mount(el, ctx) {
     labels = new Map(data.map((r) => [r.key, r.label]));
     covers = new Map(data.map((r) => [r.key, r.cover_url]));
     box.innerHTML = data.length
-      ? `<form data-merge><div class="admin-table-wrap"><table class="admin-table series-table">
+      ? `<form data-merge><div class="admin-table-wrap"><table class="admin-table series-table cards">
           <thead><tr><th scope="col" class="series-table__tick">Merge</th><th scope="col" class="series-table__tick">Keep</th><th scope="col" data-sort="text">Series</th><th scope="col" data-sort="text">Publisher</th><th scope="col" class="center" data-sort="num" data-first="desc">Issues</th><th scope="col">Cover &amp; delete</th></tr></thead>
           <tbody>${data
             .map((r) => `<tr title="${esc(r.key)}">
-              <td class="series-table__tick"><input type="checkbox" name="from" value="${esc(r.key)}" aria-label="Merge ${esc(r.label)}"></td>
-              <td class="series-table__tick"><input type="radio" name="keep" value="${esc(r.key)}" aria-label="Keep ${esc(r.label)}"></td>
-              <td><strong>${esc(r.label)}</strong></td><td>${esc(r.publisher)}</td><td class="center">${r.issues}</td>
-              <td class="series-table__acts">${r.cover_url ? `<img class="thumb" src="${esc(r.cover_url)}" alt="">` : ''}
+              <td class="series-table__tick card-key card-label"><input type="checkbox" name="from" value="${esc(r.key)}" aria-label="Merge ${esc(r.label)}"></td>
+              <td class="series-table__tick card-key card-label"><input type="radio" name="keep" value="${esc(r.key)}" aria-label="Keep ${esc(r.label)}"></td>
+              <td class="card-title"><strong>${esc(r.label)}</strong></td><td>${esc(r.publisher)}</td><td class="center card-key card-label">${r.issues}</td>
+              <td class="series-table__acts card-foot">${r.cover_url ? `<img class="thumb" src="${esc(r.cover_url)}" alt="">` : ''}
                 <button class="btn btn--ghost btn--small" type="button" data-cover="${esc(r.key)}">${r.cover_url ? 'Change cover' : 'Add cover'}<span class="visually-hidden"> for ${esc(r.label)}</span></button>
                 ${r.issues || !isOwner ? '' : `<button class="btn btn--danger btn--small" type="button" data-delete="${esc(r.key)}">${solidIcon('trash', 16)} Delete<span class="visually-hidden"> ${esc(r.label)}</span></button>`}</td></tr>`)
             .join('')}</tbody></table></div>
@@ -279,10 +279,10 @@ function mountArtists(el, sb, isOwner) {
       ? `<label for="ar-jump" class="visually-hidden">Go to page</label><select id="ar-jump" aria-label="Go to page">${Array.from({ length: pages }, (_, n) => `<option value="${n}"${n === page ? ' selected' : ''}>Page ${n + 1} · ${esc(stem(data[n * PAGE]))}–${esc(stem(data[Math.min(data.length, (n + 1) * PAGE) - 1]))}</option>`).join('')}</select>`
       : '';
     box.innerHTML = data.length
-      ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th scope="col" >Name</th><th scope="col" class="center">Credits</th><th scope="col" class="center">Covers</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
-          <tbody>${rows.map((r) => `<tr${r.blocked ? ' class="is-overdue"' : ''}><td><strong>${esc(r.name)}</strong></td><td class="center">${count(r, 'credits')}</td><td class="center">${count(r, 'covers')}</td>
+      ? `<div class="admin-table-wrap"><table class="admin-table cards"><thead><tr><th scope="col" >Name</th><th scope="col" class="center">Credits</th><th scope="col" class="center">Covers</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+          <tbody>${rows.map((r) => `<tr${r.blocked ? ' class="is-overdue"' : ''}><td class="card-title"><strong>${esc(r.name)}</strong></td><td class="center card-key card-label">${count(r, 'credits')}</td><td class="center card-key card-label">${count(r, 'covers')}</td>
             <td>${r.blocked ? 'Blocked' : r.source === 'staff' ? 'Added by staff' : 'Credited'}</td>
-            <td class="nowrap"><span class="cluster gap-6">
+            <td class="nowrap card-foot"><span class="cluster gap-6">
               <button class="btn btn--ghost btn--small" type="button" data-edit="${esc(r.key)}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(r.name)}</span></button>
               ${r.blocked
                 ? `<button class="icon-btn icon-btn--add" type="button" data-block="${esc(r.key)}" data-to="no" aria-label="Unblock ${esc(r.name)}" title="Unblock">${solidIcon('add')}</button>`
