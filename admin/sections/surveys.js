@@ -109,9 +109,7 @@ async function load(el) {
     const qrCell = (s) => {
       const q = saved.get(publicUrl(s.slug));
       if (!q) return `<td><button class="btn btn--ghost btn--small" type="button" data-make-qr="${s.id}">Make QR code</button></td>`;
-      let img = '';
-      try { img = svgFor(encodedText({ forward: true, slug: q.slug }), '#000000', '#ffffff'); } catch { return '<td>—</td>'; }
-      return `<td><a class="survey-qr" href="#qr" aria-label="Open this QR code in QR Codes">${img}</a><br><span class="card__meta">${q.scan_count} scan${Number(q.scan_count) === 1 ? '' : 's'}</span></td>`;
+      return `<td><a class="btn btn--ghost btn--small" href="#qr" title="Opens this survey's code in QR Codes">View QR code</a><br><span class="card__meta">${q.scan_count} scan${Number(q.scan_count) === 1 ? '' : 's'}</span></td>`;
     };
     box.innerHTML = rows.length
       ? `<div class="admin-table-wrap"><table class="admin-table cards"><thead><tr><th scope="col">Survey</th><th scope="col">Status</th><th scope="col">Answers</th><th scope="col">QR code</th><th scope="col">Share</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>${rows
