@@ -1222,3 +1222,11 @@ tr.is-clickable { cursor: pointer; }
 .fold.toorder[data-foc] > .fold__head h2, .fold.toorder[data-foc] .toorder__count { color: #fff; }
 .fold.toorder[data-foc] .toorder__count { opacity: .85; }
 .fold.toorder[data-foc] > .fold__head:focus-visible { outline-color: var(--brand-accent); }
+
+/* Staff list: paint the zebra stripe on the row so the action cell can't fall a pixel short of its neighbours. */
+.staff-table tbody tr:nth-child(even) { background: var(--stripe); }
+.staff-table tbody tr:nth-child(even) > td { background: transparent; }
+@media (max-width: 899px) {
+  .staff-table.is-stack > tbody > tr { border-radius: var(--radius-sm); }
+  .staff-table.is-stack > tbody > tr > td.st-last { flex: 1 1 100%; } /* "Last signed in" is always on its own line, not beside the role when it is short */
+}
