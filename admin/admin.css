@@ -885,3 +885,29 @@ tr.is-clickable { cursor: pointer; }
 /* "Not ordering" (the red X) on Place Order: a big target with a big icon, on phones and desktop alike. */
 .toorder [data-notordering] { width: 52px; height: 52px; min-width: 52px; min-height: 52px; }
 .toorder [data-notordering] svg { width: 36px; height: 36px; }
+
+/* ---------- Reservations: quick status chips, compact phone cards ---------- */
+.status-chips { display: flex; gap: var(--sp-8); overflow-x: auto; padding-bottom: var(--sp-2); scrollbar-width: none; }
+.status-chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; min-height: 40px; padding: 0 var(--sp-14); border: var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.chip:hover { background: var(--head-bg); }
+.chip[aria-pressed='true'] { background: var(--brand-accent); border-color: var(--brand-accent); color: var(--on-accent); }
+.chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (min-width: 900px) { .orders-filters { grid-template-columns: 2fr auto repeat(2, 1fr); align-items: end; } }
+@media (max-width: 899px) {
+  .orders-filters { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-10); align-items: end; }
+  .orders-filters .field--search, .orders-filters .status-chips { grid-column: 1 / -1; }
+  .orders-filters .field--search input, .orders-filters select, .orders-filters .btn { min-height: 44px; }
+  .orders-filters select { width: 100%; }
+  /* An order is a card: customer and View on the first line, the details under them, then the status. */
+  .orders-table.is-stack > tbody > tr:not(.order-expand) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-12); }
+  .orders-table.is-stack > tbody > tr:not(.order-expand) > td { display: block; flex: 0 0 auto; order: 3; padding: 0; font-size: .85rem; color: var(--muted); }
+  .orders-table.is-stack > tbody > tr:not(.order-expand) > td::before { content: none; }
+  .orders-table.is-stack > tbody > tr > td[data-label='Customer'] { order: 0; flex: 1 1 calc(100% - 100px); min-width: 0; font-size: 1rem; color: var(--ink); }
+  .orders-table.is-stack > tbody > tr > td[data-label='Customer'] br { display: none; }
+  .orders-table.is-stack > tbody > tr > td[data-label='Customer'] .card__meta { display: block; font-size: .85rem; }
+  .orders-table.is-stack > tbody > tr > td[data-label=''] { order: 1; flex: 0 0 auto; }
+  .orders-table.is-stack > tbody > tr > td[data-label=''] .btn { min-height: 44px; min-width: 88px; }
+  .orders-table.is-stack > tbody > tr:not(.order-expand) > td[data-label='Titles']::before { content: 'Titles '; display: inline; font: inherit; text-transform: none; letter-spacing: 0; }
+  .orders-table.is-stack > tbody > tr > td[data-label='Status'] { order: 4; flex: 1 1 100%; color: var(--ink); font-size: .95rem; }
+}

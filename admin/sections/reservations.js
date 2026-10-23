@@ -19,6 +19,8 @@ const STALE_MS = 30000;
 
 let state = { view: 'orders', q: '', location: '', status: 'active', sort: 'placed', dir: 'desc', offset: 0 };
 // The status choices: the common views first, then each individual title status.
+/** The one-tap filters above the list (the dropdown has every status). */
+const QUICK_STATUS = { active: 'Active', arrived: 'Ready', overdue: 'Past pickup', ordered: 'Ordered', all: 'All' };
 const ORDER_FILTERS = { active: 'Active (open, ordered or ready)', overdue: 'Past pickup window', all: 'Any status', ...LINE_STATUS };
 
 /** Limit a reservations query to the location picked at the top of the screen (all locations when none is). */
@@ -119,8 +121,9 @@ function render(el) {
 function renderOrders(body) {
   if (!ORDER_FILTERS[state.status]) state.status = 'active';
   body.innerHTML = `
-    <form class="filters admin-filters" role="search" aria-label="Find reservations">
-      <div class="field field--search"><label for="r-q">Customer</label><input id="r-q" name="q" type="search" placeholder="Name, phone or email" value="${esc(state.q)}"></div>
+    <form class="filters admin-filters orders-filters" role="search" aria-label="Find reservations">
+      <div class="field field--search"><label for="r-q">Search</label><input id="r-q" name="q" type="search" placeholder="Customer name, phone, email or title" value="${esc(state.q)}"></div>
+      <div class="status-chips" role="group" aria-label="Quick filters">${Object.entries(QUICK_STATUS).map(([v, l]) => `<button type="button" class="chip" data-quick="${v}" aria-pressed="${state.status === v}">${l}<span data-quick-count="${v}"></span></button>`).join('')}</div>
       <div class="field"><label for="r-status">Titles that are</label><select id="r-status" name="status">${Object.entries(ORDER_FILTERS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
       <div class="field"><span class="label">&nbsp;</span><button class="btn btn--ghost" type="button" data-csv>Export CSV</button></div>
     </form>
@@ -143,6 +146,16 @@ function renderOrders(body) {
     }, e.target.type === 'search' ? 300 : 0);
   });
   form.addEventListener('submit', (e) => e.preventDefault());
+  const syncChips = () => $$('[data-quick]', form).forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.quick === form.elements.status.value)));
+  form.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-quick]');
+    if (!chip) return;
+    form.elements.status.value = chip.dataset.quick;
+    state = { ...state, ...Object.fromEntries(new FormData(form)), offset: 0 };
+    syncChips();
+    loadOrders(body);
+  });
+  form.elements.status.addEventListener('change', syncChips);
   sortableTable($('table', body), { sort: state.sort, dir: state.dir, onSort: (sort, dir) => ((state = { ...state, sort, dir, offset: 0 }), loadOrders(body)) });
   $('[data-prev]', body).addEventListener('click', () => ((state.offset = Math.max(0, state.offset - PAGE)), loadOrders(body)));
   $('[data-next]', body).addEventListener('click', () => ((state.offset += PAGE), loadOrders(body)));
@@ -168,6 +181,8 @@ function renderOrders(body) {
     .then(({ count }) => {
       const opt = $('option[value="overdue"]', form);
       if (opt && count) opt.textContent = `${ORDER_FILTERS.overdue} (${count})`;
+      const chip = $('[data-quick-count="overdue"]', form);
+      if (chip && count) chip.textContent = ` ${count}`;
     });
   loadOrders(body);
 }
@@ -310,6 +325,19 @@ function watchMessages(box) {
   window.addEventListener('customer-email-sent', messagesHandler);
 }
 
+/** Ids of the orders that have a line for a title matching `text` (title, with or without the issue number). Capped, newest first. */
+async function orderIdsForTitle(text) {
+  const t = text.trim().replace(/[%,()*\\]/g, ' ').replace(/\s+/g, ' ');
+  if (t.length < 3) return [];
+  const m = t.match(/^(.*?)\s*#?\s*(\d+)$/);
+  let q = sb.from('items').select('id').limit(100);
+  q = m && m[1] ? q.ilike('title', `%${m[1]}%`).eq('issue_number', m[2]) : q.ilike('title', `%${t}%`);
+  const { data: items } = await q;
+  if (!items?.length) return [];
+  const { data: lines } = await atLocation(sb.from('reservations').select('order_id').in('item_id', items.map((i) => i.id))).order('id', { ascending: false }).limit(300);
+  return [...new Set((lines ?? []).map((l) => Number(l.order_id)))];
+}
+
 /**
  * `.or()` filter for the Customer search box. Matches the name/phone/email an order was placed under, and
  * also customers who match today (by linked id or by email), so a renamed customer is found by their new name.
@@ -318,9 +346,12 @@ async function orderMatch(text) {
   const base = customerFilter(text);
   if (!base) return '';
   const { data } = await sb.from('customers').select('id,email').or(customerFilter(text, { words: true })).limit(200);
+  // Orders with a title matching the text too ("who reserved Batman #12?").
+  const orderIds = await orderIdsForTitle(text);
   return anyOf(
     base,
     data?.length ? `customer_id.in.(${data.map((c) => Number(c.id)).join(',')})` : '',
+    orderIds.length ? `id.in.(${orderIds.join(',')})` : '',
     (data ?? []).slice(0, 50).map((c) => emailMatch('email', c.email)),
   );
 }
