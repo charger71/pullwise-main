@@ -279,10 +279,10 @@ async function load(el) {
 async function edit(listEl, id) {
   const item = id ? await must(sb.from('items').select('*').eq('id', id).single()) : { status: 'pre_order', distributor: 'other', mature: false, staff_pick: false, featured: false, hidden: false, badges: [] };
   const opt = (v, label, cur) => `<option value="${esc(v)}"${String(v) === String(cur ?? '') ? ' selected' : ''}>${esc(label)}</option>`;
-  const d = openDialog(id ? 'Edit title' : 'Add title', `
+  const d = openDialog(id ? 'Edit Title' : 'New Title', `
     <form class="admin-form" novalidate>
       <div class="form-grid form-grid--pairs">
-        <div class="field span-2"><label for="e-title">Title</label><input id="e-title" name="title" required autocapitalize="words" value="${esc(item.title)}"></div>
+        <div class="field span-2"><label for="e-title">Title <span class="req" aria-hidden="true">*</span></label><input id="e-title" name="title" required autocapitalize="words" value="${esc(item.title)}"></div>
         <div class="field"><label for="e-issue">Issue #</label><input id="e-issue" name="issue_number" value="${esc(item.issue_number)}"></div>
         <div class="field"><label for="e-publisher">Publisher</label><input id="e-publisher" name="publisher" autocapitalize="words" value="${esc(item.publisher)}"></div>
         <div class="field span-2"><label for="e-variant">Variant / edition</label><input id="e-variant" name="variant" autocapitalize="words" value="${esc(item.variant)}"></div>
@@ -311,7 +311,7 @@ async function edit(listEl, id) {
       ${item.catalog_id ? hintFold('From the master catalog. Its title, retail price, dates, description, creators and cover follow the catalog (checked hourly); your shop price, status, category, badges, staff pick, homepage and hidden are yours and never change.') : ''}
       ${!item.catalog_id && item.distributor && item.distributor !== 'other' ? hintFold(`Imported from ${item.distributor === 'lunar' ? 'Lunar' : 'PRH'} (${esc(item.sku)}). Re-importing its sheet refreshes title, retail price, dates and description, but never the shop price, status, category, badges, staff pick, homepage or hidden.`) : ''}
       <div class="admin-actions sticky-actions">
-        <button class="btn btn--primary" type="submit">${id ? 'Save' : 'Add title'}</button>
+        <button class="btn btn--primary" type="submit">${id ? 'Save' : 'Create title'}</button>
         ${id && isOwner ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
         <span class="admin-status" role="status"></span>
       </div>

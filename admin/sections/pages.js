@@ -134,10 +134,10 @@ async function load(el, sb, key) {
     const row = rows.find((r) => r.slug === first.slug);
     const place = row?.placement ?? 'footer';
     return `
-      <div class="field"><label for="cp-title">Page name</label>
+      <div class="field"><label for="cp-title">Page name <span class="req" aria-hidden="true">*</span></label>
         <input id="cp-title" maxlength="80" required value="${esc(row?.title)}">
         <p class="field__hint">The heading on the page and the text of its link.</p></div>
-      <div class="field"><label for="cp-slug">Page address</label>
+      <div class="field"><label for="cp-slug">Page address <span class="req" aria-hidden="true">*</span></label>
         <input id="cp-slug" maxlength="60" required pattern="[a-z0-9]+(-[a-z0-9]+)*" value="${esc(first.slug)}">
         <p class="field__hint">The page lives at <code>page.html?slug=<span data-slug-preview>${esc(first.slug)}</span></code>. Lowercase letters, numbers and dashes. Changing it breaks any link or printed QR code that still uses the old address, so only change it if you haven’t shared the page yet (menu and footer links update by themselves).</p></div>
       <div class="field"><label for="cp-place">Link from</label>

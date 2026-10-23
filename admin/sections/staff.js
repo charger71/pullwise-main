@@ -158,8 +158,8 @@ export async function mount(el, ctx) {
       <div class="fold__body">
       <form class="admin-form" data-add novalidate>
         <div class="form-grid form-grid--pairs">
-          <div class="field span-2"><label for="st-name">Name</label><input id="st-name" maxlength="80" autocomplete="off" required><p class="field__hint">Shown in change logs, such as “changed by Chris”.</p></div>
-          <div class="field span-2"><label for="st-email">Email</label><input id="st-email" type="email" maxlength="254" autocomplete="off" required><p class="field__hint">Their sign-in. Use an address that isn’t already a customer account.</p></div>
+          <div class="field span-2"><label for="st-name">Name <span class="req" aria-hidden="true">*</span></label><input id="st-name" maxlength="80" autocomplete="off" required><p class="field__hint">Shown in change logs, such as “changed by Chris”.</p></div>
+          <div class="field span-2"><label for="st-email">Email <span class="req" aria-hidden="true">*</span></label><input id="st-email" type="email" maxlength="254" autocomplete="off" required><p class="field__hint">Their sign-in. Use an address that isn’t already a customer account.</p></div>
           <div class="field span-2"><label for="st-pass">Starting password (optional)</label><input id="st-pass" type="text" autocomplete="off" minlength="10"><p class="field__hint">Leave blank and one is made for you.</p></div>
         </div>
         <div class="admin-actions sticky-actions"><p class="admin-status" role="status" data-add-status></p><button class="btn btn--add" type="submit">${solidIcon('add', 18)} Add staff member</button></div>
@@ -269,7 +269,7 @@ export async function mount(el, ctx) {
     try {
       const out = await call({ action: 'add', name: $('#st-name', el).value, email: $('#st-email', el).value, password: $('#st-pass', el).value });
       await reload();
-      showPassword('Staff member added', out.email, out.password);
+      showPassword('Staff Member Added', out.email, out.password);
     } catch (err) {
       setStatus(status, friendlyError(err), 'error');
       btn.disabled = false;
@@ -283,7 +283,7 @@ export async function mount(el, ctx) {
       b.disabled = true;
       try {
         const out = await call({ action: 'reset_password', user_id: r.user_id });
-        showPassword('New password', r.email, out.password);
+        showPassword('New Password', r.email, out.password);
       } catch (err) {
         toast(friendlyError(err), 'error');
       }
