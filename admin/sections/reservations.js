@@ -39,6 +39,7 @@ export async function mount(el, ctx) {
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-view="orders">Reservations</button>
       <button type="button" class="admin-tab" role="tab" data-view="toorder">Place Order</button>
+      <button type="button" class="admin-tab" role="tab" data-view="past">Past Orders</button>
       <button type="button" class="admin-tab" role="tab" data-view="ready">Received</button>
     </div>
     <form class="filters admin-filters" data-location-bar hidden></form>
@@ -73,7 +74,7 @@ export async function mount(el, ctx) {
   // A refresh stays on the tab you were on.
   try {
     const view = sessionStorage.getItem('admin-reservations-view');
-    if (['orders', 'toorder', 'ready'].includes(view)) state.view = view;
+    if (['orders', 'toorder', 'past', 'ready'].includes(view)) state.view = view;
   } catch {
     /* start on Orders */
   }
@@ -107,6 +108,7 @@ function render(el) {
   const body = $('[data-body]', el);
   if (state.view === 'orders') renderOrders(body);
   else if (state.view === 'ready') renderReady(body);
+  else if (state.view === 'past') renderPastOrders(body);
   else renderToOrder(body);
 }
 
@@ -755,6 +757,58 @@ async function toggleCustomers(btn) {
   } catch (err) {
     cell.removeAttribute('aria-busy');
     cell.innerHTML = `<span class="form-error">${esc(friendlyError(err))}</span>`;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Past orders: what was already ordered, grouped by order cutoff (read-only)
+// ---------------------------------------------------------------------------
+
+const PAST_STATUSES = ['ordered', 'reordered', 'arrived', 'picked_up'];
+
+async function renderPastOrders(body) {
+  body.innerHTML = `<p class="admin-hint">Cutoffs that have already been ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.</p><div data-groups aria-busy="true"></div>`;
+  const box = $('[data-groups]', body);
+  try {
+    const lines = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,status,item:items(${ITEM_FIELDS})`).in('status', PAST_STATUSES)).order('id').range(from, from + 999);
+      if (error) throw fromError(error);
+      lines.push(...data);
+      if (data.length < 1000) break;
+    }
+    box.removeAttribute('aria-busy');
+    if (!lines.length) return void (box.innerHTML = '<p class="empty">Nothing has been ordered yet.</p>');
+    const groups = new Map();
+    for (const l of lines) {
+      if (!l.item) continue;
+      const foc = l.item.foc_date ?? 'No cutoff';
+      if (!groups.has(foc)) groups.set(foc, new Map());
+      const g = groups.get(foc);
+      const row = g.get(l.item.id) ?? { item: l.item, copies: 0, orders: new Set(), status: new Map() };
+      row.copies += l.quantity;
+      row.orders.add(l.order_id);
+      row.status.set(l.status, (row.status.get(l.status) ?? 0) + l.quantity);
+      g.set(l.item.id, row);
+    }
+    // Newest cutoff first; titles with no cutoff date last.
+    const focs = [...groups.keys()].sort((a, b) => (a === 'No cutoff') - (b === 'No cutoff') || b.localeCompare(a));
+    box.innerHTML = focs
+      .map((foc) => {
+        const rows = [...groups.get(foc).values()].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
+        const copies = rows.reduce((n, r) => n + r.copies, 0);
+        return `<details class="fold toorder">
+          <summary class="fold__head"><h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`}<span class="toorder__count">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2></summary>
+          <div class="fold__body"><table class="admin-table">
+            <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Publisher</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col">Status</th></tr></thead>
+            <tbody>${rows.map((r) => `<tr><td>${esc(itemName(r.item))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="center"><strong>${r.copies}</strong></td><td class="center">${r.orders.size}</td><td>${[...r.status].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`).join(', ')}</td></tr>`).join('')}</tbody>
+          </table></div>
+        </details>`;
+      })
+      .join('');
+    $$('.toorder table', box).forEach((t) => sortableTable(t));
+  } catch (err) {
+    box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
   }
 }
 
