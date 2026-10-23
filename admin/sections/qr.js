@@ -181,9 +181,9 @@ function addItem(sb, list, c, open = false, prepend = false) {
           <p class="admin-hint" data-holds></p>
           <p class="admin-hint" data-scans></p>
           <div class="qr-item__downloads">
-            <button class="btn btn--small" type="button" data-png>Download PNG</button>
-            <button class="btn btn--small" type="button" data-svg>Download SVG</button>
-            <button class="btn btn--small" type="button" data-print>Print</button>
+            <button class="btn btn--ghost btn--small" type="button" data-png>Download PNG</button>
+            <button class="btn btn--ghost btn--small" type="button" data-svg>Download SVG</button>
+            <button class="btn btn--ghost btn--small" type="button" data-print>Print</button>
           </div>
         </div>
       </div>
