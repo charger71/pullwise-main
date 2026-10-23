@@ -1041,3 +1041,9 @@ tr.is-clickable { cursor: pointer; }
   .cust-log .job-log li .job-log__msg { grid-column: 1 / -1; color: var(--ink); font-size: .95rem; }
   .cust-log .job-log li .job-log__when { font-size: .85rem; }
 }
+
+/* ---------- New customer form on phones: Create customer stays in reach while you fill in the fields ---------- */
+@media (max-width: 899px) {
+  .cust-grid--new .cust-profile form > button[type=submit] { position: sticky; bottom: var(--sp-8); z-index: 5; box-shadow: 0 0 0 var(--sp-6) var(--surface); }
+  .cust-grid--new { max-width: none; }
+}

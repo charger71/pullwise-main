@@ -315,15 +315,15 @@ async function renderCustomer(el) {
           <summary class="fold__head"><h2 id="cu-profile">Profile</h2>${isNew ? '' : `<span class="card__meta cust-profile__sum">${esc([c.email, formatPhone(c.phone), [c.city, c.state].filter(Boolean).join(', ')].filter(Boolean).join(' · '))}</span>`}</summary>
         <div class="fold__body"><form data-profile novalidate>
           <div class="cust-fields">
-          ${field('first_name', 'First name <span class="req" aria-hidden="true">*</span>', c.first_name, 'maxlength="80" required autocomplete="off"')}
-          ${field('last_name', 'Last name <span class="req" aria-hidden="true">*</span>', c.last_name, 'maxlength="80" required autocomplete="off"')}
+          ${field('first_name', 'First name <span class="req" aria-hidden="true">*</span>', c.first_name, 'maxlength="80" required autocomplete="off" autocapitalize="words" enterkeyhint="next"')}
+          ${field('last_name', 'Last name <span class="req" aria-hidden="true">*</span>', c.last_name, 'maxlength="80" required autocomplete="off" autocapitalize="words" enterkeyhint="next"')}
           ${field('email', 'Email <span class="req" aria-hidden="true">*</span>', c.email, `type="email" maxlength="254" required autocomplete="off"${c.user_id ? ' readonly' : ''}`)}
           ${field('phone', 'Phone <span class="req" aria-hidden="true">*</span>', c.phone, 'type="tel" maxlength="40" required autocomplete="off"')}
           <p class="field__hint span-all">${c.user_id ? 'This customer has an account, so the email can’t be changed here. <span class="req">*</span> = required.' : 'The email lets them log in and get the weekly email. <span class="req">*</span> = required.'}</p>
           ${locationField}
-          ${field('address1', 'Address', c.address1, 'maxlength="200" autocomplete="off"').replace('class="field"', 'class="field span-all"')}
-          ${field('city', 'City', c.city, 'maxlength="100" autocomplete="off"')}
-          <div class="cust-row">${field('state', 'State', c.state, 'maxlength="50" autocomplete="off"')}${field('zip', 'Zip code', c.zip, 'maxlength="20" autocomplete="off"')}</div>
+          ${field('address1', 'Address', c.address1, 'maxlength="200" autocomplete="off" autocapitalize="words" enterkeyhint="next"').replace('class="field"', 'class="field span-all"')}
+          ${field('city', 'City', c.city, 'maxlength="100" autocomplete="off" autocapitalize="words" enterkeyhint="next"')}
+          <div class="cust-row">${field('state', 'State', c.state, 'maxlength="50" autocomplete="off" autocapitalize="words" enterkeyhint="next"')}${field('zip', 'Zip code', c.zip, 'maxlength="20" autocomplete="off"')}</div>
           </div>
           <div class="field field--check"><input id="cu-ship" name="ship_arrivals" type="checkbox"${c.ship_arrivals ? ' checked' : ''}><label for="cu-ship">Ship this customer’s arrivals (pays by phone)</label></div>
           <div class="field field--check"><input id="cu-optin" name="email_opt_in" type="checkbox"${c.email_opt_in ? ' checked' : ''}><label for="cu-optin">Send the weekly pull list email</label></div>
@@ -442,7 +442,7 @@ async function renderCustomer(el) {
     const { home_location_id: homeLocation, ...rest } = v; // saved on its own below (the profile function doesn't take it)
     const payload = { ...rest, ship_arrivals: form.elements.ship_arrivals.checked, email_opt_in: form.elements.email_opt_in.checked, notify_arrivals: form.elements.notify_arrivals.checked };
     const { data: id, error } = await sb.rpc('staff_save_customer', { p_id: isNew ? null : c.id, p: payload });
-    if (error) return void (err.textContent = friendlyError(error));
+    if (error) return void ((err.textContent = friendlyError(error)), err.scrollIntoView({ block: 'center' })); // the button is pinned to the bottom on phones, so show why it didn't save
     if (homeLocation) {
       const { error: locError } = await sb.from('customers').update({ home_location_id: Number(homeLocation) }).eq('id', id);
       if (locError) return void (err.textContent = `Saved, but not the pickup location: ${friendlyError(locError)}`);
