@@ -140,7 +140,7 @@ export async function mount(el, ctx) {
           const roleKey = r.is_super ? 'super' : r.is_owner ? 'owner' : 'staff';
           return `<tr>
           <td class="st-who card-title"><strong>${esc(r.name)}</strong>${r.user_id === user.id ? ' <span class="card__meta">(you)</span>' : ''}<br><span class="card__meta">${esc(r.email)}</span></td>
-          <td class="st-role card-key" data-sort="${r.is_super ? 0 : r.is_owner ? 1 : 2}"><span class="role-badge role-badge--${roleKey}">${solidIcon(roleKey === 'super' ? 'shield' : roleKey === 'owner' ? 'crown' : 'person', 14)} ${roleOf(r)}</span></td>
+          <td class="st-role card-key" data-sort="${r.is_super ? 0 : r.is_owner ? 1 : 2}"><span class="pill pill--${roleKey}">${solidIcon(roleKey === 'super' ? 'shield' : roleKey === 'owner' ? 'crown' : 'person', 14)} ${roleOf(r)}</span></td>
           <td class="st-last card__meta nowrap card-key card-label" data-sort="${r.last_sign_in_at ?? ''}">${solidIcon('clock', 14)} ${r.last_sign_in_at ? esc(fmtDateTime(r.last_sign_in_at)) : 'Never'}</td>
           <td class="st-actions staff-actions card-foot">
             ${r.is_super && !viewerSuper ? '' : `<button class="icon-btn" type="button" data-reset="${r.user_id}" aria-label="Reset password for ${esc(r.name)}" title="Reset password">${solidIcon('key')}<span class="st-act">Reset password</span></button>`}

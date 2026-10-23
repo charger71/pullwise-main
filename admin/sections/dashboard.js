@@ -237,7 +237,7 @@ async function renderLatest(box, loc = null, stale = () => false) {
           <td class="nowrap" data-sort="${o.id}">#${o.id}</td>
           <td class="nowrap" data-sort="${esc(o.created_at)}">${fmtDateTime(o.created_at)}</td>
           <td class="center card-label" data-sort="${lines.length}">${lines.length}${copies !== lines.length ? `<span class="card__meta"> (${copies} copies)</span>` : ''}</td>
-          <td class="card-wide">${byStatus.map(([s, n]) => `<span class="dash-pill dash-pill--${s}">${n > 1 || byStatus.length > 1 ? `${n} ` : ''}${LINE_STATUS_SHORT[s]}</span>`).join(' ')}</td>
+          <td class="card-wide">${byStatus.map(([s, n]) => `<span class="pill pill--${s}">${n > 1 || byStatus.length > 1 ? `${n} ` : ''}${LINE_STATUS_SHORT[s]}</span>`).join(' ')}</td>
           <td class="nowrap card-action">${o.customer_id ? `<a class="btn btn--ghost btn--small" href="#customers" data-customer="${o.customer_id}" aria-label="View customer ${esc(o.name)}">View<span class="dash-latest__more" aria-hidden="true"> customer</span></a>` : `<a class="btn btn--ghost btn--small" href="#reservations" data-guest="${o.id}" aria-label="View order ${o.id}">View<span class="dash-latest__more" aria-hidden="true"> order</span></a>`}</td>
         </tr>`;
       })
@@ -308,7 +308,7 @@ async function renderStatus(box) {
     <p class="dash-big">${total.toLocaleString()} <span>titles</span></p>
     <ul class="dash-bars">${statuses
       .map((s, i) => `<li>
-        <span class="dash-bars__label"><span class="badge badge--${s}">${STATUS_LABELS[s]}</span></span>
+        <span class="dash-bars__label"><span class="pill pill--${s}">${STATUS_LABELS[s]}</span></span>
         <span class="dash-bars__track"><span class="dash-bars__fill" style="width:${(counts[i] / max) * 100}%"></span></span>
         <span class="dash-bars__value">${counts[i].toLocaleString()}</span>
       </li>`)

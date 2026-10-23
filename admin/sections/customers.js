@@ -245,7 +245,7 @@ async function loadList(el) {
             <td class="card-title"><a href="#customers" data-open="${c.id}"><strong>${esc(listName(c))}</strong></a></td>
             <td class="nowrap card-line">${esc(formatPhone(c.phone))}</td>
             <td class="card-action">${c.email ? `<button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(c.email)}" aria-label="Email ${esc(c.name || c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email</button>` : ''}</td>
-            <td class="center card-key card-label">${c.ready_count ? `<span class="dash-pill dash-pill--arrived">${c.ready_count}</span>` : '<span class="card__meta">–</span>'}</td>
+            <td class="center card-key card-label">${c.ready_count ? `<span class="pill pill--arrived">${c.ready_count}</span>` : '<span class="card__meta">–</span>'}</td>
             <td class="center card-key card-label">${c.active_count || '<span class="card__meta">–</span>'}</td>
             <td class="card__meta nowrap card-label" data-label="Updated">${c.last_updated ? esc(shortDate(c.last_updated)) : ''}</td>
             <td class="nowrap card-wide"><span class="cust-status"><span class="cust-icons">${statusIcons(c)}</span>${needsFix(c) ? `<a class="btn btn--primary btn--small" href="#customers" data-open="${c.id}" aria-label="Fix ${esc(listName(c))}">${solidIcon('fix', 16)} Fix</a>` : ''}</span></td></tr>`;
@@ -553,7 +553,7 @@ const autoAddedRecently = (l) => ['series', 'artist'].includes(l.source) && l.st
 /** "1 ready for pickup · 3 open · 1 ordered · 2 past": the state of the list at a glance. */
 function summaryChips(lines) {
   const n = (fn) => lines.filter(fn).length;
-  const chip = (count, label, cls) => (count ? `<span class="dash-pill dash-pill--${cls}">${count} ${label}</span>` : '');
+  const chip = (count, label, cls) => (count ? `<span class="pill pill--${cls}">${count} ${label}</span>` : '');
   const copies = lines.filter((l) => ACTIVE_STATUSES.includes(l.status)).reduce((sum, l) => sum + l.quantity, 0);
   const chips = [
     chip(n((l) => l.status === 'arrived'), 'ready for pickup', 'arrived'),
@@ -585,7 +585,7 @@ function lineRow(l, c, staffNames, alt = false) {
   const tip = `Last updated ${whenLabel(l.updated_at)}${l.updated_via ? ` by ${whoLabel(l, c, staffNames)}` : ''}`;
   const rowClass = [l.status === 'cancelled' && 'is-hidden', alt && 'is-alt'].filter(Boolean).join(' ');
   return `<tr${rowClass ? ` class="${rowClass}"` : ''}${autoAddedRecently(l) ? ' data-auto-new' : ''} title="${esc(tip)}">
-    <td class="cl-title">${autoAddedRecently(l) ? `<span class="dash-pill dash-pill--new" title="Added automatically by a follow on ${esc(whenLabel(l.created_at))}">New</span> ` : ''}${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}${l.updated_via && l.updated_via !== 'customer' ? `<br><span class="cust-updated">Updated ${esc(whenLabel(l.updated_at))} by ${esc(whoLabel(l, c, staffNames))}</span>` : ''}${closed ? '<br><span class="cust-warn">Order cutoff has passed — the order may already be in</span>' : ''}</td>
+    <td class="cl-title">${autoAddedRecently(l) ? `<span class="pill pill--new" title="Added automatically by a follow on ${esc(whenLabel(l.created_at))}">New</span> ` : ''}${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}${l.updated_via && l.updated_via !== 'customer' ? `<br><span class="cust-updated">Updated ${esc(whenLabel(l.updated_at))} by ${esc(whoLabel(l, c, staffNames))}</span>` : ''}${closed ? '<br><span class="cust-warn">Order cutoff has passed — the order may already be in</span>' : ''}</td>
     <td class="nowrap cl-out">${fmtDate(l.item?.release_date, { month: 'short', day: 'numeric' })}</td>
     <td class="cl-qty"><label class="visually-hidden" for="cq-${l.id}">Copies of ${esc(l.item?.title ?? '')}</label>
       <input id="cq-${l.id}" class="cust-qty" type="number" inputmode="numeric" min="1" max="100" value="${l.quantity}" data-qty="${l.id}"></td>
