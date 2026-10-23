@@ -1020,3 +1020,24 @@ tr.is-clickable { cursor: pointer; }
   .cust-profile .field--check { min-height: 44px; align-items: center; }
   .cust-profile .field--check input { width: 24px; height: 24px; flex: none; }
 }
+
+/* ---------- Customer Messages and Changes tabs on phones ---------- */
+@media (max-width: 899px) {
+  /* Compose: Send is a big button with the "own mail app" link centred under it. */
+  [data-compose] .admin-actions { flex-direction: column; align-items: stretch; gap: var(--sp-6); }
+  [data-compose] .admin-actions .btn { width: 100%; min-height: 48px; justify-content: center; }
+  [data-compose] .admin-actions .field__hint { display: flex; align-items: center; justify-content: center; min-height: 44px; margin: 0; text-align: center; }
+  [data-compose] textarea { min-height: 10rem; }
+  /* Messages sent: date and sender on one line, the subject under them, 44px to tap. */
+  .cust-messages summary { min-height: 44px; align-items: center; gap: var(--sp-2) var(--sp-10); }
+  .cust-messages summary .job-log__when { order: 0; font-size: .85rem; }
+  .cust-messages summary .card__meta { order: 1; }
+  .cust-messages summary strong { order: 2; flex: 1 1 100%; font-size: 1rem; }
+  .cust-messages summary::after { order: 1; margin-left: auto; }
+  .cust-messages__body { font-size: .95rem; }
+  /* Recent changes: when and who on one line, what changed under it at a readable size. */
+  .cust-log .job-log li { grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2) var(--sp-10); padding: var(--sp-10) var(--sp-12); font-size: .9rem; }
+  .cust-log .job-log li > span:nth-child(2) { text-align: right; font-weight: 600; }
+  .cust-log .job-log li .job-log__msg { grid-column: 1 / -1; color: var(--ink); font-size: .95rem; }
+  .cust-log .job-log li .job-log__when { font-size: .85rem; }
+}
