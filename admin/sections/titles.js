@@ -37,6 +37,9 @@ export async function mount(el, ctx) {
     /* no hand-off */
   }
   categories = await must(sb.from('categories').select('id,name').order('sort'));
+  // On phones the less-used filters fold under "More filters" (open when one of them is set), so the list is on the first screen.
+  const phone = window.matchMedia('(max-width: 899px)').matches;
+  const moreOpen = ['flag', 'visibility', 'foc', 'release'].some((k) => state[k]) || (state.sort && state.sort !== 'updated');
   el.innerHTML = `
     <div class="admin-title-row">
       <h1>Titles</h1>
@@ -54,11 +57,12 @@ export async function mount(el, ctx) {
       <div class="field field--search"><label for="t-q">Search</label><input id="t-q" name="q" type="search" placeholder="Title, variant, creator, SKU or UPC" value="${esc(state.q)}"></div>
       <div class="field"><label for="t-status">Status</label><select id="t-status" name="status"><option value="">All</option>${Object.entries(STATUS_LABELS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
       <div class="field"><label for="t-category">Category</label><select id="t-category" name="category"><option value="">All</option>${categories.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}<option value="none">No category</option></select></div>
-      <div class="field"><label for="t-flag">Show</label><select id="t-flag" name="flag"><option value="">Everything</option><option value="staff_pick">Staff picks</option><option value="featured">On homepage</option><option value="hidden">Hidden</option><option value="badged">Has collector badge</option><option value="no_cover">No cover</option><option value="no_price">No price</option></select></div>
+      ${phone ? `<details class="filters-more"${moreOpen ? ' open' : ''}><summary>More filters</summary><div class="filters-more__grid">` : ''}<div class="field"><label for="t-flag">Show</label><select id="t-flag" name="flag"><option value="">Everything</option><option value="staff_pick">Staff picks</option><option value="featured">On homepage</option><option value="hidden">Hidden</option><option value="badged">Has collector badge</option><option value="no_cover">No cover</option><option value="no_price">No price</option></select></div>
       <div class="field"><label for="t-vis">Visibility</label><select id="t-vis" name="visibility"><option value="">Visible and hidden</option><option value="visible">Visible to customers</option></select></div>
       <div class="field"><label for="t-sort">Sort</label><select id="t-sort" name="sort"><option value="updated">Recently changed</option><option value="foc">Order cutoff</option><option value="release">Release date</option><option value="title">Title</option><option value="status">Status</option><option value="staff_pick">Staff pick</option><option value="featured">On homepage</option><option value="hidden">Hidden</option></select></div>
       <div class="field"><label for="t-foc">FOC week</label><select id="t-foc" name="foc"><option value="">All weeks</option></select></div>
       <div class="field"><label for="t-release">Out week</label><select id="t-release" name="release"><option value="">All weeks</option></select></div>
+      ${phone ? '</div></details>' : ''}
     </form>
     <p class="results-count" role="status" data-count></p>
     <div class="admin-table-wrap"><table class="admin-table titles-table">

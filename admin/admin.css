@@ -1068,3 +1068,29 @@ tr.is-clickable { cursor: pointer; }
   .dash-latest.is-stack > tbody > tr > td[data-label='Status'] { order: 4; flex: 1 1 100%; }
   .dash-latest.is-stack > tbody > tr > td[data-label='Status'] .dash-pill { display: inline-block; }
 }
+
+/* ---------- Titles on phones ---------- */
+.filters-more { grid-column: 1 / -1; }
+.filters-more > summary { cursor: pointer; font-weight: 600; color: var(--muted); min-height: 44px; display: flex; align-items: center; }
+.filters-more__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-12); }
+@media (max-width: 899px) {
+  .filters-more__grid select { width: 100%; text-overflow: ellipsis; font-size: .85rem; padding-inline: var(--sp-8) var(--sp-24); }
+  .admin-actions .btn { min-height: 44px; }
+  /* A title is a card that fits the screen: cover and name side by side, the dates, a full-width status dropdown with
+     Edit beside it, then the three tick boxes under the name. */
+  .titles-table tr { grid-template-columns: 72px repeat(3, minmax(0, 1fr)); gap: var(--sp-8) var(--sp-10); }
+  .titles-table .tt-thumb { grid-column: 1; grid-row: 1 / span 2; align-self: start; }
+  .titles-table .tt-thumb .thumb { width: 72px; min-width: 0; max-width: 72px; height: 108px; }
+  .titles-table .tt-title { grid-column: 2 / -1; grid-row: 1; }
+  .titles-table .tt-dates { grid-column: 2 / -1; grid-row: 2; align-self: start; }
+  .titles-table .tt-status { grid-column: 1 / 4; grid-row: 3; }
+  .titles-table .tt-status select { width: 100%; min-height: 44px; font-size: 1rem; }
+  .titles-table .tt-edit { grid-column: 4; grid-row: 3; justify-self: stretch; }
+  .titles-table .tt-edit .btn { width: 100%; min-width: 0; min-height: 44px; padding-inline: var(--sp-6); justify-content: center; }
+  .titles-table .tt-flag { grid-row: 4; min-height: 44px; font-size: .9rem; gap: var(--sp-6); }
+  .titles-table .tt-flag input { width: 24px; height: 24px; flex: none; }
+  .titles-table .tt-flag--1 { grid-column: 2; }
+  .titles-table .tt-flag--2 { grid-column: 3; }
+  .titles-table .tt-flag--3 { grid-column: 4; }
+  .titles-table .tt-datelink { min-height: 32px; }
+}
