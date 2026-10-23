@@ -759,8 +759,6 @@ tr.is-clickable { cursor: pointer; }
 .qr-item__img svg { width: 100%; height: 100%; display: block; }
 .qr-item__preview .admin-hint { overflow-wrap: anywhere; }
 @media (max-width: 700px) { .qr-item__body { grid-template-columns: 1fr; } .qr-item__preview { max-width: 260px; } }
-.survey-qr { display: block; width: 56px; padding: 0; border: 1px solid var(--border, #ddd); background: #fff; cursor: pointer; }
-.survey-qr svg { display: block; width: 100%; height: auto; }
 .toorder .fold__head .cust-toggle { flex: none; margin: 0; font-size: .85rem; }
 
 /* Reservations list: an order opens in a row under its line. */
