@@ -948,7 +948,7 @@ tr.is-clickable { cursor: pointer; }
 /* ---------- Received tab on phones ---------- */
 .admin-hint-fold { margin-bottom: var(--sp-12); }
 .admin-hint-fold > summary { cursor: pointer; font-weight: 600; color: var(--muted); min-height: 44px; display: flex; align-items: center; }
-.admin-hint-fold .admin-hint { margin-top: 0; }
+.admin-hint-fold > .admin-hint { margin: 0; padding: 0 var(--sp-16) var(--sp-14); } /* the text lines up with the heading above it, not the box edge */
 @media (max-width: 899px) {
   .field .cust-export-opt { min-height: 44px; font-size: 1rem; white-space: normal; }
   /* The Mark Ready button stays on screen under the page header while the list scrolls. */
@@ -1179,7 +1179,7 @@ tr.is-clickable { cursor: pointer; }
   .cards.is-stack > tbody > tr > td.staff-actions { flex: 1 1 100%; min-width: 0; justify-content: flex-start; flex-wrap: wrap; gap: var(--sp-8); }
   [data-colors] .admin-form__actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
   [data-colors] .admin-form__actions .btn, [data-password] .btn { flex: 1 1 auto; min-height: 48px; justify-content: center; }
-  [data-password] { margin-top: var(--sp-16); }
+  [data-password], [data-theme-form] { margin-top: var(--sp-16); }
   .cards.is-stack .staff-actions .icon-btn { width: auto; padding: 0 var(--sp-12); gap: var(--sp-6); border: var(--border); font-size: .9rem; font-weight: 600; }
   .cards.is-stack .staff-actions .icon-btn--remove { border-color: currentColor; }
   .cards.is-stack .staff-actions .icon-btn svg { width: 20px; height: 20px; }

@@ -102,19 +102,6 @@ export async function mount(el, ctx) {
       <summary class="fold__head"><h2>My Account</h2></summary>
       <div class="fold__body">
       <p>${esc(me?.name ?? '')} · ${esc(user.email)} · <strong>${me ? roleOf(me) : 'Staff'}</strong></p>
-      <form class="admin-form" data-theme-form>
-        <div class="field"><label for="st-theme">Appearance</label>
-          <select id="st-theme">${[['auto', 'Match my device'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<option value="${v}"${v === getTheme() ? ' selected' : ''}>${l}</option>`).join('')}</select>
-          <p class="field__hint">Changes the admin for you only, on every device you sign in from.</p></div>
-        <p class="admin-status" role="status" data-theme-status></p>
-      </form>
-      <form class="admin-form" data-colors>
-        <h3>Admin colors</h3>
-        ${hintFold('Pick your own colors for the admin. They apply to the <strong data-colors-mode></strong> theme you are using now (switch Appearance above to set the other one), for you only, on every device you sign in from.')}
-        <div class="form-grid form-grid--pairs color-grid">${COLOR_VARS.map(([v, label, hint], i) => `<div class="field"><label for="st-c${i}">${label}</label><input id="st-c${i}" data-var="${v}" type="color"><p class="field__hint">${hint}</p></div>`).join('')}</div>
-        <div class="admin-form__actions"><button class="btn" type="submit">Save colors</button> <button class="btn btn--ghost" type="button" data-colors-reset>Back to standard colors</button></div>
-        <p class="admin-status" role="status" data-colors-status></p>
-      </form>
       <form class="admin-form" data-password novalidate>
         <h3>Change my password</h3>
         <div class="form-grid form-grid--pairs">
@@ -124,6 +111,23 @@ export async function mount(el, ctx) {
         <p class="field__hint">At least 10 characters. A few random words make a good password.</p>
         <p class="admin-status" role="status" data-pw-status></p>
         <button class="btn btn--primary" type="submit">Change my password</button>
+      </form>
+      <form class="admin-form" data-theme-form>
+        <div class="field"><label for="st-theme">Appearance</label>
+          <select id="st-theme">${[['auto', 'Match my device'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<option value="${v}"${v === getTheme() ? ' selected' : ''}>${l}</option>`).join('')}</select>
+          <p class="field__hint">Changes the admin for you only, on every device you sign in from.</p></div>
+        <p class="admin-status" role="status" data-theme-status></p>
+      </form>
+      </div>
+    </details>
+    <details class="fold toorder" data-colors-fold>
+      <summary class="fold__head"><h2>Admin Colors<span class="toorder__count">Your own colors for the admin</span></h2></summary>
+      <div class="fold__body">
+      <form class="admin-form" data-colors>
+        ${hintFold('Pick your own colors for the admin. They apply to the <strong data-colors-mode></strong> theme you are using now (switch Appearance above to set the other one), for you only, on every device you sign in from.')}
+        <div class="form-grid form-grid--pairs color-grid">${COLOR_VARS.map(([v, label, hint], i) => `<div class="field"><label for="st-c${i}">${label}</label><input id="st-c${i}" data-var="${v}" type="color"><p class="field__hint">${hint}</p></div>`).join('')}</div>
+        <div class="admin-form__actions"><button class="btn" type="submit">Save colors</button> <button class="btn btn--ghost" type="button" data-colors-reset>Back to standard colors</button></div>
+        <p class="admin-status" role="status" data-colors-status></p>
       </form>
       </div>
     </details>
