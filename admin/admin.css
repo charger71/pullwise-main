@@ -998,3 +998,25 @@ tr.is-clickable { cursor: pointer; }
   .cust-list.is-stack > tbody > tr > td[data-label='Status']:not(:has(.cust-icon, .btn)) { display: none; }
   .cust-list.is-stack > tbody > tr > td[data-label='Status'] .btn { min-height: 44px; }
 }
+
+/* ---------- Customer detail on phones ---------- */
+@media (max-width: 899px) {
+  .cust-title-row h1 { font-size: 1.6rem; overflow-wrap: anywhere; }
+  .cust-title-row .cust-contact { flex: 1 1 100%; }
+  .cust-title-row .cust-contact__phone, .cust-title-row .cust-contact .btn { display: inline-flex; align-items: center; min-height: 44px; }
+  [data-back] { display: inline-flex; align-items: center; min-height: 44px; }
+  /* Pull List header: the heading on its own line, then "Show cancelled" and a small Export PDF on one row. */
+  .cust-main .toorder .fold__head { flex-wrap: wrap; row-gap: var(--sp-6); }
+  .cust-main .toorder .fold__head .cust-toggle { flex: 1 1 auto; min-height: 44px; font-size: .95rem; }
+  .cust-main .toorder .fold__head .btn { flex: 0 0 auto; min-width: 7rem; min-height: 44px; }
+  /* The remove button is a real tap target. */
+  .cust-lines .cl-rm .icon-btn { width: 48px; height: 48px; }
+  .cust-lines .cl-rm .icon-btn svg { width: 30px; height: 30px; }
+  .cust-lines .cust-qty, .cust-lines .select--small { min-height: 44px; }
+}
+@media (max-width: 899px) {
+  .cust-profile form > .btn, [data-notes] > .btn { min-height: 48px; }
+  .cust-profile form > .btn { display: flex; width: 100%; justify-content: center; margin: 0 0 var(--sp-8); }
+  .cust-profile .field--check { min-height: 44px; align-items: center; }
+  .cust-profile .field--check input { width: 24px; height: 24px; flex: none; }
+}

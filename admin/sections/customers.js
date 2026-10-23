@@ -301,8 +301,8 @@ async function renderCustomer(el) {
   const field = (id, label, value, attrs = '') => `<div class="field"><label for="cu-${id}">${label}</label><input id="cu-${id}" name="${id}" value="${esc(value)}" ${attrs}></div>`;
   el.innerHTML = `
     <p><a href="#customers" data-back>← All customers</a></p>
-    <div class="admin-title-row"><h1>${isNew ? 'New Customer' : esc(c.name || c.email || '(no name)')}</h1>${isNew ? '' : `<div class="cust-contact">${c.phone ? `<a class="cust-contact__phone" href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(c.phone))}</a>` : ''}${c.email ? `<a class="btn btn--ghost btn--small" href="mailto:${esc(c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email customer</a>` : ''}</div>`}</div>
-    ${isNew ? '' : `<div class="admin-tabs" role="tablist">
+    <div class="admin-title-row cust-title-row"><h1>${isNew ? 'New Customer' : esc(c.name || c.email || '(no name)')}</h1>${isNew ? '' : `<div class="cust-contact">${c.phone ? `<a class="cust-contact__phone" href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(c.phone))}</a>` : ''}${c.email ? `<a class="btn btn--ghost btn--small" href="mailto:${esc(c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email customer</a>` : ''}</div>`}</div>
+    ${isNew ? '' : `<div class="admin-tabs cust-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-ctab="pull">Pull List</button>
       <button type="button" class="admin-tab" role="tab" data-ctab="profile">Profile</button>
       <button type="button" class="admin-tab" role="tab" data-ctab="messages">Messages</button>
@@ -360,7 +360,7 @@ async function renderCustomer(el) {
           <summary class="fold__head"><h2 id="cu-add">Add to Pull List</h2></summary>
           <div class="fold__body">
           <form class="cust-search" data-search role="search"><label class="visually-hidden" for="cu-q">Find a pre-order title</label>
-            <input id="cu-q" type="search" placeholder="Search pre-order titles, covers or creators" autocomplete="off"></form>
+            <input id="cu-q" type="search" placeholder="${window.matchMedia('(max-width: 599px)').matches ? 'Search pre-order titles' : 'Search pre-order titles, covers or creators'}" autocomplete="off"></form>
           <p class="admin-hint">Adding past an order cutoff or the copy limit is allowed here; you'll be told if the cutoff has passed.</p>
           <div data-results></div>
           </div>
