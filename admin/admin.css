@@ -96,6 +96,7 @@
 .admin-hint { font-size: .9rem; color: var(--muted); }
 .admin-hint code { background: var(--code-bg); padding: 1px 5px; border-radius: var(--radius-sm); font-size: .85rem; }
 .admin-actions { display: flex; align-items: center; gap: var(--sp-14); margin-top: var(--sp-8); }
+.toorder__actions { margin: 0 0 var(--sp-10); }
 .admin-status { font-weight: 700; }
 .admin-status--error { color: var(--danger-ink); }
 

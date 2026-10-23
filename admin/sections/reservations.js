@@ -677,11 +677,11 @@ async function renderToOrder(body) {
           <h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}<span class="toorder__count">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2>
         </summary>
         <div class="fold__body">
+        <div class="admin-actions toorder__actions"><button class="btn btn--green" type="button" data-ordered title="After you place this cutoff's order with the distributor">Mark ${copies} ${copies === 1 ? 'copy' : 'copies'} ordered</button></div>
         <table class="admin-table cards cards--slim">
           <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col" data-sort="text">Publisher</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col"><span class="visually-hidden">Not ordering</span></th></tr></thead>
           <tbody>${rows.map((r) => `<tr><td class="card-title">${esc(itemName(r.item))}</td><td>${esc(distributorName(loaded.meta.get(r.item.id)?.distributor ?? null))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="nowrap"></td><td class="center card-key card-label"><strong>${r.copies}</strong></td><td class="center card-key card-label"><button type="button" class="link-button" data-customers="${r.item.id}" title="See who reserved this title">${r.orders.size}</button></td><td class="center card-action"><button type="button" class="icon-btn icon-btn--remove" data-notordering="${r.item.id}" aria-label="Not ordering ${esc(itemName(r.item))}" title="We are not ordering this title">${solidIcon('skip')}</button></td></tr>`).join('')}</tbody>
         </table>
-        <div class="admin-actions"><button class="btn btn--green" type="button" data-ordered title="After you place this cutoff's order with the distributor">Mark ${copies} ${copies === 1 ? 'copy' : 'copies'} ordered</button></div>
         </div>
       </details>`;
     })
