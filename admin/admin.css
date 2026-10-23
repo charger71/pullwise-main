@@ -911,3 +911,20 @@ tr.is-clickable { cursor: pointer; }
   .orders-table.is-stack > tbody > tr:not(.order-expand) > td[data-label='Titles']::before { content: 'Titles '; display: inline; font: inherit; text-transform: none; letter-spacing: 0; }
   .orders-table.is-stack > tbody > tr > td[data-label='Status'] { order: 4; flex: 1 1 100%; color: var(--ink); font-size: .95rem; }
 }
+
+/* ---------- Order detail panel on phones ----------
+   Header on the left (order, type, count, date), then full-width buttons; every title is a card: name, quantity and
+   release date, then a full-width status dropdown that is easy to hit, then the hold note. */
+@media (max-width: 599px) {
+  .order-expand .order--inline { padding: var(--sp-10) var(--sp-12) var(--sp-12); }
+  .order--inline .order__toolbar { display: block; margin-bottom: var(--sp-10); }
+  .order--inline .order__meta { justify-content: flex-start; gap: var(--sp-4) var(--sp-10); text-align: left; margin-bottom: var(--sp-10); }
+  .order--inline .order__actions { display: flex; flex-direction: column; gap: var(--sp-8); }
+  .order--inline .order__actions .btn { width: 100%; min-height: 44px; justify-content: center; text-align: center; }
+  .order--inline .order__lines tr { grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2) var(--sp-12); padding: var(--sp-10) var(--sp-6); }
+  .order--inline .order__lines td.col-title { padding-top: 0; }
+  .order--inline .order__lines td.col-qty, .order--inline .order__lines td.col-out { padding-block: 0; color: var(--muted); font-size: .9rem; }
+  .order--inline .order__lines td.col-status { grid-column: 1 / -1; padding: var(--sp-6) var(--sp-6) 0; }
+  .order--inline .order__lines td.col-status select.select--small { width: 100%; max-width: none; height: 44px; font-size: 1rem; margin: 0; }
+  .order--inline .order__lines td.col-status .card__meta { margin-top: var(--sp-6); }
+}
