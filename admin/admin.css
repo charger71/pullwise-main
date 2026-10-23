@@ -1217,8 +1217,8 @@ tr.is-clickable { cursor: pointer; }
 .chip [data-quick-count]:not(:empty) { margin-left: var(--sp-6); padding: 0 var(--sp-6); border-radius: var(--radius-pill); background: var(--danger); color: #fff; font-size: .8rem; line-height: 1.5; } /* the count on a quick filter, set off from its label */
 
 /* Place Order cutoff headers: taller, brand-colored bands so each cutoff stands out on the page. */
-.fold.toorder[data-foc] > .fold__head { min-height: 56px; padding: var(--sp-14) var(--sp-16); background: var(--brand-primary); border-left-color: var(--brand-accent); color: #fff; }
-.fold.toorder[data-foc] > .fold__head:hover { background: var(--brand-primary); filter: brightness(1.12); }
+.fold.toorder[data-foc] > .fold__head { min-height: 56px; padding: var(--sp-14) var(--sp-16); background: #434f62; border-left-color: var(--brand-accent); color: #fff; }
+.fold.toorder[data-foc] > .fold__head:hover { background: #434f62; filter: brightness(1.12); }
 .fold.toorder[data-foc] > .fold__head h2, .fold.toorder[data-foc] .toorder__count { color: #fff; }
 .fold.toorder[data-foc] .toorder__count { opacity: .85; }
 .fold.toorder[data-foc] > .fold__head:focus-visible { outline-color: var(--brand-accent); }
