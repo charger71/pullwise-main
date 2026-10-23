@@ -1201,3 +1201,5 @@ tr.is-clickable { cursor: pointer; }
   .exclusions__mature input { width: 24px; height: 24px; }
   .dropzone { padding: var(--sp-24) var(--sp-16); }
 }
+
+.chip [data-quick-count]:not(:empty) { margin-left: var(--sp-6); padding: 0 var(--sp-6); border-radius: var(--radius-pill); background: var(--danger); color: #fff; font-size: .8rem; line-height: 1.5; } /* the count on a quick filter, set off from its label */
