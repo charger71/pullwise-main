@@ -1,6 +1,6 @@
 // FAQ: add, edit, reorder and delete questions (faqs table).
 
-import { $, $$, esc, must, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError } from '../lib.js';
+import { $, $$, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError } from '../lib.js';
 
 let items = []; // { id|null, el, quill, dirty }
 export const hasUnsavedChanges = () => items.some((i) => i.dirty);
@@ -12,7 +12,7 @@ export async function mount(el, { sb }) {
       <h1>FAQ</h1>
       <button class="btn btn--add" type="button" data-add>${solidIcon('add', 18)} Add question</button>
     </div>
-    <p class="admin-hint">Questions appear on the FAQ page in this order. A new question is added at the bottom. The FAQ page's intro is under <a href="#pages">Pages → FAQ</a>.</p>
+    ${hintFold(`Questions appear on the FAQ page in this order. A new question is added at the bottom. The FAQ page's intro is under <a href="#pages">Pages → FAQ</a>.`)}
     <ol class="faq-items"></ol>`;
   const list = $('.faq-items', el);
   let rows;
@@ -51,7 +51,7 @@ function addItem(sb, list, f, open = false) {
         </div>
         <span class="label" data-answer-label>Answer</span>
         <div class="editor--lede"><div data-answer></div></div>
-        <div class="faq-item__actions">
+        <div class="faq-item__actions sticky-actions">
           <button class="btn btn--primary" type="button" data-save>Save</button>
           <button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>
           <span class="admin-status" role="status"></span>

@@ -269,7 +269,7 @@ const stackTables = (root) => {
       const label = hidden && th.textContent.trim() === hidden.textContent.trim() ? '' : th.textContent.trim();
       for (let i = 0; i < (Number(th.colSpan) || 1); i++) heads.push(label);
     });
-    if (heads.length < 4) return;
+    if (heads.length < 4 && !table.classList.contains('cards')) return; // a `cards` table stacks whatever its width
     table.classList.add('is-stack');
     table.querySelectorAll('tbody tr').forEach((tr) => {
       let col = 0;

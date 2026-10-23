@@ -116,8 +116,8 @@ async function load(el) {
       return `<td><a class="survey-qr" href="#qr" aria-label="Open this QR code in QR Codes">${img}</a><br><span class="card__meta">${q.scan_count} scan${Number(q.scan_count) === 1 ? '' : 's'}</span></td>`;
     };
     box.innerHTML = rows.length
-      ? `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th scope="col">Survey</th><th scope="col">Status</th><th scope="col">Answers</th><th scope="col">QR code</th><th scope="col">Share</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>${rows
-          .map((s) => `<tr><td><strong>${esc(s.title)}</strong><br><span class="card__meta">${s.questions.filter((q) => q.type !== 'section').length} question${s.questions.filter((q) => q.type !== 'section').length === 1 ? '' : 's'}</span></td><td>${s.is_open ? 'Open' : 'Closed'}</td><td>${s.survey_responses[0].count}</td>${qrCell(s)}<td><a href="../survey.html?s=${encodeURIComponent(s.slug)}&amp;preview=1" target="_blank" rel="noopener">Preview<span class="visually-hidden"> ${esc(s.title)}</span></a> · <button class="btn btn--ghost btn--small" type="button" data-share="${s.id}">Link<span class="visually-hidden"> for ${esc(s.title)}</span></button></td><td class="nowrap"><button class="btn btn--ghost btn--small" type="button" data-results="${s.id}">Results<span class="visually-hidden"> for ${esc(s.title)}</span></button> <button class="btn btn--ghost btn--small" type="button" data-edit="${s.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(s.title)}</span></button></td></tr>`)
+      ? `<div class="admin-table-wrap"><table class="admin-table cards"><thead><tr><th scope="col">Survey</th><th scope="col">Status</th><th scope="col">Answers</th><th scope="col">QR code</th><th scope="col">Share</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>${rows
+          .map((s) => `<tr><td class="card-title"><strong>${esc(s.title)}</strong><br><span class="card__meta">${s.questions.filter((q) => q.type !== 'section').length} question${s.questions.filter((q) => q.type !== 'section').length === 1 ? '' : 's'}</span></td><td class="card-key">${s.is_open ? 'Open' : 'Closed'}</td><td class="card-key card-label">${s.survey_responses[0].count}</td>${qrCell(s)}<td class="card-foot"><a href="../survey.html?s=${encodeURIComponent(s.slug)}&amp;preview=1" target="_blank" rel="noopener">Preview<span class="visually-hidden"> ${esc(s.title)}</span></a> · <button class="btn btn--ghost btn--small" type="button" data-share="${s.id}">Link<span class="visually-hidden"> for ${esc(s.title)}</span></button></td><td class="nowrap card-foot"><button class="btn btn--ghost btn--small" type="button" data-results="${s.id}">Results<span class="visually-hidden"> for ${esc(s.title)}</span></button> <button class="btn btn--ghost btn--small" type="button" data-edit="${s.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(s.title)}</span></button></td></tr>`)
           .join('')}</tbody></table></div>`
       : `<p class="empty">${all.length ? `No ${listTab} surveys.` : 'No surveys yet — start one with “New survey”.'}</p>`;
   } catch (err) {
@@ -135,7 +135,7 @@ function questionRow(q, open = false) {
     <details class="fold"${open ? ' open' : ''}>
       <summary class="fold__head"><h2 data-qtitle></h2><span class="card__meta" data-qtype></span></summary>
       <div class="fold__body">
-    <div class="form-grid">
+    <div class="form-grid form-grid--pairs">
       <div class="field span-2"><label for="${uid}-l" data-label-name>Question</label><input id="${uid}-l" data-label maxlength="300" value="${esc(q.label)}"></div>
       <div class="field"><label for="${uid}-t">Answer type</label><select id="${uid}-t" data-type>${Object.entries(TYPES).map(([v, l]) => `<option value="${v}"${v === q.type ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="field field--check" data-required-field><input id="${uid}-r" type="checkbox" data-required${q.required ? ' checked' : ''}><label for="${uid}-r">Required</label></div>
@@ -193,7 +193,7 @@ async function edit(listEl, id, startTab) {
     <form class="admin-form" novalidate>
       <div data-tabpane="details">
       <details class="fold toorder fold--static" open><summary class="fold__head"><h2>Details</h2></summary><div class="fold__body">
-      <div class="form-grid">
+      <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="sv-title">Title</label><input id="sv-title" name="title" required maxlength="150" value="${esc(sv.title)}"></div>
         <div class="field span-2"><label for="sv-slug">Link name</label><input id="sv-slug" name="slug" maxlength="80" value="${esc(sv.slug)}" placeholder="customer-survey"><p class="field__hint">Used in the link: survey.html?s=<em>link-name</em>. Letters, numbers and dashes. Leave blank to make one from the title.</p></div>
         <div class="field span-2"><label for="sv-intro">Introduction</label><textarea id="sv-intro" name="intro" rows="3">${esc(sv.intro)}</textarea></div>
@@ -201,8 +201,8 @@ async function edit(listEl, id, startTab) {
       </div>
       </div></details>
       <details class="fold toorder fold--static" open><summary class="fold__head"><h2>Email Box</h2></summary><div class="fold__body">
-      <div class="form-grid">
-        <div class="field field--check span-2"><input id="sv-email" name="collect_email" type="checkbox"${sv.collect_email ? ' checked' : ''}><label for="sv-email">Offer an optional email box (for a drawing or prize)</label></div>
+      <div class="form-grid form-grid--pairs">
+        <div class="checks span-2"><label><input id="sv-email" name="collect_email" type="checkbox"${sv.collect_email ? ' checked' : ''}> Offer an optional email box (for a drawing or prize)</label></div>
         <div class="field span-2"><label for="sv-email-prompt">Wording above the email box</label><input id="sv-email-prompt" name="email_prompt" maxlength="200" value="${esc(sv.email_prompt)}" placeholder="Enter your email to be entered in our gift card drawing"><p class="field__hint">Emails are saved separately from the answers (see Results), so the answers stay anonymous. Say what the prize is and when you'll draw.</p></div>
       </div>
       </div></details>
@@ -213,7 +213,7 @@ async function edit(listEl, id, startTab) {
       <p><button class="btn btn--add" type="button" data-add>${solidIcon('add', 18)} Add question</button></p>
       <div class="field field--check"><input id="sv-open" name="is_open" type="checkbox"${sv.is_open ? ' checked' : ''}><label for="sv-open">Open — customers can answer it</label></div>
       </div>
-      <div class="admin-actions" data-form-actions>
+      <div class="admin-actions sticky-actions" data-form-actions>
         <button class="btn btn--primary" type="submit">${id ? 'Save' : 'Create survey'}</button>
         ${id ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
         <span class="admin-status" role="status"></span>

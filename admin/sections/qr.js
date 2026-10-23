@@ -3,7 +3,7 @@
 // saved address, so the address can be changed later without reprinting. Drawn in the browser with
 // qrcode-generator (loaded from a CDN on first use).
 
-import { $, $$, esc, must, setStatus, toast, solidIcon, friendlyError, loadScript, fmtDate } from '../lib.js';
+import { $, $$, esc, must, hintFold, setStatus, toast, solidIcon, friendlyError, loadScript, fmtDate } from '../lib.js';
 import { SITE_URL } from '../../js/config.js';
 
 export const QR_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
@@ -84,9 +84,9 @@ export async function mount(el, { sb }) {
       <h1>QR Codes</h1>
       <button class="btn btn--add" type="button" data-add>${solidIcon('add', 18)} New QR code</button>
     </div>
-    <p class="admin-hint">Make a code for a web page, then download it (PNG for printing, SVG for sign makers) or print it.
+    ${hintFold(`Make a code for a web page, then download it (PNG for printing, SVG for sign makers) or print it.
       Leave <strong>Forward through our site</strong> on and you can change where the code goes later, even after it’s printed.
-      Turn it off for a code that holds the address itself (simpler, but it can’t be changed once printed).</p>
+      Turn it off for a code that holds the address itself (simpler, but it can’t be changed once printed).`)}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-qrtab="all">All</button>
       <button type="button" class="admin-tab" role="tab" data-qrtab="forward">Forwarding</button>
@@ -170,7 +170,7 @@ function addItem(sb, list, c, open = false, prepend = false) {
           <div class="field"><label for="t-${uid}">Notes (optional)</label>
             <input id="t-${uid}" name="notes" maxlength="500" value="${esc(c.notes)}" placeholder="Where it’s printed, when it expires…"></div>
           <p class="admin-hint" data-warn hidden>These colors are too close, so phones may not scan this. Use a dark code on a light background.</p>
-          <div class="qr-item__actions">
+          <div class="qr-item__actions sticky-actions">
             <button class="btn btn--primary" type="button" data-save>Save</button>
             <button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>
             <span class="admin-status" role="status"></span>
