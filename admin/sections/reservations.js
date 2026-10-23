@@ -811,7 +811,9 @@ async function toggleCustomers(btn) {
 const PAST_STATUSES = ['ordered', 'reordered', 'arrived', 'picked_up'];
 
 async function renderPastOrders(body) {
-  body.innerHTML = `<p class="admin-hint">Cutoffs that have already been ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.</p><div data-groups aria-busy="true"></div>`;
+  // The instructions are folded away on phones, where they would push the cutoffs down the screen.
+  const hintOpen = window.matchMedia('(max-width: 899px)').matches ? '' : ' open';
+  body.innerHTML = `<details class="admin-hint-fold"${hintOpen}><summary>How this works</summary><p class="admin-hint">Cutoffs that have already been ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.</p></details><div data-groups aria-busy="true"></div>`;
   const box = $('[data-groups]', body);
   try {
     const lines = [];
@@ -843,7 +845,7 @@ async function renderPastOrders(body) {
         const copies = rows.reduce((n, r) => n + r.copies, 0);
         return `<details class="fold toorder">
           <summary class="fold__head"><h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`}<span class="toorder__count">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2></summary>
-          <div class="fold__body"><table class="admin-table">
+          <div class="fold__body"><table class="admin-table past-table">
             <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Publisher</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col">Status</th></tr></thead>
             <tbody>${rows.map((r) => `<tr><td>${esc(itemName(r.item))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="center"><strong>${r.copies}</strong></td><td class="center">${r.orders.size}</td><td>${[...r.status].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`).join(', ')}</td></tr>`).join('')}</tbody>
           </table></div>

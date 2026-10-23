@@ -957,3 +957,10 @@ tr.is-clickable { cursor: pointer; }
   .order-tools__btns { grid-column: 1 / -1; margin-bottom: var(--sp-8); }
   .order-tools [data-ot-summary] { font-weight: 600; color: var(--ink); margin-top: var(--sp-8); }
 }
+
+/* ---------- Past Orders on phones: title, then the figures, then what became of the copies ---------- */
+@media (max-width: 899px) {
+  .toorder .past-table.is-stack > tbody > tr > td[data-label='Title'] { flex: 1 1 100%; }
+  .past-table.is-stack > tbody > tr > td[data-label='Publisher'] { order: 3; }
+  .past-table.is-stack > tbody > tr > td[data-label='Status'] { order: 4; flex: 1 1 100%; color: var(--ink); font-size: .95rem; font-weight: 600; }
+}
