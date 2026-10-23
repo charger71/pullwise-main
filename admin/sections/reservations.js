@@ -182,7 +182,7 @@ function renderOrders(body) {
       const opt = $('option[value="overdue"]', form);
       if (opt && count) opt.textContent = `${ORDER_FILTERS.overdue} (${count})`;
       const chip = $('[data-quick-count="overdue"]', form);
-      if (chip && count) chip.textContent = ` ${count}`;
+      if (chip && count) chip.textContent = count;
     });
   loadOrders(body);
 }
@@ -648,7 +648,7 @@ async function renderToOrder(body) {
   // Titles whose customer list is open, so a refresh can open them again.
   const openPeople = $$('[data-customers][aria-expanded="true"]', body).map((b) => b.dataset.customers);
   // The instructions are folded away on phones, where they would push the cutoffs off the first screen.
-  body.innerHTML = `${hintFold(`Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it.`)}<div data-order-tools></div><div data-groups aria-busy="true"></div>`;
+  body.innerHTML = `${hintFold(`Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it. The list groups titles by distributor with the product code, and counts customer reservations (including pull lists) only.`)}<div data-order-tools></div><div data-groups aria-busy="true"></div>`;
   const box = $('[data-groups]', body);
   let loaded;
   try {
@@ -868,7 +868,7 @@ function setupOrderTools(box, groups, focs, meta, keep = {}) {
   box.innerHTML = `
     <section class="panel order-tools" aria-labelledby="ot-h">
       <h2 id="ot-h">Distributor Order List</h2>
-      ${hintFold('Titles and copy counts to order, grouped by distributor with the product code. These are customer reservations (including pull lists) only.')}
+      
       <div class="order-tools__row">
         <div class="field"><label for="ot-foc">Order cutoff</label><select id="ot-foc">
           <option value="">All open cutoffs</option>

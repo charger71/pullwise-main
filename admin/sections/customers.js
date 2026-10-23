@@ -298,7 +298,7 @@ async function renderCustomer(el) {
   const locationField = !locations.length ? '' : `<div class="field span-all"><label for="cu-location">Picks up at</label><select id="cu-location" name="home_location_id">${locations.map((l) => `<option value="${l.id}"${l.id === homeId ? ' selected' : ''}>${esc([l.name, [l.city, l.region].filter(Boolean).join(', ')].filter(Boolean).join(' – '))}</option>`).join('')}</select><p class="field__hint">Changing it moves books that haven’t arrived yet. Books already on the shelf stay where they are.</p></div>`;
   const field = (id, label, value, attrs = '') => `<div class="field"><label for="cu-${id}">${label}</label><input id="cu-${id}" name="${id}" value="${esc(value)}" ${attrs}></div>`;
   el.innerHTML = `
-    <p><a href="#customers" data-back>← All customers</a></p>
+    <p><a class="btn btn--ghost btn--small" href="#customers" data-back>← Back to customers</a></p>
     <div class="admin-title-row cust-title-row"><h1>${isNew ? 'New Customer' : esc(c.name || c.email || '(no name)')}</h1>${isNew ? '' : `<div class="cust-contact">${c.phone ? `<a class="cust-contact__phone" href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(c.phone))}</a>` : ''}${c.email ? `<a class="btn btn--ghost btn--small" href="mailto:${esc(c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email customer</a>` : ''}</div>`}</div>
     ${isNew ? '' : `<div class="admin-tabs cust-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-ctab="pull">Pull List</button>
@@ -347,7 +347,7 @@ async function renderCustomer(el) {
         <details class="fold toorder fold--static" open>
           <summary class="fold__head"><h2 id="cu-list">Pull List<span class="toorder__count" data-list-count></span></h2>
             <label class="cust-toggle"><input type="checkbox" data-cancelled${state.showCancelled ? ' checked' : ''}> Show cancelled</label>
-            <button class="btn btn--small" type="button" data-export-pdf>Export PDF</button>
+            <button class="btn btn--ghost btn--small" type="button" data-export-pdf>Export PDF</button>
           </summary>
           <div class="fold__body">
           <p class="card__meta cust-lastupdate" data-lastupdate></p>
