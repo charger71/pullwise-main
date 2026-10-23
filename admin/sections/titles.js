@@ -282,19 +282,19 @@ async function edit(listEl, id) {
   const d = openDialog(id ? 'Edit title' : 'Add title', `
     <form class="admin-form" novalidate>
       <div class="form-grid">
-        <div class="field span-2"><label for="e-title">Title</label><input id="e-title" name="title" required value="${esc(item.title)}"></div>
+        <div class="field span-2"><label for="e-title">Title</label><input id="e-title" name="title" required autocapitalize="words" value="${esc(item.title)}"></div>
         <div class="field"><label for="e-issue">Issue #</label><input id="e-issue" name="issue_number" value="${esc(item.issue_number)}"></div>
-        <div class="field"><label for="e-publisher">Publisher</label><input id="e-publisher" name="publisher" value="${esc(item.publisher)}"></div>
-        <div class="field span-2"><label for="e-variant">Variant / edition</label><input id="e-variant" name="variant" value="${esc(item.variant)}"></div>
+        <div class="field"><label for="e-publisher">Publisher</label><input id="e-publisher" name="publisher" autocapitalize="words" value="${esc(item.publisher)}"></div>
+        <div class="field span-2"><label for="e-variant">Variant / edition</label><input id="e-variant" name="variant" autocapitalize="words" value="${esc(item.variant)}"></div>
         <div class="field"><label for="e-status">Status</label><select id="e-status" name="status">${Object.entries(STATUS_LABELS).map(([v, l]) => opt(v, l, item.status)).join('')}</select></div>
         <div class="field"><label for="e-category">Category</label><select id="e-category" name="category_id">${opt('', 'None', item.category_id)}${categories.map((c) => opt(c.id, c.name, item.category_id)).join('')}</select></div>
-        <div class="field"><label for="e-retail">Retail price ($)</label><input id="e-retail" name="retail_price" type="number" step="0.01" min="0" value="${item.retail_price ?? item.price ?? ''}"></div>
-        <div class="field"><label for="e-shop-price">Shop price ($)</label><input id="e-shop-price" name="shop_price" type="number" step="0.01" min="0" value="${item.shop_price ?? ''}" placeholder="Blank = sell at retail">
-          <p class="field__hint">What customers are charged instead of retail. Kept when the title is re-imported.</p></div>
+        <div class="field"><label for="e-retail">Retail price ($)</label><input id="e-retail" name="retail_price" type="number" inputmode="decimal" step="0.01" min="0" value="${item.retail_price ?? item.price ?? ''}"></div>
+        <div class="field"><label for="e-shop-price">Shop price ($)</label><input id="e-shop-price" name="shop_price" type="number" inputmode="decimal" step="0.01" min="0" value="${item.shop_price ?? ''}" placeholder="Blank = retail"></div>
+        <p class="field__hint span-2">Shop price is what customers are charged instead of retail (blank = sell at retail). Kept when the title is re-imported.</p>
         <div class="field"><label for="e-foc">Order cutoff (FOC)</label><input id="e-foc" name="foc_date" type="date" value="${item.foc_date ?? ''}"></div>
         <div class="field"><label for="e-release">Release date</label><input id="e-release" name="release_date" type="date" value="${item.release_date ?? ''}"></div>
-        <div class="field"><label for="e-creators">Creators</label><input id="e-creators" name="creators" value="${esc(item.creators)}"></div>
-        <div class="field"><label for="e-upc">UPC</label><input id="e-upc" name="upc" value="${esc(item.upc)}"></div>
+        <div class="field"><label for="e-creators">Creators</label><input id="e-creators" name="creators" autocapitalize="words" value="${esc(item.creators)}"></div>
+        <div class="field"><label for="e-upc">UPC</label><input id="e-upc" name="upc" inputmode="numeric" value="${esc(item.upc)}"></div>
         <div class="field"><label for="e-isbn">ISBN</label><input id="e-isbn" name="isbn" value="${esc(item.isbn)}"></div>
         <div class="field span-2"><label for="e-desc">Description</label><textarea id="e-desc" name="description" rows="4">${esc(item.description)}</textarea></div>
         <div class="field span-2 checks">

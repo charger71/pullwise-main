@@ -1094,3 +1094,21 @@ tr.is-clickable { cursor: pointer; }
   .titles-table .tt-flag--3 { grid-column: 4; }
   .titles-table .tt-datelink { min-height: 32px; }
 }
+
+/* ---------- Add / Edit title on phones: a full-screen sheet with Save pinned to the bottom ---------- */
+@media (max-width: 599px) {
+  .admin-dialog--wide { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
+  .admin-dialog--wide .dialog__close { width: 44px; height: 44px; }
+  /* Short fields sit two to a row; long ones (title, variant, description, creators, cover) keep the whole width. */
+  .admin-dialog--wide .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-12); align-items: start; }
+  .admin-dialog--wide .form-grid .span-2, .admin-dialog--wide .form-grid .field:has(#e-creators) { grid-column: 1 / -1; }
+  .admin-dialog--wide .form-grid select, .admin-dialog--wide .form-grid input { min-width: 0; width: 100%; }
+  .admin-dialog--wide .checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-8); }
+  .admin-dialog--wide .checks label { min-height: 44px; font-size: .95rem; }
+  .admin-dialog--wide .checks input[type=checkbox] { width: 24px; height: 24px; flex: none; }
+  .admin-dialog--wide .image-field__controls .btn { min-height: 44px; }
+  /* Save and Delete stay in view however far the form is scrolled. */
+  .admin-dialog--wide .admin-actions { position: sticky; bottom: 0; z-index: 3; margin: var(--sp-12) calc(-1 * var(--sp-16)) calc(-1 * var(--sp-16)); padding: var(--sp-10) var(--sp-16); background: var(--surface); border-top: var(--border); flex-wrap: wrap; gap: var(--sp-8); }
+  .admin-dialog--wide .admin-actions .btn { flex: 1 1 0; min-height: 48px; justify-content: center; }
+  .admin-dialog--wide .admin-actions .admin-status { flex: 1 1 100%; order: -1; margin: 0; }
+}
