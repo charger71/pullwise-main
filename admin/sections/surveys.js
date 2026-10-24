@@ -2,6 +2,7 @@
 // Customers answer at survey.html?s=<slug> (no login). Responses are private to staff.
 
 import { $, $$, esc, must, toast, setStatus, slugify, fmtDateTime, downloadCsv, solidIcon, friendlyError, setupTabs, fetchAll, hintFold, fmtDate } from '../lib.js';
+import { adminHash } from '../route.js';
 import { newSlug } from './qr.js';
 import { SITE_URL } from '../../js/config.js';
 
@@ -108,7 +109,7 @@ async function load(el) {
     const qrCell = (s) => {
       const q = saved.get(publicUrl(s.slug));
       if (!q) return `<td><button class="btn btn--ghost btn--small" type="button" data-make-qr="${s.id}">Make QR code</button></td>`;
-      return `<td><a class="btn btn--ghost btn--small" href="#qr" title="Opens this survey's code in QR Codes">View QR code</a><br><span class="card__meta">${q.scan_count} scan${Number(q.scan_count) === 1 ? '' : 's'}</span></td>`;
+      return `<td><a class="btn btn--ghost btn--small" href="${adminHash('qr', q.slug)}" title="Opens this survey's code in QR Codes">View QR code</a><br><span class="card__meta">${q.scan_count} scan${Number(q.scan_count) === 1 ? '' : 's'}</span></td>`;
     };
     box.innerHTML = rows.length
       ? `<div class="admin-table-wrap"><table class="admin-table cards"><thead><tr><th scope="col">Survey</th><th scope="col">Status</th><th scope="col">Answers</th><th scope="col">QR code</th><th scope="col">Share</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>${rows
@@ -359,7 +360,7 @@ async function renderShare(box, sv) {
     <details class="fold toorder fold--static" open>
       <summary class="fold__head"><h2>QR Code</h2>${qr ? `<span class="toorder__count">${qr.scan_count} scan${Number(qr.scan_count) === 1 ? '' : 's'}</span>` : ''}</summary>
       <div class="fold__body">
-        ${qr ? `<p><a class="btn btn--ghost" href="#qr">View QR code</a></p><p class="admin-hint">Print it from Admin → QR Codes. The address can change later without reprinting.</p>`
+        ${qr ? `<p><a class="btn btn--ghost" href="${adminHash('qr', qr.slug)}">View QR code</a></p><p class="admin-hint">Print it from Admin → QR Codes. The address can change later without reprinting.</p>`
           : '<p class="admin-hint">Make a QR code that forwards to this survey, with scan counts.</p><p><button class="btn btn--ghost" type="button" data-make-qr>Make QR code</button></p>'}
       </div>
     </details>`;

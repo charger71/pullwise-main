@@ -539,7 +539,7 @@ text-muted · text-danger · text-success · text-right · font-mono · nowrap</
             <li><strong>Customer details:</strong> show a customer’s current name, phone and email, not what an order was placed with. Use <code>withCustomers(sb, orders)</code>.</li>
             <li><strong>Accessibility:</strong> visible labels, <code>role="status"</code> for save results and <code>role="alert"</code> for errors, buttons not links for actions, and text that keeps at least 4.5:1 contrast in both themes.</li>
             <li><strong>Query builders:</strong> never return a Supabase query from an <code>async</code> function; it runs early and breaks <code>.range()</code>.</li>
-            <li><strong>New component?</strong> Add it to this page in the same commit.</li>
+            <li><strong>New component?</strong> Add it to this page in the same commit. <code>npm test</code> (<code>admin/consistency.test.js</code>) fails if a shared component is missing here, if text contrast drops below 4.5:1 in either theme, if a screen adds a one-off button height or a raw color, or if a button or pill class has no style.</li>
           </ul>
           <div class="sg-item">
             <h3>Deliberate exceptions</h3>

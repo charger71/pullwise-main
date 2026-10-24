@@ -3,6 +3,7 @@
 // hasUnsavedChanges()). Writes go through Supabase row-level security, which
 // only lets accounts listed in `staff` change anything.
 
+import { parseAdminHash, adminHash } from './route.js';
 import { decorateTabs } from './tab-icons.js';
 import { DEMO, getSettings } from '../js/data.js';
 import { $, $$, db, esc, openEmailDialog, friendlyError } from './lib.js';
@@ -186,16 +187,17 @@ async function showApp() {
 
 let lastHash = location.hash;
 async function route() {
-  let name = SECTIONS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'dashboard';
+  let { name, arg } = parseAdminHash(location.hash, SECTIONS);
   if (OWNER_ONLY.includes(name) && !isOwner) {
     name = 'dashboard';
+    arg = '';
     history.replaceState(null, '', '#dashboard');
   }
   if (current && current.name !== name && current.module.hasUnsavedChanges?.() && !confirm('You have unsaved changes here. Leave anyway?')) {
     history.replaceState(null, '', lastHash || `#${current.name}`);
     return;
   }
-  lastHash = `#${name}`;
+  lastHash = adminHash(name, arg);
   $$('.admin-nav a').forEach((a) => (a.getAttribute('href') === `#${name}` ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   revealCurrentGroup();
   const navLabel = $(`.admin-nav a[href="#${name}"]`)?.textContent.trim();
@@ -208,7 +210,7 @@ async function route() {
     current = { name, module };
     el.innerHTML = '';
     trackUpdates();
-    await module.mount(el, { sb, isOwner });
+    await module.mount(el, { sb, isOwner, arg });
   } catch (err) {
     console.error(err);
     el.innerHTML = `<p class="form-error">Couldn’t open this section: ${esc(friendlyError(err))}</p>`;

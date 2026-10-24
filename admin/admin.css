@@ -24,7 +24,7 @@
 .admin-tabs { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-bottom: var(--sp-20); border-bottom: 3px solid var(--brand-primary); }
 .admin-tab {
   font: 700 1rem var(--font-body); padding: var(--sp-10) var(--sp-20); min-height: 44px; cursor: pointer;
-  background: var(--tab-bg); border: 1px solid var(--field-line, #c9c1ae); border-bottom: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--tab-bg); border: 1px solid var(--field-line); border-bottom: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   color: var(--muted);
 }
 .admin-tab__badge { display: inline-block; min-width: 1.5em; margin-left: var(--sp-4); padding: 0 7px; border-radius: var(--radius-pill); background: var(--brand-primary); color: #fff; font-size: .8rem; line-height: 1.5; text-align: center; }
@@ -691,7 +691,7 @@ tr.is-clickable { cursor: pointer; }
 .color-row input[type=color]:disabled { opacity: .35; }
 
 .cust-messages { list-style: none; margin: 0; padding: 0; }
-.cust-messages li { border-top: 1px solid var(--line, #e3dccb); padding: var(--sp-6) 0; font-size: .9rem; }
+.cust-messages li { border-top: 1px solid var(--line); padding: var(--sp-6) 0; font-size: .9rem; }
 .cust-messages li:first-child { border-top: 0; }
 .cust-messages details { background: none; box-shadow: none; border: 0; border-radius: 0; padding: 0; margin: 0; }
 .cust-messages summary { padding: 0; cursor: pointer; display: flex; gap: var(--sp-10); flex-wrap: wrap; align-items: baseline; }
@@ -911,7 +911,7 @@ tr.is-clickable { cursor: pointer; }
   .toorder .fold__head { flex-wrap: wrap; row-gap: var(--sp-6); }
   .toorder .fold__head h2 { flex: 1 1 calc(100% - 2rem); } /* leaves room for the chevron on the same line */
   .toorder .fold__head .btn { flex: 1 1 100%; }
-  .order-tools__row .btn, .order-tools__row select { min-height: 44px; }
+  .order-tools__row select { min-height: 44px; }
   .order-tools__btns .btn { flex: 1 1 0; }
   .order-tools__btns .label { display: none; }
 }
@@ -936,7 +936,7 @@ tr.is-clickable { cursor: pointer; }
 @media (max-width: 899px) {
   .orders-filters, .filters--compact { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-10); align-items: end; }
   .orders-filters .field--search, .orders-filters .status-chips { grid-column: 1 / -1; }
-  .orders-filters .field--search input, .orders-filters select, .orders-filters .btn { min-height: 44px; }
+  .orders-filters .field--search input, .orders-filters select { min-height: 44px; }
   .orders-filters select { width: 100%; }
   /* The same bar built from bare controls (Email Log): search on its own row, then the select and a tick box. */
   .filters--compact > input[type=search] { grid-column: 1 / -1; order: -1; width: 100%; }
@@ -1229,3 +1229,8 @@ tr.is-clickable { cursor: pointer; }
 /* Survey question header: the answer type sits under the question. */
 .sq-head { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; gap: var(--sp-2); }
 .sq-head h2 { overflow-wrap: anywhere; }
+
+/* A QR code opened from a link (e.g. a survey's View QR code) flashes once so it is easy to spot. */
+.qr-item.is-flash { animation: qr-flash 2.5s ease-out; }
+@keyframes qr-flash { 0%, 60% { box-shadow: 0 0 0 3px var(--brand-accent); } 100% { box-shadow: var(--shadow); } }
+@media (prefers-reduced-motion: reduce) { .qr-item.is-flash { animation: none; box-shadow: 0 0 0 3px var(--brand-accent); } }
