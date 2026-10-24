@@ -178,8 +178,8 @@ export const solidIcon = (name, size = 22) => `<svg class="solid-icon" viewBox="
 /** True on phones and tablets (up to 899px): where lists become cards and long instructions fold away. */
 export const isPhone = (max = 899) => window.matchMedia(`(max-width: ${max}px)`).matches;
 
-/** Instructions that fold under "How this works" on phones and stay open on desktop. `html` is the text of the hint. */
-export const hintFold = (html) => `<details class="admin-hint-fold"${isPhone() ? '' : ' open'}><summary>${solidIcon('help', 18)} How this works</summary><p class="admin-hint">${html}</p></details>`;
+/** Instructions that fold under "How this works". They start closed everywhere to save screen space. `html` is the text of the hint. */
+export const hintFold = (html) => `<details class="admin-hint-fold"><summary>${solidIcon('help', 18)} How this works</summary><p class="admin-hint">${html}</p></details>`;
 
 export const itemName = (i) => [i.title, i.issue_number && `#${i.issue_number}`].filter(Boolean).join(' ') + (i.variant ? ` · ${i.variant}` : '');
 
