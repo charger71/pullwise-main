@@ -179,7 +179,7 @@ th[aria-sort='ascending'], th[aria-sort='descending'] { color: #fff; }
 .admin-table tr:last-child td { border-bottom: 0; }
 /* Every list table is striped; :where keeps this weaker than any row-state colour (overdue, merge, hover…). */
 .admin-table:where(:not(.cust-lines)) :where(tbody tr:nth-child(even) td) { background: var(--stripe); }
-.cust-email { text-transform: none; letter-spacing: 0; font-weight: 400; min-height: 30px; padding: 3px var(--sp-10); }
+.cust-email { text-transform: none; letter-spacing: 0; }
 .admin-table .center { text-align: center; }
 .admin-table .nowrap { white-space: nowrap; }
 .admin-table tr.is-hidden td { opacity: .55; }
@@ -199,7 +199,7 @@ th[aria-sort='ascending'], th[aria-sort='descending'] { color: #fff; }
 .form-grid { display: grid; gap: 0 var(--sp-16); grid-template-columns: 1fr; }
 @media (min-width: 640px) { .form-grid { grid-template-columns: 1fr 1fr; } .form-grid .span-2 { grid-column: 1 / -1; } }
 .checks { display: flex; flex-wrap: wrap; gap: var(--sp-8) 22px; }
-.checks label, .settings-form .fold label:has(input[type=checkbox]) { display: flex; align-items: center; gap: var(--sp-8); font-weight: 600; }
+.checks label, .settings-form .fold label:has(input[type=checkbox]) { display: flex; align-items: center; gap: var(--sp-8); font-weight: 400; }
 textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .color-grid input[type=color] { width: 100%; height: 44px; padding: var(--sp-4); cursor: pointer; }
 .sticky-actions { position: sticky; bottom: 0; background: var(--paper); padding: var(--sp-12) 0; z-index: 5; }
@@ -260,7 +260,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .fold__head h2 { margin: 0; font-size: var(--fs-card); }
 .fold__body { padding: var(--sp-16); }
 /* A fold that is always open (e.g. a new customer's profile): no chevron, not clickable. */
-.fold:not(.fold--static) > .fold__head { min-height: 52px; } /* a header you click or tap open is a roomy target (the Place Order cutoffs are 56px) */
+.fold:not(.fold--static) .fold__head { min-height: 52px; } /* a header you click or tap open is a roomy target (the Place Order cutoffs are 56px) */
 .fold--static > .fold__head { cursor: default; }
 .fold--static > .fold__head::after { display: none; }
 
@@ -300,7 +300,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
   .order__lines .col-qty, .order__lines .col-out, .order__lines .col-status { width: auto; }
 }
 .order__lines tr.is-overdue { background: var(--danger-soft); }
-.toorder .fold__head { padding: 5px var(--sp-12); }
+.toorder .fold__head { padding: 5px var(--sp-16); }
 .toorder .fold__head h2 { flex: 1 1 0; min-width: 0; }
 .toorder .fold__head .btn { flex: none; }
 /* Orders tab: same compact header as To order, name left, details and the green action right. */
@@ -314,7 +314,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .media-grid.media-pick { gap: var(--sp-14); grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); } /* the image picker keeps its larger thumbnails */
 .media-item { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
 .media-item img { width: 100%; aspect-ratio: 1; object-fit: contain; background: var(--media-bg); border-radius: var(--radius-sm); }
-.media-item__name { margin: 0; font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.media-item__name { margin: 0; font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-item__actions { display: flex; flex-direction: column; gap: var(--sp-4); }
 .media-item__actions .btn { width: 100%; min-width: 0; }
 /* Library: the file name across the top, then the thumbnail on the left with its three buttons on the right. */
@@ -732,6 +732,7 @@ tr.is-clickable { cursor: pointer; }
 
 .admin-footer__name { font-weight: 700; }
 .admin-footer { margin: 0 auto; padding: 24px var(--gutter) 32px; max-width: var(--max); text-align: center; font-size: .8rem; color: var(--muted); }
+.admin-footer a { color: inherit; text-decoration: underline; display: inline-block; padding: var(--sp-8) var(--sp-4); }
 @media print { .admin-footer { display: none; } }
 
 /* Emails -> Email log */
@@ -892,7 +893,7 @@ tr.is-clickable { cursor: pointer; }
   .cards.is-stack > tbody > tr > td.card-label::before { content: attr(data-label) ' '; display: inline; font: inherit; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
   /* Tap targets: 44px for anything you press, a bigger tick box for the lead cell. */
   .cards.is-stack > tbody > tr > td :where(.btn, .icon-btn, .link-button) { min-height: 44px; min-width: 44px; }
-  .cards.is-stack > tbody > tr > td .btn { min-width: 0; padding-inline: var(--sp-16); }
+  .cards.is-stack > tbody > tr > td .btn { min-width: 0; }
   .cards.is-stack > tbody > tr > td .icon-btn { display: inline-flex; align-items: center; justify-content: center; }
   .cards.is-stack > tbody > tr > td.card-lead input[type=checkbox] { width: 28px; height: 28px; margin: 8px; }
   .cards.is-stack > tbody > tr:has(input[type=checkbox]:not([disabled])) { cursor: pointer; }
@@ -909,7 +910,7 @@ tr.is-clickable { cursor: pointer; }
   /* Cutoff header: the heading takes the first line and the action sits full width beneath it. */
   .toorder .fold__head { flex-wrap: wrap; row-gap: var(--sp-6); }
   .toorder .fold__head h2 { flex: 1 1 calc(100% - 2rem); } /* leaves room for the chevron on the same line */
-  .toorder .fold__head .btn { flex: 1 1 100%; min-height: 44px; }
+  .toorder .fold__head .btn { flex: 1 1 100%; }
   .order-tools__row .btn, .order-tools__row select { min-height: 44px; }
   .order-tools__btns .btn { flex: 1 1 0; }
   .order-tools__btns .label { display: none; }
@@ -953,7 +954,7 @@ tr.is-clickable { cursor: pointer; }
   .order--inline .order__toolbar { display: block; margin-bottom: var(--sp-10); }
   .order--inline .order__meta { justify-content: flex-start; gap: var(--sp-4) var(--sp-10); text-align: left; margin-bottom: var(--sp-10); }
   .order--inline .order__actions { display: flex; flex-direction: column; gap: var(--sp-8); }
-  .order--inline .order__actions .btn { width: 100%; min-height: 44px; justify-content: center; text-align: center; }
+  .order--inline .order__actions .btn { width: 100%; justify-content: center; text-align: center; }
   .order--inline .order__lines tr { grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2) var(--sp-12); padding: var(--sp-10) var(--sp-6); }
   .order--inline .order__lines td.col-title { padding-top: 0; }
   .order--inline .order__lines td.col-qty, .order--inline .order__lines td.col-out { padding-block: 0; color: var(--muted); font-size: .9rem; }
@@ -997,9 +998,9 @@ tr.is-clickable { cursor: pointer; }
 .cust-more__body { display: grid; gap: var(--sp-8); padding-bottom: var(--sp-8); }
 @media (max-width: 899px) {
   .cust-head-actions { flex: 1 1 100%; margin: 0; display: flex; flex-direction: column-reverse; align-items: stretch; gap: var(--sp-8); }
-  .cust-head-actions > .btn { width: 100%; min-height: 48px; justify-content: center; }
+  .cust-head-actions > .btn { width: 100%; justify-content: center; }
   .cust-more { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 0 var(--sp-14); }
-  .cust-more__body .btn { width: 100%; min-height: 44px; }
+  .cust-more__body .btn { width: 100%; }
   .cust-more__body .cust-export-opt { min-height: 44px; font-size: 1rem; }
   /* One row of tabs that scrolls sideways instead of wrapping onto a second line. */
   .admin-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
@@ -1009,7 +1010,7 @@ tr.is-clickable { cursor: pointer; }
   .admin-pager > span { white-space: nowrap; }
   /* A customer is a card: name and Email on the first line, phone, the counts, then the status icons and Fix. */
   .admin-pager { gap: var(--sp-8); }
-  .admin-pager .btn { flex: 1 1 0; min-width: 0; padding-inline: var(--sp-8); min-height: 44px; }
+  .admin-pager .btn { flex: 1 1 0; min-width: 0; padding-inline: var(--sp-8); }
   .admin-pager > span { flex: none; }
 }
 
@@ -1017,19 +1018,18 @@ tr.is-clickable { cursor: pointer; }
 @media (max-width: 899px) {
   .cust-title-row h1 { font-size: 1.6rem; overflow-wrap: anywhere; }
   .cust-title-row .cust-contact { flex: 1 1 100%; }
-  .cust-title-row .cust-contact__phone, .cust-title-row .cust-contact .btn { display: inline-flex; align-items: center; min-height: 44px; }
+  .cust-title-row .cust-contact__phone, .cust-title-row .cust-contact .btn { display: inline-flex; align-items: center; }
   [data-back] { display: inline-flex; align-items: center; min-height: 44px; }
   /* Pull List header: the heading on its own line, then "Show cancelled" and a small Export PDF on one row. */
   .cust-main .toorder .fold__head { flex-wrap: wrap; row-gap: var(--sp-6); }
   .cust-main .toorder .fold__head .cust-toggle { flex: 1 1 auto; min-height: 44px; font-size: .95rem; }
-  .cust-main .toorder .fold__head .btn { flex: 0 0 auto; min-width: 7rem; min-height: 44px; }
+  .cust-main .toorder .fold__head .btn { flex: 0 0 auto; min-width: 7rem; }
   /* The remove button is a real tap target. */
   .cust-lines .cl-rm .icon-btn { width: 48px; height: 48px; }
   .cust-lines .cl-rm .icon-btn svg { width: 30px; height: 30px; }
   .cust-lines .cust-qty, .cust-lines .select--small { min-height: 44px; }
 }
 @media (max-width: 899px) {
-  .cust-profile form > .btn, [data-notes] > .btn { min-height: 48px; }
   .cust-profile form > .btn { display: flex; width: 100%; justify-content: center; margin: 0 0 var(--sp-8); }
   .cust-profile .field--check { min-height: 44px; align-items: center; }
   .cust-profile .field--check input { width: 24px; height: 24px; flex: none; }
@@ -1039,7 +1039,7 @@ tr.is-clickable { cursor: pointer; }
 @media (max-width: 899px) {
   /* Compose: Send is a big button with the "own mail app" link centred under it. */
   [data-compose] .admin-actions { flex-direction: column; align-items: stretch; gap: var(--sp-6); }
-  [data-compose] .admin-actions .btn { width: 100%; min-height: 48px; justify-content: center; }
+  [data-compose] .admin-actions .btn { width: 100%; justify-content: center; }
   [data-compose] .admin-actions .field__hint { display: flex; align-items: center; justify-content: center; min-height: 44px; margin: 0; text-align: center; }
   [data-compose] textarea { min-height: 10rem; }
   /* Messages sent: date and sender on one line, the subject under them, 44px to tap. */
@@ -1066,7 +1066,6 @@ tr.is-clickable { cursor: pointer; }
 @media (max-width: 899px) {
   /* Needs Attention lists only what needs doing: the rows at zero are left off. */
   .dash-facts li.is-zero { display: none; }
-  .dash-facts li.has-fix .btn { min-height: 44px; }
 }
 @media (max-width: 899px) {
   /* Latest Reservations: customer, then order, date and titles, then the status pills; the View button is short enough to sit beside the name. */
@@ -1078,7 +1077,6 @@ tr.is-clickable { cursor: pointer; }
 .filters-more__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-12); }
 @media (max-width: 899px) {
   .filters-more__grid select { width: 100%; text-overflow: ellipsis; font-size: 1rem; padding-inline: var(--sp-8) var(--sp-24); }
-  .admin-actions .btn { min-height: 44px; }
   /* A title is a card that fits the screen: cover and name side by side, the dates, a full-width status dropdown with
      Edit beside it, then the three tick boxes under the name. */
   .titles-table tr { grid-template-columns: 72px repeat(3, minmax(0, 1fr)); gap: var(--sp-8) var(--sp-10); }
@@ -1089,7 +1087,7 @@ tr.is-clickable { cursor: pointer; }
   .titles-table .tt-status { grid-column: 1 / 4; grid-row: 3; }
   .titles-table .tt-status select { width: 100%; min-height: 44px; font-size: 1rem; }
   .titles-table .tt-edit { grid-column: 4; grid-row: 3; justify-self: stretch; }
-  .titles-table .tt-edit .btn { width: 100%; min-width: 0; min-height: 44px; padding-inline: var(--sp-6); justify-content: center; }
+  .titles-table .tt-edit .btn { width: 100%; min-width: 0; padding-inline: var(--sp-6); justify-content: center; }
   .titles-table .tt-flag { grid-row: 4; min-height: 44px; font-size: .9rem; gap: var(--sp-6); }
   .titles-table .tt-flag input { width: 24px; height: 24px; flex: none; }
   .titles-table .tt-flag--1 { grid-column: 2; }
@@ -1112,13 +1110,12 @@ tr.is-clickable { cursor: pointer; }
   .form-grid--pairs .checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-8); }
   .form-grid--pairs .checks label { min-height: 44px; font-size: .95rem; }
   .form-grid--pairs .checks input[type=checkbox] { width: 24px; height: 24px; flex: none; }
-  .form-grid--pairs .image-field__controls .btn { min-height: 44px; }
   .admin-dialog--wide { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
   .admin-dialog--wide .dialog__close { width: 44px; height: 44px; }
 }
 @media (max-width: 899px) {
   .sticky-actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); padding: var(--sp-10) 0; border-top: var(--border); }
-  .sticky-actions .btn { flex: 0 0 auto; min-height: 48px; justify-content: center; }
+  .sticky-actions .btn { flex: 0 0 auto; justify-content: center; }
   .sticky-actions .btn--primary { flex: 1 1 0; }
   .sticky-actions .admin-status { flex: 1 1 100%; order: -1; margin: 0; }
   .sticky-actions .admin-status:empty { display: none; }
@@ -1129,7 +1126,7 @@ tr.is-clickable { cursor: pointer; }
 @media (max-width: 899px) {
   /* Try it first / Send now: every button is a full-width 44px row, like the other action bars. */
   .email-tools .admin-actions { flex-direction: column; align-items: stretch; gap: var(--sp-8); }
-  .email-tools .btn { width: 100%; min-height: 44px; justify-content: center; }
+  .email-tools .btn { width: 100%; justify-content: center; }
   .email-tools .admin-actions .field__hint { margin: 0; }
   /* Settings: tick boxes and the colour "match the site" switch are 44px rows. */
   .settings-form label:has(input[type=checkbox]) { min-height: 44px; }
@@ -1147,7 +1144,7 @@ tr.is-clickable { cursor: pointer; }
   .tier-row { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: none; }
   .tier-row > .btn { grid-column: 1 / -1; }
   .tier-row .field input { width: 100%; min-height: 44px; }
-  .hours-row .btn, .tier-row .btn, .settings-form [data-add-hours], .settings-form [data-add-tier] { min-height: 44px; justify-content: center; }
+  .hours-row .btn, .tier-row .btn, .settings-form [data-add-hours], .settings-form [data-add-tier] { justify-content: center; }
   .settings-form [data-add-hours], .settings-form [data-add-tier] { width: 100%; }
 }
 
@@ -1157,7 +1154,8 @@ tr.is-clickable { cursor: pointer; }
 [data-move] { min-width: 0; width: 44px; padding: 0; } /* the up / down arrows (the global .btn minimum width made them 136px) */
 .faq-item__move button { min-width: 0; }
 @media (max-width: 899px) {
-  .btn.btn--small { min-height: 44px; } /* every small button is still a 44px tap target on a phone */
+  .btn { min-height: 48px; } /* every button is a 48px tap target on a phone, small ones 44px */
+  .btn.btn--small { min-height: 44px; }
   .sticky-actions[hidden] { display: none; }
   .fold .sticky-actions { background: var(--surface); }
   [data-move] { min-height: 44px; }
@@ -1171,9 +1169,9 @@ tr.is-clickable { cursor: pointer; }
   .ql-snow.ql-toolbar .ql-formats { display: contents; } /* the buttons flow in even rows instead of wrapping group by group */
   /* Pages: the page chooser takes the row, View and Delete share the next one. */
   .admin-toolbar .field { flex: 1 1 100%; min-width: 100%; }
-  .admin-toolbar > .btn { flex: 1 1 0; min-width: 0; min-height: 44px; justify-content: center; }
+  .admin-toolbar > .btn { flex: 1 1 0; min-width: 0; justify-content: center; }
   /* Media: every button is 44px and Delete is as wide as the rest. */
-  .media-item__actions .btn { min-height: 44px; font-size: .9rem; }
+  .media-item__actions .btn { font-size: .9rem; }
   .media-grid:not(.media-pick) .media-item__actions .btn--danger { width: 100%; align-self: stretch; }
   /* FAQ: the question wraps instead of disappearing behind the arrows. */
   .faq-item__q { white-space: normal; overflow-wrap: anywhere; }
@@ -1182,7 +1180,7 @@ tr.is-clickable { cursor: pointer; }
   .qr-item__colors { flex-wrap: nowrap; }
   .qr-item__colors .field { flex: 1 1 0; }
   .qr-item__colors input[type=color] { width: 100%; height: 44px; }
-  .qr-item__downloads .btn { flex: 1 1 0; min-height: 44px; min-width: 0; }
+  .qr-item__downloads .btn { flex: 1 1 0; min-width: 0; }
   .qr-item__preview { max-width: none; }
   .qr-item__img { max-width: 260px; margin-inline: auto; }
   /* Series: a ticked series is a card too; the merge ticks are real tap targets. */
@@ -1201,15 +1199,14 @@ tr.is-clickable { cursor: pointer; }
 @media (max-width: 899px) {
   .cards.is-stack > tbody > tr > td.staff-actions { flex: 1 1 100%; min-width: 0; justify-content: flex-start; flex-wrap: wrap; gap: var(--sp-8); }
   [data-colors] .admin-form__actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
-  [data-colors] .admin-form__actions .btn, [data-password] .btn { flex: 1 1 auto; min-height: 48px; justify-content: center; }
+  [data-colors] .admin-form__actions .btn, [data-password] .btn { flex: 1 1 auto; justify-content: center; }
   .cards.is-stack > tbody > tr > td.staff-actions .icon-btn { height: 44px; }
   .cards.is-stack > tbody > tr > td.staff-actions .icon-btn svg { width: 20px; height: 20px; }
   .sticky-actions .btn--add { flex: 1 1 0; }
-  .import-actions .btn { min-height: 48px; }
   .import-actions .btn--primary { flex: 1 1 100%; }
   .import-actions .btn--ghost { flex: 1 1 auto; }
   .exclusions__form select, .exclusions__form input[name="value"] { flex: 1 1 100%; min-height: 44px; }
-  .exclusions__form .btn { flex: 1 1 100%; min-height: 48px; justify-content: center; }
+  .exclusions__form .btn { flex: 1 1 100%; justify-content: center; }
   .exclusions__chip .icon-btn--sm { width: 44px; height: 44px; }
   .exclusions__mature { margin-left: 0; min-height: 44px; display: flex; align-items: center; gap: var(--sp-8); }
   .exclusions__mature input { width: 24px; height: 24px; }
