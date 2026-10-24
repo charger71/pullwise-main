@@ -298,7 +298,7 @@ async function renderGuest(body, orderId) {
     const orders = await must(sb.from('reservation_orders').select(`id,name,kind,created_at,reservations(id,quantity,status,item:items(${ITEM_FIELDS}))`).or(ors).order('created_at', { ascending: false }));
     body.innerHTML = `
       <p><button class="btn btn--ghost btn--small" type="button" data-back>← Back to reservations</button></p>
-      <h2>${esc(first.name)} <span class="pill pill--guest">Guest order</span></h2>
+      <h2>${esc(first.name)} <span class="pill">Guest order</span></h2>
       <p class="admin-hint">Not signed up for a pull list. ${first.phone ? `<a href="tel:${esc(first.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(first.phone))}</a>` : ''}${first.phone && first.email ? ' · ' : ''}${first.email ? `<a href="mailto:${esc(first.email)}">${esc(first.email)}</a>` : ''}</p>
       ${first.notes ? `<p>${esc(first.notes)}</p>` : ''}
       ${first.email ? `<details class="order__messages" data-messages-for data-customer="" data-email="${esc(first.email)}"><summary>Messages sent <span class="card__meta" data-messages-sum></span></summary><div data-messages></div></details>` : ''}

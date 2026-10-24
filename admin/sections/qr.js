@@ -77,7 +77,7 @@ function contrast(a, b) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-export async function mount(el, { sb }) {
+export async function mount(el, { sb, arg = '' }) {
   items = [];
   el.innerHTML = `
     <div class="admin-title-row">
@@ -125,8 +125,17 @@ export async function mount(el, { sb }) {
     await loadScript(QR_LIB, 'Couldn’t load the QR code library. Check your connection and reload.');
     const rows = await must(sb.from('qr_codes').select('*').order('created_at', { ascending: false }));
     if (!rows.length) list.innerHTML = '<p class="empty" data-empty>No QR codes yet. Click “New QR code” to make one.</p>';
-    rows.forEach((r, i) => addItem(sb, list, r, i === 0));
+    // "#qr/<slug>" (e.g. from a survey's View QR code button) opens just that code and scrolls to it.
+    const target = arg && rows.some((r) => r.slug === arg) ? arg : '';
+    if (target) qrTab = 'all';
+    rows.forEach((r, i) => addItem(sb, list, r, target ? r.slug === target : i === 0));
     applyTab();
+    const found = items.find((it) => it.slug === target);
+    if (found) {
+      found.el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      found.el.classList.add('is-flash');
+      setTimeout(() => found.el.classList.remove('is-flash'), 2500);
+    }
   } catch (err) {
     list.innerHTML = `<p class="form-error">Couldn’t load QR codes: ${esc(friendlyError(err))}</p>`;
     return;
