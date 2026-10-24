@@ -14,12 +14,12 @@
   <style>
     /* Style-guide chrome only. Nothing here is a component. */
     .sg { display: grid; gap: 28px; grid-template-columns: minmax(0, 1fr); }
-    @media (min-width: 960px) { .sg { grid-template-columns: 200px minmax(0, 1fr); align-items: start; } }
-    .sg-nav { position: sticky; top: 76px; font-size: .92rem; }
+    @media (min-width: 960px) { .sg { grid-template-columns: 210px minmax(0, 1fr); align-items: start; } }
+    .sg-nav { position: sticky; top: 76px; font-size: .92rem; max-height: calc(100vh - 92px); overflow: auto; }
     .sg-nav ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
     .sg-nav a { display: block; padding: 5px 8px; border-radius: 4px; color: var(--ink); text-decoration: none; }
     .sg-nav a:hover { background: var(--head-bg); }
-    @media (max-width: 959px) { .sg-nav { position: static; } .sg-nav ul { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }
+    @media (max-width: 959px) { .sg-nav { position: static; max-height: none; } .sg-nav ul { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }
     .sg-section { margin-bottom: 44px; scroll-margin-top: 76px; }
     .sg-section > h2 { font-size: 1.5rem; margin: 0 0 4px; }
     .sg-section > p { color: var(--muted); max-width: 70ch; margin: 0 0 14px; }
@@ -29,15 +29,23 @@
     .sg-demo--flush { padding: 0; }
     .sg-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
     .sg-code { margin: 0; padding: 12px 14px; background: #1f1d19; color: #f1ead8; font: .8rem/1.5 ui-monospace, Menlo, Consolas, monospace; border-radius: 0 0 var(--radius) var(--radius); overflow-x: auto; white-space: pre; }
-    .sg-tokens { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+    .sg-tokens { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
     .sg-token { display: flex; align-items: center; gap: 10px; font-size: .85rem; }
-    .sg-token i { flex: none; width: 36px; height: 36px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .15); }
+    .sg-token i { flex: none; width: 36px; height: 36px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgb(128 128 128 / .45); }
     .sg-token code { display: block; color: var(--muted); font-size: .78rem; }
     .sg-rules { margin: 0 0 14px; padding-left: 1.2em; max-width: 70ch; }
     .sg-rules li { margin-bottom: 4px; }
-    .sg-do { border-left: 4px solid #16723a; padding: 6px 12px; background: #f0faf3; margin: 0 0 8px; max-width: 70ch; }
-    .sg-dont { border-left: 4px solid #a4001d; padding: 6px 12px; background: #fff1f1; margin: 0 0 8px; max-width: 70ch; }
+    .sg-do, .sg-dont { padding: 6px 12px; margin: 0 0 8px; max-width: 70ch; background: var(--surface); border: var(--border); border-left-width: 4px; border-radius: var(--radius-sm); }
+    .sg-do { border-left-color: var(--success); }
+    .sg-dont { border-left-color: var(--danger); }
     .sg-dialog { width: min(520px, 100%); border-radius: 10px; box-shadow: var(--shadow-lg); background: var(--surface); }
+    .sg-theme { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; max-width: 100%; }
+    .sg-theme .btn { min-width: 0; }
+    .sg-theme button[aria-pressed='true'] { background: var(--brand-primary); color: #fff; box-shadow: none; }
+    .sg-lede-row { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .sg-lede-row .lede { margin: 0; max-width: 70ch; }
+    .sg-spacer { display: inline-block; background: var(--brand-accent); height: 14px; vertical-align: middle; }
+    .sg-two { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
   </style>
 </head>
 <body>
@@ -50,73 +58,106 @@
 
   <main class="container admin-main">
     <h1>Admin components</h1>
-    <p class="lede">Every screen in the staff admin is built from the pieces on this page, using <code>admin/base.css</code> and <code>admin/admin.css</code>. Each example is the live component; the dark box under it is its exact markup. Reach for an existing component before writing new CSS, and add anything new here.</p>
+    <div class="sg-lede-row">
+      <p class="lede">Every screen in the staff admin is built from the pieces on this page, using <code>admin/base.css</code> and <code>admin/admin.css</code>. Each example is the live component; the code under it is generated from the same markup, so the two cannot drift apart. Resize the window to see the phone layouts (tablets and phones are up to 899px wide).</p>
+      <div class="sg-theme" role="group" aria-label="Preview theme"><span class="admin-hint m-0">Theme</span>
+        <button class="btn btn--ghost btn--small" type="button" data-sg-theme="auto" aria-pressed="false">Auto</button>
+        <button class="btn btn--ghost btn--small" type="button" data-sg-theme="light" aria-pressed="false">Light</button>
+        <button class="btn btn--ghost btn--small" type="button" data-sg-theme="dark" aria-pressed="false">Dark</button>
+      </div>
+    </div>
 
     <div class="sg">
       <nav class="sg-nav" aria-label="Sections">
         <ul>
-          <li><a href="#tokens">Colors &amp; type</a></li>
+          <li><a href="#tokens">Colors &amp; tokens</a></li>
+          <li><a href="#type">Type</a></li>
           <li><a href="#buttons">Buttons</a></li>
           <li><a href="#forms">Forms</a></li>
-          <li><a href="#tabs">Tabs &amp; filters</a></li>
+          <li><a href="#tabs">Tabs, chips &amp; filters</a></li>
           <li><a href="#tables">Tables</a></li>
+          <li><a href="#cards">Card lists (phones)</a></li>
           <li><a href="#status">Status &amp; pills</a></li>
           <li><a href="#icons">Status icons</a></li>
           <li><a href="#containers">Panels &amp; folds</a></li>
           <li><a href="#messages">Messages</a></li>
-          <li><a href="#dashboard">Dashboard tiles</a></li>
+          <li><a href="#dashboard">Dashboard</a></li>
           <li><a href="#dialogs">Dialogs</a></li>
           <li><a href="#spacing">Spacing &amp; utilities</a></li>
-          <li><a href="#patterns">Patterns</a></li>
+          <li><a href="#patterns">Rules</a></li>
         </ul>
       </nav>
 
       <div>
         <!-- ===================================================== -->
         <section class="sg-section" id="tokens">
-          <h2>Colors &amp; type</h2>
-          <p>The admin has a light and a dark theme (Staff → My Account → Appearance); the variables below change with it, so always use them and never raw hex or <code>#fff</code> for a background. Swatches show the light values.</p>
-          <div class="sg-tokens" style="margin-bottom:18px">
-            <div class="sg-token"><i style="background:var(--brand-primary)"></i><span>Primary<code>--brand-primary</code></span></div>
-            <div class="sg-token"><i style="background:var(--brand-accent)"></i><span>Accent<code>--brand-accent</code></span></div>
-            <div class="sg-token"><i style="background:var(--ink)"></i><span>Ink (text)<code>--ink</code></span></div>
-            <div class="sg-token"><i style="background:var(--muted)"></i><span>Muted text<code>--muted</code></span></div>
-            <div class="sg-token"><i style="background:var(--paper)"></i><span>Page<code>--paper</code></span></div>
-            <div class="sg-token"><i style="background:var(--surface)"></i><span>Cards, inputs<code>--surface</code></span></div>
-            <div class="sg-token"><i style="background:var(--head-bg)"></i><span>Table / fold header<code>--head-bg</code></span></div>
-            <div class="sg-token"><i style="background:var(--stripe)"></i><span>Striped row<code>#faf6ec</code></span></div>
-            <div class="sg-token"><i style="background:var(--line)"></i><span>Divider<code>--line</code></span></div>
-            <div class="sg-token"><i style="background:var(--field-line)"></i><span>Field outline<code>--field-line</code></span></div>
-            <div class="sg-token"><i style="background:var(--success)"></i><span>Success<code>#16723a</code></span></div>
-            <div class="sg-token"><i style="background:var(--danger)"></i><span>Error / danger<code>#a4001d</code></span></div>
-            <div class="sg-token"><i style="background:var(--danger-soft)"></i><span>Overdue row<code>#fff1f1</code></span></div>
+          <h2>Colors &amp; tokens</h2>
+          <p>The admin has a light and a dark theme (Staff → My Account → Appearance, or the switch above). Both use one slate hue; the variables below change with the theme, so always use them and never a raw hex or <code>#fff</code> for a background. The value under each name is the live value in the current theme.</p>
+          <div class="sg-item">
+            <h3>Brand and text</h3>
+            <div class="sg-tokens">
+              <div class="sg-token"><i style="background:var(--brand-primary)"></i><span>Primary<code data-var="--brand-primary">--brand-primary</code></span></div>
+              <div class="sg-token"><i style="background:var(--brand-accent)"></i><span>Accent<code data-var="--brand-accent">--brand-accent</code></span></div>
+              <div class="sg-token"><i style="background:var(--ink)"></i><span>Ink (text)<code data-var="--ink">--ink</code></span></div>
+              <div class="sg-token"><i style="background:var(--muted)"></i><span>Muted text<code data-var="--muted">--muted</code></span></div>
+              <div class="sg-token"><i style="background:var(--danger-ink)"></i><span>Danger text<code data-var="--danger-ink">--danger-ink</code></span></div>
+            </div>
           </div>
           <div class="sg-item">
-            <h3>Type scale</h3>
-            <div class="sg-demo">
-              <h1 class="m-0 mb-6">Page title (h1)</h1>
-              <h2 class="m-0 mb-6">Section heading (h2)</h2>
-              <h3 class="m-0 mb-6">Sub-heading (h3)</h3>
-              <p class="m-0 mb-6">Body text in the system font. Links look <a href="#tokens">like this</a>.</p>
-              <p class="admin-hint m-0">Hint text: small and muted, for explanations under a heading or field.</p>
+            <h3>Surfaces and lines</h3>
+            <div class="sg-tokens">
+              <div class="sg-token"><i style="background:var(--paper)"></i><span>Page<code data-var="--paper">--paper</code></span></div>
+              <div class="sg-token"><i style="background:var(--surface)"></i><span>Cards, inputs<code data-var="--surface">--surface</code></span></div>
+              <div class="sg-token"><i style="background:var(--fold-head-bg)"></i><span>Fold and table headers<code data-var="--fold-head-bg">--fold-head-bg</code></span></div>
+              <div class="sg-token"><i style="background:var(--head-bg)"></i><span>Soft header tint<code data-var="--head-bg">--head-bg</code></span></div>
+              <div class="sg-token"><i style="background:var(--stripe)"></i><span>Striped row, callouts<code data-var="--stripe">--stripe</code></span></div>
+              <div class="sg-token"><i style="background:var(--line)"></i><span>Divider<code data-var="--line">--line</code></span></div>
+              <div class="sg-token"><i style="background:var(--field-line)"></i><span>Field outline<code data-var="--field-line">--field-line</code></span></div>
             </div>
-            <pre class="sg-code">h1 / h2 / h3: display font (Archivo Black), set by base.css
-.admin-hint   small muted help text
---fs-title 1.25rem · --fs-sub 1.1rem · --fs-compact 1rem</pre>
+          </div>
+          <div class="sg-item">
+            <h3>Status</h3>
+            <div class="sg-tokens">
+              <div class="sg-token"><i style="background:var(--success)"></i><span>Success<code data-var="--success">--success</code></span></div>
+              <div class="sg-token"><i style="background:var(--danger)"></i><span>Danger<code data-var="--danger">--danger</code></span></div>
+              <div class="sg-token"><i style="background:var(--danger-soft)"></i><span>Overdue row<code data-var="--danger-soft">--danger-soft</code></span></div>
+              <div class="sg-token"><i style="background:var(--info)"></i><span>Info (blue button)<code data-var="--info">--info</code></span></div>
+            </div>
           </div>
           <p class="sg-do"><strong>Do</strong> pair a color with text or an icon. Never rely on color alone.</p>
         </section>
 
         <!-- ===================================================== -->
+        <section class="sg-section" id="type">
+          <h2>Type</h2>
+          <div class="sg-item" data-code>
+            <h3>Scale</h3>
+            <div class="sg-demo">
+              <h1 class="m-0 mb-6">Page title (h1)</h1>
+              <h2 class="m-0 mb-6">Section heading (h2)</h2>
+              <h3 class="m-0 mb-6">Sub-heading (h3)</h3>
+              <p class="m-0 mb-6">Body text in the system font. Links look <a href="#type">like this</a>.</p>
+              <p class="admin-hint m-0 mb-6">Hint text: small and muted, for explanations under a heading or field.</p>
+              <p class="m-0"><span class="card__meta">Meta text: the quiet line under a name or beside a heading.</span></p>
+            </div>
+            <pre class="sg-code">h1: display font (Archivo Black), --fs-h1 · h2/h3 in cards: body font, bold
+.admin-hint   small muted help text          .card__meta   small muted line
+--fs-title 1.25rem · --fs-card 1.15rem · --fs-sub 1.1rem · --fs-compact 1rem</pre>
+          </div>
+        </section>
+
+        <!-- ===================================================== -->
         <section class="sg-section" id="buttons">
           <h2>Buttons</h2>
-          <p>One primary action per screen area. Use <code>btn--small</code> inside tables, toolbars and card headers.</p>
+          <p>One primary action per screen area. Use <code>btn--small</code> inside tables, toolbars and card headers. On phones every button is at least 48px tall and small ones 44px, so they are always easy to tap.</p>
           <div class="sg-item" data-code>
             <h3>Variants</h3>
             <div class="sg-demo"><div class="sg-row">
               <button class="btn btn--primary" type="button">Primary</button>
               <button class="btn" type="button">Default (gold)</button>
               <button class="btn btn--ghost" type="button">Ghost</button>
+              <button class="btn btn--green" type="button">Green</button>
+              <button class="btn btn--blue" type="button">Blue</button>
               <button class="btn btn--danger" type="button"><svg class="solid-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> Delete</button>
               <button class="btn btn--primary" type="button" disabled>Disabled</button>
             </div></div>
@@ -126,9 +167,28 @@
             <div class="sg-demo"><div class="sg-row">
               <button class="btn btn--primary btn--small" type="button">Save</button>
               <button class="btn btn--ghost btn--small" type="button">Cancel</button>
+              <button class="btn btn--green btn--small" type="button">Mark ordered</button>
               <button class="btn btn--ghost btn--small cust-email" type="button">Email</button>
               <button class="admin-link-button" type="button">Link-style button</button>
             </div></div>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Add and remove outside a table: icon and word</h3>
+            <div class="sg-demo"><div class="sg-row">
+              <button class="btn btn--add" type="button"><svg class="solid-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM11 6.5h2V11h4.5v2H13v4.5h-2V13H6.5v-2H11z"/></svg> New customer</button>
+              <button class="btn btn--add btn--small" type="button"><svg class="solid-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM11 6.5h2V11h4.5v2H13v4.5h-2V13H6.5v-2H11z"/></svg> Add</button>
+              <button class="btn btn--add btn--small" type="button"><svg class="solid-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M11 7h11v15H11zM15.7 11.5h1.6v2.2h2.2v1.6h-2.2v2.2h-1.6v-2.2h-2.2v-1.6h2.2zM8 4h11v1.8H9.8V19H8zM5 1h11v1.8H6.8V16H5z"/></svg> Follow</button>
+              <button class="btn btn--danger btn--small" type="button"><svg class="solid-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM6.5 11h11v2h-11z"/></svg> Remove</button>
+              <button class="btn btn--danger btn--small" type="button"><svg class="solid-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M11 7h11v15H11zM13.5 13.7h6v1.6h-6zM8 4h11v1.8H9.8V19H8zM5 1h11v1.8H6.8V16H5z"/></svg> Unfollow</button>
+            </div></div>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Add and remove in a table row: icon only</h3>
+            <div class="sg-demo"><div class="sg-row">
+              <button class="icon-btn icon-btn--add" type="button" aria-label="Add Batman #1 to pull list" title="Add to pull list"><svg class="solid-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM11 6.5h2V11h4.5v2H13v4.5h-2V13H6.5v-2H11z"/></svg></button>
+              <button class="icon-btn icon-btn--remove" type="button" aria-label="Remove Batman #1 from pull list" title="Remove from pull list"><svg class="solid-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM6.5 11h11v2h-11z"/></svg></button>
+            </div></div>
+            <p class="admin-hint mt-8">The rule: <strong>inside a table row, icon only</strong> (<code>icon-btn</code>, with <code>aria-label</code> and <code>title</code>); <strong>everywhere else, icon plus the word</strong>.</p>
           </div>
           <div class="sg-item" data-code>
             <h3>Save row with status</h3>
@@ -137,59 +197,67 @@
             </div>
           </div>
           <div class="sg-item" data-code>
-            <h3>Add / Remove outside a table: icon and word</h3>
-            <div class="sg-demo"><div class="sg-row">
-              <button class="btn btn--add" type="button"><svg class="solid-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM11 6.5h2V11h4.5v2H13v4.5h-2V13H6.5v-2H11z"/></svg> Add series</button>
-              <button class="btn btn--add btn--small" type="button"><svg class="solid-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM11 6.5h2V11h4.5v2H13v4.5h-2V13H6.5v-2H11z"/></svg> Add</button>
-              <button class="btn btn--add btn--small" type="button"><svg class="solid-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M11 7h11v15H11zM15.7 11.5h1.6v2.2h2.2v1.6h-2.2v2.2h-1.6v-2.2h-2.2v-1.6h2.2zM8 4h11v1.8H9.8V19H8zM5 1h11v1.8H6.8V16H5z"/></svg> Follow</button>
-              <button class="btn btn--danger btn--small" type="button"><svg class="solid-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM6.5 11h11v2h-11z"/></svg> Remove</button>
-              <button class="btn btn--danger btn--small" type="button"><svg class="solid-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M11 7h11v15H11zM13.5 13.7h6v1.6h-6zM8 4h11v1.8H9.8V19H8zM5 1h11v1.8H6.8V16H5z"/></svg> Unfollow</button>
-            </div></div>
+            <h3>Sticky save bar</h3>
+            <div class="sg-demo">
+              <div class="admin-actions sticky-actions" style="position:static"><button class="btn btn--primary" type="submit">Save settings</button><span class="admin-status" role="status">Last saved Oct 21, 10:42 PM</span></div>
+            </div>
+            <p class="admin-hint mt-8">On long forms the save button stays pinned to the bottom of the screen (here shown in place).</p>
           </div>
-          <div class="sg-item" data-code>
-            <h3>Add / Remove in a table row: icon only</h3>
-            <div class="sg-demo"><div class="sg-row">
-              <button class="icon-btn icon-btn--remove" type="button" aria-label="Remove Batman #1 from pull list" title="Remove from pull list"><svg class="solid-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM6.5 11h11v2h-11z"/></svg></button>
-              <button class="icon-btn icon-btn--remove" type="button" aria-label="Remove Sam from staff" title="Remove from staff"><svg class="solid-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM6.5 11h11v2h-11z"/></svg></button>
-            </div></div>
-            <p class="admin-hint mt-8">The rule: <strong>inside a table row, icon only</strong> (<code>icon-btn</code>, with <code>aria-label</code> and <code>title</code>); <strong>everywhere else, icon plus the word</strong> in a button: <code>btn btn--add</code> (green) for Add and Follow, <code>btn btn--danger</code> (red outline) for Remove and Unfollow, with <code>solidIcon('add' | 'addAll' | 'follow' | 'remove' | 'unfollow', 16)</code> from <code>lib.js</code> in front of the word. Tag chips are the one exception and stay icon-only. <strong>Delete</strong> of a whole record is a red <code>btn--danger</code> button with the trash icon and the word. <strong>Anything that removes or deletes must ask <code>confirm()</code> first</strong>, naming the thing removed. Add actions that touch many records (like all covers) confirm too.</p>
-          </div>
-          <p class="sg-do"><strong>Do</strong> use a real <code>&lt;button type="button"&gt;</code> for actions and <code>&lt;a&gt;</code> only for navigation.</p>
+          <p class="sg-do"><strong>Do</strong> use a real <code>&lt;button type="button"&gt;</code> for actions and <code>&lt;a&gt;</code> only for navigation. A link that looks like a button (such as View QR code) is an <code>&lt;a class="btn"&gt;</code>.</p>
           <p class="sg-dont"><strong>Don’t</strong> put an email address in a list as a link. Use the small Email button, which opens the compose box.</p>
         </section>
 
         <!-- ===================================================== -->
         <section class="sg-section" id="forms">
           <h2>Forms</h2>
-          <p>Every input, select and search box is the same height (<code>--field-h</code>, 44px). Wrap each control in <code>.field</code> with a visible <code>&lt;label&gt;</code>.</p>
+          <p>Every input, select and search box is the same height (<code>--field-h</code>, 44px). Wrap each control in <code>.field</code> with a visible <code>&lt;label&gt;</code>. Group fields in a <code>form-grid</code>; <code>form-grid--pairs</code> puts short fields two to a row and <code>.span-2</code> keeps a field on the whole row.</p>
           <div class="sg-item" data-code>
-            <h3>Fields</h3>
+            <h3>Fields in a pairs grid</h3>
             <div class="sg-demo">
-              <div class="form-grid">
+              <div class="form-grid form-grid--pairs">
                 <div class="field"><label for="sg-name">Name <span class="req" aria-hidden="true">*</span></label><input id="sg-name" type="text" value="Jane Smith" required></div>
-                <div class="field"><label for="sg-tel">Phone</label><input id="sg-tel" type="tel" placeholder="(555) 123-4567"><p class="field__hint">Shown as (555) 123-4567 wherever it is displayed.</p></div>
+                <div class="field"><label for="sg-tel">Phone</label><input id="sg-tel" type="tel" placeholder="(555) 123-4567"></div>
                 <div class="field"><label for="sg-sel">Status</label><select id="sg-sel"><option>Open</option><option>Arrived</option></select></div>
-                <div class="field"><label for="sg-search">Search</label><input id="sg-search" type="search" placeholder="Name, phone or email"></div>
+                <div class="field field--check"><input id="sg-req" type="checkbox" checked><label for="sg-req">Required</label></div>
+                <div class="field span-2"><label for="sg-search">Search</label><input id="sg-search" type="search" placeholder="Name, phone or email"><p class="field__hint">Hint under a field: small and muted.</p></div>
+                <div class="field span-2"><label for="sg-ta">Notes</label><textarea id="sg-ta" rows="3"></textarea></div>
               </div>
-              <div class="field"><label for="sg-ta">Notes</label><textarea id="sg-ta" rows="3"></textarea></div>
-              <div class="checks"><label><input type="checkbox" checked> Ships arrivals</label><label><input type="checkbox"> Email opt-in</label></div>
+              <div class="checks mt-8"><label><input type="checkbox" checked> Ships arrivals</label><label><input type="checkbox"> Email opt-in</label></div>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Drop zone</h3>
+            <div class="sg-demo">
+              <label class="dropzone" for="sg-drop"><input id="sg-drop" type="file" class="visually-hidden"><strong>Choose spreadsheets</strong> or drop them here</label>
             </div>
           </div>
           <div class="sg-item" data-code>
             <h3>Error</h3>
             <div class="sg-demo"><p class="form-error" role="alert">Please enter a phone number.</p></div>
           </div>
+          <p class="sg-do"><strong>Do</strong> use the same label text everywhere a field appears, and put a hint under the field rather than in the placeholder.</p>
         </section>
 
         <!-- ===================================================== -->
         <section class="sg-section" id="tabs">
-          <h2>Tabs &amp; filters</h2>
+          <h2>Tabs, chips &amp; filters</h2>
           <div class="sg-item" data-code>
-            <h3>Tabs</h3>
+            <h3>Tabs, with a count badge</h3>
             <div class="sg-demo">
               <div class="admin-tabs" role="tablist">
-                <button type="button" class="admin-tab" role="tab" aria-selected="true">Orders</button>
-                <button type="button" class="admin-tab" role="tab" aria-selected="false">To order</button>
+                <button type="button" class="admin-tab" role="tab" aria-selected="true">All</button>
+                <button type="button" class="admin-tab" role="tab" aria-selected="false">Open <span class="admin-tab__badge">3</span></button>
+                <button type="button" class="admin-tab" role="tab" aria-selected="false">Closed</button>
+              </div>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Quick-filter chips</h3>
+            <div class="sg-demo">
+              <div class="status-chips" role="group" aria-label="Quick filters">
+                <button type="button" class="chip" aria-pressed="true">Active</button>
+                <button type="button" class="chip" aria-pressed="false">Ready</button>
+                <button type="button" class="chip" aria-pressed="false">Past pickup <span data-quick-count>3</span></button>
               </div>
             </div>
           </div>
@@ -209,31 +277,28 @@
             <div class="sg-demo"><div class="admin-pager"><button class="btn btn--ghost" type="button">← Previous</button><span>1–25 of 120</span><button class="btn btn--ghost" type="button">Next →</button></div></div>
           </div>
         </section>
-
         <!-- ===================================================== -->
         <section class="sg-section" id="tables">
           <h2>Tables</h2>
-          <p>Every list is an <code>.admin-table</code> inside <code>.admin-table-wrap</code>. The header gets the cream band and every other row is striped automatically. Do not add your own row colors except for a row state (overdue, merge).</p>
+          <p>Every list is an <code>.admin-table</code> inside <code>.admin-table-wrap</code>. The header row is the slate band (white text) and every other row is striped automatically. Do not add your own row colors except for a row state (overdue, merge).</p>
           <div class="sg-item" data-code>
             <h3>List table</h3>
             <div class="sg-demo sg-demo--flush">
-              <div class="admin-table-wrap"><table class="admin-table">
-                <thead><tr><th scope="col" class="col-cust-name">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col" class="center">Ready</th><th scope="col">Last updated</th><th scope="col">Status</th></tr></thead>
+              <div class="admin-table-wrap"><table class="admin-table cards" data-sg-stack>
+                <thead><tr><th scope="col" class="col-cust-name" data-sort="text">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col" class="center">Ready</th><th scope="col">Last updated</th><th scope="col">Status</th></tr></thead>
                 <tbody>
-                  <tr class="is-clickable"><td><a href="#tables"><strong>Smith, Jane</strong></a></td><td class="nowrap">(555) 123-4567</td><td><button type="button" class="btn btn--ghost btn--small cust-email">Email</button></td><td class="center"><span class="pill pill--arrived">2</span></td><td class="card__meta nowrap">Oct 9, 2026</td>
-                    <td class="nowrap"><span class="cust-icons"><span class="cust-icon is-solid is-alert" role="img" aria-label="No phone number" title="No phone number"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg></span></span></td></tr>
-                  <tr class="is-clickable"><td><a href="#tables"><strong>Smith, Jane</strong></a></td><td class="nowrap">(555) 987-6543</td><td><button type="button" class="btn btn--ghost btn--small cust-email">Email</button></td><td class="center"><span class="card__meta">–</span></td><td class="card__meta nowrap">Oct 7, 2026</td><td></td></tr>
-                  <tr class="is-overdue"><td><strong>Jones, Pat</strong></td><td class="nowrap">(555) 222-3333</td><td></td><td class="center">1</td><td class="card__meta nowrap">Sep 2, 2026</td><td><span class="cust-warn">Past pickup window</span></td></tr>
-                  <tr class="is-clickable"><td><a href="#tables"><strong>Lee, Sam</strong></a></td><td class="nowrap">(555) 444-5555</td><td><button type="button" class="btn btn--ghost btn--small cust-email">Email</button></td><td class="center"><span class="card__meta">–</span></td><td class="card__meta nowrap">Oct 1, 2026</td><td></td></tr>
+                  <tr class="is-clickable"><td class="card-title"><a href="#tables"><strong>Smith, Jane</strong></a></td><td class="nowrap">(555) 123-4567</td><td class="card-action"><button type="button" class="btn btn--ghost btn--small cust-email">Email</button></td><td class="center card-key card-label"><span class="pill pill--accent">2</span></td><td class="card__meta nowrap">Oct 22</td><td class="card-wide"><span class="pill pill--open">Open</span></td></tr>
+                  <tr class="is-clickable"><td class="card-title"><a href="#tables"><strong>Lee, Sam</strong></a></td><td class="nowrap">(555) 444-5555</td><td class="card-action"><button type="button" class="btn btn--ghost btn--small cust-email">Email</button></td><td class="center card-key card-label">–</td><td class="card__meta nowrap">Sep 18</td><td class="card-wide"><span class="pill pill--done">Picked up</span></td></tr>
+                  <tr class="is-overdue"><td class="card-title"><strong>Jones, Pat</strong></td><td class="nowrap">(555) 222-3333</td><td class="card-action"></td><td class="center card-key card-label">1</td><td class="card__meta nowrap">Sep 2</td><td class="card-wide"><span class="cust-warn">Past pickup window</span></td></tr>
+                  <tr class="is-clickable"><td class="card-title"><a href="#tables"><strong>Rivera, Alex</strong></a></td><td class="nowrap">(555) 777-8888</td><td class="card-action"><button type="button" class="btn btn--ghost btn--small cust-email">Email</button></td><td class="center card-key card-label">4</td><td class="card__meta nowrap">Oct 19</td><td class="card-wide"><span class="pill pill--ordered">Ordered</span></td></tr>
                 </tbody>
               </table></div>
             </div>
           </div>
           <ul class="sg-rules">
             <li>Customer columns always run <strong>Name, Phone, Email</strong>, then the rest of the columns.</li>
-            <li>Phone numbers use <code>formatPhone()</code> from <code>js/util.js</code>. Emails are the small <code>Email</code> button, not raw addresses.</li>
-            <li>Sortable columns put <code>data-sort</code> on the <code>&lt;th&gt;</code>; <code>sortableTable()</code> from <code>lib.js</code> adds the buttons.</li>
-            <li>Set a <code>min-width</code> on the name column so it never collapses (<code>.col-cust-name</code> is 220px).</li>
+            <li>Phone numbers use <code>formatPhone()</code> from <code>lib.js</code>. Emails are the small <code>Email</code> button, not raw addresses.</li>
+            <li>Sortable columns put <code>data-sort</code> on the <code>&lt;th&gt;</code>; <code>sortableTable()</code> from <code>lib.js</code> adds the buttons and arrows.</li>
             <li>Use <code>.center</code> for numeric columns and <code>.nowrap</code> for dates, phones and IDs.</li>
             <li><code>tr.is-overdue</code> (pink) and <code>tr.is-hidden</code> (faded) are the only row states.</li>
           </ul>
@@ -244,11 +309,38 @@
         </section>
 
         <!-- ===================================================== -->
+        <section class="sg-section" id="cards">
+          <h2>Card lists (phones)</h2>
+          <p>On phones and tablets (up to 899px) a table with four or more columns becomes a list of cards. Add <code>cards</code> to the table and say what each cell is with a role class; <code>admin.js</code> copies each column heading onto its cell as <code>data-label</code>. Narrow the window to see this table stack.</p>
+          <div class="sg-item" data-code>
+            <h3>A card list</h3>
+            <div class="sg-demo sg-demo--flush">
+              <div class="admin-table-wrap"><table class="admin-table cards" data-sg-stack>
+                <thead><tr><th scope="col">Title</th><th scope="col">Publisher</th><th scope="col">Copies</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+                <tbody>
+                  <tr><td class="card-title">Absolute Batman #12<br><span class="card__meta">SKU 700000000001</span></td><td>DC Comics</td><td class="center card-key card-label">2</td><td class="card-wide"><span class="pill pill--open">Open</span></td><td class="card-foot"><button class="btn btn--ghost btn--small" type="button">View</button> <button class="btn btn--ghost btn--small" type="button">Edit</button></td></tr>
+                  <tr><td class="card-title">Saga #70<br><span class="card__meta">SKU 700000000003</span></td><td>Image Comics</td><td class="center card-key card-label">1</td><td class="card-wide"><span class="pill pill--ordered">Ordered</span></td><td class="card-foot"><button class="btn btn--ghost btn--small" type="button">View</button> <button class="btn btn--ghost btn--small" type="button">Edit</button></td></tr>
+                </tbody>
+              </table></div>
+            </div>
+          </div>
+          <div class="sg-item">
+            <h3>Roles</h3>
+            <pre class="sg-code">.card-title   the name; fills the first line         .card-action  a button at the end of the first line
+.card-lead    a tick box before the title            .card-line    a line of its own under the title
+.card-key     a figure that matters (copies, …)      .card-wide    a line of its own at the end (status, notes)
+.card-foot    buttons on a last line                 .card-label   put the column heading in front ("Copies 4")
+cards--slim   a narrow action (an icon button)       card-expand   a row that holds a table or other content under a card</pre>
+          </div>
+          <p class="sg-do"><strong>Do</strong> reuse these roles for every new list instead of writing a screen-specific phone layout.</p>
+        </section>
+
+        <!-- ===================================================== -->
         <section class="sg-section" id="status">
           <h2>Status &amp; pills</h2>
-          <p>Pills carry text, so they never rely on color alone. One component, <code>.pill</code>, with a tone named for its meaning: <code>pill--open</code>, <code>--ordered</code>, <code>--done</code>, <code>--warn</code>, <code>--off</code>, <code>--accent</code>, <code>--danger</code>, <code>--super</code>. Statuses that mean the same thing share a tone (e.g. <code>pill--picked_up</code> and <code>pill--available</code> are both &ldquo;done&rdquo;), so a status can use its own name as the modifier.</p>
+          <p>Pills carry text, so they never rely on color alone. One component, <code>.pill</code>, with a tone named for its meaning. Pills are always upper case.</p>
           <div class="sg-item" data-code>
-            <h3>Line status pills</h3>
+            <h3>Line status</h3>
             <div class="sg-demo"><div class="sg-row">
               <span class="pill pill--open">Open</span>
               <span class="pill pill--ordered">Ordered</span>
@@ -256,13 +348,23 @@
               <span class="pill pill--picked_up">Picked up</span>
               <span class="pill pill--not_ordered">Not ordered</span>
               <span class="pill pill--released">Released</span>
+              <span class="pill pill--cancelled">Cancelled</span>
             </div></div>
           </div>
           <div class="sg-item" data-code>
-            <h3>Order kinds and failures</h3>
+            <h3>Titles, kinds and roles</h3>
             <div class="sg-demo"><div class="sg-row">
+              <span class="pill pill--pre_order">Pre-order</span>
+              <span class="pill pill--available">Available</span>
+              <span class="pill pill--low_stock">Low stock</span>
+              <span class="pill pill--sold_out">Sold out</span>
+              <span class="pill pill--sale">Sale</span>
+              <span class="pill pill--clearance">Clearance</span>
               <span class="pill pill--pull">Pull list</span>
               <span class="pill">Guest order</span>
+              <span class="pill pill--owner"><svg class="solid-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path d="M3 7l4.5 4L12 4l4.5 7L21 7l-2 11H5zM5.5 19.5h13V21h-13z"/></svg> Owner</span>
+              <span class="pill pill--staff"><svg class="solid-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path d="M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg> Staff</span>
+              <span class="pill pill--super"><svg class="solid-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path d="M12 2 20 5v7c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V5zM12 6.5l1.2 2.7 2.9.3-2.2 1.9.7 2.9L12 12.9l-2.6 1.4.7-2.9-2.2-1.9 2.9-.3z"/></svg> Super admin</span>
               <span class="pill pill--failed">Failed</span>
             </div></div>
           </div>
@@ -289,6 +391,7 @@
         <!-- ===================================================== -->
         <section class="sg-section" id="containers">
           <h2>Panels &amp; folds</h2>
+          <p>A <strong>panel</strong> is a white card. A <strong>fold</strong> is a card with a slate header band; if you click the band it opens and closes. Every clickable header is at least 52px tall; the Place Order cutoffs are 56px.</p>
           <div class="sg-item" data-code>
             <h3>Page title row</h3>
             <div class="sg-demo">
@@ -300,12 +403,37 @@
             <div class="sg-demo"><section class="panel"><h2>Notes</h2><p class="admin-hint">Pickup preferences, anything worth remembering.</p></section></div>
           </div>
           <div class="sg-item" data-code>
-            <h3>Fold (collapsible group)</h3>
+            <h3>Folds: open and closed, with a note on the right</h3>
             <div class="sg-demo">
               <details class="fold" open><summary class="fold__head"><h2>Profile</h2><span class="card__meta">don@example.com · (555) 123-4567</span></summary><div class="fold__body"><p class="m-0">Fold contents go here. The chevron is added automatically.</p></div></details>
               <details class="fold"><summary class="fold__head"><h2>Closed fold</h2></summary><div class="fold__body">Hidden until opened.</div></details>
             </div>
           </div>
+          <div class="sg-item" data-code>
+            <h3>Static fold (always open, not clickable)</h3>
+            <div class="sg-demo">
+              <details class="fold toorder fold--static" open><summary class="fold__head"><h2>Shop<span class="toorder__count">Name and tagline</span></h2></summary><div class="fold__body"><p class="m-0">Used to give a long form a titled section.</p></div></details>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Fold with a count and an action at the top (Place Order cutoff)</h3>
+            <div class="sg-demo">
+              <details class="fold toorder" data-foc="2026-10-29" open>
+                <summary class="fold__head"><h2>Cutoff Thu, Oct 29<span class="toorder__count">2 titles · 4 copies</span></h2></summary>
+                <div class="fold__body">
+                  <div class="admin-actions toorder__actions"><button class="btn btn--green" type="button">Mark 4 copies ordered</button></div>
+                  <p class="m-0">The main action sits at the top of the body, right aligned, never in the header (a button in the header makes it hard to tap open).</p>
+                </div>
+              </details>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>“How this works” (hintFold)</h3>
+            <div class="sg-demo">
+              <details class="admin-hint-fold" open><summary><svg class="solid-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6.5c2.2 0 3.8 1.3 3.8 3.3 0 1.4-.7 2.2-1.7 3-.9.7-1.3 1.1-1.3 2v.3h-2v-.4c0-1.4.6-2.1 1.6-2.9.9-.7 1.3-1.1 1.3-1.9 0-.9-.7-1.5-1.7-1.5-1 0-1.7.7-1.8 1.7h-2C8.2 7.9 9.8 6.5 12 6.5zM13.2 17.4a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/></svg> How this works</summary><p class="admin-hint">Instructions that fold away on phones and stay open on desktop. Build it with <code>hintFold(html)</code> from <code>lib.js</code>.</p></details>
+            </div>
+          </div>
+          <p class="sg-dont"><strong>Don’t</strong> put buttons inside a clickable header. Put them in the body, or use a static fold.</p>
         </section>
 
         <!-- ===================================================== -->
@@ -330,7 +458,7 @@
 
         <!-- ===================================================== -->
         <section class="sg-section" id="dashboard">
-          <h2>Dashboard tiles &amp; cards</h2>
+          <h2>Dashboard</h2>
           <div class="sg-item" data-code>
             <h3>Tiles</h3>
             <div class="sg-demo">
@@ -372,7 +500,17 @@
         <!-- ===================================================== -->
         <section class="sg-section" id="spacing">
           <h2>Spacing &amp; utilities</h2>
-          <p>Use the <code>--sp-*</code> scale (2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 32 px), the <code>--radius-*</code> steps and the status colors (<code>--danger</code>, <code>--success</code>, <code>--info</code>, <code>--stripe</code>) from <code>base.css</code> instead of bare numbers and hex codes. For one-off spacing or layout, use a utility class instead of <code>style=""</code>. Utilities sit at the end of <code>admin.css</code> and always win.</p>
+          <p>Use the <code>--sp-*</code> scale for margin, padding and gap, the <code>--radius-*</code> steps, and the status colors from <code>base.css</code>. Do not write bare pixel values.</p>
+          <div class="sg-item">
+            <h3>Spacing scale</h3>
+            <div class="sg-demo">
+              <div class="stack gap-4">
+                <div><span class="sg-spacer" style="width:var(--sp-2)"></span> <code>--sp-2</code> 2px · <span class="sg-spacer" style="width:var(--sp-4)"></span> <code>--sp-4</code> 4px · <span class="sg-spacer" style="width:var(--sp-6)"></span> <code>--sp-6</code> 6px · <span class="sg-spacer" style="width:var(--sp-8)"></span> <code>--sp-8</code> 8px</div>
+                <div><span class="sg-spacer" style="width:var(--sp-10)"></span> <code>--sp-10</code> · <span class="sg-spacer" style="width:var(--sp-12)"></span> <code>--sp-12</code> · <span class="sg-spacer" style="width:var(--sp-14)"></span> <code>--sp-14</code> · <span class="sg-spacer" style="width:var(--sp-16)"></span> <code>--sp-16</code></div>
+                <div><span class="sg-spacer" style="width:var(--sp-20)"></span> <code>--sp-20</code> · <span class="sg-spacer" style="width:var(--sp-24)"></span> <code>--sp-24</code> · <span class="sg-spacer" style="width:var(--sp-32)"></span> <code>--sp-32</code></div>
+              </div>
+            </div>
+          </div>
           <div class="sg-item">
             <h3>Stack and cluster</h3>
             <div class="sg-demo">
@@ -390,33 +528,85 @@ text-muted · text-danger · text-success · text-right · font-mono · nowrap</
           </div>
         </section>
 
+        <!-- ===================================================== -->
         <section class="sg-section" id="patterns">
-          <h2>Patterns</h2>
+          <h2>Rules</h2>
           <ul class="sg-rules">
-            <li><strong>Where code lives:</strong> shared components in <code>admin/base.css</code> and <code>admin/admin.css</code>; one screen per file in <code>admin/sections/</code>; helpers (<code>esc</code>, <code>toast</code>, <code>openDialog</code>, <code>sortableTable</code>, <code>formatPhone</code>, <code>withCustomers</code>) in <code>admin/lib.js</code>.</li>
+            <li><strong>Where code lives:</strong> shared components in <code>admin/base.css</code> and <code>admin/admin.css</code>; one screen per file in <code>admin/sections/</code>; helpers (<code>esc</code>, <code>toast</code>, <code>openDialog</code>, <code>hintFold</code>, <code>sortableTable</code>) in <code>admin/lib.js</code>.</li>
+            <li><strong>One look for each job:</strong> headers are the slate band; actions are buttons from the Buttons section; states are pills. If you need something that is not here, add it here first.</li>
+            <li><strong>Tap targets:</strong> 48px for buttons and 44px for small buttons and fields on phones; clickable fold headers 52px.</li>
             <li><strong>Always escape</strong> text put into markup with <code>esc()</code>.</li>
             <li><strong>Customer details:</strong> show a customer’s current name, phone and email, not what an order was placed with. Use <code>withCustomers(sb, orders)</code>.</li>
-            <li><strong>Accessibility:</strong> visible labels, <code>role="status"</code> for save results and <code>role="alert"</code> for errors, buttons not links for actions, and at least 36px tap targets (<code>btn--small</code>) in tables.</li>
+            <li><strong>Accessibility:</strong> visible labels, <code>role="status"</code> for save results and <code>role="alert"</code> for errors, buttons not links for actions, and text that keeps at least 4.5:1 contrast in both themes.</li>
             <li><strong>Query builders:</strong> never return a Supabase query from an <code>async</code> function; it runs early and breaks <code>.range()</code>.</li>
             <li><strong>New component?</strong> Add it to this page in the same commit.</li>
           </ul>
+          <div class="sg-item">
+            <h3>Deliberate exceptions</h3>
+            <ul class="sg-rules">
+              <li>Filter labels on the Titles screen are a little smaller than other field labels, so seven filters fit on one row.</li>
+              <li>The up and down arrows on FAQ questions are fixed-width icon buttons rather than the standard small button.</li>
+              <li>The Edit button in the Titles list on phones has tighter side padding so it fits beside the cover and status.</li>
+            </ul>
+          </div>
         </section>
       </div>
     </div>
   </main>
 
   <script>
+    // Theme switch (same storage key as the admin, so it follows the choice made in Staff → My Account).
+    (function () {
+      var KEY = 'admin-theme';
+      var dark = matchMedia('(prefers-color-scheme: dark)');
+      var get = function () { try { var t = localStorage.getItem(KEY); return t === 'light' || t === 'dark' ? t : 'auto'; } catch (e) { return 'auto'; } };
+      var paint = function () {
+        var c = get();
+        document.documentElement.dataset.theme = c === 'dark' || (c === 'auto' && dark.matches) ? 'dark' : 'light';
+        document.querySelectorAll('[data-sg-theme]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.sgTheme === c)); });
+        document.querySelectorAll('[data-var]').forEach(function (el) { el.textContent = el.dataset.var + ' ' + getComputedStyle(document.documentElement).getPropertyValue(el.dataset.var).trim(); });
+      };
+      document.querySelectorAll('[data-sg-theme]').forEach(function (b) {
+        b.addEventListener('click', function () { try { localStorage.setItem(KEY, b.dataset.sgTheme); } catch (e) {} paint(); });
+      });
+      dark.addEventListener('change', paint);
+      paint();
+    })();
+
+    // Stacked card lists on phones: the same tagging admin.js does (a `cards` table stacks whatever its width).
+    (function () {
+      var mq = matchMedia('(max-width: 899px)');
+      var stack = function () {
+        document.querySelectorAll('table[data-sg-stack]').forEach(function (table) {
+          var heads = [];
+          table.querySelectorAll('thead tr:last-child th').forEach(function (th) {
+            var hidden = th.querySelector('.visually-hidden');
+            heads.push(hidden && th.textContent.trim() === hidden.textContent.trim() ? '' : th.textContent.trim());
+          });
+          var on = mq.matches && (table.classList.contains('cards') || heads.length >= 4);
+          table.classList.toggle('is-stack', on);
+          if (on) table.querySelectorAll('tbody tr').forEach(function (tr) {
+            [].forEach.call(tr.children, function (td, i) { if (td.dataset.label === undefined) td.dataset.label = heads[i] || ''; });
+          });
+        });
+      };
+      mq.addEventListener('change', stack);
+      stack();
+    })();
+
     // Fill each example's code box from the live markup so the two can never drift apart.
-    document.querySelectorAll('[data-code]').forEach((item) => {
-      const demo = item.querySelector('.sg-demo');
+    document.querySelectorAll('[data-code]').forEach(function (item) {
+      var demo = item.querySelector('.sg-demo');
       if (!demo) return;
-      const clone = demo.cloneNode(true);
-      clone.querySelectorAll('[id^="sg-"]').forEach((el) => el.removeAttribute('id'));
-      const lines = clone.innerHTML.replace(/^\s*\n|\n\s*$/g, '').split('\n');
-      const indent = Math.min(...lines.filter((l) => l.trim()).map((l) => l.match(/^\s*/)[0].length));
-      const pre = document.createElement('pre');
+      var clone = demo.cloneNode(true);
+      clone.querySelectorAll('[id^="sg-"]').forEach(function (el) { el.removeAttribute('id'); });
+      clone.querySelectorAll('[data-label]').forEach(function (el) { el.removeAttribute('data-label'); });
+      clone.querySelectorAll('table.is-stack').forEach(function (el) { el.classList.remove('is-stack'); });
+      var lines = clone.innerHTML.replace(/^\s*\n|\n\s*$/g, '').split('\n');
+      var indent = Math.min.apply(null, lines.filter(function (l) { return l.trim(); }).map(function (l) { return l.match(/^\s*/)[0].length; }));
+      var pre = document.createElement('pre');
       pre.className = 'sg-code';
-      pre.textContent = lines.map((l) => l.slice(indent)).join('\n').trim();
+      pre.textContent = lines.map(function (l) { return l.slice(indent); }).join('\n').trim();
       demo.insertAdjacentElement('afterend', pre);
     });
   </script>
