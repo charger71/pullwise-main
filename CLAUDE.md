@@ -14,8 +14,4 @@
 - `npm test` runs the unit tests and `admin/consistency.test.js`: contrast in both themes, tokens only (no bare
   colours, font sizes, z-index or breakpoints), row colours, fold markup, no unused CSS, and more. Run it before
   every commit.
-- **Screenshot check** (`.github/workflows/visual.yml`, `tools/visual/`): every pull request touching `admin/`,
-  `js/` or `css/` is compared, screen by screen, with its base branch. When a visible change is intended, say so
-  in the PR and add the `visual-change` label. A new screen or state needs fixture data in
-  `tools/visual/fixtures.js` to be covered.
 - The git pre-commit hook stamps `admin/version.js`; never edit it by hand.
