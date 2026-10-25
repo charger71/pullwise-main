@@ -176,6 +176,14 @@ check('the style guide shows every shared component', () => {
   assert.equal(missing.length, 0, `style-guide.html has no example of: ${missing.join(', ')}.\nAdd it to the guide in the same change.`);
 });
 
+// ---- Row colours ---------------------------------------------------------------------------------------------------
+// Rows are painted, never their cells, from one block in priority order; an !important or a cell colour starts the fight again.
+check('table row colours paint the row, without !important', () => {
+  const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1].trim(), m[2]]);
+  const bad = rules.filter(([sel, body]) => /background/.test(body) && (/\btd\b/.test(sel) || (/\btr\b/.test(sel) && /!important/.test(body))));
+  assert.equal(bad.length, 0, `Paint table rows (tr) from the "Row colours" block, not cells or !important:\n${bad.map(([s]) => s).join('\n')}`);
+});
+
 // ---- Breakpoints ---------------------------------------------------------------------------------------------------
 // Phone < 600, tablet 600-899, desktop >= 900, wide >= 1200; 700 splits small tablets and 380 the narrowest phones.
 check('media queries only use the shared breakpoints', () => {
