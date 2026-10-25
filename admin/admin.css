@@ -153,7 +153,6 @@
 }
 .admin-section:focus { outline: none; }
 .admin-section h1 { font-size: 1.8rem; }
-.admin-subhead { font-size: 1.2rem; margin-top: var(--sp-32); }
 .admin-title-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-10) var(--sp-16); margin-bottom: var(--sp-12); }
 .admin-title-row h1, .admin-title-row h2 { margin: 0; }
 .admin-title-row:has(> h1) { margin-bottom: calc(var(--fs-h1) * .5); } /* the same gap under a page title with or without buttons beside it */
@@ -241,7 +240,6 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .job-log li:last-child { border-bottom: 0; }
 .job-log li { display: grid; gap: var(--sp-2) var(--sp-12); padding: var(--sp-10) var(--sp-14); border-bottom: var(--border); font-size: .9rem; }
 @media (min-width: 700px) { .job-log li { grid-template-columns: 130px auto 1fr; align-items: baseline; } .job-log__msg { grid-column: 2 / -1; } }
-.job-log li.is-failed, .job-log li.is-failed:nth-child(even) { background: var(--danger-soft); }
 .job-log__when { color: var(--muted); }
 .job-log__msg { color: var(--muted); word-break: break-word; }
 
@@ -263,19 +261,11 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .fold:not(.fold--static) .fold__head { min-height: 52px; } /* a header you click or tap open is a roomy target (the Place Order cutoffs are 56px) */
 .fold--static > .fold__head { cursor: default; }
 .fold--static > .fold__head::after { display: none; }
-
 /* ---------- Reservations ---------- */
-.order__head { padding: 9px var(--sp-12); gap: var(--sp-4) var(--sp-12); flex-wrap: nowrap; }
-.order__who { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-2) var(--sp-10); }
-.order__name { margin: 0; font-weight: 700; font-size: .9rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.order__count, .order__when { flex: none; white-space: nowrap; }
-.order__when { font-size: .8rem; color: var(--muted); }
-.order__count { font-family: var(--font-body); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 1px var(--sp-8); border-radius: var(--radius-pill); background: var(--ink); color: var(--paper); }
+.order__when { flex: none; white-space: nowrap; font-size: .8rem; color: var(--muted); }
 .order__meta { margin: 0; flex: none; display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-end; gap: var(--sp-2) var(--sp-8); font-size: .85rem; }
 @media (max-width: 700px) { .order__meta { flex-wrap: wrap; flex: 0 1 auto; } }
 .order__meta > * { white-space: nowrap; }
-/* Phones: let the header wrap rather than squeeze the name away. */
-@media (max-width: 700px) { .order__who { flex-wrap: wrap; } .order__name { white-space: normal; } }
 .order__id { font-weight: 700; }
 .order__lines { box-shadow: none; margin-bottom: var(--sp-8); table-layout: fixed; }
 /* Title takes whatever is left; Qty, Out and Status are fixed so every order lines up. */
@@ -303,11 +293,6 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .toorder .fold__head { padding: 5px var(--sp-16); }
 .toorder .fold__head h2 { flex: 1 1 0; min-width: 0; }
 .toorder .fold__head .btn { flex: none; }
-/* Orders tab: same compact header as To order, name left, details and the green action right. */
-.order.toorder .fold__head { flex-wrap: nowrap; }
-.order.toorder .order__who { flex: 1 1 0; }
-.order.toorder .order__name { flex: 0 1 auto; font-size: 1rem; }
-@media (max-width: 700px) { .order.toorder .fold__head { flex-wrap: wrap; } }
 
 /* ---------- Media ---------- */
 .media-grid { list-style: none; padding: 0; display: grid; gap: var(--sp-10); grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
@@ -414,7 +399,6 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .order__messages { margin-top: var(--sp-14); }
 .order__messages > summary { cursor: pointer; font-weight: 700; }
 .order__messages .cust-messages { margin-top: var(--sp-8); }
-.admin-rule { border: 0; border-top: var(--border); margin: 28px 0 var(--sp-20); }
 .dash-top { font-size: .88rem; }
 .dash-top th, .dash-top td { padding: var(--sp-4) var(--sp-8); }
 .dash-top__rank { width: 2.2em; text-align: center; font: 700 .95rem var(--font-body); color: var(--muted); }
@@ -622,11 +606,6 @@ tr.is-clickable { cursor: pointer; }
   .admin-filters--wide-search { flex-wrap: wrap; }
   .admin-filters--wide-search .field--search { flex: 1 1 100%; }
 }
-
-/* Settings: section chips and the email send tools */
-.settings-jump { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-8); margin: 0 0 var(--sp-16); }
-.settings-jump label { font-weight: 600; font-size: .9rem; }
-.settings-jump select { width: auto; min-width: 200px; }
 .admin-notice { margin: 0; padding: 10px var(--gutter); background: #ffd100; color: #161616; font-weight: 600; text-align: center; }
 .dash-announce { margin-bottom: var(--sp-16); } /* it sits above the tiles, outside the card grid that spaces the others */
 .dash-announce h2 { margin: 0 0 var(--sp-4); }
@@ -748,7 +727,7 @@ tr.is-clickable { cursor: pointer; }
 .fold__head h2, .panel h2, .dash-card h2, .email-tools__title { font-family: var(--font-body); font-weight: 700; }
 
 /* To order: hidden row of customers under a title, flowing into columns */
-.toorder__people > td { background: var(--surface-alt, rgba(0, 0, 0, 0.04)); padding: 0.6rem 1rem; }
+.toorder__people > td { background: var(--stripe); padding: 0.6rem 1rem; }
 .toorder__list { list-style: none; margin: 0; padding: 0; column-width: 14rem; column-gap: 1.5rem; }
 .toorder__list li { break-inside: avoid; padding: 0.1rem 0; }
 
@@ -999,11 +978,6 @@ tr.is-clickable { cursor: pointer; }
   .order-tools__btns { grid-column: 1 / -1; margin-bottom: var(--sp-8); }
   .order-tools [data-ot-summary] { font-weight: 600; color: var(--ink); margin-top: var(--sp-8); }
 }
-
-/* ---------- Past Orders on phones: title, then the figures, then what became of the copies ---------- */
-@media (max-width: 899px) {
-}
-
 /* ---------- Customers list on phones ---------- */
 .cust-more > summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
 .cust-more__body { display: grid; gap: var(--sp-8); padding-bottom: var(--sp-8); }

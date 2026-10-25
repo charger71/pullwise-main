@@ -102,6 +102,26 @@ check('every button variant used exists in the CSS', () => {
   assert.equal(missing.length, 0, `btn--${missing.join(', btn--')} used but not defined`);
 });
 
+// ---- Dead CSS ------------------------------------------------------------------------------------------------------
+check('every class in the admin CSS is used by some screen', () => {
+  // Any word in the admin's own files or the shared site scripts counts as a use, which also covers classes built from
+  // a value (pill--${status}); the dashboard's is-${level} dots are listed by name. Names built another way go in BY_DESIGN.
+  const readAll = (d) => readdirSync(join(dir, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? readAll(join(d, e.name)) : e.name.endsWith('.js') && !e.name.endsWith('.test.js') ? [read(join(d, e.name))] : []));
+  const words = new Set(`${readAll('.').join('\n')}\n${read('index.html')}\n${read('style-guide.html')}\n${readdirSync(join(dir, '..', 'js')).filter((f) => f.endsWith('.js')).map((f) => readFileSync(join(dir, '..', 'js', f), 'utf8')).join('\n')}`.match(/[A-Za-z_][\w-]*/g));
+  const BY_DESIGN = /^(ql-|img-align-|pill--|is-(ok|warn|bad|off)$|(m[tbl]?|gap)-\d+$|ml-auto$|text-(muted|danger|success|right)$|items-|justify-|flex-1$|font-mono$|nowrap$|center$)/;
+  const defined = new Set([...allCss.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{[^}]*\}/g, '{}').matchAll(/\.([A-Za-z_][\w-]*)/g)].map((m) => m[1]));
+  const dead = [...defined].filter((c) => !words.has(c) && !BY_DESIGN.test(c)).sort();
+  assert.equal(dead.length, 0, `${dead.join(', ')} are defined in the admin CSS but no screen, script or the style guide uses them.\nDelete the rules, or add the name to BY_DESIGN here if it is built some other way.`);
+});
+
+check('every CSS variable that is used is defined', () => {
+  const stripped = allCss.replace(/\/\*[\s\S]*?\*\//g, '');
+  const defined = new Set([...stripped.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+  const inScripts = Object.values(sections).join('\n');
+  const missing = [...new Set([...stripped.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]))].filter((v) => !defined.has(v) && !inScripts.includes(v));
+  assert.equal(missing.length, 0, `${missing.join(', ')} used but never defined (a fallback value hides it, and then it never follows the theme).`);
+});
+
 // ---- Pills --------------------------------------------------------------------------------------------------------
 check('every pill tone used exists in the CSS', () => {
   const used = uniq([...Object.values(sections), guide].flatMap((t) => [...t.matchAll(/\bpill--([a-z_]+)\b/g)].map((m) => m[1])));
