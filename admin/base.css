@@ -33,7 +33,6 @@
   --fs-card: 1.15rem;    /* the heading of a card, panel or fold (h2 inside a card) */
   --fs-h1: clamp(1.9rem, 6vw, 3rem);   /* page title */
   --fs-compact: 1rem;    /* titles inside dense lists */
-  --space-block: 24px;   /* gap under a page title block */
 
   /* Spacing scale, named by pixels. Use these for margin, padding and gap instead of bare numbers. */
   --sp-2: 2px;  --sp-4: 4px;  --sp-6: 6px;  --sp-8: 8px;  --sp-10: 10px;  --sp-12: 12px;
@@ -55,7 +54,6 @@
   --info-hover: #1f5183;
   --stripe: #f0f3f6;     /* alternating-row and callout background */
   --head-bg: #dfe4ea;
-  --head-bg-hover: #cad4e2;
   --fold-head-bg: #434f62;   /* collapsible-section header band, white text on it in both themes */
   --header-bg: var(--ink);   /* top bar */
   --header-fg: var(--paper);
@@ -121,7 +119,6 @@
   --info-hover: #2b6099;
   --stripe: #3b4554;
   --head-bg: #212830;
-  --head-bg-hover: #29313b;
   --header-bg: #22272f;
   --header-fg: #e1e4e8;
   --tab-bg: #353e4a;
@@ -189,7 +186,6 @@ h2 { font-size: clamp(1.4rem, 4vw, 2rem); }
 h3 { font-size: var(--fs-sub); }
 p { margin: 0 0 1em; }
 .container { width: 100%; max-width: var(--max); margin-inline: auto; padding-inline: var(--gutter); }
-.section { padding-block: 40px; }
 .lede { font-size: 1.1rem; color: var(--muted); max-width: 60ch; margin-bottom: 1em; }
 .lede > :last-child { margin-bottom: 0; }
 /* Staff-edited rich text (admin WYSIWYG): a quote block shows as a callout box. */
@@ -271,75 +267,11 @@ input[type='checkbox'], input[type='radio'] {
 .field { margin-bottom: 14px; }
 .field__hint { font-size: .85rem; color: var(--muted); margin-top: 4px; }
 .form-error { color: var(--danger-ink); font-weight: 700; }
-/* ---------- Header / nav ---------- */
+/* ---------- Header ---------- */
 .brand { text-decoration: none; display: flex; align-items: center; gap: 10px; }
 .brand__name { font-family: var(--font-display); font-size: 1.2rem; color: var(--brand-primary); line-height: 1.1; }
-.nav { display: none; position: absolute; left: 0; right: 0; top: 100%; background: var(--surface); box-shadow: 0 8px 16px rgb(0 0 0 / .08); }
-.nav ul { list-style: none; margin: 0; padding: 8px var(--gutter) 16px; }
-.nav a { display: block; padding: 12px 4px; font-weight: 700; text-decoration: none; border-bottom: 1px solid #0001; white-space: nowrap; }
-.nav a[aria-current='page'] { color: var(--brand-primary); }
-/* Eight menu links plus the logo need ~1000px; below 1100px the menu stays behind the button. */
-@media (min-width: 1100px) {
-  .nav { display: block; position: static; border: 0; background: none; box-shadow: none; }
-  .nav ul { display: flex; gap: 4px; padding: 0; }
-  .nav a { padding: 8px 10px; border: 0; border-radius: var(--radius); }
-  .nav a[aria-current='page'] { background: var(--brand-accent); color: var(--on-accent); }
-}
-/* ---------- Footer ---------- */
-address { font-style: normal; margin-bottom: 1em; }
-/* Social icons (footer, Visit page): 44px tap targets, current text color. */
-.socials { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 12px 0; }
-.socials a {
-  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
-  color: inherit; background: rgb(127 127 127 / .14); transition: background .15s, color .15s;
-}
-.socials a:hover { background: var(--brand-primary); color: #fff; }
-.socials svg { width: 20px; height: 20px; fill: currentColor; }
-/* Footer: plain icons (no circles), row pulled left so the first glyph lines up
-   with the text above; each link keeps its 44px tap area. */
-.hours { margin: 0; }
-.hours div { display: flex; justify-content: space-between; gap: 16px; max-width: 280px; }
-.hours dt { font-weight: 700; }
-.hours dd { margin: 0; }
-/* ---------- Hero ---------- */
-.hero {
-  background:
-    radial-gradient(circle, #0002 1.2px, transparent 1.4px) 0 0 / 12px 12px,
-    var(--brand-accent);
-  padding-block: 48px;
-}
-.hero h1 { font-size: clamp(2.2rem, 9vw, 4.2rem); margin-bottom: .25em; }
-.hero h1 span { color: var(--brand-primary); }
-/* Banner photo: a dark overlay keeps the headline readable on any picture. */
-.hero p { font-size: 1.15rem; max-width: 46ch; }
-/* ---------- Cards / grids ---------- */
-.grid { display: grid; gap: 16px; grid-template-columns: repeat(2, 1fr); }
-@media (min-width: 640px) {
-  .grid { grid-template-columns: repeat(3, 1fr); }
-}
-@media (min-width: 800px) {
-  .grid { grid-template-columns: repeat(4, 1fr); }
-}
-/* Desktop: 6 across. Cards are ~175px wide here, so tighten their contents. */
-@media (min-width: 1080px) {
-  .grid { grid-template-columns: repeat(6, 1fr); gap: 14px; }
-  .grid .card__meta, .grid .foc { font-size: .75rem; }
-  .grid .card .btn { font-size: .85rem; padding: 8px 10px; min-height: 40px; }
-}
-.card {
-  background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
-  display: flex; flex-direction: column; overflow: hidden;
-}
 .card__meta { font-size: .85rem; color: var(--muted); margin: 0; }
-.card .btn { width: 100%; }
-/* Collector chips (1st Appearance, Key Issue, …) */
-.chips { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
-.chips li { font-size: .7rem; font-weight: 700; line-height: 1; padding: 4px 7px; border-radius: 4px; background: var(--ink); color: var(--brand-accent); }
-.cover { aspect-ratio: 2 / 3; width: 100%; object-fit: contain; background: #fff; }
-.foc { font-size: .8rem; font-weight: 700; }
 /* ---------- Filters ---------- */
-/* Checkbox dropdown (multi-select filter) — the button matches a <select>. */
-.multi { position: relative; }
 .filters {
   display: grid; gap: 12px; grid-template-columns: 1fr 1fr;
   background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
@@ -356,7 +288,7 @@ address { font-style: normal; margin-bottom: 1em; }
 }
 .results-count { color: var(--muted); font-size: .9rem; margin-bottom: 12px; }
 .empty { padding: 32px; text-align: center; border: 2px dashed var(--line-dash); border-radius: var(--radius); color: var(--muted); }
-/* ---------- Dialogs (reservation form, lightbox) ---------- */
+/* ---------- Dialogs ---------- */
 dialog { border: 0; border-radius: 10px; box-shadow: var(--shadow-lg); padding: 0; width: min(520px, calc(100vw - 2 * var(--gutter))); max-height: calc(100vh - 32px); color: var(--ink); background: var(--surface); }
 dialog::backdrop { background: #000a; }
 .dialog__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 16px 0; }
@@ -366,22 +298,10 @@ dialog::backdrop { background: #000a; }
 .dialog__close:hover { background: var(--surface); border-color: var(--ink); }
 .dialog__close:focus-visible { outline: none; background: var(--focus); border-color: var(--focus); color: #fff; }
 @media (forced-colors: active) { .dialog__close:focus-visible { outline: 3px solid Highlight; outline-offset: -3px; } }
-.confirm { text-align: center; padding: 8px 0; }
 .notice { background: var(--brand-accent); color: var(--on-accent); border-radius: var(--radius); padding: 10px 12px; font-weight: 700; }
-/* ---------- Reservation list ---------- */
-.list-line__remove { background: none; border: 0; padding: 8px 4px; min-height: 40px; font: inherit; font-size: .9rem; text-decoration: underline; text-underline-offset: 3px; color: var(--muted); cursor: pointer; }
-.list-line__remove:hover { color: var(--brand-primary); }
-/* ---------- Calendar ---------- */
-.event { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; align-items: start; }
-.event + .event { margin-top: 16px; }
-.event h3 { margin: 2px 0 4px; }
-/* Smaller version for the home page's "Coming up" list */
-/* ---------- Misc blocks ---------- */
+/* ---------- Panels and show/hide boxes ---------- */
 .panel { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
 .panel h2 { font-size: var(--fs-card); }
-.map { display: block; width: 100%; aspect-ratio: 4 / 3; border: 0; border-radius: var(--radius); box-shadow: var(--shadow); background: #e8e4dc; }
-/* Visit page: fills the right-hand column, at least as tall as the contact details. */
-#map { display: flex; flex-direction: column; }
 details { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 10px; }
 summary { cursor: pointer; font-weight: 700; padding: 14px 16px; min-height: 44px; list-style: none; display: flex; align-items: center; gap: 10px; }
 summary::-webkit-details-marker { display: none; }
@@ -392,24 +312,14 @@ summary::after {
   transform: rotate(45deg); transition: transform .15s;
 }
 details[open] > summary::after { transform: rotate(225deg); margin-top: .25em; }
-@media (prefers-reduced-motion: reduce) {
-  summary::after { transition: none; }
-}
 details > div { padding: 0 16px 14px; }
-#pages, #faq, #events, #news { margin-top: 32px; }
-#series { margin-bottom: 24px; }
-/* Title links read as titles; the underline appears on hover (same as event and news titles elsewhere). */
-.event h3 a { text-decoration: none; }
-.event h3 a:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+  summary::after { transition: none; }
 }
-/* Free-form staff text on the homepage; hidden when empty. */
-/* ---------- Customer account ---------- */
+/* ---------- A tick box beside its label ---------- */
 .field--check { display: flex; align-items: center; gap: 10px; }
 .field--check label { margin: 0; font-weight: 400; }
-/* ---------- Follow (signed-in cards): a link on the card, choices in a dialog ---------- */
-/* ---------- Pre-orders: collapsible "How it works" ---------- */
 
 /* ---------- Loading spinner ---------- */
 /* While anything on the page is loading (aria-busy, or "Loading…" text) the page dims and a small
