@@ -83,6 +83,7 @@
           <li><a href="#messages">Messages</a></li>
           <li><a href="#dashboard">Dashboard</a></li>
           <li><a href="#dialogs">Dialogs</a></li>
+          <li><a href="#screens">Screen patterns</a></li>
           <li><a href="#spacing">Spacing &amp; utilities</a></li>
           <li><a href="#patterns">Rules</a></li>
         </ul>
@@ -227,7 +228,7 @@
         <!-- ===================================================== -->
         <section class="sg-section" id="forms">
           <h2>Forms</h2>
-          <p>Every input, select and search box is the same height (<code>--field-h</code>, 44px). Wrap each control in <code>.field</code> with a visible <code>&lt;label&gt;</code>. Group fields in a <code>form-grid</code>; <code>form-grid--pairs</code> puts short fields two to a row and <code>.span-2</code> keeps a field on the whole row.</p>
+          <p>Every input, select and search box is the same height (<code>--field-h</code>, 44px). Wrap each control in <code>.field</code> with a visible <code>&lt;label&gt;</code>. Group fields in a <code>form-grid</code>; <code>form-grid--pairs</code> puts short fields two to a row and <code>.span-2</code> (or <code>.field--full</code>) keeps a field on the whole row.</p>
           <div class="sg-item" data-code>
             <h3>Fields in a pairs grid</h3>
             <div class="sg-demo">
@@ -247,6 +248,72 @@
             <div class="sg-demo">
               <label class="dropzone" for="sg-drop"><input id="sg-drop" type="file" class="visually-hidden"><strong>Choose spreadsheets</strong> or drop them here</label>
             </div>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Small select (in a table row)</h3>
+            <div class="sg-demo sg-demo--flush">
+              <div class="admin-table-wrap"><table class="admin-table">
+                <thead><tr><th scope="col">Title</th><th scope="col">Status</th></tr></thead>
+                <tbody><tr><td>Absolute Batman #12</td><td><label class="visually-hidden" for="sg-small">Status</label><select id="sg-small" class="select--small"><option>Pre-Order</option><option>Just Arrived</option><option>Available</option></select></td></tr></tbody>
+              </table></div>
+            </div>
+            <p class="admin-hint mt-8">For a status changed right in a list row (Titles, the pull list, an open order), where it grows to the 44px tap size on phones. Anywhere else, use a normal select in a <code>.field</code>.</p>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Tick option in a filter row</h3>
+            <div class="sg-demo">
+              <form class="filters admin-filters" onsubmit="return false">
+                <div class="field field--search"><label for="sg-rdq">Title</label><input id="sg-rdq" type="search" placeholder="Filter by title or publisher"></div>
+                <div class="field"><label class="cust-export-opt" for="sg-rdf"><input type="checkbox" id="sg-rdf"> Include titles releasing after this week</label></div>
+              </form>
+            </div>
+            <p class="admin-hint mt-8"><code>cust-export-opt</code> is a quiet tick-box that changes what a list or an export includes. On phones it takes its own full-width row.</p>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Colours</h3>
+            <div class="sg-demo">
+              <div class="form-grid form-grid--pairs color-grid">
+                <div class="field"><label for="sg-c1">Main color</label><input id="sg-c1" type="color" value="#c8102e"><p class="field__hint">Tabs, charts, alerts and primary buttons</p></div>
+                <div class="field"><label for="sg-c2">Accent</label><input id="sg-c2" type="color" value="#ffd100"><p class="field__hint">Highlights and badges</p></div>
+              </div>
+              <div class="field mt-12"><label for="sg-c3">Link color</label>
+                <div class="color-row"><input id="sg-c3" type="color" value="#1a5fff" disabled><label class="color-row__match"><input type="checkbox" checked> Automatic</label></div>
+              </div>
+            </div>
+            <p class="admin-hint mt-8"><code>color-grid</code> is a pairs grid of full-width swatches; <code>color-row</code> is one swatch with an "Automatic" tick that disables it.</p>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Opening hours row</h3>
+            <div class="sg-demo">
+              <div class="hours-row">
+                <div class="hours-row__days" role="group" aria-label="Days"><label class="chip"><input type="checkbox" checked> Mon</label><label class="chip"><input type="checkbox" checked> Tue</label><label class="chip"><input type="checkbox"> Wed</label><label class="chip"><input type="checkbox"> Sat</label></div>
+                <div class="field"><label for="sg-ho">Open</label><input id="sg-ho" type="time" value="11:00"></div>
+                <div class="field"><label for="sg-hc">Close</label><input id="sg-hc" type="time" value="19:00"></div>
+                <button class="btn btn--danger btn--small" type="button" aria-label="Remove these hours">Remove</button>
+              </div>
+            </div>
+            <p class="admin-hint mt-8">Days are chips with a tick-box inside. Settings (one shop) and Locations (each location) use the same row; on phones the days and Remove take their own lines.</p>
+          </div>
+          <div class="sg-item">
+            <h3>Rich-text editor</h3>
+            <pre class="sg-code" tabindex="0">&lt;div class="editor-block"&gt;
+  &lt;label id="p-body-label"&gt;Text&lt;/label&gt;
+  &lt;p class="editor-block__hint"&gt;What this text is for, in one line.&lt;/p&gt;
+  &lt;div data-body&gt;&lt;/div&gt;
+&lt;/div&gt;
+const quill = makeEditor($('[data-body]', el), 'body', $('#p-body-label', el)); // 'lede' for a short intro
+setHtml(quill, saved); … getHtml(quill)</pre>
+            <p class="admin-hint mt-8"><code>makeEditor</code> (lib.js) builds the Quill toolbar, names its icon buttons for screen readers, ties the editor to the label, and adds image, video, table and divider tools. <code>'body'</code> gives a tall editor (<code>editor--body</code>), <code>'lede'</code> a short one (<code>editor--lede</code>). Quill loads from a CDN, so it isn't live on this page.</p>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Picture list (Media)</h3>
+            <div class="sg-demo">
+              <ul class="media-grid">
+                <li class="media-item"><a href="#forms"><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect width=%2240%22 height=%2240%22 fill=%22%23c8ced6%22/%3E%3C/svg%3E" alt="fcbd-flyer.jpg"></a><p class="card__meta media-item__name">fcbd-flyer.jpg · 240 KB</p><div class="media-item__actions"><button class="btn btn--ghost btn--small" type="button">Copy link</button><button class="btn btn--danger btn--small" type="button">Delete</button></div></li>
+                <li class="media-item"><a href="#forms"><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect width=%2240%22 height=%2240%22 fill=%22%23c8ced6%22/%3E%3C/svg%3E" alt="logo.png"></a><p class="card__meta media-item__name">logo.png · 31 KB</p><div class="media-item__actions"><button class="btn btn--ghost btn--small" type="button">Copy link</button><button class="btn btn--danger btn--small" type="button">Delete</button></div></li>
+              </ul>
+            </div>
+            <p class="admin-hint mt-8">The image picker (<code>imageField</code> with <code>library: true</code>) uses the same grid with <code>media-pick</code>: bigger thumbnails, each one a button.</p>
           </div>
           <div class="sg-item" data-code>
             <h3>Error</h3>
@@ -318,9 +385,35 @@
             <li>Phone numbers use <code>formatPhone()</code> from <code>lib.js</code>. Emails are the small <code>Email</code> button, not raw addresses.</li>
             <li>Sortable columns put <code>data-sort</code> on the <code>&lt;th&gt;</code>; <code>sortableTable()</code> from <code>lib.js</code> adds the buttons and arrows.</li>
             <li>Use <code>.center</code> for numeric columns and <code>.nowrap</code> for dates, phones and IDs.</li>
-            <li>Every other row is striped. Row states: <code>tr.is-overdue</code> (pink, for overdue, failed or blocked), <code>tr.is-hidden</code> (faded), <code>tr.is-merge</code> / <code>tr.is-keep</code> (Series merge), and <code>aria-expanded="true"</code> on an open order (blue).</li>
+            <li>Every other row is striped. Row states: <code>tr.is-overdue</code> (pink, for overdue, failed or blocked), <code>tr.is-hidden</code> (muted text, faded pictures), <code>tr.is-merge</code> / <code>tr.is-keep</code> (Series merge), and <code>tr.is-open</code> on an open order (blue; <code>aria-expanded</code> goes on its View button, not the row).</li>
             <li>Row colours paint the <code>&lt;tr&gt;</code>, never its cells, and live in one block of <code>admin.css</code> in priority order (stripe, hover, states, open). Add a new state there; no <code>!important</code>.</li>
           </ul>
+          <div class="sg-item" data-code>
+            <h3>Row states</h3>
+            <div class="sg-demo sg-demo--flush">
+              <div class="admin-table-wrap"><table class="admin-table">
+                <thead><tr><th scope="col">Row</th><th scope="col">Class</th></tr></thead>
+                <tbody>
+                  <tr><td>Normal (every other row is striped)</td><td><code>—</code></td></tr>
+                  <tr><td>Striped</td><td><code>—</code></td></tr>
+                  <tr class="is-overdue"><td>Overdue, failed or blocked</td><td><code>tr.is-overdue</code></td></tr>
+                  <tr class="is-hidden"><td>Hidden from customers, cancelled</td><td><code>tr.is-hidden</code></td></tr>
+                  <tr class="is-open"><td>The open order (its View button has <code>aria-expanded</code>)</td><td><code>tr.is-open</code></td></tr>
+                  <tr class="is-keep"><td>Series merge: the one to keep</td><td><code>tr.is-keep</code></td></tr>
+                  <tr class="is-merge"><td>Series merge: folding into it</td><td><code>tr.is-merge</code></td></tr>
+                </tbody>
+              </table></div>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Cover thumbnails</h3>
+            <div class="sg-demo"><div class="sg-row">
+              <img class="thumb" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2260%22%3E%3Crect width=%2240%22 height=%2260%22 fill=%22%23c8ced6%22/%3E%3C/svg%3E" alt="">
+              <a class="thumb thumb--fix" href="#tables" aria-label="Find a cover"><span>Fix</span></a>
+              <img class="thumb thumb--sm" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2260%22%3E%3Crect width=%2240%22 height=%2260%22 fill=%22%23c8ced6%22/%3E%3C/svg%3E" alt="">
+            </div></div>
+            <p class="admin-hint mt-8"><code>thumb</code> is a cover at list size (96×144); <code>thumb--fix</code> stands in when a title has no cover and links to a cover search; <code>thumb--sm</code> is for dense lists (Dashboard → Most Reserved, Series).</p>
+          </div>
           <div class="sg-item" data-code>
             <h3>Empty state</h3>
             <div class="sg-demo"><p class="empty">No customers match.</p></div>
@@ -453,7 +546,32 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
               <details class="admin-hint-fold"><summary><svg class="solid-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6.5c2.2 0 3.8 1.3 3.8 3.3 0 1.4-.7 2.2-1.7 3-.9.7-1.3 1.1-1.3 2v.3h-2v-.4c0-1.4.6-2.1 1.6-2.9.9-.7 1.3-1.1 1.3-1.9 0-.9-.7-1.5-1.7-1.5-1 0-1.7.7-1.8 1.7h-2C8.2 7.9 9.8 6.5 12 6.5zM13.2 17.4a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/></svg> How this works</summary><p class="admin-hint">Instructions that start closed on every screen size, to save space. Build it with <code>hintFold(html)</code> from <code>lib.js</code>.</p></details>
             </div>
           </div>
-          <p class="sg-dont"><strong>Don’t</strong> put buttons inside a clickable header. Put them in the body, or use a static fold.</p>
+          <div class="sg-item" data-code>
+            <h3>Reorderable fold (FAQ)</h3>
+            <div class="sg-demo">
+              <ul class="faq-items">
+                <li class="faq-item">
+                  <span class="faq-item__move">
+                    <button class="btn btn--ghost btn--small" type="button" data-move="-1" aria-label="Move up" aria-describedby="sg-faq-q">↑</button>
+                    <button class="btn btn--ghost btn--small" type="button" data-move="1" aria-label="Move down" aria-describedby="sg-faq-q">↓</button>
+                  </span>
+                  <details class="fold"><summary class="fold__head"><span class="faq-item__num"></span><span class="faq-item__q" id="sg-faq-q">How do pre-orders work?</span></summary><div class="fold__body">Question and answer fields go here.</div></details>
+                </li>
+              </ul>
+            </div>
+            <p class="admin-hint mt-8">The arrows sit over the header band but outside the <code>&lt;summary&gt;</code>, so they can be reached and announced, and each one is described by its question.</p>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Activity log</h3>
+            <div class="sg-demo">
+              <ul class="job-log">
+                <li><span class="job-log__when">Oct 25, 10:12 AM</span><span>Import</span><span class="job-log__msg">lunar-foc-0123.xlsx: 48 added, 12 updated</span></li>
+                <li><span class="job-log__when">Oct 24, 10:00 AM</span><span>Dana</span><span class="job-log__msg">Changed status: Spawn #350 → Ready</span></li>
+              </ul>
+            </div>
+            <p class="admin-hint mt-8">A striped list of dated entries: Import → Recent Runs, a customer's Changes, Staff → Change Log. Time first, then who or what, then the detail.</p>
+          </div>
+          <p class="sg-dont"><strong>Don’t</strong> put buttons inside a clickable header. Put them in the body, beside the header (like the FAQ arrows), or use a static fold.</p>
         </section>
 
         <!-- ===================================================== -->
@@ -515,6 +633,24 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
               </div>
             </div>
           </div>
+        </section>
+
+        <!-- ===================================================== -->
+        <section class="sg-section" id="screens">
+          <h2>Screen patterns</h2>
+          <p>Layouts that belong to one screen. They are built from the pieces above; reuse the piece, not the screen's own class, when something similar is needed elsewhere.</p>
+          <ul class="sg-rules">
+            <li><strong>Titles list</strong> (<code>sections/titles.js</code>, <code>.titles-table</code>): on phones each title is a grid card (cover, title, dates, status select, Edit, three flags) instead of a <code>cards</code> list, because the cover spans three lines. Dates are <code>.tt-datelink</code> buttons that filter by that week.</li>
+            <li><strong>Customer pull list</strong> (<code>sections/customers.js</code>, <code>.cust-lines</code>): grouped by Ready / Open &amp; ordered / Past with <code>.cust-lines__group</code> header rows, so stripes come from <code>tr.is-alt</code>, not <code>:nth-child</code>. It stacks below 1200px (the side menu takes room).</li>
+            <li><strong>Reservations: an order opens under its row</strong> (<code>sections/reservations.js</code>): the row gets <code>is-open</code> (blue) and its View button <code>aria-expanded="true"</code>, and a <code>tr.order-expand</code> under it holds <code>.order--inline</code> with its own title list (<code>.order__lines</code>, alternate rows in the light blue). On phones that title list is a grid below 600px.</li>
+            <li><strong>Place Order cutoffs</strong> (<code>.fold--compact[data-foc]</code>): one fold per order cutoff, its count in the header note and the Mark ordered button at the top of the body. See <a href="#containers">Panels &amp; folds</a>.</li>
+            <li><strong>To Order: customers under a title</strong> (<code>tr.toorder__people</code>): a striped row under the title listing who reserved it, in columns (<code>.toorder__list</code>).</li>
+            <li><strong>Dashboard → Most Reserved</strong> (<code>.dash-top</code>): rank, a bigger cover, then title, Out date and copies; a grid card on phones.</li>
+            <li><strong>Series merge</strong> (<code>sections/series.js</code>): tick series to merge and pick one to keep; rows show <code>is-merge</code> / <code>is-keep</code> (see <a href="#tables">Row states</a>).</li>
+            <li><strong>QR codes</strong> (<code>sections/qr.js</code>, <code>.qr-item</code>): a fold per code with its form beside a 260px preview (<code>role="img"</code>); a code opened from a link (<code>#qr/&lt;slug&gt;</code>) flashes once.</li>
+            <li><strong>Survey questions</strong> (<code>sections/surveys.js</code>, <code>.sq-head</code>): a fold per question with the answer type under the question in its header.</li>
+          </ul>
+          <p class="sg-do"><strong>Do</strong> add a screen here when you give it a layout of its own, with the file, the class and why the shared pieces didn't fit.</p>
         </section>
 
         <!-- ===================================================== -->
@@ -614,7 +750,7 @@ text-muted · text-danger · text-success · text-right · font-mono · nowrap</
             var hidden = th.querySelector('.visually-hidden');
             heads.push(hidden && th.textContent.trim() === hidden.textContent.trim() ? '' : th.textContent.trim());
           });
-          var on = mq.matches && (table.classList.contains('cards') || heads.length >= 4);
+          var on = mq.matches && table.classList.contains('cards');
           table.classList.toggle('is-stack', on);
           if (on) table.querySelectorAll('tbody tr').forEach(function (tr) {
             [].forEach.call(tr.children, function (td, i) { if (td.dataset.label === undefined) td.dataset.label = heads[i] || ''; });
@@ -637,6 +773,7 @@ text-muted · text-danger · text-success · text-right · font-mono · nowrap</
       var indent = Math.min.apply(null, lines.filter(function (l) { return l.trim(); }).map(function (l) { return l.match(/^\s*/)[0].length; }));
       var pre = document.createElement('pre');
       pre.className = 'sg-code';
+      pre.tabIndex = 0; // a code box that scrolls sideways can be reached and scrolled by keyboard
       pre.textContent = lines.map(function (l) { return l.slice(indent); }).join('\n').trim();
       demo.insertAdjacentElement('afterend', pre);
     });

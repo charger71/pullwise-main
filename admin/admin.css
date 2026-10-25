@@ -196,12 +196,13 @@ th[aria-sort='ascending'], th[aria-sort='descending'] { color: #fff; }
 .admin-table > tbody > tr:where(.is-overdue:hover) { background: var(--hover-row-danger); }
 .admin-table > tbody > tr:where(.is-merge) { background: var(--merge-bg); }
 .admin-table > tbody > tr:where(.is-keep) { background: var(--keep-bg); }
-.admin-table > tbody > tr:where([aria-expanded='true']) { background: var(--select-bg); } /* the open order, matching its title list below */
+.admin-table > tbody > tr:where(.is-open) { background: var(--select-bg); } /* the open order, matching its title list below */
 .admin-table > tbody > tr:where(.order-expand) { background: var(--surface); }
 .cust-email { text-transform: none; letter-spacing: 0; }
 .admin-table .center { text-align: center; }
 .admin-table .nowrap { white-space: nowrap; }
-.admin-table tr.is-hidden td { opacity: .55; }
+.admin-table tr.is-hidden td { color: var(--muted); } /* muted, not faded: faded text fell below 4.5:1 */
+.admin-table tr.is-hidden :is(img, .thumb) { opacity: .55; }
 .select--small { height: 38px; padding-block: 0; font-size: var(--fs-ui); min-width: 150px; }
 .thumb { display: block; flex: none; width: 96px; min-width: 96px; max-width: none; height: 144px; object-fit: contain; background: #fff; border-radius: var(--radius-xs); }
 .thumb--fix { display: grid; place-content: center; justify-items: center; gap: var(--sp-2); background: var(--brand-primary); color: #fff; font: 700 var(--fs-2xs)/1 var(--font-body); text-decoration: none; }
@@ -763,7 +764,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .order__toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-8); }
 .order__toolbar .order__meta { margin: 0; flex-wrap: wrap; }
 .order__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-6); margin-left: auto; }
-.orders-table tr[aria-expanded='true'] td { border-bottom: 0; }
+.orders-table tr.is-open td { border-bottom: 0; }
 @media (max-width: 899px) {
   .admin-table.is-stack > tbody > tr.order-expand { padding: 0; }
 }

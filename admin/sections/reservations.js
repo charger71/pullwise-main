@@ -231,9 +231,9 @@ async function expandOrder(tr) {
     tr.after(x);
   }
   openOrders.add(id);
-  tr.setAttribute('aria-expanded', 'true');
+  tr.classList.add('is-open'); // the row's colour; the state itself is on its View / Hide button
   const view = $('button[data-open]', tr);
-  if (view) view.firstChild.textContent = 'Hide';
+  if (view) (view.firstChild.textContent = 'Hide'), view.setAttribute('aria-expanded', 'true');
   const box = $('[data-order-box]', x);
   try {
     const o = await must(sb.from('reservation_orders').select(`*, customer:customers(id,name,phone,email), reservations(*, item:items(${ITEM_FIELDS}))`).eq('id', id).single());
@@ -248,9 +248,9 @@ async function expandOrder(tr) {
 function collapseOrder(tr) {
   if (tr.nextElementSibling?.matches('.order-expand')) tr.nextElementSibling.remove();
   openOrders.delete(Number(tr.dataset.open));
-  tr.setAttribute('aria-expanded', 'false');
+  tr.classList.remove('is-open');
   const view = $('button[data-open]', tr);
-  if (view) view.firstChild.textContent = 'View';
+  if (view) (view.firstChild.textContent = 'View'), view.setAttribute('aria-expanded', 'false');
 }
 
 /** An order's details, shown inside the list: order number, type and links, the green "mark all picked up" button, and every title with its status. */
@@ -419,7 +419,7 @@ async function loadOrders(body) {
         <td class="nowrap card__meta">${fmtDateTime(o.created_at)}</td>
         <td><span class="pill pill--${o.kind === 'pull_list' ? 'pull' : 'guest'}">${o.kind === 'pull_list' ? 'Pull list' : 'Guest order'}</span></td>
         <td class="card-wide"><span>${esc(summary)}${overdue ? ' · <strong>past pickup</strong>' : ''}</span></td>
-        <td class="nowrap card-action">${o.unlinked_match ? `<a class="btn btn--primary btn--small" href="#customers" data-customer="${o.customer_id}" title="This guest order matches ${esc(o.name)}: open the customer to link it" aria-label="Fix: link guest order ${o.id} to ${esc(o.name)}">${solidIcon('fix', 16)} Fix</a> ` : ''}<button class="btn btn--ghost btn--small" type="button" data-open="${o.id}">View<span class="visually-hidden"> order ${o.id}</span></button>
+        <td class="nowrap card-action">${o.unlinked_match ? `<a class="btn btn--primary btn--small" href="#customers" data-customer="${o.customer_id}" title="This guest order matches ${esc(o.name)}: open the customer to link it" aria-label="Fix: link guest order ${o.id} to ${esc(o.name)}">${solidIcon('fix', 16)} Fix</a> ` : ''}<button class="btn btn--ghost btn--small" type="button" data-open="${o.id}" aria-expanded="false">View<span class="visually-hidden"> order ${o.id}</span></button>
           </td>
       </tr>`;
     })
