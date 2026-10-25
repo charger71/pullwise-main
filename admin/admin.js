@@ -10,7 +10,7 @@ import { $, $$, db, esc, openEmailDialog, friendlyError } from './lib.js';
 import { sizedImage } from '../js/util.js';
 import { VERSION } from './version.js';
 import { syncTheme } from './theme.js';
-import { watchForUpdates, track as trackUpdates } from './update-check.js';
+import { watchForUpdates } from './update-check.js';
 
 const SECTIONS = ['dashboard', 'titles', 'reservations', 'customers', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'restore', 'staff'];
 // Screens only owners open (the menu item is hidden and the address redirects to the Dashboard).
@@ -219,7 +219,6 @@ async function route() {
     const module = await import(`./sections/${name}.js`);
     current = { name, module };
     el.innerHTML = '';
-    trackUpdates();
     await module.mount(el, { sb, isOwner, arg });
   } catch (err) {
     console.error(err);
@@ -316,10 +315,9 @@ $('#admin-version').textContent = VERSION;
 
 // A deploy while this tab is open can leave it with a mix of old and new scripts: offer a reload.
 watchForUpdates({
-  onUpdate: () => {
-    $('#admin-update').hidden = false;
-    $('#admin-update-reload').focus({ preventScroll: true });
-  },
+  // The bar is a role="status" region, so it is announced; it doesn't take focus, which could land a keystroke
+  // meant for a field on Reload.
+  onUpdate: () => ($('#admin-update').hidden = false),
 });
 $('#admin-update-reload').addEventListener('click', () => {
   if (current?.module.hasUnsavedChanges?.() && !confirm('You have unsaved changes here. Reload anyway?')) return;
