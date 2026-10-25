@@ -78,7 +78,7 @@ async function edit(listEl, id) {
   d.innerHTML = `
     <p><button class="btn btn--ghost btn--small" type="button" data-back>← Back to news</button></p>
     <h1>${id ? 'Edit Post' : 'New Post'}</h1>
-    <details class="fold toorder fold--static" open><summary class="fold__head"><h2>Post Details</h2></summary><div class="fold__body">
+    <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Post Details</h2></summary><div class="fold__body">
     <form class="admin-form" novalidate>
       <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="p-title">Title <span class="req" aria-hidden="true">*</span></label><input id="p-title" name="title" required value="${esc(post.title)}"></div>

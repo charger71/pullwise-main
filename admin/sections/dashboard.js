@@ -43,8 +43,8 @@ export async function mount(el, ctx) {
       <h1>Dashboard</h1>
       <p class="card__meta" data-asof></p>
     </div>
-    <details class="fold toorder dash-announce-fold">
-      <summary class="fold__head"><h2 id="dash-announce-title">Special Announcement<span class="toorder__count" data-announce-sum>${esc(settings.announcement || 'None showing')}</span></h2></summary>
+    <details class="fold fold--compact dash-announce-fold">
+      <summary class="fold__head"><h2 id="dash-announce-title">Special Announcement<span class="fold__note" data-announce-sum>${esc(settings.announcement || 'None showing')}</span></h2></summary>
       <div class="fold__body">
     <form class="dash-announce" data-announce novalidate>
       <p class="admin-hint" id="dash-announce-hint">Shown in the bar at the very top of every public page — store closed, hours changed, etc. Add a link with [text](https://…) or [text](events.html); a bare https:// address also becomes a link. Use **bold** and *italics*. Leave blank for no announcement.</p>

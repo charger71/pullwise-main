@@ -40,14 +40,14 @@ export async function mount(el, { sb }) {
 
 function addCard(sb, list, l, { locked, remount }) {
   const el = document.createElement('details');
-  el.className = 'fold toorder';
+  el.className = 'fold fold--compact';
   el.open = !l.id || !isPhone();
   const n = Math.random().toString(36).slice(2);
   const input = (key, label, extra = '', cls = '') => `<div class="field${cls}"><label for="${key}-${n}">${label}</label><input id="${key}-${n}" name="${key}" maxlength="200" value="${esc(l[key])}"${extra}></div>`;
   const dis = locked ? ' disabled' : '';
   const where = [l.street, l.city].filter(Boolean).join(', ');
   el.innerHTML = `
-    <summary class="fold__head"><h2>${l.id ? esc(l.name) : 'New location'}${l.is_default ? '<span class="toorder__count">First location</span>' : where ? `<span class="toorder__count">${esc(where)}</span>` : ''}</h2></summary>
+    <summary class="fold__head"><h2>${l.id ? esc(l.name) : 'New location'}${l.is_default ? '<span class="fold__note">First location</span>' : where ? `<span class="fold__note">${esc(where)}</span>` : ''}</h2></summary>
     <div class="fold__body">
     <form novalidate>
       <div class="form-grid form-grid--pairs">

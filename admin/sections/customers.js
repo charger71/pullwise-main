@@ -309,7 +309,7 @@ async function renderCustomer(el) {
     <div class="cust-grid${isNew ? ' cust-grid--new' : ''}">
       <div class="cust-main">
         <div data-pane="profile">
-        <details class="fold toorder fold--static cust-profile" data-profile-panel open>
+        <details class="fold fold--compact fold--static cust-profile" data-profile-panel open>
           <summary class="fold__head"><h2 id="cu-profile">Profile</h2>${isNew ? '' : `<span class="card__meta cust-profile__sum">${esc([c.email, formatPhone(c.phone), [c.city, c.state].filter(Boolean).join(', ')].filter(Boolean).join(' · '))}</span>`}</summary>
         <div class="fold__body"><form data-profile novalidate>
           <div class="cust-fields">
@@ -332,8 +332,8 @@ async function renderCustomer(el) {
         </form></div>
         </details>
       ${isNew ? '</div>' : `
-        <details class="fold toorder fold--static" open>
-          <summary class="fold__head"><h2 id="cu-notes">Notes<span class="toorder__count">Private to staff. Customers never see these.</span></h2></summary>
+        <details class="fold fold--compact fold--static" open>
+          <summary class="fold__head"><h2 id="cu-notes">Notes<span class="fold__note">Private to staff. Customers never see these.</span></h2></summary>
           <div class="fold__body"><form data-notes>
             <div class="field"><label class="visually-hidden" for="cu-notes-text">Notes about ${esc(c.name || 'this customer')}</label>
               <textarea id="cu-notes-text" name="notes" rows="4" maxlength="5000" placeholder="Pickup preferences, who else can collect, anything worth remembering" disabled></textarea></div>
@@ -344,8 +344,8 @@ async function renderCustomer(el) {
         </details>
         </div>
         <div data-pane="pull">
-        <details class="fold toorder fold--static" open>
-          <summary class="fold__head"><h2 id="cu-list">Pull List<span class="toorder__count" data-list-count></span></h2>
+        <details class="fold fold--compact fold--static" open>
+          <summary class="fold__head"><h2 id="cu-list">Pull List<span class="fold__note" data-list-count></span></h2>
             <label class="cust-toggle"><input type="checkbox" data-cancelled${state.showCancelled ? ' checked' : ''}> Show cancelled</label>
             <button class="btn btn--ghost btn--small" type="button" data-export-pdf>Export PDF</button>
           </summary>
@@ -354,7 +354,7 @@ async function renderCustomer(el) {
           <div data-orders aria-busy="true"></div>
           </div>
         </details>
-        <details class="fold toorder fold--static" open>
+        <details class="fold fold--compact fold--static" open>
           <summary class="fold__head"><h2 id="cu-add">Add to Pull List</h2></summary>
           <div class="fold__body">
           <form class="cust-search" data-search role="search"><label class="visually-hidden" for="cu-q">Find a pre-order title</label>
@@ -363,8 +363,8 @@ async function renderCustomer(el) {
           <div data-results></div>
           </div>
         </details>
-        <details class="fold toorder fold--static" open>
-          <summary class="fold__head"><h2 id="cu-follow">Follows<span class="toorder__count" data-follow-count>New issues from these are added to the pull list automatically.</span></h2></summary>
+        <details class="fold fold--compact fold--static" open>
+          <summary class="fold__head"><h2 id="cu-follow">Follows<span class="fold__note" data-follow-count>New issues from these are added to the pull list automatically.</span></h2></summary>
           <div class="fold__body">
           <p class="admin-hint">Following fills in the open pre-orders right away.</p>
           <form class="cust-search" data-follow-search role="search">
@@ -379,17 +379,17 @@ async function renderCustomer(el) {
         </details>
         </div>
         <div data-pane="messages">
-        <details class="fold toorder fold--static" open>
-          <summary class="fold__head"><h2>Email Customer</h2><span class="toorder__count">${c.email ? esc(c.email) : 'No email address saved'}</span></summary>
+        <details class="fold fold--compact fold--static" open>
+          <summary class="fold__head"><h2>Email Customer</h2><span class="fold__note">${c.email ? esc(c.email) : 'No email address saved'}</span></summary>
           <div class="fold__body" data-compose>${c.email ? '' : '<p class="admin-hint">Add an email address on the Profile tab to email this customer.</p>'}</div>
         </details>
-        <details class="fold toorder fold--static cust-profile cust-log" open>
+        <details class="fold fold--compact fold--static cust-profile cust-log" open>
           <summary class="fold__head"><h2 id="cu-messages">Messages Sent</h2><span class="card__meta cust-profile__sum" data-messages-sum></span></summary>
           <div class="fold__body" data-messages></div>
         </details>
         </div>
         <div data-pane="changes">
-        <details class="fold toorder fold--static cust-profile cust-log" open>
+        <details class="fold fold--compact fold--static cust-profile cust-log" open>
           <summary class="fold__head"><h2 id="cu-log">Recent Changes</h2><span class="card__meta cust-profile__sum" data-log-sum></span></summary>
           <div class="fold__body" data-log></div>
         </details>
