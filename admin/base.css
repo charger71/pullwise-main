@@ -210,14 +210,14 @@ iframe.ql-video { display: block; clear: both; width: 100%; max-width: 640px; as
 .img-align-right { float: right; margin: .3em 0 .8em 1.2em; }
 .img-align-center { display: block; margin: 1em auto; }
 [data-content]::after, .ql-editor::after { content: ''; display: table; clear: both; }
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   /* Phones: no text wrapping beside pictures, and small pictures get room to be seen. */
   [data-content] img { float: none; display: block; margin: 1em auto; min-width: min(60%, 100%); }
 }
 /* Tables from the editor */
 [data-content] table { border-collapse: collapse; margin: 1em 0; font-size: .95rem; }
 [data-content] td { border: 1px solid var(--line); padding: 8px 10px; vertical-align: top; text-align: left; background: var(--surface); }
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   [data-content] table { display: block; overflow-x: auto; max-width: 100%; }
 }
 .visually-hidden {
@@ -280,7 +280,7 @@ input[type='checkbox'], input[type='radio'] {
 .filters .field { margin: 0; }
 .filters .field--search { grid-column: 1 / -1; }
 .filters .label { font-size: .85rem; }
-@media (min-width: 800px) {
+@media (min-width: 900px) {
   /* One row however many filters a page has (Pre-Orders has five). */
   .filters { display: flex; align-items: end; }
   .filters .field { flex: 1 1 0; min-width: 0; }
