@@ -91,7 +91,7 @@ check('button heights come from one rule, not per-screen overrides', () => {
   css.split('\n').forEach((line, i) => {
     const m = line.match(/^\s*([^{]*\.btn\b[^{]*)\{([^}]*)\}/);
     if (!m || /icon-btn|link-button/.test(m[1])) return;
-    if (/min-height:\s*(40|44|48)px/.test(m[2]) && !/^\s*(\.btn|\.btn\.btn--small)\s*$/.test(m[1])) bad.push(`admin.css:${i + 1} ${m[1].trim()}`);
+    if (/min-height:\s*((40|44|48)px|var\(--tap(-btn)?\))/.test(m[2]) && !/^\s*(\.btn|\.btn\.btn--small)\s*$/.test(m[1])) bad.push(`admin.css:${i + 1} ${m[1].trim()}`);
   });
   assert.equal(bad.length, 0, `${bad.join('\n')}\nButtons are 48px (small 44px) on phones from the one rule near "every button is a 48px tap target". Remove the override.`);
 });
@@ -161,7 +161,8 @@ check('"How this works" starts closed', () => {
 });
 
 check('clickable fold headers keep their minimum height', () => {
-  assert.match(css, /\.fold:not\(\.fold--static\)[^{]*\.fold__head\s*\{[^}]*min-height:\s*52px/, 'clickable fold headers must be at least 52px tall');
+  assert.match(base, /--tap-head:\s*52px/, '--tap-head must stay 52px');
+  assert.match(css, /\.fold:not\(\.fold--static\)[^{]*\.fold__head\s*\{[^}]*min-height:\s*var\(--tap-head\)/, 'clickable fold headers must be at least --tap-head (52px) tall');
   assert.match(css, /\.admin-table th\s*\{[^}]*var\(--fold-head-bg\)/, 'table header rows must use --fold-head-bg');
   assert.match(css, /\.fold__head\s*\{[^}]*var\(--fold-head-bg\)/, 'fold headers must use --fold-head-bg');
 });
@@ -182,6 +183,17 @@ check('table row colours paint the row, without !important', () => {
   const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1].trim(), m[2]]);
   const bad = rules.filter(([sel, body]) => /background/.test(body) && (/\btd\b/.test(sel) || (/\btr\b/.test(sel) && /!important/.test(body))));
   assert.equal(bad.length, 0, `Paint table rows (tr) from the "Row colours" block, not cells or !important:\n${bad.map(([s]) => s).join('\n')}`);
+});
+
+// ---- Sizes from tokens ---------------------------------------------------------------------------------------------
+// Text sizes and stacking order come from the named steps in base.css (:root), not bare numbers.
+check('font sizes and z-index use the tokens', () => {
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/:root\s*\{[^}]*\}/, '');
+  const bad = Object.entries({ 'base.css': base, 'admin.css': css }).flatMap(([f, t]) => [
+    ...[...strip(t).matchAll(/font-size:\s*[\d.]+rem|font:\s*(?:\d{3}\s+)?[\d.]+rem/g)].map((m) => `${f}: ${m[0]}`),
+    ...[...strip(t).matchAll(/z-index:\s*\d+/g)].map((m) => `${f}: ${m[0]}`),
+  ]);
+  assert.equal(bad.length, 0, `Bare sizes:\n${bad.join('\n')}\nUse a --fs-* step or a --z-* level from base.css.`);
 });
 
 // ---- Breakpoints ---------------------------------------------------------------------------------------------------

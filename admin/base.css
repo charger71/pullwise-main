@@ -23,7 +23,7 @@
   --border: 1px solid var(--line);
   --shadow: 0 1px 2px rgb(0 0 0 / .06), 0 4px 14px rgb(0 0 0 / .08);
   --shadow-lg: 0 10px 40px rgb(0 0 0 / .25);
-  --field-h: 44px;
+  --field-h: var(--tap);
   --gutter: 16px;
   --max: 1180px;
 
@@ -33,6 +33,28 @@
   --fs-card: 1.15rem;    /* the heading of a card, panel or fold (h2 inside a card) */
   --fs-h1: clamp(1.9rem, 6vw, 3rem);   /* page title */
   --fs-compact: 1rem;    /* titles inside dense lists */
+  /* Text sizes: use one of these steps instead of a bare rem value. */
+  --fs-2xs: .72rem;      /* badges, pills, counts */
+  --fs-xs: .8rem;        /* small uppercase labels and captions */
+  --fs-sm: .85rem;       /* notes, meta lines, hints */
+  --fs-ui: .9rem;        /* dense UI: tables, small buttons, filters */
+  --fs-md: .95rem;       /* card text a little under body size */
+  --fs-base: 1rem;       /* body size (also stops phones zooming into fields) */
+  --fs-lg: 1.4rem;       /* editor h2 */
+  --fs-xl: 1.6rem;       /* big numbers and the sign-in / phone page titles */
+  --fs-page: 1.8rem;     /* admin page title */
+  --fs-stat: 2.2rem;     /* dashboard tile numbers */
+
+  /* Sizes that recur: tap targets, the sticky header, and the stacking order. */
+  --tap: 44px;           /* smallest touch target: fields, small buttons, toggles */
+  --tap-btn: 48px;       /* a button on a phone */
+  --tap-head: 52px;      /* a fold header you click or tap open */
+  --header-h: 60px;      /* the sticky admin header; things that stick sit just under it */
+  --z-raised: 3;         /* above neighbouring content (editor image tools, a dialog's action bar) */
+  --z-sticky: 5;         /* sticky bars and headers inside the page */
+  --z-header: 10;        /* the admin header */
+  --z-float: 100;        /* toasts and the update banner */
+  --z-busy: 9998;        /* the loading dimmer; its spinner sits one above */
 
   /* Spacing scale, named by pixels. Use these for margin, padding and gap instead of bare numbers. */
   --sp-2: 2px;  --sp-4: 4px;  --sp-6: 6px;  --sp-8: 8px;  --sp-10: 10px;  --sp-12: 12px;
@@ -186,7 +208,7 @@ h2 { font-size: clamp(1.4rem, 4vw, 2rem); }
 h3 { font-size: var(--fs-sub); }
 p { margin: 0 0 1em; }
 .container { width: 100%; max-width: var(--max); margin-inline: auto; padding-inline: var(--gutter); }
-.lede { font-size: 1.1rem; color: var(--muted); max-width: 60ch; margin-bottom: 1em; }
+.lede { font-size: var(--fs-sub); color: var(--muted); max-width: 60ch; margin-bottom: 1em; }
 .lede > :last-child { margin-bottom: 0; }
 /* Staff-edited rich text (admin WYSIWYG): a quote block shows as a callout box. */
 .lede blockquote {
@@ -215,7 +237,7 @@ iframe.ql-video { display: block; clear: both; width: 100%; max-width: 640px; as
   [data-content] img { float: none; display: block; margin: 1em auto; min-width: min(60%, 100%); }
 }
 /* Tables from the editor */
-[data-content] table { border-collapse: collapse; margin: 1em 0; font-size: .95rem; }
+[data-content] table { border-collapse: collapse; margin: 1em 0; font-size: var(--fs-md); }
 [data-content] td { border: 1px solid var(--line); padding: 8px 10px; vertical-align: top; text-align: left; background: var(--surface); }
 @media (max-width: 599px) {
   [data-content] table { display: block; overflow-x: auto; max-width: 100%; }
@@ -228,8 +250,8 @@ iframe.ql-video { display: block; clear: both; width: 100%; max-width: 640px; as
 /* ---------- Buttons & forms ---------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  min-height: 44px; padding: 10px 18px;
-  font: 700 1rem/1 var(--font-body);
+  min-height: var(--tap); padding: 10px 18px;
+  font: 700 var(--fs-base)/1 var(--font-body);
   color: var(--on-accent); background: var(--brand-accent);
   border: 0; border-radius: var(--radius); box-shadow: var(--shadow);
   text-decoration: none; cursor: pointer;
@@ -265,12 +287,12 @@ input[type='checkbox'], input[type='radio'] {
   accent-color: var(--brand-primary); cursor: pointer;
 }
 .field { margin-bottom: 14px; }
-.field__hint { font-size: .85rem; color: var(--muted); margin-top: 4px; }
+.field__hint { font-size: var(--fs-sm); color: var(--muted); margin-top: 4px; }
 .form-error { color: var(--danger-ink); font-weight: 700; }
 /* ---------- Header ---------- */
 .brand { text-decoration: none; display: flex; align-items: center; gap: 10px; }
-.brand__name { font-family: var(--font-display); font-size: 1.2rem; color: var(--brand-primary); line-height: 1.1; }
-.card__meta { font-size: .85rem; color: var(--muted); margin: 0; }
+.brand__name { font-family: var(--font-display); font-size: var(--fs-card); color: var(--brand-primary); line-height: 1.1; }
+.card__meta { font-size: var(--fs-sm); color: var(--muted); margin: 0; }
 /* ---------- Filters ---------- */
 .filters {
   display: grid; gap: 12px; grid-template-columns: 1fr 1fr;
@@ -279,14 +301,14 @@ input[type='checkbox'], input[type='radio'] {
 }
 .filters .field { margin: 0; }
 .filters .field--search { grid-column: 1 / -1; }
-.filters .label { font-size: .85rem; }
+.filters .label { font-size: var(--fs-sm); }
 @media (min-width: 900px) {
   /* One row however many filters a page has (Pre-Orders has five). */
   .filters { display: flex; align-items: end; }
   .filters .field { flex: 1 1 0; min-width: 0; }
   .filters .field--search { flex-grow: 1.6; }
 }
-.results-count { color: var(--muted); font-size: .9rem; margin-bottom: 12px; }
+.results-count { color: var(--muted); font-size: var(--fs-ui); margin-bottom: 12px; }
 .empty { padding: 32px; text-align: center; border: 2px dashed var(--line-dash); border-radius: var(--radius); color: var(--muted); }
 /* ---------- Dialogs ---------- */
 dialog { border: 0; border-radius: 10px; box-shadow: var(--shadow-lg); padding: 0; width: min(520px, calc(100vw - 2 * var(--gutter))); max-height: calc(100vh - 32px); color: var(--ink); background: var(--surface); }
@@ -294,7 +316,7 @@ dialog::backdrop { background: #000a; }
 .dialog__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 16px 0; }
 .dialog__head h2 { font-size: var(--fs-title); margin: 0; }
 .dialog__body { padding: 16px; }
-.dialog__close { display: grid; place-items: center; flex: none; background: none; border: 1px solid var(--field-line); border-radius: 50%; font-size: 1.1rem; line-height: 1; cursor: pointer; width: 36px; height: 36px; margin: 0; color: var(--ink); }
+.dialog__close { display: grid; place-items: center; flex: none; background: none; border: 1px solid var(--field-line); border-radius: 50%; font-size: var(--fs-sub); line-height: 1; cursor: pointer; width: 36px; height: 36px; margin: 0; color: var(--ink); }
 .dialog__close:hover { background: var(--surface); border-color: var(--ink); }
 .dialog__close:focus-visible { outline: none; background: var(--focus); border-color: var(--focus); color: #fff; }
 @media (forced-colors: active) { .dialog__close:focus-visible { outline: 3px solid Highlight; outline-offset: -3px; } }
@@ -303,7 +325,7 @@ dialog::backdrop { background: #000a; }
 .panel { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
 .panel h2 { font-size: var(--fs-card); }
 details { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 10px; }
-summary { cursor: pointer; font-weight: 700; padding: 14px 16px; min-height: 44px; list-style: none; display: flex; align-items: center; gap: 10px; }
+summary { cursor: pointer; font-weight: 700; padding: 14px 16px; min-height: var(--tap); list-style: none; display: flex; align-items: center; gap: 10px; }
 summary::-webkit-details-marker { display: none; }
 /* One indicator for every show/hide box: a chevron that points down when the box is closed and flips to ^ when it's open. */
 summary::after {
@@ -326,11 +348,11 @@ details > div { padding: 0 16px 14px; }
    spinner sits in the middle of the window. Clicks pass through so a stuck load never traps anyone. */
 @keyframes spin { to { transform: rotate(360deg); } }
 body:has([aria-busy="true"], .loading)::before {
-  content: ""; position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+  content: ""; position: fixed; inset: 0; z-index: var(--z-busy); pointer-events: none;
   background: rgb(0 0 0 / .35);
 }
 body:has([aria-busy="true"], .loading)::after {
-  content: ""; position: fixed; top: 50%; left: 50%; z-index: 9999; pointer-events: none;
+  content: ""; position: fixed; top: 50%; left: 50%; z-index: calc(var(--z-busy) + 1); pointer-events: none;
   width: 28px; height: 28px; margin: -14px 0 0 -14px; box-sizing: border-box;
   border: 3px solid rgb(255 255 255 / .35); border-top-color: #fff; border-radius: 50%;
   animation: spin .7s linear infinite;
