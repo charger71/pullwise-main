@@ -317,10 +317,10 @@ async function load(el) {
 /** Lines that still count as someone wanting the title (not cancelled, not given up). */
 const LIVE_LINE = ['open', 'ordered', 'reordered', 'arrived', 'picked_up'];
 
-/** Under each title on the page: how many customers have it on order, as a link to the list of who. */
+/** Under each title on the page: how many customers have it on order ("No orders" when none), as a link to the list of who. */
 async function showOrderCounts(el, ids) {
   if (!ids.length) return;
-  const { data } = await sb.from('reservations').select('item_id,quantity,order_id').in('item_id', ids).in('status', LIVE_LINE).limit(5000);
+  const { data, error } = await sb.from('reservations').select('item_id,quantity,order_id').in('item_id', ids).in('status', LIVE_LINE).limit(5000);
   const byItem = new Map();
   for (const l of data ?? []) {
     const t = byItem.get(l.item_id) ?? { orders: new Set(), copies: 0 };
@@ -328,16 +328,18 @@ async function showOrderCounts(el, ids) {
     t.copies += l.quantity;
     byItem.set(l.item_id, t);
   }
-  for (const [id, t] of byItem) {
+  if (error) return; // no count rather than a wrong "No orders"
+  for (const id of ids) {
     const slot = $(`[data-orders-for="${id}"]`, el);
     if (!slot) continue; // the list was reloaded meanwhile
-    const who = `${t.orders.size} ${t.orders.size === 1 ? 'order' : 'orders'}`;
-    slot.innerHTML = `<br><button class="tt-datelink" type="button" data-orders="${id}" title="See who ordered this title">${who}${t.copies !== t.orders.size ? ` · ${t.copies} copies` : ''}</button>`;
+    const t = byItem.get(id);
+    const who = t ? `${t.orders.size} ${t.orders.size === 1 ? 'order' : 'orders'}${t.copies !== t.orders.size ? ` · ${t.copies} copies` : ''}` : 'No orders';
+    slot.innerHTML = `<br><button class="tt-datelink${t ? '' : ' text-muted'}" type="button" data-orders="${id}" title="See who ordered this title">${who}</button>`;
   }
 }
 
 /** Everyone who reserved a title: name (to their customer page or guest order), phone, email, copies, status and when. */
-async function whoOrdered(itemId) {
+async function whoOrdered(itemId, { onLeave = () => true } = {}) {
   const d = openDialog('Who Ordered', '<p class="admin-hint" aria-busy="true">Loading…</p>', { wide: true });
   const body = $('.dialog__body', d);
   try {
@@ -383,6 +385,7 @@ async function whoOrdered(itemId) {
     body.addEventListener('click', (e) => {
       const link = e.target.closest('[data-customer], [data-guest]');
       if (!link) return;
+      if (!onLeave()) return e.preventDefault();
       try {
         if (link.dataset.customer) sessionStorage.setItem('admin-open-customer', link.dataset.customer);
         else sessionStorage.setItem('admin-open-guest', link.dataset.guest);
@@ -432,6 +435,7 @@ async function edit(listEl, id) {
       ${!item.catalog_id && item.distributor && item.distributor !== 'other' ? hintFold(`Imported from ${item.distributor === 'lunar' ? 'Lunar' : 'PRH'} (${esc(item.sku)}). Re-importing its sheet refreshes title, retail price, dates and description, but never the shop price, status, category, badges, staff pick, homepage or hidden.`) : ''}
       <div class="admin-actions sticky-actions">
         <button class="btn btn--primary" type="submit">${id ? 'Save' : 'Create title'}</button>
+        ${id ? `<button class="btn btn--ghost" type="button" data-who-ordered>${solidIcon('person', 16)} Who ordered</button>` : ''}
         ${id && isOwner ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
         <span class="admin-status" role="status"></span>
       </div>
@@ -441,6 +445,12 @@ async function edit(listEl, id) {
   cover.set(item.cover_url, item.cover_thumb_url);
   const form = $('form', d);
   const status = $('.admin-status', d);
+  // Following a name in Who Ordered leaves this screen, so it closes this dialog too (asking first if there are unsaved changes).
+  let changed = false;
+  form.addEventListener('input', () => (changed = true));
+  $('[data-who-ordered]', d)?.addEventListener('click', () =>
+    whoOrdered(id, { onLeave: () => (!changed || confirm('Leave without saving your changes to this title?') ? (d.close(), true) : false) }),
+  );
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = new FormData(form);
