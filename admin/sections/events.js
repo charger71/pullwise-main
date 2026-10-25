@@ -77,7 +77,7 @@ async function edit(listEl, id) {
     <p class="admin-actions"><button class="btn btn--ghost btn--small" type="button" data-back>← Back to events</button>
       ${id && ev.signup_enabled ? '<button class="btn btn--blue btn--small" type="button" data-signups>View signups</button>' : ''}</p>
     <h1>${id ? 'Edit Event' : 'New Event'}</h1>
-    <details class="fold toorder fold--static" open><summary class="fold__head"><h2>Event Details</h2></summary><div class="fold__body">
+    <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Event Details</h2></summary><div class="fold__body">
     <form class="admin-form" novalidate>
       <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="ev-title">Title <span class="req" aria-hidden="true">*</span></label><input id="ev-title" name="title" required value="${esc(ev.title)}"></div>
@@ -169,8 +169,8 @@ async function loadAllSignups(box) {
           .map((e) => {
             const rows = byEvent.get(e.id);
             const people = rows.reduce((n, r) => n + r.party_size, 0);
-            return `<details class="fold toorder" data-event="${e.id}"${rows.length ? ' open' : ''}>
-              <summary class="fold__head"><h2>${esc(e.title)}<span class="toorder__count">${fmtDateTime(e.starts_at)} · ${rows.length} ${rows.length === 1 ? 'signup' : 'signups'} · ${people} ${people === 1 ? 'person' : 'people'}${e.signup_capacity ? ` of ${e.signup_capacity} spots` : ''}</span></h2></summary>
+            return `<details class="fold fold--compact" data-event="${e.id}"${rows.length ? ' open' : ''}>
+              <summary class="fold__head"><h2>${esc(e.title)}<span class="fold__note">${fmtDateTime(e.starts_at)} · ${rows.length} ${rows.length === 1 ? 'signup' : 'signups'} · ${people} ${people === 1 ? 'person' : 'people'}${e.signup_capacity ? ` of ${e.signup_capacity} spots` : ''}</span></h2></summary>
               <div class="fold__body">${rows.length ? signupsTable(rows) : '<p class="empty">No one has signed up yet.</p>'}</div>
             </details>`;
           })

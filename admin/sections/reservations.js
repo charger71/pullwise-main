@@ -542,9 +542,9 @@ async function renderReady(body) {
     }
     const chosen = list.filter((r) => picked.has(r.item.id));
     const copies = chosen.reduce((n, r) => n + r.copies, 0);
-    box.innerHTML = `<details class="fold fold--static toorder" open>
+    box.innerHTML = `<details class="fold fold--static fold--compact" open>
         <summary class="fold__head">
-          <h2>Arriving This Week<span class="toorder__count">${list.length} ${list.length === 1 ? 'title' : 'titles'} · ${chosen.length} ticked</span></h2>
+          <h2>Arriving This Week<span class="fold__note">${list.length} ${list.length === 1 ? 'title' : 'titles'} · ${chosen.length} ticked</span></h2>
           <button type="button" class="btn btn--small btn--green" data-go${chosen.length ? '' : ' disabled'}>Mark ${chosen.length} ${chosen.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) ready</button>
         </summary>
         <div class="fold__body">
@@ -667,14 +667,14 @@ async function renderToOrder(body) {
   // Cutoffs are collapsed except the first. A refresh keeps the ones you had open; if none of them is still
   // listed (a new week's cutoffs), the first opens again.
   const keepOpen = toOrderOpen && focs.some((f) => toOrderOpen.has(f)) ? toOrderOpen : new Set(focs.slice(0, 1));
-  box.addEventListener('toggle', () => (toOrderOpen = new Set($$('.toorder[open]', box).map((d) => d.dataset.foc))), true);
+  box.addEventListener('toggle', () => (toOrderOpen = new Set($$('.fold--compact[open]', box).map((d) => d.dataset.foc))), true);
   box.innerHTML = focs
     .map((foc) => {
       const rows = [...groups.get(foc).values()].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
       const copies = rows.reduce((n, r) => n + r.copies, 0);
-      return `<details class="fold toorder" data-foc="${esc(foc)}"${keepOpen.has(foc) ? ' open' : ''}>
+      return `<details class="fold fold--compact" data-foc="${esc(foc)}"${keepOpen.has(foc) ? ' open' : ''}>
         <summary class="fold__head">
-          <h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}<span class="toorder__count">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2>
+          <h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}<span class="fold__note">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2>
         </summary>
         <div class="fold__body">
         <div class="admin-actions toorder__actions"><button class="btn btn--green" type="button" data-ordered title="After you place this cutoff's order with the distributor">Mark ${copies} ${copies === 1 ? 'copy' : 'copies'} ordered</button></div>
@@ -697,7 +697,7 @@ async function renderToOrder(body) {
     const rows = [...groups.get(foc).values()].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
     $$(`[data-foc="${CSS.escape(foc)}"] tbody tr`, box).forEach((tr, i) => (tr.children[3].textContent = codes.get(rows[i].item.id) ?? ''));
   });
-  $$('.toorder table', box).forEach((t) => sortableTable(t));
+  $$('.fold--compact table', box).forEach((t) => sortableTable(t));
   openPeople.forEach((id) => { const b = $(`[data-customers="${id}"]`, box); if (b) toggleCustomers(b); });
   // Sorting reorders rows, which would strand an open customer row: close them first.
   box.addEventListener('click', (e) => { if (e.target.closest('th[data-sort]')) $$('tr.toorder__people', box).forEach((r) => { r.previousElementSibling?.querySelector('[data-customers]')?.setAttribute('aria-expanded', 'false'); r.remove(); }); }, true);
@@ -840,8 +840,8 @@ async function renderPastOrders(body) {
       .map((foc) => {
         const rows = [...groups.get(foc).values()].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
         const copies = rows.reduce((n, r) => n + r.copies, 0);
-        return `<details class="fold toorder">
-          <summary class="fold__head"><h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}<span class="toorder__count">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2></summary>
+        return `<details class="fold fold--compact">
+          <summary class="fold__head"><h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}<span class="fold__note">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2></summary>
           <div class="fold__body"><table class="admin-table past-table cards">
             <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Publisher</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col">Status</th></tr></thead>
             <tbody>${rows.map((r) => `<tr><td class="card-title">${esc(itemName(r.item))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="center card-key card-label"><strong>${r.copies}</strong></td><td class="center card-key card-label">${r.orders.size}</td><td class="card-wide">${[...r.status].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`).join(', ')}</td></tr>`).join('')}</tbody>
@@ -849,7 +849,7 @@ async function renderPastOrders(body) {
         </details>`;
       })
       .join('');
-    $$('.toorder table', box).forEach((t) => sortableTable(t));
+    $$('.fold--compact table', box).forEach((t) => sortableTable(t));
   } catch (err) {
     box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
   }

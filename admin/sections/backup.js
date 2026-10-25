@@ -13,7 +13,7 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-tab="customers">Export Customers</button>
     </div>
     <div data-tabpane="backup">
-    <details class="fold toorder fold--static" open>
+    <details class="fold fold--compact fold--static" open>
     <summary class="fold__head"><h2>Download a Backup</h2></summary>
     <div class="fold__body">
     <p>Downloads one file with <strong>everything in the shop’s database</strong>: titles, customers, pull lists and reservations, orders, events, news, page text, settings and the change log. Do this regularly (weekly is a good habit) and keep the file somewhere safe, such as Dropbox.</p>
@@ -25,7 +25,7 @@ export async function mount(el, ctx) {
     </details>
     </div>
     <div data-tabpane="customers">
-    <details class="fold toorder fold--static" open>
+    <details class="fold fold--compact fold--static" open>
     <summary class="fold__head"><h2>Export Customers</h2></summary>
     <div class="fold__body">
     <p>A spreadsheet (CSV) of just the customers: name, email, phone, address, whether they get the weekly pull list email and the “your books are in” email, whether they have a website login, and when they joined. It is a contact list, not a backup: pull lists and reservations are not in it.</p>

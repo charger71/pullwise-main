@@ -98,7 +98,7 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-tab="log">Change Log</button>
     </div>` : ''}
     <div data-tabpane="me">
-    <details class="fold toorder fold--static" open>
+    <details class="fold fold--compact fold--static" open>
       <summary class="fold__head"><h2>My Account</h2></summary>
       <div class="fold__body">
       <p>${esc(me?.name ?? '')} · ${esc(user.email)} · <strong>${me ? roleOf(me) : 'Staff'}</strong></p>
@@ -120,8 +120,8 @@ export async function mount(el, ctx) {
       </form>
       </div>
     </details>
-    <details class="fold toorder" data-colors-fold>
-      <summary class="fold__head"><h2>Admin Colors<span class="toorder__count">Your own colors for the admin</span></h2></summary>
+    <details class="fold fold--compact" data-colors-fold>
+      <summary class="fold__head"><h2>Admin Colors<span class="fold__note">Your own colors for the admin</span></h2></summary>
       <div class="fold__body">
       <form class="admin-form" data-colors>
         ${hintFold('Pick your own colors for the admin. They apply to the <strong data-colors-mode></strong> theme you are using now (switch Appearance above to set the other one), for you only, on every device you sign in from.')}
@@ -134,7 +134,7 @@ export async function mount(el, ctx) {
     </div>
     ${owner ? `
     <div data-tabpane="access">
-    <details class="fold toorder fold--static" open>
+    <details class="fold fold--compact fold--static" open>
       <summary class="fold__head"><h2>Staff List</h2></summary>
       <div class="fold__body">
       ${hintFold('Everyone here can open every admin screen. Owners can also manage this list. Removing someone locks them out of the admin right away. A Super Admin can’t be removed, demoted or have their password reset by an owner.')}
@@ -157,7 +157,7 @@ export async function mount(el, ctx) {
     </details>
     </div>
     <div data-tabpane="add">
-    <details class="fold toorder fold--static" open>
+    <details class="fold fold--compact fold--static" open>
       <summary class="fold__head"><h2>Add a Staff Member</h2></summary>
       <div class="fold__body">
       <form class="admin-form" data-add novalidate>
@@ -172,7 +172,7 @@ export async function mount(el, ctx) {
     </details>
     </div>
     <div data-tabpane="log">
-    <details class="fold toorder fold--static" open data-log-fold>
+    <details class="fold fold--compact fold--static" open data-log-fold>
       <summary class="fold__head"><h2>Change Log</h2></summary>
       <div class="fold__body">
       ${hintFold('Who changed what in the admin, newest first. Imports and bulk changes show as one line. Customer details list the fields changed, not their values.')}

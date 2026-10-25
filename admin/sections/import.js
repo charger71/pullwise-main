@@ -54,7 +54,7 @@ export async function mount(el, ctx) {
     <div data-files></div>
     </div>
     <div data-tabpane="skip">
-    <details class="fold toorder fold--static exclusions" data-exclusions open>
+    <details class="fold fold--compact fold--static exclusions" data-exclusions open>
       <summary class="fold__head"><h2>Always Skip</h2> <span class="card__meta" data-exclusion-count>Publishers, series, title words or mature titles to leave out of every import</span></summary>
       <div class="fold__body">
       <div data-exclusion-lists class="exclusions__chips"></div>

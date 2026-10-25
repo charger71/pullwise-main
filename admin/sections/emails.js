@@ -30,7 +30,7 @@ export async function mount(el, { sb }) {
     </div>
     <div data-tabpane="settings">
     <form class="admin-form settings-form" novalidate>
-      <details class="fold toorder"><summary class="fold__head"><h2>Weekly Email Signup</h2></summary><div class="fold__body">
+      <details class="fold fold--compact"><summary class="fold__head"><h2>Weekly Email Signup</h2></summary><div class="fold__body">
         <div class="editor-block">
           <span class="label" id="lbl-signup">Intro text</span>
           <p class="editor-block__hint">The short text above the email signup form at the bottom of every page. The text can be left empty; the whole signup section is hidden unless the form code below is filled in.</p>
@@ -41,7 +41,7 @@ export async function mount(el, { sb }) {
           <p class="field__hint">Paste the form’s embed or script snippet from your email service. Leave it empty to hide the signup section on every page. Only an owner can change this, because the code runs on your public site.</p></div>
       </div></details>
 
-      <details class="fold toorder"><summary class="fold__head"><h2>Look (Both Emails)<span class="toorder__count">Logo and colors</span></h2></summary><div class="fold__body">
+      <details class="fold fold--compact"><summary class="fold__head"><h2>Look (Both Emails)<span class="fold__note">Logo and colors</span></h2></summary><div class="fold__body">
         <p class="field__hint">The logo and colors at the top of the weekly and “your books are in” emails. Anything left on “match the site” follows the Shop Settings logo and main color. Text colors are picked automatically so they stay readable.</p>
         <div data-email-logo></div>
         <p class="field__hint">Leave empty to use the site logo. A square image works best; it is shown small, on the header color below.</p>
@@ -55,7 +55,7 @@ export async function mount(el, { sb }) {
         <p class="field__hint">Save, then use Preview or “Send a test to me” below to see how it looks.</p>
       </div></details>
 
-      <details class="fold toorder"><summary class="fold__head"><h2>Weekly Pull List Email<span class="toorder__count">${s.pull_list_email_enabled ? `On: ${WEEKDAYS[s.pull_list_email_day]} around ${hourLabel(s.pull_list_email_hour)}` : 'Off'}</span></h2></summary><div class="fold__body">
+      <details class="fold fold--compact"><summary class="fold__head"><h2>Weekly Pull List Email<span class="fold__note">${s.pull_list_email_enabled ? `On: ${WEEKDAYS[s.pull_list_email_day]} around ${hourLabel(s.pull_list_email_hour)}` : 'Off'}</span></h2></summary><div class="fold__body">
         <p class="field__hint">Every customer with something on their pull list gets one email a week: what’s ready for pickup, what’s coming, and a link to log in and edit. Customers can turn it off in their profile or with the link in the email.</p>
         <div class="form-grid form-grid--pairs">
           <div class="field span-2"><label><input type="checkbox" name="pull_list_email_enabled"${s.pull_list_email_enabled ? ' checked' : ''}> Send the weekly email</label>
@@ -67,7 +67,7 @@ export async function mount(el, { sb }) {
         </div>
       </div></details>
 
-      <details class="fold toorder"><summary class="fold__head"><h2>“Your Books Are In” Email<span class="toorder__count">${s.arrival_email_enabled ? `On: ${hourLabel(s.arrival_email_after_hour)} to ${hourLabel(s.arrival_email_before_hour % 24)}` : 'Off'}</span></h2></summary><div class="fold__body">
+      <details class="fold fold--compact"><summary class="fold__head"><h2>“Your Books Are In” Email<span class="fold__note">${s.arrival_email_enabled ? `On: ${hourLabel(s.arrival_email_after_hour)} to ${hourLabel(s.arrival_email_before_hour % 24)}` : 'Off'}</span></h2></summary><div class="fold__body">
         <p class="field__hint">When titles on a customer’s pull list become ready for pickup, they get one email listing them (plus anything still waiting). It uses the same sender as the weekly email, and customers can turn it off in their profile.</p>
         <div class="form-grid form-grid--pairs">
           <div class="field span-2"><label><input type="checkbox" name="arrival_email_enabled"${s.arrival_email_enabled ? ' checked' : ''}> Send “your books are in” emails</label>
@@ -86,8 +86,8 @@ export async function mount(el, { sb }) {
     </form>
     </div>
     <div data-tabpane="send">
-    <details class="fold toorder fold--static" open>
-      <summary class="fold__head"><h2>Weekly Pull List Email<span class="toorder__count">${s.pull_list_email_enabled ? `Automatic: ${WEEKDAYS[s.pull_list_email_day]} around ${hourLabel(s.pull_list_email_hour)}` : 'Automatic sending is off'}</span></h2></summary>
+    <details class="fold fold--compact fold--static" open>
+      <summary class="fold__head"><h2>Weekly Pull List Email<span class="fold__note">${s.pull_list_email_enabled ? `Automatic: ${WEEKDAYS[s.pull_list_email_day]} around ${hourLabel(s.pull_list_email_hour)}` : 'Automatic sending is off'}</span></h2></summary>
       <div class="fold__body">
         <div class="email-tools">
           <h2 class="email-tools__title">Try It First</h2>
@@ -105,8 +105,8 @@ export async function mount(el, { sb }) {
         </div>
       </div>
     </details>
-    <details class="fold toorder fold--static" open>
-      <summary class="fold__head"><h2>“Your Books Are In” Email<span class="toorder__count">${s.arrival_email_enabled ? `Automatic: ${hourLabel(s.arrival_email_after_hour)} to ${hourLabel(s.arrival_email_before_hour % 24)}` : 'Automatic sending is off'}</span></h2></summary>
+    <details class="fold fold--compact fold--static" open>
+      <summary class="fold__head"><h2>“Your Books Are In” Email<span class="fold__note">${s.arrival_email_enabled ? `Automatic: ${hourLabel(s.arrival_email_after_hour)} to ${hourLabel(s.arrival_email_before_hour % 24)}` : 'Automatic sending is off'}</span></h2></summary>
       <div class="fold__body">
         <div class="email-tools">
           <h2 class="email-tools__title">Try It First</h2>
@@ -126,8 +126,8 @@ export async function mount(el, { sb }) {
     </details>
     </div>
     <div data-tabpane="log">
-    <details class="fold toorder fold--static email-log" data-email-log open>
-      <summary class="fold__head"><h2>Email Log<span class="toorder__count" data-log-count>Every email the site has sent</span></h2></summary>
+    <details class="fold fold--compact fold--static email-log" data-email-log open>
+      <summary class="fold__head"><h2>Email Log<span class="fold__note" data-log-count>Every email the site has sent</span></h2></summary>
       <div class="fold__body">
         <div class="email-log__filters filters--compact">
           <select data-log-kind aria-label="Type of email"><option value="">All types</option>${Object.entries(LOG_KINDS).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}</select>

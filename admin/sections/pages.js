@@ -170,7 +170,7 @@ async function load(el, sb, key) {
   }
   // One tab per section (page settings, each block's text, Google & browser tab); only shown when there is more than one.
   wrap.innerHTML = `${panels.length > 1 ? `<div class="admin-tabs" role="tablist">${panels.map((p, i) => `<button type="button" class="admin-tab" role="tab" data-tab="p${i}">${esc(p.title)}</button>`).join('')}</div>` : ''}${panels
-    .map((p, i) => `<div data-tabpane="p${i}"><details class="fold toorder fold--static" open><summary class="fold__head"><h2>${esc(p.title)}</h2></summary><div class="fold__body">${p.html}</div></details></div>`)
+    .map((p, i) => `<div data-tabpane="p${i}"><details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>${esc(p.title)}</h2></summary><div class="fold__body">${p.html}</div></details></div>`)
     .join('')}`;
   for (const id of ['cp-title', 'cp-place']) $(`#${id}`, wrap)?.addEventListener('input', () => (dirty = true));
   $('#cp-slug', wrap)?.addEventListener('input', (e) => ($('[data-slug-preview]', wrap).textContent = e.target.value.trim() || '…'));

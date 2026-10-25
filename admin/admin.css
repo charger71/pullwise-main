@@ -252,16 +252,35 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .fold { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
 .fold__head { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-14) var(--sp-16); min-height: 0; font-weight: inherit; background: var(--fold-head-bg); color: #fff; border-radius: var(--radius); }
 .fold__head:hover { background: var(--fold-head-bg); filter: brightness(1.12); }
-.fold__head h2, .fold__head .toorder__count, .fold__head .card__meta { color: #fff; }
-.fold__head .toorder__count, .fold__head .card__meta { opacity: .85; }
+.fold__head h2, .fold__head .fold__note, .fold__head .card__meta { color: #fff; }
+.fold__head .fold__note, .fold__head .card__meta { opacity: .85; }
 .fold__head:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 2px; }
 .fold[open] > .fold__head { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-.fold__head h2 { margin: 0; font-size: var(--fs-card); }
+.fold__head h2 { margin: 0; font-size: var(--fs-card); font-family: var(--font-body); font-weight: 700; } /* the display font is for page titles */
 .fold__body { padding: var(--sp-16); }
 /* A fold that is always open (e.g. a new customer's profile): no chevron, not clickable. */
 .fold:not(.fold--static) .fold__head { min-height: 52px; } /* a header you click or tap open is a roomy target (the Place Order cutoffs are 56px) */
 .fold--static > .fold__head { cursor: default; }
 .fold--static > .fold__head::after { display: none; }
+@media (max-width: 899px) {
+  /* The Mark Ready button stays on screen under the page header while the list scrolls. */
+  .fold--compact.fold--static > .fold__head { position: sticky; top: 60px; z-index: 5; }
+}
+
+/* Compact fold: a slimmer header whose heading carries a note beside it ("Cutoff Sat, Oct 31   2 titles · 4 copies").
+   Most section bars are this; the Place Order cutoffs are taller so each one stands out. */
+.fold--compact .fold__head { padding: 5px var(--sp-16); }
+.fold--compact .fold__head h2 { flex: 1 1 0; min-width: 0; }
+.fold--compact .fold__head .btn { flex: none; }
+.fold--compact h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-4) var(--sp-12); }
+.fold__note { font-family: var(--font-body); font-size: .85rem; font-weight: 400; color: var(--muted); }
+.fold.fold--compact[data-foc] > .fold__head { min-height: 56px; }
+@media (max-width: 700px) {
+  /* The heading takes the first line and an action sits full width beneath it. */
+  .fold--compact .fold__head { flex-wrap: wrap; row-gap: var(--sp-6); }
+  .fold--compact .fold__head h2 { flex: 1 1 calc(100% - 2rem); } /* leaves room for the chevron on the same line */
+  .fold--compact .fold__head .btn { flex: 1 1 100%; }
+}
 /* ---------- Reservations ---------- */
 .order__when { flex: none; white-space: nowrap; font-size: .8rem; color: var(--muted); }
 .order__meta { margin: 0; flex: none; display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-end; gap: var(--sp-2) var(--sp-8); font-size: .85rem; }
@@ -291,9 +310,6 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
   .order__lines .col-qty, .order__lines .col-out, .order__lines .col-status { width: auto; }
 }
 .order__lines tr.is-overdue { background: var(--danger-soft); }
-.toorder .fold__head { padding: 5px var(--sp-16); }
-.toorder .fold__head h2 { flex: 1 1 0; min-width: 0; }
-.toorder .fold__head .btn { flex: none; }
 
 /* ---------- Media ---------- */
 .media-grid { list-style: none; padding: 0; display: grid; gap: var(--sp-10); grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
@@ -581,9 +597,6 @@ tr.is-clickable { cursor: pointer; }
   .admin-header .brand__name { display: block; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .admin-header__user .btn { white-space: nowrap; }
 }
-/* ---------- Reservations: order badge, To order headings ---------- */
-.toorder h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-4) var(--sp-12); }
-.toorder__count { font-family: var(--font-body); font-size: .85rem; font-weight: 400; color: var(--muted); }
 
 /* ---------- Alternating row backgrounds on the customer pull list ---------- */
 .cust-lines tr.is-alt, .cust-lines tr.is-alt td { background: var(--stripe); }
@@ -724,8 +737,8 @@ tr.is-clickable { cursor: pointer; }
 .email-log__body { white-space: pre-wrap; overflow-wrap: anywhere; margin: var(--sp-8) 0 0; padding: var(--sp-12); background: var(--stripe); border-radius: var(--radius); font: .9rem/1.5 var(--font-body); max-height: 60vh; overflow: auto; }
 .email-log .fold__head .card__meta { flex: 1; min-width: 0; }
 
-/* Panel headings (collapsible headers and card headings) use the bold body font; the display font is for page titles. */
-.fold__head h2, .panel h2, .dash-card h2, .email-tools__title { font-family: var(--font-body); font-weight: 700; }
+/* Panel and card headings use the bold body font; the display font is for page titles. */
+.panel h2, .dash-card h2, .email-tools__title { font-family: var(--font-body); font-weight: 700; }
 
 /* To order: hidden row of customers under a title, flowing into columns */
 .toorder__people > td { background: var(--stripe); padding: 0.6rem 1rem; }
@@ -741,7 +754,7 @@ tr.is-clickable { cursor: pointer; }
 .qr-item__img svg { width: 100%; height: 100%; display: block; }
 .qr-item__preview .admin-hint { overflow-wrap: anywhere; }
 @media (max-width: 700px) { .qr-item__body { grid-template-columns: 1fr; } .qr-item__preview { max-width: 260px; } }
-.toorder .fold__head .cust-toggle { flex: none; margin: 0; font-size: .85rem; }
+.fold--compact .fold__head .cust-toggle { flex: none; margin: 0; font-size: .85rem; }
 
 /* Reservations list: an order opens in a row under its line. */
 .order-expand td { padding: 0; }
@@ -887,18 +900,14 @@ tr.is-clickable { cursor: pointer; }
   .dash-latest__more { display: none; }
 }
 @media (max-width: 700px) {
-  /* Cutoff header: the heading takes the first line and the action sits full width beneath it. */
-  .toorder .fold__head { flex-wrap: wrap; row-gap: var(--sp-6); }
-  .toorder .fold__head h2 { flex: 1 1 calc(100% - 2rem); } /* leaves room for the chevron on the same line */
-  .toorder .fold__head .btn { flex: 1 1 100%; }
   .order-tools__row select { min-height: 44px; }
   .order-tools__btns .btn { flex: 1 1 0; }
   .order-tools__btns .label { display: none; }
 }
 
 /* "Not ordering" (the red X) on Place Order: a big target with a big icon, on phones and desktop alike. */
-.toorder [data-notordering] { width: 52px; height: 52px; min-width: 52px; min-height: 52px; }
-.toorder [data-notordering] svg { width: 36px; height: 36px; }
+.fold--compact [data-notordering] { width: 52px; height: 52px; min-width: 52px; min-height: 52px; }
+.fold--compact [data-notordering] svg { width: 36px; height: 36px; }
 
 /* ---------- Reservations: quick status chips, compact phone cards ---------- */
 .status-chips { display: flex; gap: var(--sp-8); overflow-x: auto; padding-bottom: var(--sp-2); scrollbar-width: none; }
@@ -960,8 +969,6 @@ tr.is-clickable { cursor: pointer; }
 .admin-hint-fold > .admin-hint { margin: 0; padding: 0 var(--sp-16) var(--sp-14); } /* the text lines up with the heading above it, not the box edge */
 @media (max-width: 899px) {
   .field .cust-export-opt { min-height: 44px; font-size: 1rem; white-space: normal; }
-  /* The Mark Ready button stays on screen under the page header while the list scrolls. */
-  .toorder.fold--static > .fold__head { position: sticky; top: 60px; z-index: 5; }
 }
 @media (max-width: 899px) {
   .admin-filters .field:has(.cust-export-opt) { grid-column: 1 / -1; }
@@ -1007,9 +1014,9 @@ tr.is-clickable { cursor: pointer; }
   .cust-title-row .cust-contact__phone, .cust-title-row .cust-contact .btn { display: inline-flex; align-items: center; }
   [data-back] { display: inline-flex; align-items: center; min-height: 44px; }
   /* Pull List header: the heading on its own line, then "Show cancelled" and a small Export PDF on one row. */
-  .cust-main .toorder .fold__head { flex-wrap: wrap; row-gap: var(--sp-6); }
-  .cust-main .toorder .fold__head .cust-toggle { flex: 1 1 auto; min-height: 44px; font-size: .95rem; }
-  .cust-main .toorder .fold__head .btn { flex: 0 0 auto; }
+  .cust-main .fold--compact .fold__head { flex-wrap: wrap; row-gap: var(--sp-6); }
+  .cust-main .fold--compact .fold__head .cust-toggle { flex: 1 1 auto; min-height: 44px; font-size: .95rem; }
+  .cust-main .fold--compact .fold__head .btn { flex: 0 0 auto; }
   /* The remove button is a real tap target. */
   .cust-lines .cl-rm .icon-btn { width: 48px; height: 48px; }
   .cust-lines .cl-rm .icon-btn svg { width: 30px; height: 30px; }
@@ -1200,9 +1207,6 @@ tr.is-clickable { cursor: pointer; }
 }
 
 .chip [data-quick-count]:not(:empty) { margin-left: var(--sp-6); padding: 0 var(--sp-6); border-radius: var(--radius-pill); background: var(--danger); color: #fff; font-size: .8rem; line-height: 1.5; } /* the count on a quick filter, set off from its label */
-
-/* Place Order cutoff headers are taller so each cutoff stands out on the page. */
-.fold.toorder[data-foc] > .fold__head { min-height: 56px; }
 
 /* Staff list: paint the zebra stripe on the row so the action cell can't fall a pixel short of its neighbours. */
 .staff-table tbody tr:nth-child(even) { background: var(--stripe); }
