@@ -300,7 +300,8 @@
             <li>Phone numbers use <code>formatPhone()</code> from <code>lib.js</code>. Emails are the small <code>Email</code> button, not raw addresses.</li>
             <li>Sortable columns put <code>data-sort</code> on the <code>&lt;th&gt;</code>; <code>sortableTable()</code> from <code>lib.js</code> adds the buttons and arrows.</li>
             <li>Use <code>.center</code> for numeric columns and <code>.nowrap</code> for dates, phones and IDs.</li>
-            <li><code>tr.is-overdue</code> (pink) and <code>tr.is-hidden</code> (faded) are the only row states.</li>
+            <li>Every other row is striped. Row states: <code>tr.is-overdue</code> (pink, for overdue, failed or blocked), <code>tr.is-hidden</code> (faded), <code>tr.is-merge</code> / <code>tr.is-keep</code> (Series merge), and <code>aria-expanded="true"</code> on an open order (blue).</li>
+            <li>Row colours paint the <code>&lt;tr&gt;</code>, never its cells, and live in one block of <code>admin.css</code> in priority order (stripe, hover, states, open). Add a new state there; no <code>!important</code>.</li>
           </ul>
           <div class="sg-item" data-code>
             <h3>Empty state</h3>
@@ -311,7 +312,7 @@
         <!-- ===================================================== -->
         <section class="sg-section" id="cards">
           <h2>Card lists (phones)</h2>
-          <p>On phones and tablets (up to 899px) a table with four or more columns becomes a list of cards. Add <code>cards</code> to the table and say what each cell is with a role class; <code>admin.js</code> copies each column heading onto its cell as <code>data-label</code>. Narrow the window to see this table stack.</p>
+          <p>On phones and tablets (up to 899px) a <code>cards</code> table becomes a list of cards; any other table stays a table and scrolls sideways. Add <code>cards</code> to the table and say what each cell is with a role class; <code>admin.js</code> copies each column heading onto its cell as <code>data-label</code>. Narrow the window to see this table stack.</p>
           <div class="sg-item" data-code>
             <h3>A card list</h3>
             <div class="sg-demo sg-demo--flush">

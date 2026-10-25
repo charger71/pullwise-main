@@ -177,13 +177,21 @@ th[aria-sort='descending'] .sort-btn::after { content: '▼'; opacity: 1; font-s
 th[aria-sort='ascending'], th[aria-sort='descending'] { color: #fff; }
 .admin-table td { padding: var(--sp-8) var(--sp-10); border-bottom: var(--border); vertical-align: middle; }
 .admin-table tr:last-child td { border-bottom: 0; }
-/* Every list table is striped; :where keeps this weaker than any row-state colour (overdue, merge, hover…). */
-.admin-table:where(:not(.cust-lines)) :where(tbody tr:nth-child(even) td) { background: var(--stripe); }
+/* Row colours. Rows are painted, never their cells, so a phone card is one solid colour and no cell falls a pixel short.
+   :where() keeps every rule here at the same weight, so the order decides: stripe, hover, then states, then the open order. */
+.admin-table:where(:not(.cust-lines)) > tbody > tr:where(:nth-child(even)) { background: var(--stripe); }
+.admin-table > tbody > tr:where(.is-alt, .toorder__people) { background: var(--stripe); } /* .is-alt: the pull list stripes by title, not by row */
+.admin-table > tbody > tr:where(:hover) { background: var(--hover-row); }
+.admin-table > tbody > tr:where(.is-overdue) { background: var(--danger-soft); }
+.admin-table > tbody > tr:where(.is-overdue:hover) { background: var(--hover-row-danger); }
+.admin-table > tbody > tr:where(.is-merge) { background: var(--merge-bg); }
+.admin-table > tbody > tr:where(.is-keep) { background: var(--keep-bg); }
+.admin-table > tbody > tr:where([aria-expanded='true']) { background: var(--select-bg); } /* the open order, matching its title list below */
+.admin-table > tbody > tr:where(.order-expand) { background: var(--surface); }
 .cust-email { text-transform: none; letter-spacing: 0; }
 .admin-table .center { text-align: center; }
 .admin-table .nowrap { white-space: nowrap; }
 .admin-table tr.is-hidden td { opacity: .55; }
-.admin-table tr.is-overdue td { background: var(--danger-soft); }
 .select--small { height: 38px; padding-block: 0; font-size: .9rem; min-width: 150px; }
 .thumb { display: block; flex: none; width: 96px; min-width: 96px; max-width: none; height: 144px; object-fit: contain; background: #fff; border-radius: var(--radius-xs); }
 .thumb--fix { display: grid; place-content: center; justify-items: center; gap: var(--sp-2); background: var(--brand-primary); color: #fff; font: 700 .7rem/1 var(--font-body); text-decoration: none; }
@@ -309,7 +317,6 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
   .order__lines .col-out::before { content: 'Out '; color: var(--muted); }
   .order__lines .col-qty, .order__lines .col-out, .order__lines .col-status { width: auto; }
 }
-.order__lines tr.is-overdue { background: var(--danger-soft); }
 
 /* ---------- Media ---------- */
 .media-grid { list-style: none; padding: 0; display: grid; gap: var(--sp-10); grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
@@ -525,9 +532,6 @@ td.dash-top__n { text-align: center; font: 1.1rem var(--font-display); }
 .cust-head-actions { flex: 1 1 auto; flex-wrap: wrap; justify-content: flex-end; margin: 0 0 0 auto; }
 .cust-export-opt { display: inline-flex; align-items: center; gap: var(--sp-6); font-weight: 400; font-size: .9rem; margin: 0; color: var(--muted); }
 tr.is-clickable { cursor: pointer; }
-/* Row hover: a warmer gold than the cream stripe, so the row under the pointer always stands out. State rows (overdue, merge/keep) keep their own colour and just darken. */
-.admin-table tbody tr:not(.is-overdue):not(.is-merge):not(.is-keep):hover td { background: var(--hover-row); }
-.admin-table tbody tr.is-overdue:hover td { background: var(--hover-row-danger); }
 
 /* ---------- Titles: stacked rows on phones so Edit and the flags stay on screen ---------- */
 .tt-dates span { display: block; }
@@ -552,26 +556,23 @@ tr.is-clickable { cursor: pointer; }
   .titles-table .tt-flag--3 { grid-column: 4; }
 }
 
-/* ---------- Phones and tablets: stacked cards for wide list tables ----------
-   admin.js tags tables with four or more columns as .is-stack and copies each column heading onto its cells (data-label).
-   Alternating colours go on the card (tr), not its cells, so a card is one solid colour. */
+/* ---------- Phones and tablets: `cards` tables stack into one card per row ----------
+   admin.js tags every `cards` table .is-stack and copies each column heading onto its cells (data-label). This is the
+   card frame; the layout inside a card comes from the role classes in "Card lists" below. */
 @media (max-width: 899px) {
   .admin-table-wrap:has(.is-stack) { overflow-x: visible; }
   .admin-table.is-stack, .admin-table.is-stack > tbody { display: block; width: 100%; }
   .admin-table.is-stack > thead { display: none; }
   .admin-table.is-stack > tbody > tr { display: block; padding: var(--sp-10) var(--sp-12); border-bottom: var(--border); }
-  .admin-table.is-stack > tbody > tr > td { display: grid; grid-template-columns: minmax(80px, 30%) minmax(0, 1fr); gap: var(--sp-8); align-items: center; padding: var(--sp-4) 0; border: 0; overflow-wrap: anywhere; white-space: normal; text-align: left; }
-  .admin-table.is-stack > tbody > tr > td::before { content: attr(data-label); font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-  .admin-table.is-stack > tbody > tr > td:not([data-label])::before, .admin-table.is-stack > tbody > tr > td[data-label='']::before { content: none; }
-  .admin-table.is-stack > tbody > tr > td:not([data-label]), .admin-table.is-stack > tbody > tr > td[data-label=''] { display: block; }
-  .admin-table.is-stack > tbody > tr > td.nowrap { white-space: normal; }
-  .admin-table.is-stack > tbody > tr > td.center { text-align: left; }
+  .admin-table.is-stack > tbody > tr > td { display: block; padding: var(--sp-4) 0; border: 0; overflow-wrap: anywhere; white-space: normal; text-align: left; }
   .admin-table.is-stack > tbody > tr > td:empty { display: none; }
-  .admin-table.is-stack > tbody > tr > td .btn, .admin-table.is-stack > tbody > tr > td .cust-status { justify-self: start; }
   .admin-table.is-stack > tbody > tr:last-child { border-bottom: 0; }
-  .titles-table td, .admin-table.is-stack > tbody > tr > td, .staff-table td, .dash-top td { background: transparent !important; }
-  .titles-table tbody tr:nth-child(even), .admin-table.is-stack > tbody > tr:nth-child(even), .staff-table tbody tr:nth-child(even), .dash-top tbody tr:nth-child(even) { background: var(--stripe); }
-  .titles-table tbody tr:nth-child(odd), .admin-table.is-stack > tbody > tr:nth-child(odd), .staff-table tbody tr:nth-child(odd), .dash-top tbody tr:nth-child(odd) { background: var(--surface); }
+}
+
+/* ---------- Grid rows: tables with a layout of their own on phones ----------
+   Four tables are not `cards` because they place their cells on a grid: Titles (above), Dashboard > Most Reserved (here),
+   the order title list (Reservations) and the customer pull list (Customers). Row colours still come from the shared rules. */
+@media (max-width: 899px) {
   /* Dashboard > Most Reserved: rank, a bigger cover, then the title with Out and Copies lined up beneath it. */
   .dash-top thead { display: none; }
   .dash-top, .dash-top tbody { display: block; width: 100%; }
@@ -586,10 +587,6 @@ tr.is-clickable { cursor: pointer; }
   .dash-top td.dash-top__n { grid-column: 3; grid-row: 3; text-align: left; font-size: 1rem; }
   .dash-top td.dash-top__n::after { content: ' copies'; font: .82rem var(--font-body); color: var(--muted); }
 }
-@media (max-width: 899px) {
-  .titles-table tbody tr.is-overdue, .admin-table.is-stack > tbody > tr.is-overdue { background: var(--danger-soft); }
-  .titles-table tbody tr:hover, .admin-table.is-stack > tbody > tr:hover { background: var(--hover-row); }
-}
 
 /* ---------- Phone header ---------- */
 @media (max-width: 599px) {
@@ -599,7 +596,6 @@ tr.is-clickable { cursor: pointer; }
 }
 
 /* ---------- Alternating row backgrounds on the customer pull list ---------- */
-.cust-lines tr.is-alt, .cust-lines tr.is-alt td { background: var(--stripe); }
 /* Titles a follow added this week */
 .cust-lines tr[data-auto-new] td:first-child { box-shadow: inset 4px 0 0 var(--brand-accent); }
 
@@ -634,8 +630,6 @@ tr.is-clickable { cursor: pointer; }
 /* Series merge */
 .series-table__tick { width: 64px; text-align: center; }
 .series-table tr { cursor: pointer; }
-.series-table tr.is-merge td { background: var(--merge-bg); }
-.series-table tr.is-keep td { background: var(--keep-bg); }
 .series-merge__hint { margin: var(--sp-10) 0 var(--sp-4); color: var(--muted); font-size: .9rem; }
 [data-follow-results] + [data-follows] { margin-top: var(--sp-6); }
 
@@ -741,7 +735,7 @@ tr.is-clickable { cursor: pointer; }
 .panel h2, .dash-card h2, .email-tools__title { font-family: var(--font-body); font-weight: 700; }
 
 /* To order: hidden row of customers under a title, flowing into columns */
-.toorder__people > td { background: var(--stripe); padding: 0.6rem 1rem; }
+.toorder__people > td { padding: 0.6rem 1rem; }
 .toorder__list { list-style: none; margin: 0; padding: 0; column-width: 14rem; column-gap: 1.5rem; }
 .toorder__list li { break-inside: avoid; padding: 0.1rem 0; }
 
@@ -758,38 +752,22 @@ tr.is-clickable { cursor: pointer; }
 
 /* Reservations list: an order opens in a row under its line. */
 .order-expand td { padding: 0; }
-.admin-table tbody tr.order-expand > td, .admin-table tbody tr.order-expand:hover > td { background: var(--surface) !important; }
 .order-expand .order--inline { padding: var(--sp-10) var(--sp-14) var(--sp-14); border-left: 4px solid var(--brand-accent); }
 .order__toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-8); }
 .order__toolbar .order__meta { margin: 0; flex-wrap: wrap; }
 .order__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-6); margin-left: auto; }
 .orders-table tr[aria-expanded='true'] td { border-bottom: 0; }
-/* The order that is open gets the active (blue) colour on its own line, matching its title list below. */
-.admin-table tbody tr[aria-expanded='true'] > td { background: var(--select-bg) !important; }
 @media (max-width: 899px) {
-  .admin-table.is-stack > tbody > tr[aria-expanded='true'] { background: var(--select-bg) !important; }
-}
-@media (max-width: 899px) {
-  .admin-table.is-stack > tbody > tr.order-expand { background: var(--surface) !important; padding: 0; }
+  .admin-table.is-stack > tbody > tr.order-expand { padding: 0; }
 }
 
 /* Reservations: an expanded order's title list gets its own colour. The header and every other row share it. */
 .order--inline { --order-tint: var(--select-bg); --order-tint-light: var(--select-bg-light); } /* header colour, and a lighter shade of it for every other row */
 .order--inline > .order__lines > thead > tr > th { background: var(--order-tint); color: var(--ink); }
-.order--inline > .order__lines > tbody > tr:nth-child(odd) > td { background: var(--surface) !important; }
-.order--inline > .order__lines > tbody > tr:nth-child(even) > td { background: var(--order-tint-light) !important; }
+.order--inline > .order__lines > tbody > tr { background: var(--surface); } /* outweighs the shared row colours: no hover here */
+.order--inline > .order__lines > tbody > tr:where(:nth-child(even)) { background: var(--order-tint-light); }
+.order--inline > .order__lines > tbody > tr:where(.is-overdue) { background: var(--danger-soft); }
 .order-expand .order--inline { border-left-color: var(--select-edge); }
-.order--inline > .order__lines > tbody > tr.is-overdue > td { background: var(--danger-soft) !important; }
-/* No hover highlight on the title list: rows keep their alternating colours. */
-.order--inline > .order__lines > tbody > tr:nth-child(odd):hover > td { background: var(--surface) !important; }
-.order--inline > .order__lines > tbody > tr:nth-child(even):hover > td { background: var(--order-tint-light) !important; }
-.order--inline > .order__lines > tbody > tr.is-overdue:hover > td { background: var(--danger-soft) !important; }
-@media (max-width: 899px) {
-  .order--inline .order__lines tbody tr:nth-child(odd) { background: var(--surface); }
-  .order--inline .order__lines tbody tr:nth-child(even) { background: var(--order-tint-light); }
-  .order--inline .order__lines tbody tr.is-overdue { background: var(--danger-soft); }
-  .order--inline > .order__lines > tbody > tr > td, .order--inline > .order__lines > tbody > tr:nth-child(odd):hover > td, .order--inline > .order__lines > tbody > tr:nth-child(even):hover > td, .order--inline > .order__lines > tbody > tr.is-overdue:hover > td { background: transparent !important; }
-}
 .tier-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--sp-8) var(--sp-14); align-items: end; padding: var(--sp-10) 0; border-bottom: var(--border); max-width: 520px; }
 .tier-row .field { margin: 0; }
 
@@ -1208,9 +1186,6 @@ tr.is-clickable { cursor: pointer; }
 
 .chip [data-quick-count]:not(:empty) { margin-left: var(--sp-6); padding: 0 var(--sp-6); border-radius: var(--radius-pill); background: var(--danger); color: #fff; font-size: .8rem; line-height: 1.5; } /* the count on a quick filter, set off from its label */
 
-/* Staff list: paint the zebra stripe on the row so the action cell can't fall a pixel short of its neighbours. */
-.staff-table tbody tr:nth-child(even) { background: var(--stripe); }
-.staff-table tbody tr:nth-child(even) > td { background: transparent; }
 @media (max-width: 899px) {
   .staff-table.is-stack > tbody > tr { border-radius: var(--radius-sm); }
   .staff-table.is-stack > tbody > tr > td.st-last { flex: 1 1 100%; } /* "Last signed in" is always on its own line, not beside the role when it is short */

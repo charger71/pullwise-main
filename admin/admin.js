@@ -260,18 +260,15 @@ $('.admin-nav__toggle').addEventListener('click', () => setNavOpen($('.admin-nav
 document.addEventListener('keydown', (e) => e.key === 'Escape' && setNavOpen(false));
 document.addEventListener('click', (e) => !e.target.closest('.admin-nav') && setNavOpen(false));
 
-// Wide list tables (4+ columns) become stacked cards on phones: tag them and copy each column heading onto its cells.
-const NO_STACK = '.titles-table, .order__lines, .cust-lines, .dash-top';
+// `cards` tables become stacked cards on phones: tag them and copy each column heading onto its cells.
 const stackTables = (root) => {
-  root.querySelectorAll('table.admin-table').forEach((table) => {
-    if (table.matches(NO_STACK)) return;
+  root.querySelectorAll('table.admin-table.cards').forEach((table) => {
     const heads = [];
     table.querySelectorAll('thead tr:last-child th').forEach((th) => {
       const hidden = th.querySelector('.visually-hidden');
       const label = hidden && th.textContent.trim() === hidden.textContent.trim() ? '' : th.textContent.trim();
       for (let i = 0; i < (Number(th.colSpan) || 1); i++) heads.push(label);
     });
-    if (heads.length < 4 && !table.classList.contains('cards')) return; // a `cards` table stacks whatever its width
     table.classList.add('is-stack');
     table.querySelectorAll('tbody tr').forEach((tr) => {
       let col = 0;
