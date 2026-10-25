@@ -1,8 +1,10 @@
 // Titles: every item (pre-orders and in-store stock). Search and filter, quick
-// changes in the list (status, staff pick, hidden), and a full edit form.
+// changes in the list (status, staff pick, hidden), a full edit form, and who
+// ordered each title.
 
-import { $, $$, esc, must, toast, isPhone, openDialog, imageField, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, openDialog, imageField, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold, fetchAll, fmtDateTime, formatPhone, itemName, withCustomers, listLocations } from '../lib.js';
 import { ITEM_BADGES } from '../../js/site.js';
+import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, weekStart } from '../../js/dates.js';
 
 const PAGE = 50;
@@ -160,6 +162,8 @@ export async function mount(el, ctx) {
   $('tbody', el).addEventListener('click', (e) => {
     const btn = e.target.closest('[data-edit]');
     if (btn) return edit(el, Number(btn.dataset.edit));
+    const orders = e.target.closest('[data-orders]');
+    if (orders) return whoOrdered(Number(orders.dataset.orders));
     // Click an FOC or Out date to see only the titles in that week (the dropdowns follow).
     const date = e.target.closest('[data-date]');
     if (date) {
@@ -296,7 +300,7 @@ async function load(el) {
         .map(
           (i) => `<tr data-id="${i.id}"${i.hidden ? ' class="is-hidden"' : ''}>
         <td class="tt-thumb">${i.cover_url ? `<img class="thumb" src="${esc(i.cover_url)}" alt="" loading="lazy">` : `<a class="thumb thumb--fix" href="${coverSearchUrl(i)}" target="_blank" rel="noopener noreferrer" title="Find a cover (opens Google Images in a new tab)" aria-label="Find a cover for ${esc(i.title)} (opens Google Images in a new tab)">${solidIcon('fix', 18)}<span>Fix</span></a>`}</td>
-        <td class="tt-title"><strong>${esc(i.title)}${i.issue_number ? ` #${esc(i.issue_number)}` : ''}</strong>${i.variant ? `<br><span class="card__meta">${esc(i.variant)}</span>` : ''}<br><span class="card__meta">${esc(i.publisher ?? '')}${i.sku ? ` · ${esc(i.sku)}` : ''}</span></td>
+        <td class="tt-title"><strong>${esc(i.title)}${i.issue_number ? ` #${esc(i.issue_number)}` : ''}</strong>${i.variant ? `<br><span class="card__meta">${esc(i.variant)}</span>` : ''}<br><span class="card__meta">${esc(i.publisher ?? '')}${i.sku ? ` · ${esc(i.sku)}` : ''}</span><span class="tt-orders" data-orders-for="${i.id}"></span></td>
         <td class="tt-status"><label class="visually-hidden" for="st-${i.id}">Status</label><select id="st-${i.id}" data-field="status" class="select--small">${Object.entries(STATUS_LABELS).map(([v, l]) => `<option value="${v}"${v === i.status ? ' selected' : ''}>${l}</option>`).join('')}</select></td>
         <td class="nowrap tt-dates">${i.foc_date ? `<span><button class="tt-datelink" type="button" data-date-field="foc_date" data-date="${i.foc_date}" title="Show only titles with an order cutoff this week">FOC ${fmtDate(i.foc_date, { month: 'short', day: 'numeric' })}</button></span>` : ''}${i.release_date ? `<span><button class="tt-datelink" type="button" data-date-field="release_date" data-date="${i.release_date}" title="Show only titles out this week">Out ${fmtDate(i.release_date)}</button></span>` : ''}</td>
         <td class="center tt-flag tt-flag--1" data-label="Staff"><input type="checkbox" data-field="staff_pick" aria-label="Staff pick"${i.staff_pick ? ' checked' : ''}></td>
@@ -307,6 +311,89 @@ async function load(el) {
         )
         .join('')
     : '<tr><td colspan="8" class="empty">No titles match.</td></tr>';
+  showOrderCounts(el, data.map((i) => i.id));
+}
+
+/** Lines that still count as someone wanting the title (not cancelled, not given up). */
+const LIVE_LINE = ['open', 'ordered', 'reordered', 'arrived', 'picked_up'];
+
+/** Under each title on the page: how many customers have it on order, as a link to the list of who. */
+async function showOrderCounts(el, ids) {
+  if (!ids.length) return;
+  const { data } = await sb.from('reservations').select('item_id,quantity,order_id').in('item_id', ids).in('status', LIVE_LINE).limit(5000);
+  const byItem = new Map();
+  for (const l of data ?? []) {
+    const t = byItem.get(l.item_id) ?? { orders: new Set(), copies: 0 };
+    t.orders.add(l.order_id);
+    t.copies += l.quantity;
+    byItem.set(l.item_id, t);
+  }
+  for (const [id, t] of byItem) {
+    const slot = $(`[data-orders-for="${id}"]`, el);
+    if (!slot) continue; // the list was reloaded meanwhile
+    const who = `${t.orders.size} ${t.orders.size === 1 ? 'order' : 'orders'}`;
+    slot.innerHTML = `<br><button class="tt-datelink" type="button" data-orders="${id}" title="See who ordered this title">${who}${t.copies !== t.orders.size ? ` · ${t.copies} copies` : ''}</button>`;
+  }
+}
+
+/** Everyone who reserved a title: name (to their customer page or guest order), phone, email, copies, status and when. */
+async function whoOrdered(itemId) {
+  const d = openDialog('Who Ordered', '<p class="admin-hint" aria-busy="true">Loading…</p>', { wide: true });
+  const body = $('.dialog__body', d);
+  try {
+    const [item, lines, locations] = await Promise.all([
+      must(sb.from('items').select('title,issue_number,variant,publisher,foc_date,release_date').eq('id', itemId).single()),
+      fetchAll(() => sb.from('reservations').select('id,quantity,status,created_at,location_id,order:reservation_orders(id,name,phone,email,customer_id,customer:customers(id,name,first_name,last_name,phone,email))').eq('item_id', itemId).order('id')),
+      listLocations(sb),
+    ]);
+    // Guest orders placed with a customer's email show (and link to) that customer.
+    await withCustomers(sb, lines.map((l) => l.order).filter(Boolean));
+    const place = new Map(locations.map((l) => [l.id, l.name]));
+    const live = lines.filter((l) => LIVE_LINE.includes(l.status));
+    const rank = (l) => (LIVE_LINE.includes(l.status) ? 0 : 1);
+    // Shown and sorted as "Last, First". Guest orders only have one name field: the last word is the surname.
+    for (const l of lines) {
+      const c = l.order?.customer;
+      if (c?.last_name) Object.assign(l, { last: c.last_name, first: c.first_name ?? '' });
+      else {
+        const words = (l.order?.name || 'Unknown').trim().split(/\s+/);
+        Object.assign(l, { last: words.pop(), first: words.join(' ') });
+      }
+    }
+    const byName = (a, b) => a.last.localeCompare(b.last, undefined, { sensitivity: 'base' }) || a.first.localeCompare(b.first, undefined, { sensitivity: 'base' });
+    lines.sort((a, b) => rank(a) - rank(b) || byName(a, b));
+    const counts = new Map();
+    for (const l of lines) counts.set(l.status, (counts.get(l.status) ?? 0) + 1);
+    const dates = [item.foc_date && `FOC ${fmtDate(item.foc_date)}`, item.release_date && `Out ${fmtDate(item.release_date)}`].filter(Boolean).join(' · ');
+    const name = (l) => {
+      const label = `<strong>${esc([l.last, l.first].filter(Boolean).join(', '))}</strong>`;
+      const o = l.order;
+      if (!o) return label;
+      if (o.customer_id) return `<a href="#customers" data-customer="${o.customer_id}">${label}</a>`;
+      return `<a href="#reservations" data-guest="${o.id}">${label}</a> <span class="pill">Guest order</span>`;
+    };
+    const email = (l) => (l.order?.email ? `<button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(l.order.email)}" aria-label="Email ${esc(l.order.name || l.order.email)}" data-email-to="${esc(l.order.email)}" data-email-name="${esc(l.first || l.order.name || '')}"${l.order.customer_id ? ` data-email-customer="${l.order.customer_id}"` : ''}>Email</button>` : '');
+    body.innerHTML = `
+      <p><strong>${esc(itemName(item))}</strong>${item.publisher ? ` · ${esc(item.publisher)}` : ''}${dates ? `<br><span class="card__meta">${dates}</span>` : ''}</p>
+      <p class="results-count">${live.length} ${live.length === 1 ? 'order' : 'orders'} · ${live.reduce((n, l) => n + l.quantity, 0)} copies${counts.size ? ` <span class="card__meta">(${[...counts].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`).join(', ')})</span>` : ''}</p>
+      ${lines.length ? `<div class="admin-table-wrap"><table class="admin-table cards">
+        <thead><tr><th scope="col" class="col-cust-name">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col" class="center">Qty</th><th scope="col">Status</th><th scope="col">Placed</th>${place.size ? '<th scope="col">Location</th>' : ''}</tr></thead>
+        <tbody>${lines.map((l) => `<tr${rank(l) ? ' class="is-hidden"' : ''}><td class="card-title">${name(l)}</td><td class="nowrap">${esc(formatPhone(l.order?.phone ?? ''))}</td><td class="card-action">${email(l)}</td><td class="center card-key card-label">${l.quantity}</td><td class="card-key"><span class="pill pill--${esc(l.status)}">${esc(LINE_STATUS[l.status] ?? l.status)}</span></td><td class="card__meta nowrap">${fmtDateTime(l.created_at)}</td>${place.size ? `<td>${esc(place.get(l.location_id) ?? '')}</td>` : ''}</tr>`).join('')}</tbody>
+      </table></div>` : '<p class="empty">Nobody has ordered this title.</p>'}`;
+    body.addEventListener('click', (e) => {
+      const link = e.target.closest('[data-customer], [data-guest]');
+      if (!link) return;
+      try {
+        if (link.dataset.customer) sessionStorage.setItem('admin-open-customer', link.dataset.customer);
+        else sessionStorage.setItem('admin-open-guest', link.dataset.guest);
+      } catch {
+        /* the link still opens the list */
+      }
+      d.close();
+    });
+  } catch (err) {
+    body.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
+  }
 }
 
 async function edit(listEl, id) {
