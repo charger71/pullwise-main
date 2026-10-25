@@ -175,7 +175,8 @@ check('"How this works" starts closed', () => {
 
 check('clickable fold headers keep their minimum height', () => {
   assert.match(base, /--tap-head:\s*52px/, '--tap-head must stay 52px');
-  assert.match(css, /\.fold:not\(\.fold--static\)[^{]*\.fold__head\s*\{[^}]*min-height:\s*var\(--tap-head\)/, 'clickable fold headers must be at least --tap-head (52px) tall');
+  assert.match(css, /\n\.fold__head\s*\{[^}]*min-height:\s*var\(--tap-head\)/, 'every fold header is at least --tap-head (52px) tall');
+  assert.doesNotMatch(css, /\.fold--compact[^{,]*\.fold__head\s*\{[^}]*padding/, 'compact folds use the shared header padding');
   assert.match(css, /\.admin-table th\s*\{[^}]*var\(--fold-head-bg\)/, 'table header rows must use --fold-head-bg');
   assert.match(css, /\.fold__head\s*\{[^}]*var\(--fold-head-bg\)/, 'fold headers must use --fold-head-bg');
 });
