@@ -932,7 +932,18 @@ tr.is-clickable { cursor: pointer; }
 .chip:has(input:checked) { background: var(--brand-accent); border-color: var(--brand-accent); color: var(--on-accent); }
 .chip:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 .chip > input[type=checkbox] { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
-@media (min-width: 900px) { .orders-filters { grid-template-columns: 2fr auto repeat(2, 1fr); align-items: end; } }
+/* Reservations filter bar on desktop. base.css makes every .filters bar one flex row, which let the 480px of quick-filter
+   chips push Export CSV out of the box. Here it is a real grid: search, status and export on the first row and the chips
+   on a row of their own (one row never leaves the search box enough room, since the admin is at most 1180px wide). */
+@media (min-width: 900px) {
+  .filters.orders-filters { display: grid; align-items: end; gap: var(--sp-12); grid-template-columns: minmax(0, 1fr) minmax(250px, 300px) auto; }
+  .orders-filters > .field { min-width: 0; margin: 0; }
+  .orders-filters > .field--search { grid-column: 1; grid-row: 1; }
+  .orders-filters > .orders-filters__status { grid-column: 2; grid-row: 1; }
+  .orders-filters > .orders-filters__csv { grid-column: 3; grid-row: 1; }
+  .orders-filters > .status-chips { grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; overflow: visible; }
+  .orders-filters select { width: 100%; }
+}
 @media (max-width: 899px) {
   .orders-filters, .filters--compact { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-10); align-items: end; }
   .orders-filters .field--search, .orders-filters .status-chips { grid-column: 1 / -1; }

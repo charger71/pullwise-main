@@ -124,8 +124,8 @@ function renderOrders(body) {
     <form class="filters admin-filters orders-filters" role="search" aria-label="Find reservations">
       <div class="field field--search"><label for="r-q">Search</label><input id="r-q" name="q" type="search" placeholder="Customer name, phone, email or title" value="${esc(state.q)}"></div>
       <div class="status-chips" role="group" aria-label="Quick filters">${Object.entries(QUICK_STATUS).map(([v, l]) => `<button type="button" class="chip" data-quick="${v}" aria-pressed="${state.status === v}">${l}<span data-quick-count="${v}"></span></button>`).join('')}</div>
-      <div class="field"><label for="r-status">Titles that are</label><select id="r-status" name="status">${Object.entries(ORDER_FILTERS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
-      <div class="field"><span class="label">&nbsp;</span><button class="btn btn--ghost" type="button" data-csv>Export CSV</button></div>
+      <div class="field orders-filters__status"><label for="r-status">Titles that are</label><select id="r-status" name="status">${Object.entries(ORDER_FILTERS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
+      <div class="field orders-filters__csv"><span class="label">&nbsp;</span><button class="btn btn--ghost" type="button" data-csv>Export CSV</button></div>
     </form>
     <p class="results-count" role="status" data-count></p>
     <div data-orders>
