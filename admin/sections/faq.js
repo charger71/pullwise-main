@@ -1,6 +1,6 @@
 // FAQ: add, edit, reorder and delete questions (faqs table).
 
-import { $, $$, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError } from '../lib.js';
+import { $, $$, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, uid } from '../lib.js';
 
 let items = []; // { id|null, el, quill, dirty }
 export const hasUnsavedChanges = () => items.some((i) => i.dirty);
@@ -33,7 +33,7 @@ export async function mount(el, { sb }) {
 function addItem(sb, list, f, open = false) {
   const el = document.createElement('li');
   el.className = 'faq-item' + (f.id ? '' : ' faq-item--unsaved');
-  const qid = `faq-q-${Math.random().toString(36).slice(2)}`;
+  const qid = uid('faq-q');
   // The arrows sit over the header band but outside its summary element: a button inside one can't be reached or announced reliably.
   el.innerHTML = `
     <span class="faq-item__move">

@@ -887,7 +887,6 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 @media (max-width: 699px) {
   .order-tools__row select { min-height: var(--tap); }
   .order-tools__btns .btn { flex: 1 1 0; }
-  .order-tools__btns .label { display: none; }
 }
 
 /* "Not ordering" (the red X) on Place Order: a big target with a big icon, on phones and desktop alike. */
@@ -957,7 +956,6 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 }
 @media (max-width: 899px) {
   .admin-filters .field:has(.cust-export-opt) { grid-column: 1 / -1; }
-  .admin-filters .field:has(.cust-export-opt) > .label { display: none; }
   .field .cust-export-opt { width: 100%; gap: var(--sp-10); }
   .field .cust-export-opt input { width: 24px; height: 24px; flex: none; }
 }

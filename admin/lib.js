@@ -12,6 +12,9 @@ export { esc, must, formatPhone };
 export { friendlyError, fromError };
 
 export const $ = (sel, root = document) => root.querySelector(sel);
+/** A page-unique id for tying a label to its field (`uid('faq-q')` → 'faq-q-7'). A counter, so ids are readable and never collide. */
+let lastUid = 0;
+export const uid = (prefix = 'id') => `${prefix}-${++lastUid}`;
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 export const db = () => supabase();
@@ -347,7 +350,7 @@ export function makeEditor(el, kind = 'body', labelEl = null) {
   if (labelEl) {
     quill.root.setAttribute('role', 'textbox');
     quill.root.setAttribute('aria-multiline', 'true');
-    quill.root.setAttribute('aria-labelledby', (labelEl.id ||= `lbl-${Math.random().toString(36).slice(2)}`));
+    quill.root.setAttribute('aria-labelledby', (labelEl.id ||= uid('lbl')));
   }
   // Name the icon-only toolbar buttons for screen readers and tooltips.
   const names = { bold: 'Bold', italic: 'Italic', underline: 'Underline', strike: 'Strikethrough', link: 'Link', image: 'Insert image', video: 'Insert video', table: 'Insert table', divider: 'Divider line', blockquote: 'Quote', clean: 'Clear formatting' };
@@ -612,7 +615,7 @@ export async function replaceImage(file, path, opts = {}) {
  * getThumb() is its address (null when the picture was chosen from Media or removed).
  */
 export function imageField(root, { folder, crop = 'original', maxSize = 1600, label = 'Image', library = false, thumb = false }) {
-  const id = `img-${Math.random().toString(36).slice(2)}`;
+  const id = uid('img');
   root.innerHTML = `
     <span class="label">${esc(label)}</span>
     <div class="image-field">
@@ -656,7 +659,9 @@ export function imageField(root, { folder, crop = 'original', maxSize = 1600, la
         .filter((f) => f.id && !/-sm\.jpg$/.test(f.name)); // small copies aren't listed as pictures of their own
       const urls = files.map((f) => sb.storage.from('media').getPublicUrl(`library/${f.name}`).data.publicUrl);
       const d = openDialog('Choose from Media', files.length
-        ? `<p class="field__hint">Pick an image from the Media Library. It is linked, not copied, so the same image can be used again and again.</p><ul class="media-grid media-pick">${urls.map((u, i) => `<li class="media-item"><button type="button" class="media-pick__btn" data-url="${esc(u)}" aria-label="Use ${esc(files[i].name)}"><img src="${esc(u)}" alt="" loading="lazy"></button></li>`).join('')}</ul>`
+        ? `<p class="field__hint">Pick an image from the Media Library. It is linked, not copied, so the same image can be used again and again.</p>
+          <ul class="media-grid media-pick">${urls.map((u, i) => `<li class="media-item"><button type="button" class="media-pick__btn" data-url="${esc(u)}" aria-label="Use ${esc(files[i].name)}"><img src="${esc(u)}" alt="" loading="lazy"></button>
+          </li>`).join('')}</ul>`
         : '<p class="empty">The Media Library is empty. Upload images under Media first.</p>', { wide: true });
       d.addEventListener('click', (e) => {
         const b = e.target.closest('[data-url]');
@@ -718,13 +723,13 @@ async function sendCustomerEmail({ to, subject, message, customerId }) {
 /** The same compose form as the popup, shown right on the page (e.g. Customers → Messages). Clears itself after sending. */
 export function mountEmailForm(box, { to, name = '', customerId = null }) {
   const first = String(name).trim().split(/\s+/)[0];
-  const uid = Math.random().toString(36).slice(2);
+  const u = uid('em');
   const greeting = first ? `Hi ${first},\n\n` : '';
   box.innerHTML = `
     <form class="admin-form" novalidate>
-      <div class="field"><label for="em-to-${uid}">To</label><input id="em-to-${uid}" value="${esc(to)}" readonly></div>
-      <div class="field"><label for="em-subject-${uid}">Subject</label><input id="em-subject-${uid}" maxlength="200" autocomplete="off"></div>
-      <div class="field"><label for="em-body-${uid}">Message</label><textarea id="em-body-${uid}" rows="6" maxlength="10000"></textarea>
+      <div class="field"><label for="em-to-${u}">To</label><input id="em-to-${u}" value="${esc(to)}" readonly></div>
+      <div class="field"><label for="em-subject-${u}">Subject</label><input id="em-subject-${u}" maxlength="200" autocomplete="off"></div>
+      <div class="field"><label for="em-body-${u}">Message</label><textarea id="em-body-${u}" rows="6" maxlength="10000"></textarea>
         <p class="field__hint">Sent from the shop address with the shop logo on top. Replies come to the shop email, which also gets a copy.</p></div>
       <p class="admin-status" role="status"></p>
       <div class="admin-actions">
@@ -733,8 +738,8 @@ export function mountEmailForm(box, { to, name = '', customerId = null }) {
       </div>
     </form>`;
   const form = $('form', box);
-  const subject = $(`#em-subject-${uid}`, box);
-  const body = $(`#em-body-${uid}`, box);
+  const subject = $(`#em-subject-${u}`, box);
+  const body = $(`#em-body-${u}`, box);
   const status = $('.admin-status', box);
   body.value = greeting;
   form.addEventListener('submit', async (e) => {

@@ -6,7 +6,7 @@
 
 import { readWorkbook, parseSheet } from '../../js/import/distributors.js';
 import { planImport, applyImport, logImport } from '../../js/import/apply.js';
-import { $, esc, must, setStatus, toast, fmtDate, fmtDateTime, processImage, loadScript, solidIcon, friendlyError, setupTabs, sortableTable, hintFold } from '../lib.js';
+import { $, esc, must, setStatus, toast, fmtDate, fmtDateTime, processImage, loadScript, solidIcon, friendlyError, setupTabs, sortableTable, hintFold, uid } from '../lib.js';
 import { tally } from '../../js/util.js';
 import { todayIn } from '../../js/dates.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../js/config.js';
@@ -181,13 +181,17 @@ async function preview(el, card, name, parsed, book) {
         <li><strong>${parsed.skipped.length}</strong> skipped</li>
         ${duplicates.length ? `<li><strong>${duplicates.length}</strong> left out — UPC or ISBN already on another title</li>` : ''}
       </ul>
-      ${duplicates.length ? `<details><summary>${duplicates.length} already in the catalog under another listing</summary><ul class="skipped">${duplicates.map((d) => `<li>${esc(d.title)}${d.issue_number ? ` #${esc(d.issue_number)}` : ''} <span class="card__meta">— ${d.upc && d.existingTitle.upc === d.upc ? `UPC ${esc(d.upc)}` : `ISBN ${esc(d.isbn)}`} is “${esc(d.existingTitle.title)}${d.existingTitle.issue_number ? ` #${esc(d.existingTitle.issue_number)}` : ''}”</span></li>`).join('')}</ul></details>` : ''}
+      ${duplicates.length ? `<details>
+        <summary>${duplicates.length} already in the catalog under another listing</summary>
+        <ul class="skipped">${duplicates.map((d) => `<li>${esc(d.title)}${d.issue_number ? ` #${esc(d.issue_number)}` : ''} <span class="card__meta">— ${d.upc && d.existingTitle.upc === d.upc ? `UPC ${esc(d.upc)}` : `ISBN ${esc(d.isbn)}`} is “${esc(d.existingTitle.title)}${d.existingTitle.issue_number ? ` #${esc(d.existingTitle.issue_number)}` : ''}”</span>
+        </li>`).join('')}</ul>
+        </details>` : ''}
       ${released ? `<p class="notice">${released} new ${released === 1 ? 'title is' : 'titles are'} already out, so ${released === 1 ? 'it goes' : 'they go'} straight to New Arrivals.</p>` : ''}
       <p class="card__meta">On sale: ${onSaleDates.map(([d, n]) => `${n} × ${d === 'no date' ? 'no date' : fmtDate(d, { month: 'short', day: 'numeric' })}`).join(', ')}</p>
       <p class="card__meta">Categories: ${tally(items.map((i) => i.category ?? 'none')).map(([c, n]) => `${n} ${c}`).join(', ')}</p>`;
   };
 
-  const n = Math.random().toString(36).slice(2);
+  const n = uid('f');
   card.innerHTML = `
     <div class="admin-title-row"><h2>${esc(name)}</h2><span class="pill">${SOURCE[parsed.source ?? parsed.distributor] ?? parsed.distributor}</span></div>
     <div data-summary><p class="admin-hint">Checking what's already imported…</p></div>

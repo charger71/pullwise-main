@@ -3,7 +3,7 @@
 // saved address, so the address can be changed later without reprinting. Drawn in the browser with
 // qrcode-generator (loaded from a CDN on first use).
 
-import { $, $$, esc, must, hintFold, setStatus, toast, solidIcon, friendlyError, loadScript, fmtDate } from '../lib.js';
+import { $, $$, esc, must, hintFold, setStatus, toast, solidIcon, friendlyError, loadScript, fmtDate, uid } from '../lib.js';
 import { SITE_URL } from '../../js/config.js';
 
 export const QR_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
@@ -160,24 +160,24 @@ function scanText(c) {
 
 function addItem(sb, list, c, open = false, prepend = false) {
   const el = document.createElement('div');
-  const uid = Math.random().toString(36).slice(2);
+  const u = uid('qr');
   el.className = 'fold qr-item';
   el.innerHTML = `
     <details${open ? ' open' : ''}>
       <summary class="fold__head"><span data-title></span></summary>
       <div class="fold__body qr-item__body">
         <div class="qr-item__form">
-          <div class="field"><label for="n-${uid}">Name (just for you)</label>
-            <input id="n-${uid}" name="name" maxlength="120" value="${esc(c.name)}" placeholder="Free Comic Book Day flyer"></div>
-          <div class="field"><label for="u-${uid}">Web address it opens</label>
-            <input id="u-${uid}" name="url" type="text" inputmode="url" maxlength="2000" value="${esc(c.target_url)}" placeholder="https://example.com/pre-orders.html"></div>
+          <div class="field"><label for="n-${u}">Name (just for you)</label>
+            <input id="n-${u}" name="name" maxlength="120" value="${esc(c.name)}" placeholder="Free Comic Book Day flyer"></div>
+          <div class="field"><label for="u-${u}">Web address it opens</label>
+            <input id="u-${u}" name="url" type="text" inputmode="url" maxlength="2000" value="${esc(c.target_url)}" placeholder="https://example.com/pre-orders.html"></div>
           <div class="checks"><label><input type="checkbox" name="forward"${c.forward ? ' checked' : ''}> Forward through our site (lets you change the address later)</label></div>
           <div class="qr-item__colors">
-            <div class="field"><label for="f-${uid}">Code color</label><input id="f-${uid}" name="fg" type="color" value="${c.fg}"></div>
-            <div class="field"><label for="b-${uid}">Background</label><input id="b-${uid}" name="bg" type="color" value="${c.bg}"></div>
+            <div class="field"><label for="f-${u}">Code color</label><input id="f-${u}" name="fg" type="color" value="${c.fg}"></div>
+            <div class="field"><label for="b-${u}">Background</label><input id="b-${u}" name="bg" type="color" value="${c.bg}"></div>
           </div>
-          <div class="field"><label for="t-${uid}">Notes (optional)</label>
-            <input id="t-${uid}" name="notes" maxlength="500" value="${esc(c.notes)}" placeholder="Where it’s printed, when it expires…"></div>
+          <div class="field"><label for="t-${u}">Notes (optional)</label>
+            <input id="t-${u}" name="notes" maxlength="500" value="${esc(c.notes)}" placeholder="Where it’s printed, when it expires…"></div>
           <p class="admin-hint" data-warn hidden>These colors are too close, so phones may not scan this. Use a dark code on a light background.</p>
           <div class="qr-item__actions sticky-actions">
             <button class="btn btn--primary" type="button" data-save>Save</button>

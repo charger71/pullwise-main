@@ -75,7 +75,13 @@ export async function mount(el, ctx) {
       </fieldset>
       <div class="admin-table-wrap"><table class="admin-table cards">
         <thead><tr><th scope="col"><input type="checkbox" data-all aria-label="Tick all tables"></th><th scope="col">Table</th><th scope="col" class="num">In backup</th><th scope="col" class="num">Now</th></tr></thead>
-        <tbody>${names.map((n) => `<tr><td class="card-lead"><input type="checkbox" data-table="${esc(n)}" aria-label="Restore ${esc(n)}"></td><td class="card-title">${esc(n.replace(/_/g, ' '))}</td><td class="num card-key card-label">${backup.tables[n].rows.length.toLocaleString()}</td><td class="num card-key card-label">${counts[n] == null ? '' : counts[n].toLocaleString()}</td></tr>`).join('')}</tbody>
+        <tbody>${names.map((n) => `<tr>
+          <td class="card-lead"><input type="checkbox" data-table="${esc(n)}" aria-label="Restore ${esc(n)}">
+          </td>
+          <td class="card-title">${esc(n.replace(/_/g, ' '))}</td>
+          <td class="num card-key card-label">${backup.tables[n].rows.length.toLocaleString()}</td>
+          <td class="num card-key card-label">${counts[n] == null ? '' : counts[n].toLocaleString()}</td>
+          </tr>`).join('')}</tbody>
       </table></div>
       <p class="field__hint">Not restored here: the staff list (add people under Staff), customers’ sign-ins (they sign up again with the same email and are matched back to their pull list), and the change log and job log. The ticked tables are loaded together, parents first: if any of them fails, none of them is changed. Foreign keys stay enforced, so a table whose parent rows are missing is refused unless you tick the parent table too.</p>
       <p class="admin-status" role="status" data-restore-status></p>

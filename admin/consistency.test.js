@@ -210,6 +210,18 @@ check('font sizes and z-index use the tokens', () => {
   assert.equal(bad.length, 0, `Bare sizes:\n${bad.join('\n')}\nUse a --fs-* step or a --z-* level from base.css.`);
 });
 
+// ---- Markup habits --------------------------------------------------------------------------------------------------
+check('no empty spacer labels, and ids come from uid()', () => {
+  const files = { ...Object.fromEntries(Object.entries(sections).map(([f, t]) => [`sections/${f}`, t])), 'lib.js': lib, 'style-guide.html': guide };
+  const bad = Object.entries(files).flatMap(([f, t]) => [
+    // a filter row lines its fields up along the bottom; an empty label to push a button down is not needed
+    ...(/<span class="label">(&nbsp;|\s)*<\/span>/.test(t) ? [`${f}: empty <span class="label"> spacer`] : []),
+    // label / field ids: uid('prefix') from lib.js (surveys.js's newQuestionId is a saved question id, not an element id)
+    ...[...t.matchAll(/^.*Math\.random\(\)\.toString.*$/gm)].filter((m) => !/newQuestionId/.test(m[0])).map((m) => `${f}: ${m[0].trim().slice(0, 80)}`),
+  ]);
+  assert.equal(bad.length, 0, bad.join('\n'));
+});
+
 // ---- Breakpoints ---------------------------------------------------------------------------------------------------
 // Phone < 600, tablet 600-899, desktop >= 900, wide >= 1200; 700 splits small tablets and 380 the narrowest phones.
 check('media queries only use the shared breakpoints', () => {

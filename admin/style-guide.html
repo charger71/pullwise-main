@@ -284,10 +284,11 @@
               <form class="filters admin-filters" role="search" aria-label="Find reservations" onsubmit="return false">
                 <div class="field field--search"><label for="sg-q">Customer</label><input id="sg-q" name="q" type="search" placeholder="Name, phone or email"></div>
                 <div class="field"><label for="sg-st">Titles that are</label><select id="sg-st"><option>Open</option><option>Any status</option></select></div>
-                <div class="field"><span class="label">&nbsp;</span><button class="btn btn--ghost" type="button">Export CSV</button></div>
+                <div class="field"><button class="btn btn--ghost" type="button">Export CSV</button></div>
               </form>
               <p class="results-count" role="status">42 orders</p>
             </div>
+            <p class="admin-hint">A button or tick-box in a filter row needs no empty label above it: the row lines its fields up along the bottom.</p>
           </div>
           <div class="sg-item" data-code>
             <h3>Pager</h3>
@@ -564,6 +565,9 @@ text-muted · text-danger · text-success · text-right · font-mono · nowrap</
             <li><strong>Breakpoints:</strong> phone up to 599px, tablet 600–899px, desktop from 900px, wide from 1200px. Small tablets split at 700px and the narrowest phones at 380px. Use <code>max-width: 599/699/899/1199px</code> or <code>min-width: 600/700/900/1200px</code>; <code>consistency.test.js</code> rejects any other width.</li>
             <li><strong>Tap targets:</strong> <code>--tap-btn</code> (48px) for buttons and <code>--tap</code> (44px) for small buttons and fields on phones; clickable fold headers <code>--tap-head</code> (52px).</li>
             <li><strong>Always escape</strong> text put into markup with <code>esc()</code>.</li>
+            <li><strong>Ids:</strong> make a label's <code>for</code> / field <code>id</code> pair with <code>uid('prefix')</code> from <code>lib.js</code>, not <code>Math.random()</code>.</li>
+            <li><strong>Templates:</strong> start a new line at each block tag (<code>&lt;div&gt;</code>, <code>&lt;p&gt;</code>, <code>&lt;tr&gt;</code>, <code>&lt;td&gt;</code>, <code>&lt;option&gt;</code>…), never between inline ones (buttons, spans, links), where a line break shows as a space.</li>
+            <li><strong>Screenshot check:</strong> every pull request that touches <code>admin/</code>, <code>js/</code> or <code>css/</code> is compared screen by screen with its base branch (<code>tools/visual</code>). A change that is meant to show gets the <code>visual-change</code> label. A new screen or state needs fixture data in <code>tools/visual/fixtures.js</code> to be covered.</li>
             <li><strong>Customer details:</strong> show a customer’s current name, phone and email, not what an order was placed with. Use <code>withCustomers(sb, orders)</code>.</li>
             <li><strong>Accessibility:</strong> visible labels, <code>role="status"</code> for save results and <code>role="alert"</code> for errors, buttons not links for actions, and text that keeps at least 4.5:1 contrast in both themes. Field borders and focus rings keep 3:1; focus rings use <code>--focus</code>. Never make a whole screen a live region, and never put a button inside a <code>&lt;summary&gt;</code>. Tab rows (<code>role="tablist"</code>) get arrow keys from <code>admin.js</code>.</li>
             <li><strong>Query builders:</strong> never return a Supabase query from an <code>async</code> function; it runs early and breaks <code>.range()</code>.</li>

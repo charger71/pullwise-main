@@ -113,7 +113,17 @@ async function load(el) {
     };
     box.innerHTML = rows.length
       ? `<div class="admin-table-wrap"><table class="admin-table cards"><thead><tr><th scope="col">Survey</th><th scope="col">Status</th><th scope="col">Answers</th><th scope="col">QR code</th><th scope="col">QR scans</th><th scope="col">Share</th><th scope="col">Preview</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>${rows
-          .map((s) => `<tr><td class="card-title"><strong>${esc(s.title)}</strong><br><span class="card__meta">${s.questions.filter((q) => q.type !== 'section').length} question${s.questions.filter((q) => q.type !== 'section').length === 1 ? '' : 's'}</span></td><td class="card-key">${s.is_open ? 'Open' : 'Closed'}</td><td class="card-key card-label">${s.survey_responses[0].count}</td>${qrCell(s)}<td class="card-foot"><button class="btn btn--ghost btn--small" type="button" data-share="${s.id}">Link<span class="visually-hidden"> for ${esc(s.title)}</span></button></td><td class="card-foot"><a class="icon-btn" href="../survey.html?s=${encodeURIComponent(s.slug)}&amp;preview=1" target="_blank" rel="noopener" aria-label="Preview ${esc(s.title)}" title="Preview (opens in a new tab)">${solidIcon('view')}</a></td><td class="nowrap card-foot"><button class="btn btn--ghost btn--small" type="button" data-results="${s.id}">Results<span class="visually-hidden"> for ${esc(s.title)}</span></button> <button class="btn btn--ghost btn--small" type="button" data-edit="${s.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(s.title)}</span></button></td></tr>`)
+          .map((s) => `<tr>
+            <td class="card-title"><strong>${esc(s.title)}</strong><br><span class="card__meta">${s.questions.filter((q) => q.type !== 'section').length} question${s.questions.filter((q) => q.type !== 'section').length === 1 ? '' : 's'}</span>
+            </td>
+            <td class="card-key">${s.is_open ? 'Open' : 'Closed'}</td>
+            <td class="card-key card-label">${s.survey_responses[0].count}</td>${qrCell(s)}<td class="card-foot"><button class="btn btn--ghost btn--small" type="button" data-share="${s.id}">Link<span class="visually-hidden"> for ${esc(s.title)}</span></button>
+            </td>
+            <td class="card-foot"><a class="icon-btn" href="../survey.html?s=${encodeURIComponent(s.slug)}&amp;preview=1" target="_blank" rel="noopener" aria-label="Preview ${esc(s.title)}" title="Preview (opens in a new tab)">${solidIcon('view')}</a>
+            </td>
+            <td class="nowrap card-foot"><button class="btn btn--ghost btn--small" type="button" data-results="${s.id}">Results<span class="visually-hidden"> for ${esc(s.title)}</span></button> <button class="btn btn--ghost btn--small" type="button" data-edit="${s.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(s.title)}</span></button>
+            </td>
+            </tr>`)
           .join('')}</tbody></table></div>`
       : `<p class="empty">${all.length ? `No ${listTab} surveys.` : 'No surveys yet — start one with “New survey”.'}</p>`;
   } catch (err) {
@@ -199,7 +209,9 @@ async function edit(listEl, id, startTab) {
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Email Box</h2></div><div class="fold__body">
       <div class="form-grid form-grid--pairs">
         <div class="checks span-2"><label><input id="sv-email" name="collect_email" type="checkbox"${sv.collect_email ? ' checked' : ''}> Offer an optional email box (for a drawing or prize)</label></div>
-        <div class="field span-2"><label for="sv-email-prompt">Wording above the email box</label><input id="sv-email-prompt" name="email_prompt" maxlength="200" value="${esc(sv.email_prompt)}" placeholder="Enter your email to be entered in our gift card drawing"><p class="field__hint">Emails are saved separately from the answers (see Results), so the answers stay anonymous. Say what the prize is and when you'll draw.</p></div>
+        <div class="field span-2"><label for="sv-email-prompt">Wording above the email box</label><input id="sv-email-prompt" name="email_prompt" maxlength="200" value="${esc(sv.email_prompt)}" placeholder="Enter your email to be entered in our gift card drawing">
+          <p class="field__hint">Emails are saved separately from the answers (see Results), so the answers stay anonymous. Say what the prize is and when you'll draw.</p>
+          </div>
       </div>
       </div></section>
       </div>
