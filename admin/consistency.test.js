@@ -96,6 +96,15 @@ check('button heights come from one rule, not per-screen overrides', () => {
   assert.equal(bad.length, 0, `${bad.join('\n')}\nButtons are 48px (small 44px) on phones from the one rule near "every button is a 48px tap target". Remove the override.`);
 });
 
+check('buttons drop their minimum width through the natural-width list, not a per-selector reset', () => {
+  const bad = [];
+  css.split('\n').forEach((line, i) => {
+    const m = line.match(/^\s*([^{]*\.btn\b[^{]*)\{([^}]*)\}/);
+    if (m && /(^|[;\s])min-width:\s*0\b/.test(m[2])) bad.push(`admin.css:${i + 1} ${m[1].trim()}`);
+  });
+  assert.equal(bad.length, 0, `${bad.join('\n')}\nAdd the place to the "Natural-width buttons" list at the end of admin.css (it sets --btn-w and --btn-w-sm to 0) instead of resetting min-width on .btn.`);
+});
+
 check('every button variant used exists in the CSS', () => {
   const used = uniq([...Object.values(sections), guide].flatMap((t) => [...t.matchAll(/(?<![\w-])btn--([a-z]+)\b/g)].map((m) => m[1])));
   const missing = used.filter((v) => !new RegExp(`\\.btn--${v}\\b`).test(allCss));

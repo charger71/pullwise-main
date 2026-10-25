@@ -8,10 +8,11 @@
 .btn--small { min-height: 36px; padding: var(--sp-6) var(--sp-12); font-size: .9rem; }
 /* Even button widths across the admin: every button is at least this wide, with its label centered.
    (Icon-only buttons and the tab buttons are not .btn, so they keep their own sizes.) */
-.btn { min-width: 8.5rem; justify-content: center; text-align: center; }
-.btn--small { min-width: 7rem; }
-.toorder .fold__head .btn { min-width: 7rem; }
-.cust-email { min-width: 0; }
+/* A button is never narrower than --btn-w (--btn-w-sm for a small one), so Save / Delete pairs and pagers match. Places that
+   want buttons to shrink to their label or share a row set both to 0: see "Natural-width buttons" below. */
+:root { --btn-w: 8.5rem; --btn-w-sm: 7rem; }
+.btn { min-width: var(--btn-w); justify-content: center; text-align: center; }
+.btn--small { min-width: var(--btn-w-sm); }
 .btn--green { background: var(--success); border-color: var(--success); color: #fff; }
 .btn--green:hover { background: var(--success-hover); border-color: var(--success-hover); color: #fff; }
 .btn--blue { background: var(--info); border-color: var(--info); color: #fff; }
@@ -301,7 +302,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .media-item img { width: 100%; aspect-ratio: 1; object-fit: contain; background: var(--media-bg); border-radius: var(--radius-sm); }
 .media-item__name { margin: 0; font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-item__actions { display: flex; flex-direction: column; gap: var(--sp-4); }
-.media-item__actions .btn { width: 100%; min-width: 0; }
+.media-item__actions .btn { width: 100%; }
 /* Library: the file name across the top, then the thumbnail on the left with its three buttons on the right. */
 .media-grid:not(.media-pick) { grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); }
 .media-grid:not(.media-pick) .media-item { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--sp-6) var(--sp-10); align-items: start; }
@@ -871,8 +872,8 @@ tr.is-clickable { cursor: pointer; }
   .cards.is-stack > tbody > tr > td .icon-btn svg { width: 28px; height: 28px; }
   .cards.is-stack > tbody > tr > td.card-label::before { content: attr(data-label) ' '; display: inline; font: inherit; font-size: .85rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
   /* Tap targets: 44px for anything you press, a bigger tick box for the lead cell. */
-  .cards.is-stack > tbody > tr > td :where(.btn, .icon-btn, .link-button) { min-height: 44px; min-width: 44px; }
-  .cards.is-stack > tbody > tr > td .btn { min-width: 0; }
+  .cards.is-stack > tbody > tr > td :where(.btn, .icon-btn, .link-button) { min-height: 44px; }
+  .cards.is-stack > tbody > tr > td :where(.icon-btn, .link-button) { min-width: 44px; }
   .cards.is-stack > tbody > tr > td .icon-btn { display: inline-flex; align-items: center; justify-content: center; }
   .cards.is-stack > tbody > tr > td.card-lead input[type=checkbox] { width: 28px; height: 28px; margin: 8px; }
   .cards.is-stack > tbody > tr:has(input[type=checkbox]:not([disabled])) { cursor: pointer; }
@@ -995,7 +996,7 @@ tr.is-clickable { cursor: pointer; }
   .admin-pager > span { white-space: nowrap; }
   /* A customer is a card: name and Email on the first line, phone, the counts, then the status icons and Fix. */
   .admin-pager { gap: var(--sp-8); }
-  .admin-pager .btn { flex: 1 1 0; min-width: 0; padding-inline: var(--sp-8); }
+  .admin-pager .btn { flex: 1 1 0; padding-inline: var(--sp-8); }
   .admin-pager > span { flex: none; }
 }
 
@@ -1008,7 +1009,7 @@ tr.is-clickable { cursor: pointer; }
   /* Pull List header: the heading on its own line, then "Show cancelled" and a small Export PDF on one row. */
   .cust-main .toorder .fold__head { flex-wrap: wrap; row-gap: var(--sp-6); }
   .cust-main .toorder .fold__head .cust-toggle { flex: 1 1 auto; min-height: 44px; font-size: .95rem; }
-  .cust-main .toorder .fold__head .btn { flex: 0 0 auto; min-width: 7rem; }
+  .cust-main .toorder .fold__head .btn { flex: 0 0 auto; }
   /* The remove button is a real tap target. */
   .cust-lines .cl-rm .icon-btn { width: 48px; height: 48px; }
   .cust-lines .cl-rm .icon-btn svg { width: 30px; height: 30px; }
@@ -1072,7 +1073,7 @@ tr.is-clickable { cursor: pointer; }
   .titles-table .tt-status { grid-column: 1 / 4; grid-row: 3; }
   .titles-table .tt-status select { width: 100%; min-height: 44px; font-size: 1rem; }
   .titles-table .tt-edit { grid-column: 4; grid-row: 3; justify-self: stretch; }
-  .titles-table .tt-edit .btn { width: 100%; min-width: 0; padding-inline: var(--sp-6); justify-content: center; }
+  .titles-table .tt-edit .btn { width: 100%; padding-inline: var(--sp-6); justify-content: center; }
   .titles-table .tt-flag { grid-row: 4; min-height: 44px; font-size: .9rem; gap: var(--sp-6); }
   .titles-table .tt-flag input { width: 24px; height: 24px; flex: none; }
   .titles-table .tt-flag--1 { grid-column: 2; }
@@ -1136,7 +1137,7 @@ tr.is-clickable { cursor: pointer; }
 /* ---------- Content sections on phones (Media, Pages, News, FAQ, Surveys, QR Codes, Series) ----------
    Mostly the shared pieces: `cards` lists, `form-grid--pairs`, `sticky-actions`, `hintFold`. What is here is what those
    don't cover: rich-text toolbars, the little up / down arrows, and the per-section buttons. */
-[data-move] { min-width: 0; width: 44px; padding: 0; } /* the up / down arrows (the global .btn minimum width made them 136px) */
+[data-move] { width: 44px; padding: 0; } /* the up / down arrows */
 .faq-item__move button { min-width: 0; }
 @media (max-width: 899px) {
   .btn { min-height: 48px; } /* every button is a 48px tap target on a phone, small ones 44px */
@@ -1154,18 +1155,18 @@ tr.is-clickable { cursor: pointer; }
   .ql-snow.ql-toolbar .ql-formats { display: contents; } /* the buttons flow in even rows instead of wrapping group by group */
   /* Pages: the page chooser takes the row, View and Delete share the next one. */
   .admin-toolbar .field { flex: 1 1 100%; min-width: 100%; }
-  .admin-toolbar > .btn { flex: 1 1 0; min-width: 0; justify-content: center; }
+  .admin-toolbar > .btn { flex: 1 1 0; justify-content: center; }
   /* Media: every button is 44px and Delete is as wide as the rest. */
   .media-item__actions .btn { font-size: .9rem; }
   .media-grid:not(.media-pick) .media-item__actions .btn--danger { width: 100%; align-self: stretch; }
   /* FAQ: the question wraps instead of disappearing behind the arrows. */
   .faq-item__q { white-space: normal; overflow-wrap: anywhere; }
-  .faq-item__actions .btn, .qr-item__actions .btn { flex: 1 1 0; min-width: 0; }
+  .faq-item__actions .btn, .qr-item__actions .btn { flex: 1 1 0; }
   /* QR Codes: the two colour pickers share a row; the download buttons are full-size. */
   .qr-item__colors { flex-wrap: nowrap; }
   .qr-item__colors .field { flex: 1 1 0; }
   .qr-item__colors input[type=color] { width: 100%; height: 44px; }
-  .qr-item__downloads .btn { flex: 1 1 auto; min-width: 0; white-space: nowrap; padding-inline: var(--sp-10); }
+  .qr-item__downloads .btn { flex: 1 1 auto; white-space: nowrap; padding-inline: var(--sp-10); }
   .qr-item__preview { max-width: none; }
   .qr-item__img { max-width: 260px; margin-inline: auto; }
   /* Series: a ticked series is a card too; the merge ticks are real tap targets. */
@@ -1233,4 +1234,11 @@ tr.is-clickable { cursor: pointer; }
   .cust-profile form > .btn, [data-notes] > .btn { width: auto; display: inline-flex; }
   .email-tools .admin-actions, [data-compose] .admin-actions { flex-direction: row; flex-wrap: wrap; align-items: center; }
   .email-tools .btn, [data-compose] .admin-actions .btn { width: auto; }
+}
+
+/* ---------- Natural-width buttons ----------
+   Buttons in these places shrink to their label or share a row, so they drop the minimum width (see --btn-w at the top). */
+.media-item__actions, [data-move], .cust-email { --btn-w: 0; --btn-w-sm: 0; }
+@media (max-width: 899px) {
+  .cards.is-stack > tbody > tr > td, .admin-pager, .titles-table .tt-edit, .admin-toolbar, .faq-item__actions, .qr-item__actions, .qr-item__downloads { --btn-w: 0; --btn-w-sm: 0; }
 }
