@@ -11,3 +11,7 @@ supabase/.temp/
 
 # Database backup downloads hold customer details: never commit them
 shop-backup-*.json.gz
+
+# Screenshot check (tools/visual): downloaded libraries and the last report
+tools/visual/.cache/
+tools/visual/out/

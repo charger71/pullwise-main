@@ -175,6 +175,14 @@ nothing and that the hourly jobs are scheduled.
 
 GitHub Actions (`.github/workflows/ci.yml`) runs both on every pull request and on `main`.
 
+**Admin screenshots:** `.github/workflows/visual.yml` runs `tools/visual/capture.mjs` on every pull request that
+touches `admin/`, `js/` or `css/`. It renders every admin screen and tab from the pull request and from its base branch
+against the same made-up data (`tools/visual/fixtures.js`), at phone, tablet and desktop width in light and dark mode,
+with folds closed and open, and fails if any view looks different. The `admin-screenshots` artifact has a before |
+after | difference picture of each change. If the change is meant to show, add the `visual-change` label and the check
+passes. To run it yourself: `npm i --no-save playwright && npx playwright install chromium`, then
+`git worktree add ../base main && node tools/visual/capture.mjs --base ../base` (results in `tools/visual/out`).
+
 **Admin smoke test:** with the local server running (`python3 -m http.server 8080`), open
 http://localhost:8080/admin/smoke.html. It opens every admin screen against made-up data and reports any that fail to
 load. It never touches the real database. Add `?break=1` to make the made-up database fail on purpose; most screens

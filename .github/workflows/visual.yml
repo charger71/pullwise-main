@@ -1,0 +1,42 @@
+# Screenshot check for the staff admin (tools/visual/capture.mjs): renders every admin screen and tab from the pull
+# request and from the branch it goes into, against the same made-up data, and fails when any view looks different.
+# The admin-screenshots artifact has a before | after | difference picture of each changed view.
+# When the change is intended, add the visual-change label to the pull request: the check reruns and passes.
+name: Admin screenshots
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    paths: ['admin/**', 'js/**', 'css/**', 'tools/visual/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Check out the base branch beside it
+        run: git worktree add --detach "$RUNNER_TEMP/base" "${{ github.event.pull_request.base.sha }}"
+      - name: Install Playwright and Chromium
+        run: npm install --no-save --no-package-lock playwright@1.56.1 && npx playwright install --with-deps chromium
+      - name: Compare screenshots
+        run: node tools/visual/capture.mjs --base "$RUNNER_TEMP/base" ${{ contains(github.event.pull_request.labels.*.name, 'visual-change') && '--accept' || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: admin-screenshots
+          path: tools/visual/out
+          if-no-files-found: ignore
+          retention-days: 14

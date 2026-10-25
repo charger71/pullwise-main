@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- One admin screen on its own, against made-up data (fixtures.js), for the screenshot checks in capture.mjs.
+     ?root=head|base picks which copy of the code to load (the change, or the branch it goes into); ?s= is the
+     screen (admin/sections/<s>.js). -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin screen</title>
+  <link rel="stylesheet" href="/vendor/quill.snow.css">
+  <script src="/vendor/quill.js"></script>
+  <script src="/vendor/qrcode.js"></script>
+  <script>
+    // The QR screen loads qrcode-generator from a CDN on demand; it is already here, so answer the load at once.
+    new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => {
+      if (n.tagName === 'SCRIPT' && /qrcode/.test(n.src || '')) { n.remove(); setTimeout(() => n.onload?.(), 0); }
+    }))).observe(document.head, { childList: true });
+    const root = new URLSearchParams(location.search).get('root') || 'head';
+    for (const f of ['base.css', 'admin.css']) document.write(`<link rel="stylesheet" href="/${root}/admin/${f}">`);
+  </script>
+</head>
+<body>
+  <main class="container admin-main"><section id="section" class="admin-section"></section></main>
+  <script type="module">
+    import { fakeSb } from '/visual/fake-sb.js';
+    import { FIXTURES, EXTRA, CTX } from '/visual/fixtures.js';
+    const q = new URLSearchParams(location.search);
+    const root = q.get('root') || 'head';
+    const name = q.get('s');
+    const section = document.getElementById('section');
+
+    // What admin.js does to every screen: `cards` tables stack on phones (keep in step with stackTables there),
+    // and tabs get their icons.
+    const stackTables = (el) => el.querySelectorAll('table.admin-table.cards').forEach((table) => {
+      const heads = [];
+      table.querySelectorAll('thead tr:last-child th').forEach((th) => {
+        const hidden = th.querySelector('.visually-hidden');
+        const label = hidden && th.textContent.trim() === hidden.textContent.trim() ? '' : th.textContent.trim();
+        for (let i = 0; i < (Number(th.colSpan) || 1); i++) heads.push(label);
+      });
+      table.classList.add('is-stack');
+      table.querySelectorAll('tbody tr').forEach((tr) => {
+        let col = 0;
+        [...tr.children].forEach((td) => {
+          if (td.colSpan > 1) return void (col += td.colSpan);
+          if (td.dataset.label === undefined) td.dataset.label = heads[col] ?? '';
+          col++;
+        });
+      });
+    });
+    const { decorateTabs = () => {} } = await import(`/${root}/admin/tab-icons.js`).catch(() => ({}));
+    new MutationObserver(() => (decorateTabs(section), stackTables(section))).observe(section, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-selected'] });
+
+    // capture.mjs waits for window.__done (set below, after this module's own awaits have finished).
+    await (async () => {
+      try {
+        const mod = await import(`/${root}/admin/sections/${name}.js`);
+        await mod.mount(section, { sb: fakeSb(FIXTURES[name] ?? {}, EXTRA[name] ?? {}), isOwner: true, arg: q.get('a') ?? '', ...(CTX[name] ?? {}) });
+      } catch (e) {
+        document.title = `FAILED ${e.message}`;
+      }
+      decorateTabs(section);
+      stackTables(section);
+    })();
+    await new Promise((r) => setTimeout(r, 300)); // screens that fill in a second request after mounting
+    window.__done = true;
+  </script>
+</body>
+</html>
