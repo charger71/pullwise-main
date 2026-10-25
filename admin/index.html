@@ -16,6 +16,7 @@
   <script type="module" src="admin.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <p class="admin-notice" id="admin-notice" role="status" hidden></p>
   <header class="admin-header">
     <div class="container admin-header__bar">
@@ -27,7 +28,7 @@
     </div>
   </header>
 
-  <main id="main" class="container admin-main">
+  <main id="main" class="container admin-main" tabindex="-1">
     <section id="login" class="panel admin-login" hidden>
       <h1>Staff Sign In</h1>
       <form id="login-form">
@@ -100,7 +101,7 @@
           </li>
         </ul>
       </nav>
-      <section id="section" class="admin-section" tabindex="-1" aria-live="polite"></section>
+      <section id="section" class="admin-section" tabindex="-1"></section>
     </div>
 
     <p id="not-configured" class="panel" hidden>This site isn't connected to a database (demo mode), so there's nothing to edit.</p>

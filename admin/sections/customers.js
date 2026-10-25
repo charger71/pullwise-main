@@ -309,8 +309,8 @@ async function renderCustomer(el) {
     <div class="cust-grid${isNew ? ' cust-grid--new' : ''}">
       <div class="cust-main">
         <div data-pane="profile">
-        <details class="fold fold--compact fold--static cust-profile" data-profile-panel open>
-          <summary class="fold__head"><h2 id="cu-profile">Profile</h2>${isNew ? '' : `<span class="card__meta cust-profile__sum">${esc([c.email, formatPhone(c.phone), [c.city, c.state].filter(Boolean).join(', ')].filter(Boolean).join(' · '))}</span>`}</summary>
+        <section class="fold fold--compact fold--static cust-profile" data-profile-panel>
+          <div class="fold__head"><h2 id="cu-profile">Profile</h2>${isNew ? '' : `<span class="card__meta cust-profile__sum">${esc([c.email, formatPhone(c.phone), [c.city, c.state].filter(Boolean).join(', ')].filter(Boolean).join(' · '))}</span>`}</div>
         <div class="fold__body"><form data-profile novalidate>
           <div class="cust-fields">
           ${field('first_name', 'First name <span class="req" aria-hidden="true">*</span>', c.first_name, 'maxlength="80" required autocomplete="off" autocapitalize="words" enterkeyhint="next"')}
@@ -330,10 +330,10 @@ async function renderCustomer(el) {
           <button class="btn btn--primary" type="submit">${isNew ? 'Create customer' : 'Save profile'}</button>
           ${isNew || !isOwner ? '' : `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete customer…</button>`}
         </form></div>
-        </details>
+        </section>
       ${isNew ? '</div>' : `
-        <details class="fold fold--compact fold--static" open>
-          <summary class="fold__head"><h2 id="cu-notes">Notes<span class="fold__note">Private to staff. Customers never see these.</span></h2></summary>
+        <section class="fold fold--compact fold--static">
+          <div class="fold__head"><h2 id="cu-notes">Notes<span class="fold__note">Private to staff. Customers never see these.</span></h2></div>
           <div class="fold__body"><form data-notes>
             <div class="field"><label class="visually-hidden" for="cu-notes-text">Notes about ${esc(c.name || 'this customer')}</label>
               <textarea id="cu-notes-text" name="notes" rows="4" maxlength="5000" placeholder="Pickup preferences, who else can collect, anything worth remembering" disabled></textarea></div>
@@ -341,30 +341,30 @@ async function renderCustomer(el) {
             <button class="btn btn--primary btn--small" type="submit" disabled>Save notes</button>
             <span class="card__meta" data-notes-meta></span>
           </form></div>
-        </details>
+        </section>
         </div>
         <div data-pane="pull">
-        <details class="fold fold--compact fold--static" open>
-          <summary class="fold__head"><h2 id="cu-list">Pull List<span class="fold__note" data-list-count></span></h2>
+        <section class="fold fold--compact fold--static">
+          <div class="fold__head"><h2 id="cu-list">Pull List<span class="fold__note" data-list-count></span></h2>
             <label class="cust-toggle"><input type="checkbox" data-cancelled${state.showCancelled ? ' checked' : ''}> Show cancelled</label>
             <button class="btn btn--ghost btn--small" type="button" data-export-pdf>Export PDF</button>
-          </summary>
+          </div>
           <div class="fold__body">
           <p class="card__meta cust-lastupdate" data-lastupdate></p>
           <div data-orders aria-busy="true"></div>
           </div>
-        </details>
-        <details class="fold fold--compact fold--static" open>
-          <summary class="fold__head"><h2 id="cu-add">Add to Pull List</h2></summary>
+        </section>
+        <section class="fold fold--compact fold--static">
+          <div class="fold__head"><h2 id="cu-add">Add to Pull List</h2></div>
           <div class="fold__body">
           <form class="cust-search" data-search role="search"><label class="visually-hidden" for="cu-q">Find a pre-order title</label>
             <input id="cu-q" type="search" placeholder="${isPhone(599) ? 'Search pre-order titles' : 'Search pre-order titles, covers or creators'}" autocomplete="off"></form>
           <p class="admin-hint">Adding past an order cutoff or the copy limit is allowed here; you'll be told if the cutoff has passed.</p>
           <div data-results></div>
           </div>
-        </details>
-        <details class="fold fold--compact fold--static" open>
-          <summary class="fold__head"><h2 id="cu-follow">Follows<span class="fold__note" data-follow-count>New issues from these are added to the pull list automatically.</span></h2></summary>
+        </section>
+        <section class="fold fold--compact fold--static">
+          <div class="fold__head"><h2 id="cu-follow">Follows<span class="fold__note" data-follow-count>New issues from these are added to the pull list automatically.</span></h2></div>
           <div class="fold__body">
           <p class="admin-hint">Following fills in the open pre-orders right away.</p>
           <form class="cust-search" data-follow-search role="search">
@@ -376,30 +376,29 @@ async function renderCustomer(el) {
           <div data-follow-results></div>
           <div data-follows></div>
           </div>
-        </details>
+        </section>
         </div>
         <div data-pane="messages">
-        <details class="fold fold--compact fold--static" open>
-          <summary class="fold__head"><h2>Email Customer</h2><span class="fold__note">${c.email ? esc(c.email) : 'No email address saved'}</span></summary>
+        <section class="fold fold--compact fold--static">
+          <div class="fold__head"><h2>Email Customer</h2><span class="fold__note">${c.email ? esc(c.email) : 'No email address saved'}</span></div>
           <div class="fold__body" data-compose>${c.email ? '' : '<p class="admin-hint">Add an email address on the Profile tab to email this customer.</p>'}</div>
-        </details>
-        <details class="fold fold--compact fold--static cust-profile cust-log" open>
-          <summary class="fold__head"><h2 id="cu-messages">Messages Sent</h2><span class="card__meta cust-profile__sum" data-messages-sum></span></summary>
+        </section>
+        <section class="fold fold--compact fold--static cust-profile cust-log">
+          <div class="fold__head"><h2 id="cu-messages">Messages Sent</h2><span class="card__meta cust-profile__sum" data-messages-sum></span></div>
           <div class="fold__body" data-messages></div>
-        </details>
+        </section>
         </div>
         <div data-pane="changes">
-        <details class="fold fold--compact fold--static cust-profile cust-log" open>
-          <summary class="fold__head"><h2 id="cu-log">Recent Changes</h2><span class="card__meta cust-profile__sum" data-log-sum></span></summary>
+        <section class="fold fold--compact fold--static cust-profile cust-log">
+          <div class="fold__head"><h2 id="cu-log">Recent Changes</h2><span class="card__meta cust-profile__sum" data-log-sum></span></div>
           <div class="fold__body" data-log></div>
-        </details>
+        </section>
         </div>
       `}
       </div>
     </div>`;
 
   // The panels inside a tab are always open: clicking a header does nothing.
-  $$('.fold--static > summary', el).forEach((sm) => sm.addEventListener('click', (e) => e.target.closest('button, input, label, a, select') || e.preventDefault()));
   const showTab = (tab) => {
     $$('[data-ctab]', el).forEach((b) => b.setAttribute('aria-selected', b.dataset.ctab === tab));
     $$('[data-pane]', el).forEach((p) => (p.hidden = !isNew && p.dataset.pane !== tab));

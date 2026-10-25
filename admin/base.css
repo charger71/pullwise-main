@@ -129,7 +129,7 @@
   --surface: #2f3742;
   --muted: #b2bccb;
   --line: #404b5a;
-  --field-line: #6d7e97;
+  --field-line: #7b8ca6;   /* ≥3:1 against the dark cards */
   --focus: #7aa7ff;
   --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 4px 14px rgb(0 0 0 / .45);
   --danger: #d93a4a;
@@ -202,6 +202,9 @@ img { max-width: 100%; height: auto; display: block; }
 a { color: inherit; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 a:hover { color: var(--brand-primary); }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* Date and time fields focus an inner part (the hour, the day), so :focus-visible never matches the field itself. */
+input:is([type=time], [type=date], [type=datetime-local]):focus { outline: 3px solid var(--focus); outline-offset: 2px; }
+input::-webkit-calendar-picker-indicator:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; border-radius: var(--radius-xs); } /* the field's own clock / calendar button */
 h1, h2, h3 { font-family: var(--font-display); font-weight: 400; line-height: 1.15; margin: 0 0 .5em; letter-spacing: .01em; }
 h1 { font-size: var(--fs-h1); }
 h2 { font-size: clamp(1.4rem, 4vw, 2rem); }

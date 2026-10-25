@@ -34,15 +34,16 @@ function addItem(sb, list, f, open = false) {
   const el = document.createElement('li');
   el.className = 'faq-item' + (f.id ? '' : ' faq-item--unsaved');
   const qid = `faq-q-${Math.random().toString(36).slice(2)}`;
+  // The arrows sit over the header band but outside its summary element: a button inside one can't be reached or announced reliably.
   el.innerHTML = `
+    <span class="faq-item__move">
+      <button class="btn btn--ghost btn--small" type="button" data-move="-1" aria-label="Move up" aria-describedby="${qid}-t">↑</button>
+      <button class="btn btn--ghost btn--small" type="button" data-move="1" aria-label="Move down" aria-describedby="${qid}-t">↓</button>
+    </span>
     <details class="fold"${open ? ' open' : ''}>
       <summary class="fold__head">
         <span class="faq-item__num"></span>
-        <span class="faq-item__q" data-q></span>
-        <span class="faq-item__move">
-          <button class="btn btn--ghost btn--small" type="button" data-move="-1" aria-label="Move question up">↑</button>
-          <button class="btn btn--ghost btn--small" type="button" data-move="1" aria-label="Move question down">↓</button>
-        </span>
+        <span class="faq-item__q" id="${qid}-t" data-q></span>
       </summary>
       <div class="fold__body">
         <div class="field">

@@ -4,7 +4,7 @@
 // only lets accounts listed in `staff` change anything.
 
 import { parseAdminHash, adminHash } from './route.js';
-import { decorateTabs } from './tab-icons.js';
+import { decorateTabs, tabKeys } from './tab-icons.js';
 import { DEMO, getSettings } from '../js/data.js';
 import { $, $$, db, esc, openEmailDialog, friendlyError } from './lib.js';
 import { sizedImage } from '../js/util.js';
@@ -45,7 +45,8 @@ async function start() {
   getSettings()
     .then((s) => {
       $('#admin-shop').textContent = `${s.shop_name} · Staff`;
-      document.title = `Staff · ${s.shop_name}`;
+      shopName = s.shop_name;
+      setTitle();
       // Same tab icon as the public site: the favicon, else the logo.
       const icon = sizedImage(s.favicon_url || s.logo_url, 64, { format: 'origin', square: true });
       if (icon) {
@@ -185,6 +186,13 @@ async function showApp() {
   route();
 }
 
+// The browser tab names the open screen first ("Customers · Staff · Pop's Comics"), so tabs and history can be told apart.
+let shopName = '';
+const setTitle = () => {
+  const screen = $('#app').hidden ? '' : $('[data-nav-label]')?.textContent.trim();
+  document.title = [screen, 'Staff', shopName].filter(Boolean).join(' · ');
+};
+
 let lastHash = location.hash;
 async function route() {
   let { name, arg } = parseAdminHash(location.hash, SECTIONS);
@@ -202,8 +210,10 @@ async function route() {
   revealCurrentGroup();
   const navLabel = $(`.admin-nav a[href="#${name}"]`)?.textContent.trim();
   if (navLabel) $('[data-nav-label]').textContent = navLabel;
+  setTitle();
   setNavOpen(false);
   const el = $('#section');
+  el.setAttribute('aria-label', navLabel || name); // focus lands here on each screen change, so a screen reader names the screen
   el.innerHTML = '<p class="admin-hint loading">Loading…</p>';
   try {
     const module = await import(`./sections/${name}.js`);
@@ -258,6 +268,8 @@ function setNavOpen(open) {
 }
 $('.admin-nav__toggle').addEventListener('click', () => setNavOpen($('.admin-nav__toggle').getAttribute('aria-expanded') !== 'true'));
 document.addEventListener('keydown', (e) => e.key === 'Escape' && setNavOpen(false));
+// Skip link: jump past the header and menu to the open screen (a plain #hash would be read as a route).
+$('.skip-link').addEventListener('click', (e) => (e.preventDefault(), ($('#app').hidden ? $('#main') : $('#section')).focus()));
 document.addEventListener('click', (e) => !e.target.closest('.admin-nav') && setNavOpen(false));
 
 // `cards` tables become stacked cards on phones: tag them and copy each column heading onto its cells.
@@ -297,6 +309,7 @@ const crumbHeading = () => {
   if (h1.textContent !== text) h1.textContent = text;
   h1.dataset.shown = text;
 };
+$('#section').addEventListener('keydown', tabKeys);
 new MutationObserver(() => (decorateTabs($('#section')), stackTables($('#section')), crumbHeading())).observe($('#section'), { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-selected'] });
 
 $('#admin-version').textContent = VERSION;

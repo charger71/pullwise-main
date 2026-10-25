@@ -20,8 +20,8 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-tab="artists">Creatives</button>
     </div>
     <div data-tabpane="add">
-    <details class="fold fold--compact fold--static series-add" open>
-      <summary class="fold__head"><h2 id="series-add-h">Add Active Series</h2></summary>
+    <section class="fold fold--compact fold--static series-add">
+      <div class="fold__head"><h2 id="series-add-h">Add Active Series</h2></div>
       <div class="fold__body">
       ${hintFold(`Customers can only follow a series that is in the system, and a series appears when one of its issues is imported. Add the ongoing series here so they can be followed right away; each issue is added to followers’ pull lists as it is imported later. Upload a CSV with a <strong>Series</strong> column (optional <strong>Publisher</strong> and <strong>Cover URL</strong>, an https:// link to the cover image) or paste one series per line. Series already in the system are left alone, except that a Cover URL sets their cover. To remove one, find it below and press Delete (only series with no imported titles can be deleted). <span data-count></span>`)}
       <div class="form-grid form-grid--pairs">
@@ -30,11 +30,11 @@ export async function mount(el, ctx) {
       </div>
       <div class="admin-actions sticky-actions"><button class="btn btn--add" type="button" data-sa-go>${solidIcon('add', 18)} Add series</button><span class="admin-status" role="status" data-sa-status></span></div>
       </div>
-    </details>
+    </section>
     </div>
     <div data-tabpane="artists" hidden>
-    <details class="fold fold--compact fold--static series-add" open>
-      <summary class="fold__head"><h2 id="artist-add-h">Add or Block Creatives</h2></summary>
+    <section class="fold fold--compact fold--static series-add">
+      <div class="fold__head"><h2 id="artist-add-h">Add or Block Creatives</h2></div>
       <div class="fold__body">
       ${hintFold(`The list of writers, artists, colorists, editors and other creatives, and what the artist search on the site checks. Everyone credited on an imported title is added automatically. Add a cover artist who only appears in cover text (for example “CVR A PEACH MOMOKO”) so the search finds that exact name. Block a name that keeps showing up as a creative but isn’t one (for example a series); blocked names are never offered to customers. Use Edit in the list below to fix a spelling.`)}
       <div class="form-grid artist-add">
@@ -45,7 +45,7 @@ export async function mount(el, ctx) {
       </div>
       <p class="admin-status" role="status" data-ar-status></p>
       </div>
-    </details>
+    </section>
     <form class="filters admin-filters" role="search" aria-label="Find creatives" data-ar-form>
       <div class="field field--search"><label for="ar-q">Creatives</label><input id="ar-q" type="search" placeholder="e.g. momoko" autocomplete="off"></div>
       <div class="field"><label for="ar-show">Show</label><select id="ar-show"><option value="">All</option><option value="staff">Added by staff</option><option value="blocked">Blocked</option></select></div>

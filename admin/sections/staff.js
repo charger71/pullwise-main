@@ -98,8 +98,8 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-tab="log">Change Log</button>
     </div>` : ''}
     <div data-tabpane="me">
-    <details class="fold fold--compact fold--static" open>
-      <summary class="fold__head"><h2>My Account</h2></summary>
+    <section class="fold fold--compact fold--static">
+      <div class="fold__head"><h2>My Account</h2></div>
       <div class="fold__body">
       <p>${esc(me?.name ?? '')} · ${esc(user.email)} · <strong>${me ? roleOf(me) : 'Staff'}</strong></p>
       <form class="admin-form" data-password novalidate>
@@ -119,7 +119,7 @@ export async function mount(el, ctx) {
         <p class="admin-status" role="status" data-theme-status></p>
       </form>
       </div>
-    </details>
+    </section>
     <details class="fold fold--compact" data-colors-fold>
       <summary class="fold__head"><h2>Admin Colors<span class="fold__note">Your own colors for the admin</span></h2></summary>
       <div class="fold__body">
@@ -134,8 +134,8 @@ export async function mount(el, ctx) {
     </div>
     ${owner ? `
     <div data-tabpane="access">
-    <details class="fold fold--compact fold--static" open>
-      <summary class="fold__head"><h2>Staff List</h2></summary>
+    <section class="fold fold--compact fold--static">
+      <div class="fold__head"><h2>Staff List</h2></div>
       <div class="fold__body">
       ${hintFold('Everyone here can open every admin screen. Owners can also manage this list. Removing someone locks them out of the admin right away. A Super Admin can’t be removed, demoted or have their password reset by an owner.')}
       <div class="admin-table-wrap"><table class="admin-table staff-table cards">
@@ -154,11 +154,11 @@ export async function mount(el, ctx) {
         }).join('')}</tbody>
       </table></div>
       </div>
-    </details>
+    </section>
     </div>
     <div data-tabpane="add">
-    <details class="fold fold--compact fold--static" open>
-      <summary class="fold__head"><h2>Add a Staff Member</h2></summary>
+    <section class="fold fold--compact fold--static">
+      <div class="fold__head"><h2>Add a Staff Member</h2></div>
       <div class="fold__body">
       <form class="admin-form" data-add novalidate>
         <div class="form-grid form-grid--pairs">
@@ -169,18 +169,18 @@ export async function mount(el, ctx) {
         <div class="admin-actions sticky-actions"><p class="admin-status" role="status" data-add-status></p><button class="btn btn--add" type="submit">${solidIcon('add', 18)} Add staff member</button></div>
       </form>
       </div>
-    </details>
+    </section>
     </div>
     <div data-tabpane="log">
-    <details class="fold fold--compact fold--static" open data-log-fold>
-      <summary class="fold__head"><h2>Change Log</h2></summary>
+    <section class="fold fold--compact fold--static" data-log-fold>
+      <div class="fold__head"><h2>Change Log</h2></div>
       <div class="fold__body">
       ${hintFold('Who changed what in the admin, newest first. Imports and bulk changes show as one line. Customer details list the fields changed, not their values.')}
       <div class="field"><label for="log-table">Show</label>
         <select id="log-table"><option value="">Everything</option>${Object.entries(LOG_TABLES).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select></div>
       <div data-log aria-live="polite"></div>
       </div>
-    </details>
+    </section>
     </div>` : '<p class="field__hint">Ask an owner to add or remove staff.</p>'}`;
 
   // Light or dark: applied at once, then saved on my account.

@@ -86,8 +86,8 @@ export async function mount(el, { sb }) {
     </form>
     </div>
     <div data-tabpane="send">
-    <details class="fold fold--compact fold--static" open>
-      <summary class="fold__head"><h2>Weekly Pull List Email<span class="fold__note">${s.pull_list_email_enabled ? `Automatic: ${WEEKDAYS[s.pull_list_email_day]} around ${hourLabel(s.pull_list_email_hour)}` : 'Automatic sending is off'}</span></h2></summary>
+    <section class="fold fold--compact fold--static">
+      <div class="fold__head"><h2>Weekly Pull List Email<span class="fold__note">${s.pull_list_email_enabled ? `Automatic: ${WEEKDAYS[s.pull_list_email_day]} around ${hourLabel(s.pull_list_email_hour)}` : 'Automatic sending is off'}</span></h2></div>
       <div class="fold__body">
         <div class="email-tools">
           <h2 class="email-tools__title">Try It First</h2>
@@ -104,9 +104,9 @@ export async function mount(el, { sb }) {
           <p class="email-tools__dirty" data-email-dirty hidden>You have unsaved changes. These buttons use the <strong>saved</strong> settings, so save them first on the Email settings tab.</p>
         </div>
       </div>
-    </details>
-    <details class="fold fold--compact fold--static" open>
-      <summary class="fold__head"><h2>“Your Books Are In” Email<span class="fold__note">${s.arrival_email_enabled ? `Automatic: ${hourLabel(s.arrival_email_after_hour)} to ${hourLabel(s.arrival_email_before_hour % 24)}` : 'Automatic sending is off'}</span></h2></summary>
+    </section>
+    <section class="fold fold--compact fold--static">
+      <div class="fold__head"><h2>“Your Books Are In” Email<span class="fold__note">${s.arrival_email_enabled ? `Automatic: ${hourLabel(s.arrival_email_after_hour)} to ${hourLabel(s.arrival_email_before_hour % 24)}` : 'Automatic sending is off'}</span></h2></div>
       <div class="fold__body">
         <div class="email-tools">
           <h2 class="email-tools__title">Try It First</h2>
@@ -123,11 +123,11 @@ export async function mount(el, { sb }) {
           <p class="email-tools__dirty" data-email-dirty hidden>You have unsaved changes. These buttons use the <strong>saved</strong> settings, so save them first on the Email settings tab.</p>
         </div>
       </div>
-    </details>
+    </section>
     </div>
     <div data-tabpane="log">
-    <details class="fold fold--compact fold--static email-log" data-email-log open>
-      <summary class="fold__head"><h2>Email Log<span class="fold__note" data-log-count>Every email the site has sent</span></h2></summary>
+    <section class="fold fold--compact fold--static email-log" data-email-log>
+      <div class="fold__head"><h2>Email Log<span class="fold__note" data-log-count>Every email the site has sent</span></h2></div>
       <div class="fold__body">
         <div class="email-log__filters filters--compact">
           <select data-log-kind aria-label="Type of email"><option value="">All types</option>${Object.entries(LOG_KINDS).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}</select>
@@ -137,7 +137,7 @@ export async function mount(el, { sb }) {
         <div data-log-rows aria-live="polite"></div>
         <div class="admin-pager"><button class="btn btn--ghost" type="button" data-log-prev>← Newer</button><span data-log-page></span><button class="btn btn--ghost" type="button" data-log-next>Older →</button></div>
       </div>
-    </details>
+    </section>
     </div>`;
 
   const showTab = setupTabs(el, 'admin-emails-tab', 'settings');
