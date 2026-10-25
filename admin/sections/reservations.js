@@ -800,8 +800,12 @@ async function markNotOrdered(body, itemId, btn) {
   }
 }
 
-/** Expand or collapse a hidden row under a title listing who reserved it, laid out in columns. */
+/**
+ * Expand or collapse a hidden row under a title listing who reserved it, laid out in columns. Place Order lists open
+ * lines; a button with data-past lists the lines already ordered (PAST_STATUSES), each with where it stands now.
+ */
 async function toggleCustomers(btn) {
+  const past = 'past' in btn.dataset;
   const tr = btn.closest('tr');
   const next = tr.nextElementSibling;
   if (next?.classList.contains('toorder__people')) {
@@ -815,18 +819,20 @@ async function toggleCustomers(btn) {
   tr.after(row);
   const cell = row.firstElementChild;
   try {
-    const lines = await must(atLocation(sb.from('reservations').select('quantity,order:reservation_orders(id,name,customer:customers(name,first_name,last_name))').eq('status', 'open').eq('item_id', Number(btn.dataset.customers))));
+    const lines = await must(atLocation(sb.from('reservations').select('quantity,status,order:reservation_orders(id,name,customer:customers(name,first_name,last_name))').in('status', past ? PAST_STATUSES : ['open']).eq('item_id', Number(btn.dataset.customers))));
     // Sorted by last name and shown as "Last, First". Guest orders only have one name field: the last word is the surname.
     const people = lines.map((l) => {
       const c = l.order?.customer;
-      if (c?.last_name) return { last: c.last_name, first: c.first_name ?? '', qty: l.quantity };
+      if (c?.last_name) return { last: c.last_name, first: c.first_name ?? '', qty: l.quantity, status: l.status };
       const words = (c?.name || l.order?.name || 'Unknown').trim().split(/\s+/);
       const last = words.pop();
-      return { last, first: words.join(' '), qty: l.quantity };
+      return { last, first: words.join(' '), qty: l.quantity, status: l.status };
     }).map((p) => ({ ...p, name: [p.last, p.first].filter(Boolean).join(', ') }))
       .sort((a, b) => a.last.localeCompare(b.last, undefined, { sensitivity: 'base' }) || a.first.localeCompare(b.first, undefined, { sensitivity: 'base' }));
     cell.removeAttribute('aria-busy');
-    cell.innerHTML = people.length ? `<ul class="toorder__list">${people.map((p) => `<li>${esc(p.name)}${p.qty > 1 ? ` <strong>×${p.qty}</strong>` : ''}</li>`).join('')}</ul>` : '<span class="empty">No open reservations for this title any more.</span>';
+    cell.innerHTML = people.length
+      ? `<ul class="toorder__list">${people.map((p) => `<li>${esc(p.name)}${p.qty > 1 ? ` <strong>×${p.qty}</strong>` : ''}${past ? ` <span class="card__meta">· ${esc(LINE_STATUS[p.status] ?? p.status)}</span>` : ''}</li>`).join('')}</ul>`
+      : `<span class="empty">${past ? 'No ordered reservations for this title any more.' : 'No open reservations for this title any more.'}</span>`;
   } catch (err) {
     cell.removeAttribute('aria-busy');
     cell.innerHTML = `<span class="form-error">${esc(friendlyError(err))}</span>`;
@@ -880,7 +886,7 @@ async function renderPastOrders(body) {
               <td>${esc(r.item.publisher ?? '')}</td>
               <td class="center card-key card-label"><strong>${r.copies}</strong>
               </td>
-              <td class="center card-key card-label">${r.orders.size}</td>
+              <td class="center card-key card-label"><button type="button" class="link-button" data-customers="${r.item.id}" data-past title="See who ordered this title">${r.orders.size}</button></td>
               <td class="card-wide">${[...r.status].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`).join(', ')}</td>
               </tr>`).join('')}</tbody>
           </table></div>
@@ -888,6 +894,12 @@ async function renderPastOrders(body) {
       })
       .join('');
     $$('.fold--compact table', box).forEach((t) => sortableTable(t));
+    // Sorting reorders rows, which would strand an open customer row: close them first.
+    box.addEventListener('click', (e) => { if (e.target.closest('th[data-sort]')) $$('tr.toorder__people', box).forEach((r) => { r.previousElementSibling?.querySelector('[data-customers]')?.setAttribute('aria-expanded', 'false'); r.remove(); }); }, true);
+    box.addEventListener('click', (e) => {
+      const cust = e.target.closest('[data-customers]');
+      if (cust) toggleCustomers(cust);
+    });
   } catch (err) {
     box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
   }
