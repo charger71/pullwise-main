@@ -13,8 +13,8 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-tab="customers">Export Customers</button>
     </div>
     <div data-tabpane="backup">
-    <details class="fold fold--compact fold--static" open>
-    <summary class="fold__head"><h2>Download a Backup</h2></summary>
+    <section class="fold fold--compact fold--static">
+    <div class="fold__head"><h2>Download a Backup</h2></div>
     <div class="fold__body">
     <p>Downloads one file with <strong>everything in the shop’s database</strong>: titles, customers, pull lists and reservations, orders, events, news, page text, settings and the change log. Do this regularly (weekly is a good habit) and keep the file somewhere safe, such as Dropbox.</p>
     <p class="field__hint">The file contains customer names, phone numbers and emails: don’t share it or email it. Uploaded pictures (Media) are not in it, and neither are distributor cover images, which a re-import brings back. To load data back from a file, use <a href="#restore">Restore</a>.</p>
@@ -22,18 +22,18 @@ export async function mount(el, ctx) {
     <p class="admin-status" role="status" data-status></p>
     <button class="btn btn--primary" type="button" data-backup>${solidIcon('download', 16)} Download backup</button>
     </div>
-    </details>
+    </section>
     </div>
     <div data-tabpane="customers">
-    <details class="fold fold--compact fold--static" open>
-    <summary class="fold__head"><h2>Export Customers</h2></summary>
+    <section class="fold fold--compact fold--static">
+    <div class="fold__head"><h2>Export Customers</h2></div>
     <div class="fold__body">
     <p>A spreadsheet (CSV) of just the customers: name, email, phone, address, whether they get the weekly pull list email and the “your books are in” email, whether they have a website login, and when they joined. It is a contact list, not a backup: pull lists and reservations are not in it.</p>
     <p class="field__hint">It contains personal details: don’t share it or email it. If you use it to send mail, leave out anyone marked “No” under the email columns.</p>
     <p class="admin-status" role="status" data-cust-status></p>
     <button class="btn btn--ghost" type="button" data-customers>${solidIcon('download', 16)} Export customers (CSV)</button>
     </div>
-    </details>
+    </section>
     </div>`;
   setupTabs(el, 'admin-backup-tab', 'backup');
 

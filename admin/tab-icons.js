@@ -86,4 +86,24 @@ export function decorateTabs(root) {
     tab.insertAdjacentHTML('afterbegin', `<svg class="admin-tab__icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${iconFor(text, tab.dataset.icon)}</svg>`);
     tab.querySelector('svg').after(label);
   });
+  // Roving tab stop: only the chosen tab is in the Tab order; the arrow keys (tabKeys below) move between the others.
+  root.querySelectorAll('[role="tablist"]').forEach((list) => {
+    const tabs = [...list.querySelectorAll('[role="tab"]')];
+    const on = tabs.find((t) => t.getAttribute('aria-selected') === 'true') ?? tabs[0];
+    tabs.forEach((t) => (t.tabIndex = t === on ? 0 : -1));
+  });
+}
+
+/** Keyboard for tab rows (the ARIA tabs pattern): ← → move to and open the next tab, Home / End the first and last. */
+export function tabKeys(e) {
+  const tab = e.target.closest?.('[role="tab"]');
+  const keys = { ArrowLeft: -1, ArrowRight: 1, Home: 'first', End: 'last' };
+  if (!tab || !(e.key in keys)) return;
+  const tabs = [...tab.closest('[role="tablist"]').querySelectorAll('[role="tab"]:not([disabled]):not([hidden])')];
+  const i = tabs.indexOf(tab);
+  const k = keys[e.key];
+  const next = k === 'first' ? tabs[0] : k === 'last' ? tabs.at(-1) : tabs[(i + k + tabs.length) % tabs.length];
+  e.preventDefault();
+  next.focus();
+  next.click();
 }

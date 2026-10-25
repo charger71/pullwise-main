@@ -188,20 +188,20 @@ async function edit(listEl, id, startTab) {
     </div>
     <form class="admin-form" novalidate>
       <div data-tabpane="details">
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Details</h2></summary><div class="fold__body">
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Details</h2></div><div class="fold__body">
       <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="sv-title">Title <span class="req" aria-hidden="true">*</span></label><input id="sv-title" name="title" required maxlength="150" value="${esc(sv.title)}"></div>
         <div class="field span-2"><label for="sv-slug">Link name</label><input id="sv-slug" name="slug" maxlength="80" value="${esc(sv.slug)}" placeholder="customer-survey"><p class="field__hint">Used in the link: survey.html?s=<em>link-name</em>. Letters, numbers and dashes. Leave blank to make one from the title.</p></div>
         <div class="field span-2"><label for="sv-intro">Introduction</label><textarea id="sv-intro" name="intro" rows="3">${esc(sv.intro)}</textarea></div>
         <div class="field span-2"><label for="sv-thanks">Thank-you message</label><textarea id="sv-thanks" name="thank_you" rows="2">${esc(sv.thank_you)}</textarea></div>
       </div>
-      </div></details>
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Email Box</h2></summary><div class="fold__body">
+      </div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Email Box</h2></div><div class="fold__body">
       <div class="form-grid form-grid--pairs">
         <div class="checks span-2"><label><input id="sv-email" name="collect_email" type="checkbox"${sv.collect_email ? ' checked' : ''}> Offer an optional email box (for a drawing or prize)</label></div>
         <div class="field span-2"><label for="sv-email-prompt">Wording above the email box</label><input id="sv-email-prompt" name="email_prompt" maxlength="200" value="${esc(sv.email_prompt)}" placeholder="Enter your email to be entered in our gift card drawing"><p class="field__hint">Emails are saved separately from the answers (see Results), so the answers stay anonymous. Say what the prize is and when you'll draw.</p></div>
       </div>
-      </div></details>
+      </div></section>
       </div>
       <div data-tabpane="questions">
       <h3>Questions</h3>
@@ -350,20 +350,20 @@ async function renderShare(box, sv) {
     qr = (await must(sb.from('qr_codes').select('slug,scan_count').eq('forward', true).eq('target_url', url).limit(1)))[0] ?? null;
   } catch { /* the QR section just offers to make one */ }
   box.innerHTML = `
-    <details class="fold fold--compact fold--static" open>
-      <summary class="fold__head"><h2>Link</h2><span class="fold__note">${sv.is_open ? 'Open: customers can answer it' : 'Closed: the link won’t work until you open it'}</span></summary>
+    <section class="fold fold--compact fold--static">
+      <div class="fold__head"><h2>Link</h2><span class="fold__note">${sv.is_open ? 'Open: customers can answer it' : 'Closed: the link won’t work until you open it'}</span></div>
       <div class="fold__body">
         <p><input readonly value="${esc(url)}" aria-label="Survey link" data-url></p>
         <p><button class="btn btn--ghost" type="button" data-copy>Copy link</button> <a class="btn btn--ghost" href="../survey.html?s=${encodeURIComponent(sv.slug)}&amp;preview=1" target="_blank" rel="noopener">Preview</a></p>
       </div>
-    </details>
-    <details class="fold fold--compact fold--static" open>
-      <summary class="fold__head"><h2>QR Code</h2>${qr ? `<span class="fold__note">${qr.scan_count} scan${Number(qr.scan_count) === 1 ? '' : 's'}</span>` : ''}</summary>
+    </section>
+    <section class="fold fold--compact fold--static">
+      <div class="fold__head"><h2>QR Code</h2>${qr ? `<span class="fold__note">${qr.scan_count} scan${Number(qr.scan_count) === 1 ? '' : 's'}</span>` : ''}</div>
       <div class="fold__body">
         ${qr ? `<p><a class="btn btn--ghost" href="${adminHash('qr', qr.slug)}">View QR code</a></p><p class="admin-hint">Print it from Admin → QR Codes. The address can change later without reprinting.</p>`
           : '<p class="admin-hint">Make a QR code that forwards to this survey, with scan counts.</p><p><button class="btn btn--ghost" type="button" data-make-qr>Make QR code</button></p>'}
       </div>
-    </details>`;
+    </section>`;
   $('[data-copy]', box).addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(url); toast('Link copied'); } catch { $('[data-url]', box).select(); toast('Press Ctrl/⌘+C to copy', 'ok'); }
   });

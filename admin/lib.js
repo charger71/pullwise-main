@@ -901,7 +901,7 @@ export async function loadSentMessages(sb, box, sum, { customerId = null, email 
 
 /**
  * Tabs for a page: buttons `[data-tab="id"]` switch blocks `[data-tabpane="id"]` inside `el`. The chosen tab is
- * kept (per `key`) across a refresh. Panels marked `fold--static` stay open and ignore header clicks.
+ * kept (per `key`) across a refresh.
  * Returns show(id), which also takes effect when called from outside (e.g. a hand-off from the Dashboard).
  */
 export function setupTabs(el, key, fallback, onShow) {
@@ -920,7 +920,16 @@ export function setupTabs(el, key, fallback, onShow) {
     }
     onShow?.(tab);
   };
-  $$('.fold--static > summary', el).forEach((sm) => sm.addEventListener('click', (e) => e.target.closest('button, input, label, a, select') || e.preventDefault()));
+  // Tie each tab to its panel for screen readers (role="tab" buttons, role="tabpanel" blocks).
+  buttons.forEach((b) => {
+    const pane = $(`[data-tabpane="${b.dataset.tab}"]`, el);
+    if (!pane) return;
+    b.id ||= `tab-${key}-${b.dataset.tab}`.replace(/[^\w-]/g, '-');
+    pane.id ||= `${b.id}-panel`;
+    b.setAttribute('aria-controls', pane.id);
+    pane.setAttribute('role', 'tabpanel');
+    pane.setAttribute('aria-labelledby', b.id);
+  });
   buttons.forEach((b) => b.addEventListener('click', () => show(b.dataset.tab)));
   let start = fallback;
   try {

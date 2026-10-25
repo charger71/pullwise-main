@@ -33,35 +33,35 @@ export async function mount(el, { sb }) {
     </div>
     <form class="admin-form settings-form" novalidate>
       <div data-tabpane="shop">
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Admin Notice</h2></summary><div class="fold__body"><div class="form-grid form-grid--pairs">
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Admin Notice</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         ${field('admin_notice', 'Notice for staff', 'maxlength="500"', 'Shown in a gold bar at the very top of every admin page. Staff only — customers never see it. Leave blank to hide it.', 'field--full')}
-      </div></div></details>
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Shop</h2></summary><div class="fold__body"><div class="form-grid form-grid--pairs">
+      </div></div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Shop</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         ${field('shop_name', 'Shop name', 'required', '', 'field--full')}
         ${field('founded_year', 'Open since (year)', 'type="number" min="1900" max="2100" inputmode="numeric"')}
         ${field('tagline', 'Tagline', '', 'Shown under the home page headline and in browser tabs.', 'field--full')}
         ${field('copyright_text', 'Footer copyright', 'maxlength="200"', 'Shown at the very bottom of every page. Type {year} to always show the current year, e.g. “© {year} Pop’s Comics &amp; Collectibles. All rights reserved.” Leave blank for “© year shop name”.', 'field--full')}
         ${field('hero_headline', 'Home page headline', '', 'Wrap words in *asterisks* to show them in the accent color.', 'field--full')}
-      </div></div></details>
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Contact &amp; Address</h2></summary><div class="fold__body"><div class="form-grid form-grid--pairs">
+      </div></div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Contact &amp; Address</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         ${field('phone', 'Phone', 'type="tel"', '', 'field--full')}
         ${field('email', 'Email', 'type="email"', '', 'field--full')}
         ${field('street', 'Street address', 'autocapitalize="words"', '', 'field--full')}
         ${field('city', 'City', 'autocapitalize="words"')}
         ${field('region', 'State', 'autocapitalize="words"')}
         ${field('postal_code', 'ZIP code', 'inputmode="numeric"')}
-      </div></div></details>
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Opening Hours</h2></summary><div class="fold__body">
+      </div></div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Opening Hours</h2></div><div class="fold__body">
         <div data-hours></div>
         <button class="btn btn--add btn--small" type="button" data-add-hours>${solidIcon('add', 16)} Add hours</button>
-      </div></details>
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Map</h2></summary><div class="fold__body"><div class="form-grid form-grid--pairs">
+      </div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Map</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         <div class="field field--full"><label><input type="checkbox" name="show_map"${s.show_map ? ' checked' : ''}> Show a Google Map on the Home and Visit pages</label></div>
         ${field('map_embed_url', 'Custom map link (optional)', 'type="url" placeholder="https://www.google.com/maps/embed?…"', 'From Google Maps: Share → Embed a map → copy the link inside src="…". Leave blank to map the address.', 'field--full')}
-      </div></div></details>
+      </div></div></section>
       </div>
       <div data-tabpane="look">
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Logo &amp; Colors</h2></summary><div class="fold__body">
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Logo &amp; Colors</h2></div><div class="fold__body">
         <div data-logo></div>
         <div class="field field--full"><label><input type="checkbox" name="show_name_with_logo"${s.show_name_with_logo ? ' checked' : ''}> Show the shop name next to the logo</label>
         <p class="field__hint">Unticked, the logo replaces the name in the header. Without a logo, the name is always shown.</p></div>
@@ -76,36 +76,36 @@ export async function mount(el, { sb }) {
             <p class="field__hint">Links in text and focus outlines. Automatic picks a blue that reads well on the page background; pick your own to override it (make sure it is readable on the page background).</p></div></div>
         <p class="field__hint">The site is designed for a dark page background with light text. Everything else (cards, borders, muted text) is worked out from these five colors. Use the page background and text colors together: a dark background needs light text.</p>
         <div class="contrast" data-contrast aria-live="polite"></div>
-      </div></details>
+      </div></section>
       </div>
       <div data-tabpane="online">
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Social Media</h2></summary><div class="fold__body">
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Social Media</h2></div><div class="fold__body">
         <p class="field__hint">Full profile links. Leave blank to hide a network.</p>
         <div class="form-grid">${Object.entries(SOCIAL_ICONS).map(([k, { label }]) => `<div class="field"><label for="soc-${k}">${esc(label)}</label><input id="soc-${k}" data-social="${k}" type="url" placeholder="https://…" value="${esc(s.socials?.[k])}"></div>`).join('')}</div>
-      </div></details>
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Google Analytics</h2></summary><div class="fold__body"><div class="form-grid form-grid--pairs">
+      </div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Google Analytics</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         ${field('ga_measurement_id', 'Measurement ID', 'placeholder="G-XXXXXXXXXX" pattern="G-[A-Za-z0-9]+" autocomplete="off"', 'From Google Analytics: Admin → Data streams → your website. Tracking runs on every public page; leave blank to turn it off.', 'field--full')}
-      </div></div></details>
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Footer Code</h2></summary><div class="fold__body"><div class="form-grid form-grid--pairs">
+      </div></div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Footer Code</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="s-footer-scripts">Code for the bottom of every page</label>
           <textarea id="s-footer-scripts" name="footer_scripts" rows="8" maxlength="20000" spellcheck="false" autocomplete="off" placeholder="&lt;script src=&quot;https://…&quot;&gt;&lt;/script&gt;" style="font-family:monospace">${esc(s.footer_scripts)}</textarea>
           <p class="field__hint">Paste the snippet a service gives you (a help chat, for example), including its &lt;script&gt; tags. It runs on every public page, but not in the admin. <strong>Only paste code from a source you trust:</strong> it can see everything a customer sees. A mistake here can break the site, so if pages misbehave, clear this box and save. Leave blank for none.</p></div>
-      </div></div></details>
+      </div></div></section>
       </div>
       <div data-tabpane="stock">
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Pre-Orders &amp; Stock</h2></summary><div class="fold__body"><div class="form-grid form-grid--pairs">
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Pre-Orders &amp; Stock</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         ${field('max_copies_per_title', 'Copies per customer per title', 'type="number" min="1" max="100" inputmode="numeric"')}
         ${field('hold_days', 'Hold reservations after arrival (days)', 'type="number" min="1" max="365" inputmode="numeric"')}
         <div class="field field--full"><label for="s-timezone">Shop time zone</label><select id="s-timezone" name="timezone">${[...new Set([s.timezone, ...ZONES])].filter(Boolean).map((z) => `<option${z === s.timezone ? ' selected' : ''}>${z}</option>`).join('')}</select><p class="field__hint">Reservations close at midnight shop time on the Saturday before each order cutoff (FOC).</p></div>
         <div class="field span-2"><label for="s-pinned">Publishers pinned to the top of the Publisher filter</label><textarea id="s-pinned" name="pinned_publishers" rows="3">${esc((s.pinned_publishers ?? []).join(', '))}</textarea><p class="field__hint">Comma-separated, in order — spelled as they appear in the filter.</p></div>
-      </div></div></details>
-      <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Pull List Discount</h2></summary><div class="fold__body">
+      </div></div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Pull List Discount</h2></div><div class="fold__body">
         <div class="field"><label><input type="checkbox" name="discount_enabled"${s.discount_enabled === false ? '' : ' checked'}> Give customers a discount based on how many series are on their pull list</label>
         <p class="field__hint">Shown on My Pull List and in the pull list emails and printed pull lists. Unticked, no discount is shown or applied anywhere (your tiers are kept).</p></div>
         <div data-tiers></div>
         <button class="btn btn--add btn--small mt-14" type="button" data-add-tier>${solidIcon('add', 16)} Add a tier</button>
         <p class="field__hint">Each tier starts at a number of different series on the customer’s active pull list and gives that percent off the cover-price total until the next tier starts. Start numbers must go up. Toys and anything without a series don’t count toward the number.</p>
-      </div></details>
+      </div></section>
       </div>
 
       <div class="admin-actions sticky-actions">

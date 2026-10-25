@@ -66,6 +66,18 @@ for (const [name, theme] of [['light', light], ['dark', dark]]) {
   });
 }
 
+// Field borders and the focus ring are UI parts, not text: WCAG 1.4.11 needs 3:1 against what they sit on.
+const UI_PAIRS = [['field-line', 'surface'], ['field-line', 'brand-paper'], ['focus', 'surface'], ['focus', 'brand-paper']];
+for (const [name, theme] of [['light', light], ['dark', dark]]) {
+  check(`field borders and focus ring contrast in the ${name} theme`, () => {
+    const bad = UI_PAIRS.map(([fg, bg]) => [fg, bg, ratio(theme[fg], theme[bg])]).filter(([, , r]) => r < 3);
+    assert.equal(bad.length, 0, bad.map(([fg, bg, r]) => `${fg} (${theme[fg]}) on ${bg} (${theme[bg]}) is ${r.toFixed(2)}:1, needs 3:1`).join('\n'));
+  });
+}
+check('fold headers use the shared focus ring', () => {
+  assert.match(css, /\.fold__head:focus-visible\s*\{[^}]*var\(--focus\)/, 'the fold header focus ring must be var(--focus); the accent yellow is 1.3:1 on the page');
+});
+
 check('every color token has a dark twin (or is on the same-in-both list)', () => {
   const SAME_IN_BOTH = ['brand-primary', 'brand-accent', 'on-accent', 'pill-off-text', 'success', 'danger', 'fold-head-bg', 'pill-pink'];
   const missing = Object.keys(light).filter((t) => !(t in tokens(block(":root[data-theme='dark'] {"))) && !SAME_IN_BOTH.includes(t));
@@ -139,19 +151,20 @@ check('every pill tone used exists in the CSS', () => {
 });
 
 // ---- Folds and hints ------------------------------------------------------------------------------------------------
-check('clickable fold headers hold no buttons', () => {
-  const bad = [];
-  for (const [file, text] of Object.entries(sections)) {
-    const lines = text.split('\n');
-    lines.forEach((line, i) => {
-      if (!line.includes('<summary class="fold__head"')) return;
-      const context = `${lines[i - 1] ?? ''}${line}`;
-      if (context.includes('fold--static')) return;
-      const summary = line.slice(line.indexOf('<summary'), line.includes('</summary>') ? line.indexOf('</summary>') : undefined);
-      if (/<button|class="btn|<a class="btn/.test(summary)) bad.push(`sections/${file}:${i + 1}`);
-    });
-  }
-  assert.equal(bad.length, 0, `${bad.join('\n')}\nA button inside a header you click to open makes it hard to tap. Put it in the fold body, or make the fold static.`);
+check('no <summary> holds a control, and static folds are not <details>', () => {
+  const files = { ...Object.fromEntries(Object.entries(sections).map(([f, t]) => [`sections/${f}`, t])), 'lib.js': lib, 'style-guide.html': guide };
+  const bad = Object.entries(files).flatMap(([f, t]) => [
+    // a control inside a summary can't be reached reliably and fights the summary's own toggle
+    ...[...t.matchAll(/<summary\b[\s\S]*?<\/summary>/g)].filter((m) => /<(button|input|select|textarea)\b|<a\b|class="btn/.test(m[0])).map((m) => `${f}: ${m[0].slice(0, 70)}…`),
+    // an always-open fold is a <section>, so its header isn't a tab stop that opens nothing
+    ...[...t.matchAll(/<details[^>]*fold--static[^>]*>/g)].map((m) => `${f}: ${m[0]}`),
+  ]);
+  assert.equal(bad.length, 0, `${bad.join('\n')}\nPut controls beside or below the header, and build a static fold as <section class="fold fold--static"><div class="fold__head">.`);
+});
+
+check('the screen area is not a live region', () => {
+  const index = read('index.html');
+  assert.doesNotMatch(index.match(/<section id="section"[^>]*>/)?.[0] ?? '', /aria-live/, 'aria-live on #section reads the whole screen aloud on every change; use role="status" on the message instead');
 });
 
 check('"How this works" starts closed', () => {

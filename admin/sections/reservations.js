@@ -542,17 +542,17 @@ async function renderReady(body) {
     }
     const chosen = list.filter((r) => picked.has(r.item.id));
     const copies = chosen.reduce((n, r) => n + r.copies, 0);
-    box.innerHTML = `<details class="fold fold--static fold--compact" open>
-        <summary class="fold__head">
+    box.innerHTML = `<section class="fold fold--static fold--compact">
+        <div class="fold__head">
           <h2>Arriving This Week<span class="fold__note">${list.length} ${list.length === 1 ? 'title' : 'titles'} · ${chosen.length} ticked</span></h2>
           <button type="button" class="btn btn--small btn--green" data-go${chosen.length ? '' : ' disabled'}>Mark ${chosen.length} ${chosen.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) ready</button>
-        </summary>
+        </div>
         <div class="fold__body">
         <p><button type="button" class="btn btn--ghost btn--small" data-pick="all">Tick all shown</button> <button type="button" class="btn btn--ghost btn--small" data-pick="none">Clear ticks</button></p>
       <table class="admin-table cards"><thead><tr><th scope="col"><span class="visually-hidden">Ready</span></th><th scope="col">Title</th><th scope="col">Publisher</th><th scope="col">Out</th><th scope="col" class="col-qty">Copies</th><th scope="col" class="col-qty">Customers</th></tr></thead>
       <tbody>${list.map((r) => `<tr><td class="card-lead"><input type="checkbox" data-item="${r.item.id}" aria-label="Ready: ${esc(itemName(r.item))}"${picked.has(r.item.id) ? ' checked' : ''}${r.lineIds.length ? '' : ' disabled title="Nobody has reserved this title"'}></td><td class="card-title">${esc(itemName(r.item))}</td><td>${esc(r.item.publisher ?? '')}</td><td class="nowrap card-label">${r.item.release_date ? fmtDate(r.item.release_date, { month: 'short', day: 'numeric' }) : ''}</td><td class="center card-key card-label">${r.copies ? `<strong>${r.copies}</strong>` : '—'}</td><td class="center card-key card-label">${r.orders.size || '—'}</td></tr>`).join('')}</tbody></table>
         </div>
-      </details>`;
+      </section>`;
   }
 
   $('form', body).addEventListener('input', draw);

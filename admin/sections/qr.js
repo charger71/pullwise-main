@@ -186,7 +186,7 @@ function addItem(sb, list, c, open = false, prepend = false) {
           </div>
         </div>
         <div class="qr-item__preview">
-          <div class="qr-item__img" data-img aria-label="QR code preview"></div>
+          <div class="qr-item__img" data-img role="img" aria-label="QR code preview"></div>
           <p class="admin-hint" data-holds></p>
           <p class="admin-hint" data-scans></p>
           <div class="qr-item__downloads">

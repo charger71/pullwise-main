@@ -429,8 +429,9 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
           </div>
           <div class="sg-item" data-code>
             <h3>Static fold (always open, not clickable)</h3>
+            <p class="admin-hint">A <code>&lt;section&gt;</code> with a <code>&lt;div class="fold__head"&gt;</code>, not <code>&lt;details&gt;</code>: a header that can't open must not be a tab stop or be announced as one.</p>
             <div class="sg-demo">
-              <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Shop<span class="fold__note">Name and tagline</span></h2></summary><div class="fold__body"><p class="m-0">Used to give a long form a titled section.</p></div></details>
+              <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Shop<span class="fold__note">Name and tagline</span></h2></div><div class="fold__body"><p class="m-0">Used to give a long form a titled section.</p></div></section>
             </div>
           </div>
           <div class="sg-item" data-code>
@@ -564,7 +565,7 @@ text-muted · text-danger · text-success · text-right · font-mono · nowrap</
             <li><strong>Tap targets:</strong> <code>--tap-btn</code> (48px) for buttons and <code>--tap</code> (44px) for small buttons and fields on phones; clickable fold headers <code>--tap-head</code> (52px).</li>
             <li><strong>Always escape</strong> text put into markup with <code>esc()</code>.</li>
             <li><strong>Customer details:</strong> show a customer’s current name, phone and email, not what an order was placed with. Use <code>withCustomers(sb, orders)</code>.</li>
-            <li><strong>Accessibility:</strong> visible labels, <code>role="status"</code> for save results and <code>role="alert"</code> for errors, buttons not links for actions, and text that keeps at least 4.5:1 contrast in both themes.</li>
+            <li><strong>Accessibility:</strong> visible labels, <code>role="status"</code> for save results and <code>role="alert"</code> for errors, buttons not links for actions, and text that keeps at least 4.5:1 contrast in both themes. Field borders and focus rings keep 3:1; focus rings use <code>--focus</code>. Never make a whole screen a live region, and never put a button inside a <code>&lt;summary&gt;</code>. Tab rows (<code>role="tablist"</code>) get arrow keys from <code>admin.js</code>.</li>
             <li><strong>Query builders:</strong> never return a Supabase query from an <code>async</code> function; it runs early and breaks <code>.range()</code>.</li>
             <li><strong>New component?</strong> Add it to this page in the same commit. <code>npm test</code> (<code>admin/consistency.test.js</code>) fails if a shared component is missing here, if text contrast drops below 4.5:1 in either theme, if a screen adds a one-off button height or a raw color, or if a button or pill class has no style.</li>
           </ul>

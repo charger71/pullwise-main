@@ -77,7 +77,7 @@ async function edit(listEl, id) {
     <p class="admin-actions"><button class="btn btn--ghost btn--small" type="button" data-back>← Back to events</button>
       ${id && ev.signup_enabled ? '<button class="btn btn--blue btn--small" type="button" data-signups>View signups</button>' : ''}</p>
     <h1>${id ? 'Edit Event' : 'New Event'}</h1>
-    <details class="fold fold--compact fold--static" open><summary class="fold__head"><h2>Event Details</h2></summary><div class="fold__body">
+    <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Event Details</h2></div><div class="fold__body">
     <form class="admin-form" novalidate>
       <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="ev-title">Title <span class="req" aria-hidden="true">*</span></label><input id="ev-title" name="title" required value="${esc(ev.title)}"></div>
@@ -99,7 +99,7 @@ async function edit(listEl, id) {
         <span class="admin-status" role="status"></span>
       </div>
     </form>
-    </div></details>`;
+    </div></section>`;
   window.scrollTo(0, 0);
   $('[data-back]', d).addEventListener('click', back);
   const quill = makeEditor($('[data-desc]', d), 'body', $('#ev-desc-label', d));
