@@ -56,16 +56,50 @@ export async function mount(el, ctx) {
       <div class="field field--search"><label for="t-q">Search</label><input id="t-q" name="q" type="search" placeholder="Title, variant, creator, SKU or UPC" value="${esc(state.q)}"></div>
       <div class="field"><label for="t-status">Status</label><select id="t-status" name="status"><option value="">All</option>${Object.entries(STATUS_LABELS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
       <div class="field"><label for="t-category">Category</label><select id="t-category" name="category"><option value="">All</option>${categories.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}<option value="none">No category</option></select></div>
-      ${phone ? `<details class="filters-more"${moreOpen ? ' open' : ''}><summary>More filters</summary><div class="filters-more__grid">` : ''}<div class="field"><label for="t-flag">Show</label><select id="t-flag" name="flag"><option value="">Everything</option><option value="staff_pick">Staff picks</option><option value="featured">On homepage</option><option value="hidden">Hidden</option><option value="badged">Has collector badge</option><option value="no_cover">No cover</option><option value="no_price">No price</option></select></div>
+      ${phone ? `<details class="filters-more"${moreOpen ? ' open' : ''}>
+        <summary>More filters</summary>
+        <div class="filters-more__grid">` : ''}<div class="field"><label for="t-flag">Show</label>
+          <select id="t-flag" name="flag">
+          <option value="">Everything</option>
+          <option value="staff_pick">Staff picks</option>
+          <option value="featured">On homepage</option>
+          <option value="hidden">Hidden</option>
+          <option value="badged">Has collector badge</option>
+          <option value="no_cover">No cover</option>
+          <option value="no_price">No price</option>
+          </select>
+        </div>
       <div class="field"><label for="t-vis">Visibility</label><select id="t-vis" name="visibility"><option value="">Visible and hidden</option><option value="visible">Visible to customers</option></select></div>
-      <div class="field"><label for="t-sort">Sort</label><select id="t-sort" name="sort"><option value="updated">Recently changed</option><option value="foc">Order cutoff</option><option value="release">Release date</option><option value="title">Title</option><option value="status">Status</option><option value="staff_pick">Staff pick</option><option value="featured">On homepage</option><option value="hidden">Hidden</option></select></div>
+      <div class="field"><label for="t-sort">Sort</label>
+        <select id="t-sort" name="sort">
+        <option value="updated">Recently changed</option>
+        <option value="foc">Order cutoff</option>
+        <option value="release">Release date</option>
+        <option value="title">Title</option>
+        <option value="status">Status</option>
+        <option value="staff_pick">Staff pick</option>
+        <option value="featured">On homepage</option>
+        <option value="hidden">Hidden</option>
+        </select>
+        </div>
       <div class="field"><label for="t-foc">FOC week</label><select id="t-foc" name="foc"><option value="">All weeks</option></select></div>
       <div class="field"><label for="t-release">Out week</label><select id="t-release" name="release"><option value="">All weeks</option></select></div>
       ${phone ? '</div></details>' : ''}
     </form>
     <p class="results-count" role="status" data-count></p>
     <div class="admin-table-wrap"><table class="admin-table titles-table">
-      <thead><tr><th scope="col" colspan="2" data-sort="title">Title</th><th scope="col" data-sort="status">Status</th><th scope="col" data-sort="foc">Cutoff / Out</th><th scope="col" data-sort="staff_pick" data-first="desc">Staff</th><th scope="col" data-sort="featured" data-first="desc">Home</th><th scope="col" data-sort="hidden" data-first="desc">Hide</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead>
+      <thead>
+        <tr>
+        <th scope="col" colspan="2" data-sort="title">Title</th>
+        <th scope="col" data-sort="status">Status</th>
+        <th scope="col" data-sort="foc">Cutoff / Out</th>
+        <th scope="col" data-sort="staff_pick" data-first="desc">Staff</th>
+        <th scope="col" data-sort="featured" data-first="desc">Home</th>
+        <th scope="col" data-sort="hidden" data-first="desc">Hide</th>
+        <th scope="col"><span class="visually-hidden">Edit</span>
+        </th>
+        </tr>
+        </thead>
       <tbody></tbody>
     </table></div>
     <div class="admin-pager"><button class="btn btn--ghost" type="button" data-prev>← Previous</button><span data-page></span><button class="btn btn--ghost" type="button" data-next>Next →</button></div>`;

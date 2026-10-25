@@ -1,7 +1,7 @@
 // Locations: the shop's pickup locations (owners only). A shop with one location edits its address and hours in
 // Shop Settings, which keeps that location in step; once there are two or more, each is edited here.
 
-import { $, $$, esc, must, toast, setStatus, solidIcon, friendlyError, hintFold, isPhone } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, solidIcon, friendlyError, hintFold, isPhone, uid } from '../lib.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 
@@ -42,7 +42,7 @@ function addCard(sb, list, l, { locked, remount }) {
   const el = document.createElement('details');
   el.className = 'fold fold--compact';
   el.open = !l.id || !isPhone();
-  const n = Math.random().toString(36).slice(2);
+  const n = uid('f');
   const input = (key, label, extra = '', cls = '') => `<div class="field${cls}"><label for="${key}-${n}">${label}</label><input id="${key}-${n}" name="${key}" maxlength="200" value="${esc(l[key])}"${extra}></div>`;
   const dis = locked ? ' disabled' : '';
   const where = [l.street, l.city].filter(Boolean).join(', ');
@@ -141,7 +141,7 @@ function addCard(sb, list, l, { locked, remount }) {
 function addHours(box, h, locked, onChange) {
   const row = document.createElement('div');
   row.className = 'hours-row';
-  const n = Math.random().toString(36).slice(2);
+  const n = uid('f');
   const dis = locked ? ' disabled' : '';
   row.innerHTML = `
     <div class="hours-row__days" role="group" aria-label="Days">${DAYS.map(([d, label]) => `<label class="chip"><input type="checkbox" data-day="${d}"${h.days?.includes(d) ? ' checked' : ''}${dis}> ${label}</label>`).join('')}</div>

@@ -62,7 +62,13 @@ async function load(el) {
   if (error) return (box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
   box.innerHTML = data.length
     ? `<table class="admin-table cards"><thead><tr><th scope="col" data-sort="text">When</th><th scope="col" data-sort="text">Event</th><th scope="col" data-sort="text">Type</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead><tbody>${data
-        .map((e) => `<tr><td class="nowrap" data-sort="${esc(e.starts_at)}">${fmtDateTime(e.starts_at)}</td><td class="card-title"><strong>${esc(e.title)}</strong>${placeOf(e) ? `<br><span class="card__meta">${esc(placeOf(e))}</span>` : ''}</td><td>${TYPES[e.event_type] ?? e.event_type}</td><td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-edit="${e.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(e.title)}</span></button></td></tr>`)
+        .map((e) => `<tr>
+          <td class="nowrap" data-sort="${esc(e.starts_at)}">${fmtDateTime(e.starts_at)}</td>
+          <td class="card-title"><strong>${esc(e.title)}</strong>${placeOf(e) ? `<br><span class="card__meta">${esc(placeOf(e))}</span>` : ''}</td>
+          <td>${TYPES[e.event_type] ?? e.event_type}</td>
+          <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-edit="${e.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(e.title)}</span></button>
+          </td>
+          </tr>`)
         .join('')}</tbody></table>`
     : `<p class="empty">${showPast ? 'No past events.' : 'No upcoming events — add one so it shows on the calendar and the home page.'}</p>`;
   if (data.length) sortableTable($('table', box));
@@ -146,7 +152,16 @@ async function edit(listEl, id) {
 /** The signups table (with email and remove buttons) for one event's rows. */
 function signupsTable(rows) {
   return `<table class="admin-table cards"><thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col">People</th><th scope="col">Notes</th><th scope="col"><span class="visually-hidden">Remove</span></th></tr></thead><tbody>${rows
-      .map((r) => `<tr><td class="card-title">${esc(r.name)}</td><td class="nowrap card-line">${esc(formatPhone(r.phone))}</td><td class="card-foot"><button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(r.email)}" aria-label="Email ${esc(r.name)}" data-email-to="${esc(r.email)}" data-email-name="${esc(r.name)}">Email</button></td><td class="card-key card-label">${r.party_size}</td><td class="card-wide">${esc(r.notes)}</td><td class="card-foot"><button class="icon-btn icon-btn--remove" type="button" data-remove="${r.id}" aria-label="Remove ${esc(r.name)}'s signup" title="Remove signup">${solidIcon('remove')}</button></td></tr>`)
+      .map((r) => `<tr>
+        <td class="card-title">${esc(r.name)}</td>
+        <td class="nowrap card-line">${esc(formatPhone(r.phone))}</td>
+        <td class="card-foot"><button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(r.email)}" aria-label="Email ${esc(r.name)}" data-email-to="${esc(r.email)}" data-email-name="${esc(r.name)}">Email</button>
+        </td>
+        <td class="card-key card-label">${r.party_size}</td>
+        <td class="card-wide">${esc(r.notes)}</td>
+        <td class="card-foot"><button class="icon-btn icon-btn--remove" type="button" data-remove="${r.id}" aria-label="Remove ${esc(r.name)}'s signup" title="Remove signup">${solidIcon('remove')}</button>
+        </td>
+        </tr>`)
       .join('')}</tbody></table>`;
 }
 

@@ -4,7 +4,7 @@
 import { SOCIAL_ICONS } from '../../js/social-icons.js';
 import { tiersFrom } from '../../js/discount.js';
 import { contrast } from '../theme.js';
-import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime } from '../lib.js';
+import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, uid } from '../lib.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
@@ -221,7 +221,7 @@ export async function mount(el, { sb }) {
 function addTier(box, t) {
   const row = document.createElement('div');
   row.className = 'tier-row';
-  const n = Math.random().toString(36).slice(2);
+  const n = uid('f');
   row.innerHTML = `
     <div class="field"><label for="tmin-${n}">From this many series</label><input id="tmin-${n}" type="number" min="1" max="1000" step="1" data-min value="${esc(t.min)}"></div>
     <div class="field"><label for="tpct-${n}">Percent off</label><input id="tpct-${n}" type="number" min="0" max="100" step="1" data-pct value="${esc(t.pct)}"></div>
@@ -236,7 +236,7 @@ function addTier(box, t) {
 function addHours(box, h) {
   const row = document.createElement('div');
   row.className = 'hours-row';
-  const n = Math.random().toString(36).slice(2);
+  const n = uid('f');
   row.innerHTML = `
     <div class="hours-row__days" role="group" aria-label="Days">${DAYS.map(([d, label]) => `<label class="chip"><input type="checkbox" data-day="${d}"${h.days?.includes(d) ? ' checked' : ''}> ${label}</label>`).join('')}</div>
     <div class="field"><label for="open-${n}">Open</label><input id="open-${n}" type="time" data-open value="${esc(h.open)}"></div>

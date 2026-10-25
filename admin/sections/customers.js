@@ -295,7 +295,9 @@ async function renderCustomer(el) {
   const { data: locs } = await sb.from('locations').select('id,name,city,region,is_default').order('id');
   const locations = locs?.length > 1 ? locs : [];
   const homeId = c.home_location_id ?? locations.find((l) => l.is_default)?.id;
-  const locationField = !locations.length ? '' : `<div class="field span-all"><label for="cu-location">Picks up at</label><select id="cu-location" name="home_location_id">${locations.map((l) => `<option value="${l.id}"${l.id === homeId ? ' selected' : ''}>${esc([l.name, [l.city, l.region].filter(Boolean).join(', ')].filter(Boolean).join(' – '))}</option>`).join('')}</select><p class="field__hint">Changing it moves books that haven’t arrived yet. Books already on the shelf stay where they are.</p></div>`;
+  const locationField = !locations.length ? '' : `<div class="field span-all"><label for="cu-location">Picks up at</label><select id="cu-location" name="home_location_id">${locations.map((l) => `<option value="${l.id}"${l.id === homeId ? ' selected' : ''}>${esc([l.name, [l.city, l.region].filter(Boolean).join(', ')].filter(Boolean).join(' – '))}</option>`).join('')}</select>
+    <p class="field__hint">Changing it moves books that haven’t arrived yet. Books already on the shelf stay where they are.</p>
+    </div>`;
   const field = (id, label, value, attrs = '') => `<div class="field"><label for="cu-${id}">${label}</label><input id="cu-${id}" name="${id}" value="${esc(value)}" ${attrs}></div>`;
   el.innerHTML = `
     <p><a class="btn btn--ghost btn--small" href="#customers" data-back>← Back to customers</a></p>
