@@ -176,6 +176,17 @@ check('the style guide shows every shared component', () => {
   assert.equal(missing.length, 0, `style-guide.html has no example of: ${missing.join(', ')}.\nAdd it to the guide in the same change.`);
 });
 
+// ---- Breakpoints ---------------------------------------------------------------------------------------------------
+// Phone < 600, tablet 600-899, desktop >= 900, wide >= 1200; 700 splits small tablets and 380 the narrowest phones.
+check('media queries only use the shared breakpoints', () => {
+  const ALLOWED = new Set([380, 599, 600, 699, 700, 899, 900, 1199, 1200]);
+  const files = { 'base.css': base, 'admin.css': css, 'style-guide.html': guide, 'lib.js': lib, ...sections };
+  const bad = Object.entries(files).flatMap(([f, t]) => [...t.matchAll(/\((?:min|max)-width:\s*(\d+)px\)/g)]
+    .filter((m) => !ALLOWED.has(+m[1])).map((m) => `${f}: ${m[0]}`));
+  const calls = Object.entries(sections).flatMap(([f, t]) => [...t.matchAll(/isPhone\((\d+)\)/g)].filter((m) => !ALLOWED.has(+m[1])).map((m) => `${f}: ${m[0]}`));
+  assert.equal(bad.length + calls.length, 0, `Off-scale breakpoints:\n${[...bad, ...calls].join('\n')}\nUse one of ${[...ALLOWED].join(', ')}px.`);
+});
+
 check('every "How this works" box is built with hintFold', () => {
   const bad = Object.entries(sections).filter(([, t]) => /<details class="admin-hint-fold[^>]*>\s*<summary>[^<]*How this works/.test(t)).map(([f]) => f);
   assert.equal(bad.length, 0, `${bad.join(', ')} build the hint box by hand; use hintFold() from lib.js`);
