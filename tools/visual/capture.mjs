@@ -33,6 +33,7 @@ const SCREENS = ['dashboard', 'reservations', 'customers', 'titles', 'series', '
 const VIEWS = [[390, 'light'], [768, 'light'], [1200, 'light'], [390, 'dark'], [1200, 'dark']];
 const PARALLEL = 4;
 const CLOCK = new Date('2026-10-25T14:00:00Z'); // every date on screen is relative to this
+const MIN_PIXELS = 25; // fewer is anti-aliasing (a rotated chevron can differ by a few pixels); a real change, even a 1px border, is far more
 
 // ---- The admin's two CDN libraries, fetched once and served locally ---------------------------------------------------
 const VENDOR = { 'quill.js': 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js', 'quill.snow.css': 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css', 'qrcode.js': 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js' };
@@ -144,9 +145,9 @@ const suspects = keys.filter((k) => base[k] && head[k] && !base[k].equals(head[k
 const retake = suspects.length ? { base: await shootAll('base', uniqJobs(suspects)), head: await shootAll('head', uniqJobs(suspects)) } : null;
 for (const k of suspects) {
   const first = await pixelDiff(base[k], head[k]);
-  if (!first.n) continue;
+  if (first.n < MIN_PIXELS) continue;
   const again = retake.base[k] && retake.head[k] ? await pixelDiff(retake.base[k], retake.head[k]) : first;
-  if (again.n) changed.push({ k, n: again.n, size: again.size });
+  if (again.n >= MIN_PIXELS) changed.push({ k, n: again.n, size: again.size });
 }
 const added = keys.filter((k) => !base[k]);
 const removed = keys.filter((k) => !head[k]);
