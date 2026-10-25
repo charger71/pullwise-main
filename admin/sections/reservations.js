@@ -655,6 +655,35 @@ async function loadToOrderData() {
   return { lines, groups, focs: [...groups.keys()].sort(), meta };
 }
 
+/** A cutoff that hasn't passed yet (the shop's today counts as not passed). */
+const upcoming = (foc) => foc !== 'No cutoff' && foc >= today();
+
+/**
+ * Lines already ordered for cutoffs that haven't passed (ordered early), which stay on Place Order marked Ordered:
+ * cutoff → item id → { item (with its codes and distributor), copies, orders }. Never part of an export or "mark ordered".
+ */
+async function loadOrderedEarly() {
+  const lines = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items(${ITEM_FIELDS},upc,isbn,sku,distributor)`).in('status', ['ordered', 'reordered'])).order('id').range(from, from + 999);
+    if (error) throw fromError(error);
+    lines.push(...data);
+    if (data.length < 1000) break;
+  }
+  const groups = new Map();
+  for (const l of lines) {
+    if (!l.item?.foc_date || !upcoming(l.item.foc_date)) continue;
+    const foc = l.item.foc_date;
+    if (!groups.has(foc)) groups.set(foc, new Map());
+    const g = groups.get(foc);
+    const row = g.get(l.item.id) ?? { item: l.item, copies: 0, orders: new Set() };
+    row.copies += l.quantity;
+    row.orders.add(l.order_id);
+    g.set(l.item.id, row);
+  }
+  return groups;
+}
+
 // Cutoffs left open on the To order tab (null until the tab has been shown).
 let toOrderOpen = null;
 
@@ -664,40 +693,48 @@ async function renderToOrder(body) {
   // Titles whose customer list is open, so a refresh can open them again.
   const openPeople = $$('[data-customers][aria-expanded="true"]', body).map((b) => b.dataset.customers);
   // The instructions are folded away on phones, where they would push the cutoffs off the first screen.
-  body.innerHTML = `${hintFold(`Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it. The list groups titles by distributor with the product code, and counts customer reservations (including pull lists) only.`)}<div data-order-tools>
+  body.innerHTML = `${hintFold(`Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it. A cutoff ordered before its date stays here marked Ordered until the date passes, then moves to Past Orders. The list groups titles by distributor with the product code, and counts customer reservations (including pull lists) only.`)}<div data-order-tools>
     </div>
     <div data-groups aria-busy="true">
     </div>`;
   const box = $('[data-groups]', body);
-  let loaded;
+  let loaded, early;
   try {
-    loaded = await loadToOrderData();
+    [loaded, early] = await Promise.all([loadToOrderData(), loadOrderedEarly()]);
   } catch (err) {
     box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
     return;
   }
   box.removeAttribute('aria-busy');
-  if (!loaded) {
+  if (!loaded && !early.size) {
     box.innerHTML = '<p class="empty">Nothing waiting to be ordered.</p>';
     return;
   }
-  const { lines, groups } = loaded;
+  const groups = loaded?.groups ?? new Map();
+  // Cutoffs with something to order (exports and "mark ordered" use only these), and every cutoff shown.
   const focs = [...groups.keys()].sort();
+  const shown = [...new Set([...focs, ...early.keys()])].sort();
   // Cutoffs are collapsed except the first. A refresh keeps the ones you had open; if none of them is still
   // listed (a new week's cutoffs), the first opens again.
-  const keepOpen = toOrderOpen && focs.some((f) => toOrderOpen.has(f)) ? toOrderOpen : new Set(focs.slice(0, 1));
+  const keepOpen = toOrderOpen && shown.some((f) => toOrderOpen.has(f)) ? toOrderOpen : new Set((focs.length ? focs : shown).slice(0, 1));
   box.addEventListener('toggle', () => (toOrderOpen = new Set($$('.fold--compact[open]', box).map((d) => d.dataset.foc))), true);
-  box.innerHTML = focs
+  const ordinal = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  box.innerHTML = (focs.length ? '' : '<p class="empty">Nothing waiting to be ordered.</p>') + shown
     .map((foc) => {
-      const rows = [...groups.get(foc).values()].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
+      const rows = [...(groups.get(foc)?.values() ?? [])].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
+      const done = [...(early.get(foc)?.values() ?? [])].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
       const copies = rows.reduce((n, r) => n + r.copies, 0);
+      const doneCopies = done.reduce((n, r) => n + r.copies, 0);
+      const note = rows.length
+        ? `${ordinal(rows.length, 'title', 'titles')} · ${ordinal(copies, 'copy', 'copies')}${done.length ? ` · ${doneCopies} already ordered` : ''}`
+        : `${ordinal(done.length, 'title', 'titles')} · ${ordinal(doneCopies, 'copy', 'copies')} ordered`;
       return `<details class="fold fold--compact" data-foc="${esc(foc)}"${keepOpen.has(foc) ? ' open' : ''}>
         <summary class="fold__head">
-          <h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}<span class="fold__note">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2>
+          <h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}${rows.length ? '' : ' <span class="pill pill--ordered">Ordered</span>'}<span class="fold__note">${note}</span></h2>
         </summary>
         <div class="fold__body">
-        <div class="admin-actions toorder__actions"><button class="btn btn--green" type="button" data-ordered title="After you place this cutoff's order with the distributor">Mark ${copies} ${copies === 1 ? 'copy' : 'copies'} ordered</button></div>
-        <table class="admin-table cards cards--slim">
+${rows.length ? `        <div class="admin-actions toorder__actions"><button class="btn btn--green" type="button" data-ordered title="After you place this cutoff's order with the distributor">Mark ${copies} ${copies === 1 ? 'copy' : 'copies'} ordered</button></div>
+        <table class="admin-table cards cards--slim" data-to-order>
           <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col" data-sort="text">Publisher</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col"><span class="visually-hidden">Not ordering</span></th></tr></thead>
           <tbody>${rows.map((r) => `<tr>
             <td class="card-title">${esc(itemName(r.item))}</td>
@@ -713,20 +750,31 @@ async function renderToOrder(body) {
             </td>
             </tr>`).join('')}</tbody>
         </table>
+` : ''}        ${done.length ? `${rows.length ? '<h3 class="mt-16 mb-8">Already ordered</h3>' : ''}<table class="admin-table cards cards--slim">
+          <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col" data-sort="text">Publisher</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th></tr></thead>
+          <tbody>${done.map((r) => `<tr>
+            <td class="card-title">${esc(itemName(r.item))}</td>
+            <td>${esc(distributorName(r.item.distributor ?? null))}</td>
+            <td>${esc(r.item.publisher ?? '')}</td>
+            <td class="nowrap">${esc(r.item.upc || r.item.isbn || r.item.sku || '')}</td>
+            <td class="center card-key card-label"><strong>${r.copies}</strong></td>
+            <td class="center card-key card-label"><button type="button" class="link-button" data-customers="${r.item.id}" data-past title="See who this title was ordered for">${r.orders.size}</button></td>
+            </tr>`).join('')}</tbody>
+        </table>` : ''}
         </div>
       </details>`;
     })
     .join('');
 
   // Fill UPC/SKU (not in the embedded select above to keep it light).
-  const { meta } = loaded;
+  const meta = loaded?.meta ?? new Map();
   const codes = new Map([...meta].map(([id, i]) => [id, i.upc || i.isbn || i.sku || '']));
   toOrderLoadedAt = Date.now();
-  setupOrderTools($('[data-order-tools]', body), groups, focs, meta, keep);
+  if (focs.length) setupOrderTools($('[data-order-tools]', body), groups, focs, meta, keep);
   hookToOrderRefresh();
   focs.forEach((foc) => {
     const rows = [...groups.get(foc).values()].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
-    $$(`[data-foc="${CSS.escape(foc)}"] tbody tr`, box).forEach((tr, i) => (tr.children[3].textContent = codes.get(rows[i].item.id) ?? ''));
+    $$(`[data-foc="${CSS.escape(foc)}"] [data-to-order] tbody tr`, box).forEach((tr, i) => (tr.children[3].textContent = codes.get(rows[i].item.id) ?? ''));
   });
   $$('.fold--compact table', box).forEach((t) => sortableTable(t));
   openPeople.forEach((id) => { const b = $(`[data-customers="${id}"]`, box); if (b) toggleCustomers(b); });
@@ -847,7 +895,7 @@ const PAST_STATUSES = ['ordered', 'reordered', 'arrived', 'picked_up'];
 
 async function renderPastOrders(body) {
   // The instructions are folded away on phones, where they would push the cutoffs down the screen.
-  body.innerHTML = `${hintFold(`Cutoffs that have already been ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.`)}<div data-groups aria-busy="true"></div>`;
+  body.innerHTML = `${hintFold(`Cutoffs that have passed and were ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.`)}<div data-groups aria-busy="true"></div>`;
   const box = $('[data-groups]', body);
   try {
     const lines = [];
@@ -858,11 +906,12 @@ async function renderPastOrders(body) {
       if (data.length < 1000) break;
     }
     box.removeAttribute('aria-busy');
-    if (!lines.length) return void (box.innerHTML = '<p class="empty">Nothing has been ordered yet.</p>');
+    if (!lines.some((l) => l.item && !upcoming(l.item.foc_date ?? 'No cutoff'))) return void (box.innerHTML = '<p class="empty">No past cutoffs yet. Cutoffs ordered early stay on Place Order until their date passes.</p>');
     const groups = new Map();
     for (const l of lines) {
       if (!l.item) continue;
       const foc = l.item.foc_date ?? 'No cutoff';
+      if (upcoming(foc)) continue; // ordered early: still on Place Order until the cutoff passes
       if (!groups.has(foc)) groups.set(foc, new Map());
       const g = groups.get(foc);
       const row = g.get(l.item.id) ?? { item: l.item, copies: 0, orders: new Set(), status: new Map() };
