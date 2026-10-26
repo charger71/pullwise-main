@@ -303,6 +303,27 @@ const sameName = (s) => String(s ?? '').toLowerCase().normalize('NFKD').replace(
 // PRH adds " (Hardcover)" / " (Paperback)" to a series title; a series rule should still match.
 const withoutBinding = (s) => s.replace(/ (hardcover|paperback)$/, '');
 
+// Collector badges a new title starts with, read from its title, issue number and cover variant. Staff can untick
+// any of them; titles already imported keep the badges staff set.
+const AUTO_BADGES = [
+  // A #1: '1', '01', '1 (of 4)', '1 (one-shot)', '1A', but not '10', '1.5' or '0'.
+  ['first_issue', (i) => /^0*1(?![\d.])/.test(i.issue_number ?? '')],
+  // 'ONE SHOT', 'ONE-SHOT', 'ONESHOT', '1 SHOT', '1-SHOT', '1SHOT'.
+  ['one_shot', (_, text) => /\b(?:one|1)[\s-]*shot\b/i.test(text)],
+  // '#2 (of 6)': a mini or limited series.
+  ['limited_series', (_, text) => /\(\s*of\s+\d+\s*\)/i.test(text)],
+  // A reprint of an older comic: 'FACSIMILE EDITION', 'FACSIMILE ED'.
+  ['facsimile', (_, text) => /\bfacsimile\b/i.test(text)],
+  // Mystery bagged comics: 'BLIND BAG', 'BLIND-BAGGED' (not 'BLIND BOX': those are toys).
+  ['blind_bag', (_, text) => /\bblind[\s-]*bag/i.test(text)],
+];
+
+/** The badges a newly imported title gets, e.g. ['first_issue', 'limited_series'] for 'X-MEN #1 (OF 5)'. */
+export function autoBadges(item) {
+  const text = [item.title, item.issue_number && `#${item.issue_number}`, item.variant].filter(Boolean).join(' ');
+  return AUTO_BADGES.filter(([, test]) => test(item, text)).map(([badge]) => badge);
+}
+
 /**
  * Move items matching the shop's "always skip" list from `items` to `skipped`.
  * Rules: { kind: 'publisher' | 'series', value } matched by name ignoring case and

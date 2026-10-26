@@ -104,13 +104,18 @@ export const daysUntil = (iso) => Math.round((localDate(iso) - localDate(shopTod
 // database enforces the same rule in create_reservation_order().
 export const cutoffPassed = (item) => !!item?.foc_date && daysUntil(lastReserveDay(item.foc_date)) < 0;
 
-// Collector badges staff tick on a title. Order here is display order.
+// Collector badges staff tick on a title (an import ticks some itself: js/import/distributors.js autoBadges).
+// Order here is display order. The database allows only these (items_badges_chk).
 export const ITEM_BADGES = {
   first_appearance: '1st Appearance',
   key_issue: 'Key Issue',
   first_issue: 'First Issue',
   final_issue: 'Final Issue',
   milestone: 'Milestone Issue',
+  one_shot: 'One-Shot',
+  limited_series: 'Limited Series',
+  facsimile: 'Facsimile',
+  blind_bag: 'Blind Bag',
 };
 
 export const badge = (status) => {

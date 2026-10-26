@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { applyExclusions, parseSheet } from './distributors.js';
+import { applyExclusions, autoBadges, parseSheet } from './distributors.js';
 
 const item = (title, publisher, mature = false) => ({ sku: title, title, issue_number: '1', variant: null, publisher, mature });
 const parsed = {
@@ -34,11 +34,30 @@ const funko = parseSheet([
 assert.deepEqual(funko.items.map((i) => i.sku), ['funko:marvel-venom--pop-deluxe', 'funko:marvel-venom', 'funko:marvel-carnage']);
 assert.equal(funko.repeated, 1);
 assert.deepEqual(funko.skipped.map((s) => s.reason), ['Listed twice in this sheet']);
+const lunarHead = ['ProductCode', 'Title', 'RetailCost', 'Publisher', 'Description', 'FinalOrderCutoff', 'InstoreDate', 'UPC', 'ISBN', 'Writer', 'Artist', 'CoverArtist', 'Mature', 'Adult'];
 const lunar = parseSheet([
-  ['ProductCode', 'Title', 'RetailCost', 'Publisher', 'Description', 'FinalOrderCutoff', 'InstoreDate', 'UPC', 'ISBN', 'Writer', 'Artist', 'CoverArtist', 'Mature', 'Adult'],
+  lunarHead,
   ['0926DC001', 'BATMAN #1 CVR A', '4.99', 'DC Comics', '', '2026-10-20', '2026-11-18', '', '', '', '', '', '', ''],
   ['0926DC001', 'BATMAN #1 CVR A', '4.99', 'DC Comics', '', '2026-10-20', '2026-11-18', '', '', '', '', '', '', ''],
 ], { today: '2026-10-17' });
 assert.equal(lunar.items.length, 1);
 assert.equal(lunar.skipped.at(-1).reason, 'Listed twice in this sheet');
 console.log('sku repeats ok');
+
+// Badges a new title starts with, read from its title, issue number and cover variant.
+const issue = (issue_number) => autoBadges({ title: 'X', issue_number }).includes('first_issue');
+assert.deepEqual(['1', '01', '1 (of 4)', '1 (one-shot)', '1A'].map(issue), [true, true, true, true, true]);
+assert.deepEqual(['10', '11', '1.5', '0', '21', null].map(issue), [false, false, false, false, false, false]);
+assert.deepEqual(autoBadges(lunar.items[0]), ['first_issue']);
+const badgesOf = (raw) => autoBadges(parseSheet([lunarHead, ['SKU1', raw, '4.99', 'DC Comics', '', '2026-10-20', '2026-11-18', '', '', '', '', '', '', '']], { today: '2026-10-17' }).items[0]);
+assert.deepEqual(badgesOf('ABSOLUTE MARTIAN MANHUNTER #2 (OF 6) CVR A'), ['limited_series']);
+assert.deepEqual(badgesOf('DC HORROR PRESENTS #1 (OF 4) CVR A'), ['first_issue', 'limited_series']);
+assert.deepEqual(badgesOf('BATMAN DAY 2026 #1 (ONE-SHOT) CVR A'), ['first_issue', 'one_shot']);
+for (const t of ['JOKER ONE SHOT CVR A', 'JOKER ONESHOT', 'JOKER 1-SHOT', 'JOKER 1 SHOT', 'JOKER (ONE SHOT)']) assert.deepEqual(badgesOf(t), ['one_shot'], t);
+assert.deepEqual(badgesOf('BATMAN #423 FACSIMILE EDITION CVR A'), ['facsimile']);
+assert.deepEqual(badgesOf('DC SUPER HEROES BLIND BAG FIGURE'), ['blind_bag']);
+assert.deepEqual(badgesOf('MARVEL BLIND-BAGGED MINI COMICS'), ['blind_bag']);
+assert.deepEqual(badgesOf('MARVEL MINI FIGURE BLIND BOX'), []);
+assert.deepEqual(badgesOf('BATMAN #150 CVR A'), []);
+assert.deepEqual(badgesOf('ONE PIECE SHOTS #3'), []);
+console.log('auto badges ok');
