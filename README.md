@@ -243,6 +243,14 @@ though it still can for things the catalog doesn't carry.
   SETUP.md → "Images in Cloudflare R2"), which doesn't charge for the traffic of every shop's visitors.
 - **Changes** to a title's name, retail price, dates, description, creators or cover follow the catalog. A shop's own
   **shop price**, status, category, badges, staff pick, homepage and hidden are never touched.
+- **The Series and Artists lists** follow too (`catalog_apply_series`, `catalog_apply_series_merges`,
+  `catalog_apply_artists`, `catalog_apply_artist_renames`). Series the catalog's staff added arrive with their
+  publisher and cover; a series the shop already has keeps its own name, publisher and cover, and only gets what it's
+  missing. Two series merged in the catalog are merged in the shop too (titles, follows and list entry), unless the
+  shop merged them the other way round. Artists the catalog's staff added or blocked are added or blocked in the shop
+  (unblocking in the catalog doesn't unblock a shop), and an artist renamed or merged in the catalog is merged the
+  same way in the shop, titles and follows included. Nothing is removed from a shop's lists, so a series a shop
+  deleted comes back on the first sync, or whenever the catalog changes it.
 - Titles are matched by catalog id, then distributor + SKU, UPC and ISBN, so titles a shop imported before joining are
   linked rather than duplicated. Nothing is ever deleted; a title hidden in the catalog stops syncing.
 - The deploy gives every shop the catalog's address (`CATALOG_URL`, `CATALOG_ANON_KEY` function secrets). Progress
