@@ -105,7 +105,7 @@ A script for a **25-30 minute** walk through the admin. It follows a shop's week
 **Point:** The shop is yours: logo, colors, hours, rules.
 
 - **Shop**: staff notice, contact, hours, map.
-- **Logo & Colors**: change a color and watch the **readability check** warn if text is hard to read. Link color is automatic by default.
+- **Logo, Colors & Fonts**: change a color and watch the **readability check** warn if text is hard to read. Link color is automatic by default. Under **Fonts**, pick a headline, sub-heading and body font (or upload the shop's own .woff2) and see them in the sample below.
 - **Online**: social links, analytics, footer email signup (paste your own form code from any email service).
 - **Pre-Orders & Stock**: reservation rules.
 - One **Save settings** button covers every tab.

@@ -2,8 +2,8 @@
 // shops.json says which Supabase project that domain belongs to.
 //
 //  * /js/config.js is generated for the shop (its Supabase URL and anon key), so the browser code is shared.
-//  * Root HTML pages get the shop's title, description, tab icon and home page banner written in on the way
-//    out (worker/shop-page.js), from its settings and pages tables. Those are cached for CACHE_SECONDS, so a
+//  * Root HTML pages get the shop's title, description, tab icon, colors, fonts and home page banner written in
+//    on the way out (worker/shop-page.js), from its settings and pages tables. Those are cached for CACHE_SECONDS, so a
 //    change in the admin shows up on the site within about a minute.
 //  * /sitemap.xml is generated on the shop's main domain, and /robots.txt (the static file) gets its address.
 //  * PUT /__media stores covers and series images in R2 for shops using it (worker/media.js).
@@ -13,6 +13,7 @@
 import SHOPS from '../shops.json';
 import { mediaUpload } from './media.js';
 import { MEDIA_UPLOAD_PATH, findShop, configJs, fileOf, PAGE_SLUGS, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
 const CACHE_SECONDS = 60;
 const FETCH_TIMEOUT_MS = 3000;
@@ -99,7 +100,7 @@ async function shopData(shop, ctx) {
       return r.json();
     };
     const [settings, pages] = await Promise.all([
-      get('settings?select=shop_name,tagline,timezone,logo_url,favicon_url,hero_image_url,hero_headline&id=eq.1'),
+      get('settings?select=shop_name,tagline,timezone,logo_url,favicon_url,hero_image_url,hero_headline,colors,fonts&id=eq.1'),
       get('pages?select=slug,meta_title,meta_description'),
     ]);
     const data = { settings: settings[0] ?? {}, pages: Object.fromEntries(pages.map((p) => [p.slug, p])) };
@@ -138,6 +139,9 @@ function rewrite(res, file, { settings, pages }, shop) {
       });
   }
   rw = rw.on('head', { element(el) { el.append(headTags(file, settings, shop.supabaseUrl).map((t) => `  ${t}\n`).join(''), { html: true }); } });
+  // The page's own font preloads, for a default font the shop has replaced: no download it won't use.
+  const unused = new Set(unusedDefaultPreloads(settings.fonts, { storageOrigin: shop.supabaseUrl }));
+  if (unused.size) rw = rw.on('link[rel="preload"][as="font"]', { element(el) { if (unused.has(el.getAttribute('href'))) el.remove(); } });
 
   if (file === 'index.html') {
     const h = hero(settings);

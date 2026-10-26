@@ -4,7 +4,8 @@
 // from the shop settings so nothing shop-specific is hardcoded in HTML.
 
 import { getSettings, getCustomPages, DEMO } from './data.js';
-import { GA_MEASUREMENT_ID, SITE_URL, FALLBACK_SETTINGS } from './config.js';
+import { GA_MEASUREMENT_ID, SITE_URL, SUPABASE_URL, FALLBACK_SETTINGS } from './config.js';
+import { themeCss } from './theme-vars.js';
 import { SOCIAL_ICONS, LINK_ICON } from './social-icons.js';
 import { fillContent } from './content.js';
 import { initCustomer } from './customer.js';
@@ -221,60 +222,20 @@ export function mapEmbed(s, className = 'map') {
 // Layout
 // ---------------------------------------------------------------------------
 
-// Link/focus blues to try, best first, on a dark and on a light background; the first that reads at 4.5:1 is used.
-const LINKS_ON_DARK = ['#91bbdd', '#b9d5ec', '#ffffff'];
-const LINKS_ON_LIGHT = ['#0b4f8a', '#08396a', '#000000'];
-const readableOn = (bg, choices) => choices.find((c) => contrast(c, bg) >= 4.5) ?? choices.at(-1);
-const isHex6 = (v) => /^#[0-9a-f]{6}$/i.test(v ?? '');
-
-function applyTheme(colors = {}) {
-  const root = document.documentElement.style;
-  const set = (prop, value) => (value == null ? root.removeProperty(prop) : root.setProperty(prop, value));
-  for (const [key, value] of Object.entries(colors)) {
-    if (/^#[0-9a-f]{3,8}$/i.test(value)) root.setProperty(`--brand-${key}`, value);
+/**
+ * The shop's colors and fonts, as the <style id="shop-theme"> the site Worker writes into the page (js/theme-vars.js).
+ * The text is rebuilt from the settings and only replaced when it differs, so a page the Worker already themed
+ * doesn't repaint; without the Worker (local, demo, or the database was down), this is what themes the page.
+ */
+function applyTheme(s) {
+  const css = themeCss(s, { storageOrigin: SUPABASE_URL });
+  let el = document.getElementById('shop-theme');
+  if (!el) {
+    el = Object.assign(document.createElement('style'), { id: 'shop-theme' });
+    document.head.append(el); // after css/site.css, so it wins
   }
-  // Text on the main color (buttons) and the footer's text follow their backgrounds so any color stays readable.
-  // Everything is set or cleared each time, since the theme can be repainted (saved snapshot → fresh settings).
-  if (isHex6(colors.primary)) root.setProperty('--on-primary', isLight(colors.primary) ? '#161616' : '#ffffff');
-  const paper = isHex6(colors.paper) ? colors.paper : null;
-  const lightPage = !!paper && isLight(paper);
-  // Links and focus rings follow the page background too (the stylesheet's blue is for the default dark page),
-  // as do the browser's own form controls and scrollbars, and the few fixed light colors meant for a dark page.
-  document.documentElement.style.colorScheme = lightPage ? 'light' : '';
-  // A link color picked in Shop Settings wins; without one, the first readable blue is used.
-  const link = isHex6(colors.link) ? colors.link : paper ? readableOn(paper, lightPage ? LINKS_ON_LIGHT : LINKS_ON_DARK) : null;
-  set('--teal', link);
-  set('--teal-hover', link && (lightPage ? `color-mix(in srgb, ${link} 80%, black)` : `color-mix(in srgb, ${link} 80%, white)`));
-  set('--teal-dark', link && `color-mix(in srgb, ${paper ?? 'var(--brand-paper)'}, ${link} 14%)`); // notice background
-  set('--cream', lightPage ? 'var(--ink)' : null);
-  set('--error', lightPage ? readableOn(paper, ['#b3261e', '#7f1b15']) : null);
-  set('--ok', lightPage ? readableOn(paper, ['#1e6b3a', '#124424']) : null);
-  const footer = isHex6(colors.footer) ? colors.footer : null;
-  const lightFooter = !!footer && isLight(footer);
-  const footerLink = footer ? readableOn(footer, lightFooter ? LINKS_ON_LIGHT : LINKS_ON_DARK) : null;
-  set('--footer-text', lightFooter ? '#161616' : null);
-  set('--footer-heading', lightFooter ? '#161616' : null);
-  set('--footer-link', footerLink);
-  set('--footer-link-hover', footerLink && `color-mix(in srgb, ${footerLink} 80%, ${lightFooter ? 'black' : 'white'})`);
+  if (el.textContent !== css) el.textContent = css;
 }
-
-/** Relative luminance (WCAG formula) of a #rrggbb color. */
-function luminance(hex) {
-  const [r, g, b] = [1, 3, 5].map((i) => {
-    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-/** True for light colors. */
-const isLight = (hex) => luminance(hex) > 0.4;
-
-/** WCAG contrast ratio between two #rrggbb colors. */
-const contrast = (a, b) => {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
-};
 
 function renderHeader(s, page, extraNav = []) {
   // Logo, name, or both (settings.show_name_with_logo). With both, the logo is
@@ -644,7 +605,8 @@ export async function initPage() {
 
   const paint = (s, custom) => {
     shopTimeZone = knownZone(s.timezone);
-    applyTheme(s.colors);
+    // The built-in fallback has no colors or fonts: leave the Worker's theme alone until the real settings arrive.
+    if (s !== FALLBACK_SETTINGS) applyTheme(s);
     const pageHref = (p) => `page.html?slug=${encodeURIComponent(p.slug)}`;
     renderHeader(s, page, custom.filter((p) => p.placement === 'menu').map((p) => ({ page: `page:${p.slug}`, href: pageHref(p), label: p.title })));
     renderFooter(s, custom.filter((p) => p.placement === 'footer').map((p) => ({ href: pageHref(p), label: p.title })));

@@ -42,7 +42,7 @@ That's it: they can sign in right away. If you close the box before copying, use
 | 9 | **Import Titles** | Three tabs: **Import Files** (load the weekly distributor sheets), **Always Skip** (publishers, series and words to leave out) and **Recent Runs**. Read the rules below first. | Whoever handles ordering |
 | 10 | **Emails** | Three tabs: **Email Settings** (schedule, sender, look), **Send** (the weekly pull list email and the "your books are in" email: always **Preview** and **Send a test to me** before **Send to everyone**), and **Email Log**. | Owner / manager |
 | 11 | **Surveys** | The list has **All**, **Open** and **Closed** tabs. Each survey has tabs: **Details**, **Questions**, **Results** (print as a PDF) and **Share** (link and QR code). | Whoever runs surveys |
-| 12 | **Shop settings** | Four tabs: **Shop** (staff notice, contact, hours, map), **Logo & Colors**, **Online** (social links, analytics, footer code) and **Pre-Orders & Stock** (reservation rules). One **Save settings** button covers all of them. | Owner only |
+| 12 | **Shop settings** | Four tabs: **Shop** (staff notice, contact, hours, map), **Logo, Colors & Fonts**, **Online** (social links, analytics, footer code) and **Pre-Orders & Stock** (reservation rules). One **Save settings** button covers all of them. | Owner only |
 | 13 | **Staff** | Change your own password. Owners (and the Super Admin) also get tabs: **Staff List**, **Add a Staff Member** and **Change Log**, to add and remove staff, reset passwords, and make someone an owner. | Everyone (owners manage) |
 
 ## House rules

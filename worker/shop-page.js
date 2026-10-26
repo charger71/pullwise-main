@@ -2,6 +2,7 @@
 // (worker/shop-page.test.js). worker/index.js applies them with HTMLRewriter.
 
 import { esc, sizedImage, heroHeadlineHtml, HERO_WIDTH, LOGO_WIDTH } from '../js/util.js';
+import { themeCss, fontPreloads } from '../js/theme-vars.js';
 
 /** The shop whose domain this is, or null (then the site runs on the static js/config.js: demo mode). */
 export function findShop(shops, hostname) {
@@ -80,8 +81,9 @@ export function pageTitle(settings, custom, htmlDefault) {
 }
 
 /**
- * Tags added to the end of <head>: connect early to Supabase, the tab icon, the first-screen images, and the
- * link-preview picture (the shop's banner) on the pages that have staff-set titles.
+ * Tags added to the end of <head>: connect early to Supabase, the tab icon, the first-screen images and fonts, the
+ * link-preview picture (the shop's banner) on the pages that have staff-set titles, and the shop's colors and
+ * fonts, so the first paint already has them (js/site.js builds the same <style> and leaves it be when it matches).
  */
 export function headTags(file, settings, supabaseUrl) {
   const tags = [];
@@ -95,6 +97,12 @@ export function headTags(file, settings, supabaseUrl) {
   if (PAGE_SLUGS[file] && file !== 'search.html' && /^https:\/\//.test(settings.hero_image_url ?? '')) {
     tags.push(`<meta property="og:image" content="${esc(sizedImage(settings.hero_image_url, HERO_WIDTH))}">`);
   }
+  const theme = { storageOrigin: supabaseUrl };
+  for (const href of fontPreloads(settings.fonts, theme)) tags.push(`<link rel="preload" href="${esc(href)}" as="font" type="font/${href.endsWith('.woff') ? 'woff' : 'woff2'}" crossorigin>`);
+  // Every value in it is checked (colors are hex, fonts come from the library or the shop's own storage), so no
+  // escaping is needed, and none could close the tag.
+  const css = themeCss(settings, theme);
+  if (css) tags.push(`<style id="shop-theme">${css}</style>`);
   return tags;
 }
 
