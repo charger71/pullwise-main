@@ -5,7 +5,7 @@ import { SOCIAL_ICONS } from '../../js/social-icons.js';
 import { tiersFrom } from '../../js/discount.js';
 import { SUPABASE_URL } from '../../js/config.js';
 import { putMedia } from '../../js/media-store.js';
-import { contrast, isLight, linkColor, FONT_LIBRARY, FONT_SLOTS, isFontUpload } from '../../js/theme-vars.js';
+import { contrast, isLight, linkColor, FONT_LIBRARY, FONT_SLOTS, SPACING, SIZES, letterSpacing, sizeScale, fontScale, isFontUpload } from '../../js/theme-vars.js';
 import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, uid, db, slugify } from '../lib.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
@@ -13,6 +13,8 @@ const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America
 const COLORS = [['primary', 'Main color (buttons, highlights)'], ['accent', 'Accent (banner, badges)'], ['ink', 'Text'], ['paper', 'Page background'], ['footer', 'Footer background']];
 const COLOR_DEFAULTS = { primary: '#982c21', accent: '#e7b84b', ink: '#f4f0ea', paper: '#121212', footer: '#121212', link: '#91bbdd' };
 const PREVIEW_VARS = { display: '--pv-display', heading: '--pv-heading', body: '--pv-body' }; // admin.css .font-preview
+const PREVIEW_TRACKING = { display: '--pv-display-tracking', heading: '--pv-heading-tracking', body: '--pv-body-tracking' };
+const PREVIEW_SCALE = { display: '--pv-display-scale', heading: '--pv-heading-scale', body: '--pv-body-scale' };
 const FONT_MAX_KB = 500; // a font is downloaded before the page's text shows in it, so keep uploads small
 
 let dirty = false;
@@ -84,7 +86,7 @@ export async function mount(el, { sb }) {
       </div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Fonts</h2></div><div class="fold__body">
         <div class="form-grid form-grid--pairs">${FONT_SLOTS.map((slot) => fontPicker(slot, s.fonts?.[slot.slot])).join('')}</div>
-        <p class="field__hint">The built-in fonts are free to use. For <strong>Your own font file</strong>, upload a .woff2 (or .woff) file of ${FONT_MAX_KB} KB or less, and only a font your shop is licensed to use on a website. Changes can take about a minute to appear on the site.</p>
+        <p class="field__hint">The built-in fonts are free to use. For <strong>Your own font file</strong>, upload a .woff2 (or .woff) file of ${FONT_MAX_KB} KB or less, and only a font your shop is licensed to use on a website. Each built-in font is sized to look about as big as the default at Medium; an uploaded font is set at the default's size. Changes can take about a minute to appear on the site.</p>
         <div class="font-preview" data-font-preview aria-hidden="true">
           <p class="font-preview__display">${esc(s.shop_name || 'Your Comic Shop')}</p>
           <p class="font-preview__heading">New this week</p>
@@ -247,6 +249,12 @@ function fontPicker({ slot, label, hint, default: dflt }, pick = {}) {
     <label for="${id}">${esc(label)}</label>
     <select id="${id}" data-font-select>${options}<optgroup label="Your own"><option value="upload"${chosen === 'upload' ? ' selected' : ''}>Your own font file…</option></optgroup></select>
     <p class="field__hint">${esc(hint)}</p>
+    <div class="font-pick__options">
+      <label for="${id}-size">Size</label>
+      <select id="${id}-size" class="select--small" data-font-size>${SIZES.map(([v, text]) => `<option value="${v}"${v === (pick.size ?? 'medium') ? ' selected' : ''}>${text}</option>`).join('')}</select>
+      <label for="${id}-sp">Letter spacing</label>
+      <select id="${id}-sp" class="select--small" data-font-spacing>${SPACING.map(([v, text]) => `<option value="${v}"${v === (pick.spacing ?? 'normal') ? ' selected' : ''}>${text}</option>`).join('')}</select>
+    </div>
     <div class="font-pick__upload"${chosen === 'upload' ? '' : ' hidden'}>
       <input id="${id}-file" type="file" accept=".woff2,.woff,font/woff2,font/woff" class="visually-hidden">
       <label class="btn btn--ghost btn--small" for="${id}-file">Upload font file…</label>
@@ -267,6 +275,8 @@ function setupFonts(form, saved, colorOf) {
   previewFaces ??= document.head.appendChild(document.createElement('style')); // one for the page, kept between visits
   const box = (slot) => $(`[data-font-slot="${slot}"]`, form);
   const choice = (slot) => $('[data-font-select]', box(slot)).value;
+  const spacing = (slot) => $('[data-font-spacing]', box(slot)).value;
+  const size = (slot) => $('[data-font-size]', box(slot)).value;
 
   const paint = () => {
     const css = [];
@@ -277,10 +287,12 @@ function setupFonts(form, saved, colorOf) {
       const family = `Preview ${slot}`;
       css.push(`@font-face{font-family:'${family}';font-weight:${v === 'upload' || !lib.weight ? '100 900' : lib.weight};src:url(${file})}`);
       preview.style.setProperty(PREVIEW_VARS[slot], `'${family}', ${lib.fallback}`);
+      const display = v === 'upload' && uploads[slot] ? [700, '0em'] : lib.display; // as js/theme-vars.js resolveFonts
+      preview.style.setProperty(PREVIEW_TRACKING[slot], `${letterSpacing(slot, spacing(slot), display).toFixed(3)}em`);
+      const own = v === 'upload' ? 1 : fontScale(slot, v); // the font's own size adjustment, as on the site
+      preview.style.setProperty(PREVIEW_SCALE[slot], (own * sizeScale(slot, size(slot))).toFixed(3));
       if (slot === 'display') {
-        const [weight, tracking] = v === 'upload' && uploads[slot] ? [700, '0em'] : lib.display;
-        preview.style.setProperty('--pv-display-weight', weight);
-        preview.style.setProperty('--pv-display-tracking', tracking);
+        preview.style.setProperty('--pv-display-weight', display[0]);
         preview.style.setProperty('--pv-display-case', $('[data-font-caps]', box(slot)).checked ? 'uppercase' : 'none');
       }
     }
@@ -329,6 +341,8 @@ function setupFonts(form, saved, colorOf) {
           if (!uploads[slot]) return `${label}: upload a font file, or pick one of the built-in fonts.`;
           out[slot] = { ...uploads[slot] };
         } else if (v !== dflt) out[slot] = { font: v };
+        if (spacing(slot) !== 'normal') out[slot] = { ...out[slot], spacing: spacing(slot) };
+        if (size(slot) !== 'medium') out[slot] = { ...out[slot], size: size(slot) };
       }
       if (!$('[data-font-caps]', box('display')).checked) out.display = { ...out.display, caps: false };
       return out;

@@ -686,14 +686,18 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .color-row input[type=color]:disabled { opacity: .35; }
 /* Shop Settings → Fonts: a font per slot (with an upload for the shop's own file) and a sample in the shop's colors.
    The --pv-* variables are set on .font-preview by admin/sections/settings.js. */
+.font-pick__options { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-top: var(--sp-8); }
+.font-pick__options label { margin: 0; font-weight: 400; }
+.font-pick__options select { width: auto; }
+.font-pick__options select + label { margin-left: var(--sp-8); }
 .font-pick__upload { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-top: var(--sp-8); }
 .font-pick__upload label.btn { margin: 0; }
 .font-pick__upload input[type=file]:focus-visible + label { outline: 3px solid var(--focus); outline-offset: 2px; }
 .font-pick__file { font-size: var(--fs-sm); color: var(--muted); overflow-wrap: anywhere; }
 .font-preview { margin-top: var(--sp-14); padding: var(--sp-20); border: 1px solid var(--line); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
-.font-preview__display { font-family: var(--pv-display); font-weight: var(--pv-display-weight); letter-spacing: var(--pv-display-tracking); text-transform: var(--pv-display-case); font-size: var(--fs-page); line-height: 1; margin: 0 0 var(--sp-12); }
-.font-preview__heading { font-family: var(--pv-heading); font-weight: 700; font-size: var(--fs-card); margin: 0 0 var(--sp-6); }
-.font-preview__body { font-family: var(--pv-body); font-size: var(--fs-base); line-height: 1.55; margin: 0; }
+.font-preview__display { font-family: var(--pv-display); font-weight: var(--pv-display-weight); letter-spacing: var(--pv-display-tracking); text-transform: var(--pv-display-case); font-size: calc(var(--fs-page) * var(--pv-display-scale)); line-height: 1; margin: 0 0 var(--sp-12); }
+.font-preview__heading { font-family: var(--pv-heading); font-weight: 700; letter-spacing: var(--pv-heading-tracking); font-size: calc(var(--fs-card) * var(--pv-heading-scale)); margin: 0 0 var(--sp-6); }
+.font-preview__body { font-family: var(--pv-body); letter-spacing: var(--pv-body-tracking); font-size: calc(var(--fs-base) * var(--pv-body-scale)); line-height: 1.55; margin: 0; }
 
 .cust-messages { list-style: none; margin: 0; padding: 0; }
 .cust-messages li { border-top: 1px solid var(--line); padding: var(--sp-6) 0; font-size: var(--fs-ui); }
