@@ -659,7 +659,8 @@ async function loadToOrderData() {
 const upcoming = (foc) => foc !== 'No cutoff' && foc >= today();
 
 /**
- * Lines already ordered for cutoffs that haven't passed (ordered early), which stay on Place Order marked Ordered:
+ * Lines already ordered for cutoffs that haven't passed (ordered early), which stay on Place Order marked Ordered,
+ * including any that have since arrived or been picked up, since Past Orders hides these cutoffs until they pass:
  * cutoff → item id → { item (with its codes and distributor), copies, orders }. Never part of an export or "mark ordered".
  */
 async function loadOrderedEarly() {
@@ -668,7 +669,7 @@ async function loadOrderedEarly() {
   // so this stays small however much order history builds up.
   const since = today();
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items!inner(${ITEM_FIELDS},upc,isbn,sku,distributor)`).in('status', ['ordered', 'reordered']).gte('item.foc_date', since)).order('id').range(from, from + 999);
+    const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items!inner(${ITEM_FIELDS},upc,isbn,sku,distributor)`).in('status', PAST_STATUSES).gte('item.foc_date', since)).order('id').range(from, from + 999);
     if (error) throw fromError(error);
     lines.push(...data);
     if (data.length < 1000) break;
