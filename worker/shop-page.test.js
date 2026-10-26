@@ -67,6 +67,12 @@ assert.match(headTags('x.html', { logo_url: 'https://x.com/a"b.png' }, '')[0], /
 assert.ok(headTags('about.html', { hero_image_url: `${MEDIA}/hero.jpg` }, '').some((t) => /^<meta property="og:image" content="[^"]*hero\.jpg\?width=1400/.test(t)));
 assert.ok(!headTags('search.html', { hero_image_url: `${MEDIA}/hero.jpg` }, '').some((t) => t.includes('og:image')));
 assert.ok(!headTags('post.html', { hero_image_url: `${MEDIA}/hero.jpg` }, '').some((t) => t.includes('og:image')));
+// The shop's colors and fonts, in the first paint
+const themed = headTags('about.html', { colors: { primary: '#982c21' }, fonts: { display: { font: 'bangers' }, body: { upload: 'https://aaa.supabase.co/storage/v1/object/public/media/fonts/a.woff2' } } }, 'https://aaa.supabase.co');
+assert.ok(themed.includes('<link rel="preload" href="fonts/bangers-latin.woff2" as="font" type="font/woff2" crossorigin>'));
+assert.ok(themed.includes('<link rel="preload" href="https://aaa.supabase.co/storage/v1/object/public/media/fonts/a.woff2" as="font" type="font/woff2" crossorigin>'));
+assert.match(themed.at(-1), /^<style id="shop-theme">@font-face\{font-family:'Shop Display';[\s\S]*:root\{--brand-primary:#982c21;[^<]*\}<\/style>$/);
+assert.ok(!headTags('about.html', { fonts: { body: { upload: 'https://evil.example/storage/v1/object/public/media/fonts/a.woff2' } } }, 'https://aaa.supabase.co').some((t) => /evil|shop-theme/.test(t)), 'another host’s font is left out');
 
 // Sitemap and robots.txt on the shop's main domain
 const map = sitemapXml(shops[0]);

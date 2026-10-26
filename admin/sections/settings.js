@@ -1,17 +1,22 @@
 // Shop settings: everything customer pages read from the settings row — name,
-// contact, hours, socials, map, logo and colors, and the reservation rules.
+// contact, hours, socials, map, logo, colors and fonts, and the reservation rules.
 
 import { SOCIAL_ICONS } from '../../js/social-icons.js';
 import { tiersFrom } from '../../js/discount.js';
-import { contrast } from '../theme.js';
-import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, uid } from '../lib.js';
+import { SUPABASE_URL } from '../../js/config.js';
+import { putMedia } from '../../js/media-store.js';
+import { contrast, isLight, linkColor, FONT_LIBRARY, FONT_SLOTS, isFontUpload } from '../../js/theme-vars.js';
+import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, uid, db, slugify } from '../lib.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
 const COLORS = [['primary', 'Main color (buttons, highlights)'], ['accent', 'Accent (banner, badges)'], ['ink', 'Text'], ['paper', 'Page background'], ['footer', 'Footer background']];
 const COLOR_DEFAULTS = { primary: '#982c21', accent: '#e7b84b', ink: '#f4f0ea', paper: '#121212', footer: '#121212', link: '#91bbdd' };
+const PREVIEW_VARS = { display: '--pv-display', heading: '--pv-heading', body: '--pv-body' }; // admin.css .font-preview
+const FONT_MAX_KB = 500; // a font is downloaded before the page's text shows in it, so keep uploads small
 
 let dirty = false;
+let previewFaces; // <style> with the font preview's @font-face rules
 export const hasUnsavedChanges = () => dirty;
 
 export async function mount(el, { sb }) {
@@ -27,7 +32,7 @@ export async function mount(el, { sb }) {
     <h1>Shop Settings</h1>
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="shop">Shop</button>
-      <button type="button" class="admin-tab" role="tab" data-tab="look">Logo &amp; Colors</button>
+      <button type="button" class="admin-tab" role="tab" data-tab="look">Logo, Colors &amp; Fonts</button>
       <button type="button" class="admin-tab" role="tab" data-tab="online">Online</button>
       <button type="button" class="admin-tab" role="tab" data-tab="stock">Pre-Orders &amp; Stock</button>
     </div>
@@ -76,6 +81,15 @@ export async function mount(el, { sb }) {
             <p class="field__hint">Links in text and focus outlines. Automatic picks a blue that reads well on the page background; pick your own to override it (make sure it is readable on the page background).</p></div></div>
         <p class="field__hint">The site is designed for a dark page background with light text. Everything else (cards, borders, muted text) is worked out from these five colors. Use the page background and text colors together: a dark background needs light text.</p>
         <div class="contrast" data-contrast aria-live="polite"></div>
+      </div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Fonts</h2></div><div class="fold__body">
+        <div class="form-grid form-grid--pairs">${FONT_SLOTS.map((slot) => fontPicker(slot, s.fonts?.[slot.slot])).join('')}</div>
+        <p class="field__hint">The built-in fonts are free to use. For <strong>Your own font file</strong>, upload a .woff2 (or .woff) file of ${FONT_MAX_KB} KB or less, and only a font your shop is licensed to use on a website. Changes can take about a minute to appear on the site.</p>
+        <div class="font-preview" data-font-preview aria-hidden="true">
+          <p class="font-preview__display">${esc(s.shop_name || 'Your Comic Shop')}</p>
+          <p class="font-preview__heading">New this week</p>
+          <p class="font-preview__body">Pull lists, pre-orders and the week’s new comics. Reserve online and pay when you pick them up.</p>
+        </div>
       </div></section>
       </div>
       <div data-tabpane="online">
@@ -140,14 +154,12 @@ export async function mount(el, { sb }) {
 
   // Accessibility check of the colors as picked (WCAG: 4.5:1 for text, 3:1 for large or bold text), updated as you pick.
   const val = (k) => $(`[data-color="${k}"]`, form).value;
-  const light = (hex) => contrast(hex, '#000000') > contrast(hex, '#ffffff');
   const checkContrast = () => {
     const paper = val('paper');
-    // The same choices the public site makes (applyTheme in js/site.js): the first blue that reads, else its own pick.
-    const autoLink = [['#91bbdd', '#b9d5ec', '#ffffff'], ['#0b4f8a', '#08396a', '#000000']][light(paper) ? 1 : 0];
+    // The same choices the public site makes (js/theme-vars.js): the first blue that reads, else its own pick.
     const auto = $('[data-link-auto]', form).checked;
-    const link = auto ? autoLink.find((c) => contrast(c, paper) >= 4.5) ?? autoLink.at(-1) : val('link');
-    const onPrimary = light(val('primary')) ? '#161616' : '#ffffff'; // the site's choice of button text
+    const link = linkColor({ paper, link: auto ? null : val('link') });
+    const onPrimary = isLight(val('primary')) ? '#161616' : '#ffffff'; // the site's choice of button text
     const rows = [
       ['Text on the page background', val('ink'), paper, 4.5],
       [`Text links on the page background${auto ? ' (automatic)' : ''}`, link, paper, 4.5],
@@ -164,6 +176,8 @@ export async function mount(el, { sb }) {
   checkContrast();
   form.addEventListener('input', checkContrast);
   form.addEventListener('change', checkContrast);
+
+  const fonts = setupFonts(form, s.fonts ?? {}, val);
   form.addEventListener('input', () => (dirty = true));
   form.addEventListener('change', () => (dirty = true));
 
@@ -180,6 +194,7 @@ export async function mount(el, { sb }) {
     const tiers = $$('.tier-row', tiersBox).map((row) => ({ min: Number($('[data-min]', row).value), pct: Number($('[data-pct]', row).value) }));
     const socials = Object.fromEntries($$('[data-social]', form).map((i) => [i.dataset.social, i.value.trim()]).filter(([, v]) => v));
     const colors = Object.fromEntries($$('[data-color]:not(:disabled)', form).map((i) => [i.dataset.color, i.value])); // Automatic links: no link key
+    const fontPicks = fonts.get();
 
     if (!text('shop_name')) return setStatus(status, 'The shop needs a name.', 'error');
     if (hours.some((h) => !h.days.length || !h.open || !h.close)) return setStatus(status, 'Each hours row needs at least one day and open/close times.', 'error');
@@ -191,11 +206,12 @@ export async function mount(el, { sb }) {
     if (gaId && !/^G-[A-Za-z0-9]+$/.test(gaId)) return setStatus(status, 'The Analytics measurement ID should look like G-XXXXXXXXXX.', 'error');
     const mapUrl = text('map_embed_url');
     if (mapUrl && !/^https:\/\/(www\.)?google\.com\/maps\/embed\?/.test(mapUrl)) return setStatus(status, 'The custom map link should be a Google Maps embed link (https://www.google.com/maps/embed?…).', 'error');
+    if (typeof fontPicks === 'string') return setStatus(status, fontPicks, 'error');
 
     const row = {
       shop_name: text('shop_name'), tagline: text('tagline'), hero_headline: text('hero_headline'), copyright_text: text('copyright_text'), footer_scripts: text('footer_scripts'), founded_year: int('founded_year', null),
       phone: text('phone'), email: text('email'), street: text('street'), city: text('city'), region: text('region'), postal_code: text('postal_code'),
-      hours, socials, colors, logo_url: logo.get(), favicon_url: favicon.get(), show_name_with_logo: f.has('show_name_with_logo'), hero_image_url: hero.get(), show_map: f.has('show_map'), map_embed_url: mapUrl, ga_measurement_id: gaId,
+      hours, socials, colors, fonts: fontPicks, logo_url: logo.get(), favicon_url: favicon.get(), show_name_with_logo: f.has('show_name_with_logo'), hero_image_url: hero.get(), show_map: f.has('show_map'), map_embed_url: mapUrl, ga_measurement_id: gaId,
       max_copies_per_title: int('max_copies_per_title', 10), hold_days: int('hold_days', 30),
       timezone: f.get('timezone'),
       discount_enabled: f.has('discount_enabled'), discount_tiers: tiers,
@@ -216,6 +232,108 @@ export async function mount(el, { sb }) {
       setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
     }
   });
+}
+
+/** One font slot: built-in fonts that suit it, or the shop's own file (uploaded on the spot). */
+function fontPicker({ slot, label, hint, default: dflt }, pick = {}) {
+  const id = uid('font');
+  const groups = [...new Set(FONT_LIBRARY.map((f) => f.group))];
+  const chosen = pick.upload ? 'upload' : FONT_LIBRARY.some((f) => f.id === pick.font && f.slots.includes(slot)) ? pick.font : dflt;
+  const options = groups.map((g) => {
+    const fonts = FONT_LIBRARY.filter((f) => f.group === g && f.slots.includes(slot));
+    return fonts.length ? `<optgroup label="${esc(g)}">${fonts.map((f) => `<option value="${f.id}"${f.id === chosen ? ' selected' : ''}>${esc(f.name)}${f.id === dflt ? ' (default)' : ''}</option>`).join('')}</optgroup>` : '';
+  }).join('');
+  return `<div class="field font-pick" data-font-slot="${slot}">
+    <label for="${id}">${esc(label)}</label>
+    <select id="${id}" data-font-select>${options}<optgroup label="Your own"><option value="upload"${chosen === 'upload' ? ' selected' : ''}>Your own font file…</option></optgroup></select>
+    <p class="field__hint">${esc(hint)}</p>
+    <div class="font-pick__upload"${chosen === 'upload' ? '' : ' hidden'}>
+      <input id="${id}-file" type="file" accept=".woff2,.woff,font/woff2,font/woff" class="visually-hidden">
+      <label class="btn btn--ghost btn--small" for="${id}-file">Upload font file…</label>
+      <span class="font-pick__file" data-font-file>${pick.upload ? esc(pick.name || 'Uploaded font') : 'No file yet'}</span>
+      <span class="admin-status" role="status"></span>
+    </div>
+    ${slot === 'display' ? `<div class="field--check mt-8"><input id="${id}-caps" type="checkbox" data-font-caps${pick.caps === false ? '' : ' checked'}><label for="${id}-caps">Headlines in capitals</label></div>` : ''}
+  </div>`;
+}
+
+/**
+ * The Fonts fold: shows the upload controls for "Your own font file", uploads it to the shop's storage, and keeps the
+ * preview in the chosen fonts and colors. get() returns the settings.fonts value, or an error message.
+ */
+function setupFonts(form, saved, colorOf) {
+  const uploads = Object.fromEntries(FONT_SLOTS.map(({ slot }) => [slot, saved[slot]?.upload ? { upload: saved[slot].upload, name: saved[slot].name } : null]));
+  const preview = $('[data-font-preview]', form);
+  previewFaces ??= document.head.appendChild(document.createElement('style')); // one for the page, kept between visits
+  const box = (slot) => $(`[data-font-slot="${slot}"]`, form);
+  const choice = (slot) => $('[data-font-select]', box(slot)).value;
+
+  const paint = () => {
+    const css = [];
+    for (const { slot, default: dflt } of FONT_SLOTS) {
+      const v = choice(slot);
+      const lib = FONT_LIBRARY.find((f) => f.id === (v === 'upload' ? dflt : v));
+      const file = v === 'upload' && uploads[slot] ? uploads[slot].upload : `../fonts/${lib.file}`;
+      const family = `Preview ${slot}`;
+      css.push(`@font-face{font-family:'${family}';font-weight:${v === 'upload' || !lib.weight ? '100 900' : lib.weight};src:url(${file})}`);
+      preview.style.setProperty(PREVIEW_VARS[slot], `'${family}', ${lib.fallback}`);
+      if (slot === 'display') {
+        const [weight, tracking] = v === 'upload' && uploads[slot] ? [700, '0em'] : lib.display;
+        preview.style.setProperty('--pv-display-weight', weight);
+        preview.style.setProperty('--pv-display-tracking', tracking);
+        preview.style.setProperty('--pv-display-case', $('[data-font-caps]', box(slot)).checked ? 'uppercase' : 'none');
+      }
+    }
+    previewFaces.textContent = css.join('\n');
+    preview.style.background = colorOf('paper');
+    preview.style.color = colorOf('ink');
+  };
+
+  for (const { slot } of FONT_SLOTS) {
+    const el = box(slot);
+    $('[data-font-select]', el).addEventListener('change', (e) => ($('.font-pick__upload', el).hidden = e.target.value !== 'upload'));
+    $('input[type=file]', el).addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      const status = $('.admin-status', el);
+      const ext = file.name.toLowerCase().match(/\.(woff2?)$/)?.[1];
+      if (!ext) return setStatus(status, 'Choose a .woff2 or .woff font file.', 'error');
+      if (file.size > FONT_MAX_KB * 1024) return setStatus(status, `That file is ${Math.ceil(file.size / 1024)} KB; the most is ${FONT_MAX_KB} KB.`, 'error');
+      setStatus(status, 'Uploading…');
+      try {
+        const name = file.name.replace(/\.[^.]+$/, '').slice(0, 80);
+        const path = `fonts/${Date.now().toString(36)}-${slugify(name) || 'font'}.${ext}`;
+        const url = await putMedia(await db(), path, file, { contentType: `font/${ext}`, cacheControl: '31536000' });
+        if (!isFontUpload(url, SUPABASE_URL)) throw new Error('The font was stored somewhere the site can’t use it from.');
+        uploads[slot] = { upload: url, name };
+        $('[data-font-file]', el).textContent = name;
+        setStatus(status, '');
+        paint();
+        form.dispatchEvent(new Event('change')); // unsaved changes
+      } catch (err) {
+        setStatus(status, friendlyError(err), 'error');
+      }
+    });
+  }
+  form.addEventListener('change', paint);
+  form.addEventListener('input', paint);
+  paint();
+
+  return {
+    get() {
+      const out = {};
+      for (const { slot, label, default: dflt } of FONT_SLOTS) {
+        const v = choice(slot);
+        if (v === 'upload') {
+          if (!uploads[slot]) return `${label}: upload a font file, or pick one of the built-in fonts.`;
+          out[slot] = { ...uploads[slot] };
+        } else if (v !== dflt) out[slot] = { font: v };
+      }
+      if (!$('[data-font-caps]', box('display')).checked) out.display = { ...out.display, caps: false };
+      return out;
+    },
+  };
 }
 
 function addTier(box, t) {
