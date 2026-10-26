@@ -1,7 +1,7 @@
 // node js/theme-vars.test.js
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { colorVars, themeCss, resolveFonts, fontPreloads, unusedDefaultPreloads, isFontUpload, FONT_LIBRARY, FONT_SLOTS, linkColor, letterSpacing } from './theme-vars.js';
+import { colorVars, themeCss, resolveFonts, fontPreloads, unusedDefaultPreloads, isFontUpload, FONT_LIBRARY, FONT_SLOTS, linkColor, letterSpacing, sizeScale } from './theme-vars.js';
 
 const SB = 'https://abc.supabase.co';
 const upload = (name) => `${SB}/storage/v1/object/public/media/fonts/${name}`;
@@ -78,5 +78,13 @@ assert.match(themeCss({ fonts: { display: { font: 'inter', spacing: 'tight' } } 
 assert.equal(themeCss({ fonts: { display: { caps: false } } }), ':root{--display-case:none}', 'caps can be turned off on the default headline font');
 assert.match(themeCss({ fonts: { body: { upload: upload('a.woff') } } }, { storageOrigin: SB }), /format\('woff'\)/);
 assert.doesNotMatch(themeCss({ colors: { primary: '#fff</style>' }, fonts: { body: { upload: '</style><script>' } } }, { storageOrigin: SB }), /</, 'nothing can close the <style> tag');
+
+// Sizes: Small / Large scale the slot's sizes; Medium is as designed
+assert.equal(sizeScale('display', 'large'), 1.2);
+assert.equal(sizeScale('body', 'small'), 0.92);
+assert.equal(sizeScale('heading', 'medium'), 1);
+assert.equal(sizeScale('heading', 'toString'), 1, 'only the listed choices');
+assert.equal(themeCss({ fonts: { body: { size: 'medium' } } }), '');
+assert.equal(themeCss({ fonts: { display: { size: 'large' }, body: { size: 'small', spacing: 'wide' } } }), ':root{--display-scale:1.2;--body-tracking:0.03em;--body-scale:0.92}');
 
 console.log('theme-vars tests passed');

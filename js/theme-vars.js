@@ -98,18 +98,26 @@ export const FONT_LIBRARY = [
 ];
 
 /**
- * The three places a font is used: their CSS variables (font and letter spacing), the font css/site.css uses by
- * default, and its preload. `spacing` is how far Tight and Wide move the font's own letter spacing, in em: less for
- * body text, which has to stay easy to read.
+ * The three places a font is used: their CSS variables (font, letter spacing, size), the font css/site.css uses by
+ * default, and its preload. `spacing` is how far Tight and Wide move the font's own letter spacing, in em, and
+ * `sizes` what Small and Large multiply the site's sizes by: both gentler for body text, which has to stay easy to read.
  */
 export const FONT_SLOTS = [
-  { slot: 'display', label: 'Headlines', hint: 'Page titles and the shop name', variable: '--font-display', tracking: '--display-tracking', default: 'archivo-black', preload: 'fonts/archivo-black-latin.woff2', spacing: { tight: -0.03, wide: 0.05 } },
-  { slot: 'heading', label: 'Sub-headings', hint: 'Section headings, card titles, footer headings', variable: '--font-heading', tracking: '--heading-tracking', default: 'archivo', preload: null, spacing: { tight: -0.02, wide: 0.04 } },
-  { slot: 'body', label: 'Body text', hint: 'Paragraphs, menus, buttons and forms', variable: '--font-body', tracking: '--body-tracking', default: 'source-sans-3', preload: 'fonts/source-sans-3-latin.woff2', spacing: { tight: -0.01, wide: 0.03 } },
+  { slot: 'display', label: 'Headlines', hint: 'Page titles and the shop name', variable: '--font-display', tracking: '--display-tracking', scale: '--display-scale', default: 'archivo-black', preload: 'fonts/archivo-black-latin.woff2', spacing: { tight: -0.03, wide: 0.05 }, sizes: { small: 0.85, large: 1.2 } },
+  { slot: 'heading', label: 'Sub-headings', hint: 'Section headings, card titles, footer headings', variable: '--font-heading', tracking: '--heading-tracking', scale: '--heading-scale', default: 'archivo', preload: null, spacing: { tight: -0.02, wide: 0.04 }, sizes: { small: 0.9, large: 1.15 } },
+  { slot: 'body', label: 'Body text', hint: 'Paragraphs, menus, buttons and forms', variable: '--font-body', tracking: '--body-tracking', scale: '--body-scale', default: 'source-sans-3', preload: 'fonts/source-sans-3-latin.woff2', spacing: { tight: -0.01, wide: 0.03 }, sizes: { small: 0.92, large: 1.1 } },
 ];
 
 /** Letter spacing choices, relative to each font's own. */
 export const SPACING = [['tight', 'Tight'], ['normal', 'Normal'], ['wide', 'Wide']];
+/** Size choices, relative to the sizes the site is designed with. */
+export const SIZES = [['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
+
+/** What a slot's sizes are multiplied by: 1 for Medium (or anything unknown). */
+export function sizeScale(slot, size) {
+  const s = FONT_SLOTS.find((x) => x.slot === slot);
+  return Object.hasOwn(s.sizes, size ?? '') ? s.sizes[size] : 1;
+}
 
 /**
  * A slot's letter spacing in em: the font's own (a headline font's preset, else 0), moved by Tight or Wide.
@@ -176,6 +184,8 @@ export function themeCss({ colors, fonts } = {}, opts = {}) {
     if (f && s.slot === 'display') vars.push(['--display-weight', String(f.display[0])]);
     // A new headline font brings its own spacing; any slot's Tight or Wide moves it.
     if ((f && s.slot === 'display') || Object.hasOwn(s.spacing, spacing ?? '')) vars.push([s.tracking, em(letterSpacing(s.slot, spacing, f?.display))]);
+    const scale = sizeScale(s.slot, fonts?.[s.slot]?.size);
+    if (scale !== 1) vars.push([s.scale, String(scale)]);
   }
   if (fonts?.display?.caps === false) vars.push(['--display-case', 'none']);
   const root = vars.length ? `:root{${vars.map(([p, v]) => `${p}:${v}`).join(';')}}` : '';
