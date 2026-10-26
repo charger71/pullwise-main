@@ -9,6 +9,7 @@
 import { must } from '../util.js';
 import { putMedia } from '../media-store.js';
 import { addDays, weekStart } from '../dates.js';
+import { autoBadges } from './distributors.js';
 
 // Distributor fields refreshed on every import. Staff-owned fields (status,
 // hidden, staff pick, category) are never overwritten on titles already imported.
@@ -194,6 +195,7 @@ export async function applyImport(sb, parsed, opts) {
     arrived_on: null,
     ...initialStatus(i, opts.today),
     category_id: categories.get(i.category) ?? null,
+    badges: autoBadges(i), // #1, one-shot, limited series, facsimile, blind bag
     cover_url: coverUrls.get(i.sku) ?? null,
     cover_thumb_url: thumbUrls.get(i.sku) ?? null,
   }));

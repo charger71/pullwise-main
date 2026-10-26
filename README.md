@@ -86,7 +86,10 @@ UPC is already on another title is left out rather than duplicated.
 Incentive/ratio covers and retailer bundles are skipped; everything else is added as Pre-Order (or straight to New
 This Wednesday / Just Arrived / Available if it releases this week or is already out) with its cover copied into
 Supabase Storage. Re-importing a sheet updates distributor fields (price, dates, description) but never overwrites
-staff changes (status, hidden, staff pick, category). Parsing rules live in `js/import/distributors.js` and database
+staff changes (status, hidden, staff pick, category, badges). A new title starts with collector badges read from its sheet title:
+**First Issue** (#1), **One-Shot** (`ONE SHOT`, `ONE-SHOT`, `1-SHOT`…), **Limited Series** (`#2 (OF 6)`), **Facsimile**
+(reprint) and **Blind Bag** (`BLIND BAG`, `BLIND-BAGGED`); the master catalog passes them on to the shops. Titles imported
+earlier got the same badges added once by migration `20270203000000_import_badges` (it never removes a badge). Parsing rules live in `js/import/distributors.js` and database
 logic in `js/import/apply.js`.
 
 ## Admin (staff)
