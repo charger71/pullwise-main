@@ -1,7 +1,7 @@
 // node js/theme-vars.test.js
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { colorVars, themeCss, resolveFonts, fontPreloads, unusedDefaultPreloads, isFontUpload, FONT_LIBRARY, FONT_SLOTS, linkColor, letterSpacing, sizeScale } from './theme-vars.js';
+import { colorVars, themeCss, resolveFonts, fontPreloads, unusedDefaultPreloads, isFontUpload, FONT_LIBRARY, FONT_SLOTS, linkColor, letterSpacing, sizeScale, fontScale } from './theme-vars.js';
 
 const SB = 'https://abc.supabase.co';
 const upload = (name) => `${SB}/storage/v1/object/public/media/fonts/${name}`;
@@ -63,7 +63,7 @@ assert.equal(themeCss({ colors: {}, fonts: {} }), '');
 const css = themeCss({ colors: { primary: '#982c21' }, fonts: { display: { font: 'bebas-neue', caps: false }, body: { font: 'lora' } } });
 assert.match(css, /^@font-face\{font-family:'Shop Display';font-style:normal;font-weight:100 900;font-display:swap;src:url\(fonts\/bebas-neue-latin\.woff2\) format\('woff2'\)\}$/m);
 assert.match(css, /@font-face\{font-family:'Shop Body';[^}]*font-weight:400 700;/);
-assert.match(css, /^:root\{--brand-primary:#982c21;--on-primary:#ffffff;--font-display:'Shop Display', Impact, 'Arial Narrow', sans-serif;--display-weight:400;--display-tracking:0\.01em;--font-body:'Shop Body', Georgia, serif;--display-case:none\}$/m);
+assert.match(css, /^:root\{--brand-primary:#982c21;--on-primary:#ffffff;--font-display:'Shop Display', Impact, 'Arial Narrow', sans-serif;--display-weight:400;--display-tracking:0\.01em;--display-scale:1\.3;--font-body:'Shop Body', Georgia, serif;--body-scale:0\.97;--display-case:none\}$/m);
 
 // Letter spacing: Tight / Wide move the font's own
 assert.equal(letterSpacing('display', 'normal'), -0.045, 'the default headline font keeps its preset');
@@ -86,5 +86,20 @@ assert.equal(sizeScale('heading', 'medium'), 1);
 assert.equal(sizeScale('heading', 'toString'), 1, 'only the listed choices');
 assert.equal(themeCss({ fonts: { body: { size: 'medium' } } }), '');
 assert.equal(themeCss({ fonts: { display: { size: 'large' }, body: { size: 'small', spacing: 'wide' } } }), ':root{--display-scale:1.2;--body-tracking:0.03em;--body-scale:0.92}');
+
+// Each font's own size adjustment, so it looks as big as the default at Medium
+for (const f of FONT_LIBRARY) assert.equal(f.metrics?.length, 3, `${f.id} has metrics`);
+for (const s of FONT_SLOTS) assert.equal(fontScale(s.slot, s.default), 1, `${s.slot} default is 1`);
+assert.equal(fontScale('display', 'bebas-neue'), 1.3, 'a narrow headline face is set bigger (capped at 1.3)');
+assert.equal(fontScale('heading', 'bangers'), 1.24, 'display faces are matched by their capitals anywhere');
+assert.equal(fontScale('body', 'inter'), 0.89, 'body text is matched by x-height');
+assert.equal(fontScale('body', 'nope'), 1, 'unknown or uploaded fonts stay as they are');
+for (const s of FONT_SLOTS) for (const f of FONT_LIBRARY.filter((x) => x.slots.includes(s.slot))) {
+  const r = fontScale(s.slot, f.id);
+  assert.ok(r >= 0.8 && r <= 1.3, `${f.id} in ${s.slot}: ${r}`);
+}
+assert.match(themeCss({ fonts: { display: { font: 'bebas-neue', size: 'large' } } }), /--display-scale:1\.56[;}]/, 'own size times Large');
+assert.match(themeCss({ fonts: { body: { font: 'inter' } } }), /--body-scale:0\.89[;}]/);
+assert.doesNotMatch(themeCss({ fonts: { body: { upload: upload('a.woff2') } } }, { storageOrigin: SB }), /--body-scale/, 'an uploaded font keeps the default size');
 
 console.log('theme-vars tests passed');

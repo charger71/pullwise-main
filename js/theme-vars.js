@@ -79,22 +79,24 @@ export function colorVars(colors) {
 /**
  * The fonts that come with the site, all in fonts/ (Latin subset, SIL Open Font License). `weight` is what the
  * file holds; a single-weight face is declared for every weight so the browser never fakes a bold. `display` is
- * how the font sets the big headlines: its weight and letter spacing. `slots` are the places it suits.
+ * how the font sets the big headlines: its weight and letter spacing. `metrics` are its capital height, x-height
+ * and the width of "COMICS" at its headline weight, in 1/1000 em (measured in the browser), which fontScale uses
+ * to set it at the size that looks like the default font's. `slots` are the places it suits.
  */
 export const FONT_LIBRARY = [
-  { id: 'archivo-black', name: 'Archivo Black', group: 'Display', file: 'archivo-black-latin.woff2', weight: null, fallback: "'Arial Black', sans-serif", display: [400, '-.045em'], slots: ['display', 'heading'] },
-  { id: 'bangers', name: 'Bangers', group: 'Display', file: 'bangers-latin.woff2', weight: null, fallback: 'Impact, sans-serif', display: [400, '.03em'], slots: ['display', 'heading'] },
-  { id: 'bebas-neue', name: 'Bebas Neue', group: 'Display', file: 'bebas-neue-latin.woff2', weight: null, fallback: "Impact, 'Arial Narrow', sans-serif", display: [400, '.01em'], slots: ['display', 'heading'] },
-  { id: 'anton', name: 'Anton', group: 'Display', file: 'anton-latin.woff2', weight: null, fallback: "Impact, 'Arial Narrow', sans-serif", display: [400, '0em'], slots: ['display', 'heading'] },
-  { id: 'alfa-slab-one', name: 'Alfa Slab One', group: 'Display', file: 'alfa-slab-one-latin.woff2', weight: null, fallback: 'Rockwell, Georgia, serif', display: [400, '-.01em'], slots: ['display', 'heading'] },
-  { id: 'oswald', name: 'Oswald', group: 'Sans serif', file: 'oswald-latin.woff2', weight: '400 700', fallback: "'Arial Narrow', sans-serif", display: [700, '0em'], slots: ['display', 'heading', 'body'] },
-  { id: 'archivo', name: 'Archivo', group: 'Sans serif', file: 'archivo-latin.woff2', weight: '600 800', fallback: 'Arial, sans-serif', display: [800, '-.03em'], slots: ['display', 'heading'] },
-  { id: 'source-sans-3', name: 'Source Sans 3', group: 'Sans serif', file: 'source-sans-3-latin.woff2', weight: '400 700', fallback: 'system-ui, sans-serif', display: [700, '-.02em'], slots: ['display', 'heading', 'body'] },
-  { id: 'inter', name: 'Inter', group: 'Sans serif', file: 'inter-latin.woff2', weight: '400 800', fallback: 'system-ui, sans-serif', display: [800, '-.04em'], slots: ['display', 'heading', 'body'] },
-  { id: 'work-sans', name: 'Work Sans', group: 'Sans serif', file: 'work-sans-latin.woff2', weight: '400 800', fallback: 'system-ui, sans-serif', display: [800, '-.03em'], slots: ['display', 'heading', 'body'] },
-  { id: 'rubik', name: 'Rubik', group: 'Sans serif', file: 'rubik-latin.woff2', weight: '400 800', fallback: 'system-ui, sans-serif', display: [800, '-.02em'], slots: ['display', 'heading', 'body'] },
-  { id: 'lora', name: 'Lora', group: 'Serif', file: 'lora-latin.woff2', weight: '400 700', fallback: 'Georgia, serif', display: [700, '-.02em'], slots: ['display', 'heading', 'body'] },
-  { id: 'roboto-slab', name: 'Roboto Slab', group: 'Serif', file: 'roboto-slab-latin.woff2', weight: '400 800', fallback: 'Rockwell, Georgia, serif', display: [800, '-.02em'], slots: ['display', 'heading', 'body'] },
+  { id: 'archivo-black', name: 'Archivo Black', group: 'Display', file: 'archivo-black-latin.woff2', weight: null, fallback: "'Arial Black', sans-serif", display: [400, '-.045em'], metrics: [688, 528, 4444], slots: ['display', 'heading'] },
+  { id: 'bangers', name: 'Bangers', group: 'Display', file: 'bangers-latin.woff2', weight: null, fallback: 'Impact, sans-serif', display: [400, '.03em'], metrics: [740, 729, 2553], slots: ['display', 'heading'] },
+  { id: 'bebas-neue', name: 'Bebas Neue', group: 'Display', file: 'bebas-neue-latin.woff2', weight: null, fallback: "Impact, 'Arial Narrow', sans-serif", display: [400, '.01em'], metrics: [700, 700, 2272], slots: ['display', 'heading'] },
+  { id: 'anton', name: 'Anton', group: 'Display', file: 'anton-latin.woff2', weight: null, fallback: "Impact, 'Arial Narrow', sans-serif", display: [400, '0em'], metrics: [859, 733, 2869], slots: ['display', 'heading'] },
+  { id: 'alfa-slab-one', name: 'Alfa Slab One', group: 'Display', file: 'alfa-slab-one-latin.woff2', weight: null, fallback: 'Rockwell, Georgia, serif', display: [400, '-.01em'], metrics: [778, 556, 4473], slots: ['display', 'heading'] },
+  { id: 'oswald', name: 'Oswald', group: 'Sans serif', file: 'oswald-latin.woff2', weight: '400 700', fallback: "'Arial Narrow', sans-serif", display: [700, '0em'], metrics: [810, 578, 3231], slots: ['display', 'heading', 'body'] },
+  { id: 'archivo', name: 'Archivo', group: 'Sans serif', file: 'archivo-latin.woff2', weight: '600 800', fallback: 'Arial, sans-serif', display: [800, '-.03em'], metrics: [687, 526, 4253], slots: ['display', 'heading'] },
+  { id: 'source-sans-3', name: 'Source Sans 3', group: 'Sans serif', file: 'source-sans-3-latin.woff2', weight: '400 700', fallback: 'system-ui, sans-serif', display: [700, '-.02em'], metrics: [652, 486, 3401], slots: ['display', 'heading', 'body'] },
+  { id: 'inter', name: 'Inter', group: 'Sans serif', file: 'inter-latin.woff2', weight: '400 800', fallback: 'system-ui, sans-serif', display: [800, '-.04em'], metrics: [728, 546, 4149], slots: ['display', 'heading', 'body'] },
+  { id: 'work-sans', name: 'Work Sans', group: 'Sans serif', file: 'work-sans-latin.woff2', weight: '400 800', fallback: 'system-ui, sans-serif', display: [800, '-.03em'], metrics: [660, 500, 3993], slots: ['display', 'heading', 'body'] },
+  { id: 'rubik', name: 'Rubik', group: 'Sans serif', file: 'rubik-latin.woff2', weight: '400 800', fallback: 'system-ui, sans-serif', display: [800, '-.02em'], metrics: [700, 520, 4030], slots: ['display', 'heading', 'body'] },
+  { id: 'lora', name: 'Lora', group: 'Serif', file: 'lora-latin.woff2', weight: '400 700', fallback: 'Georgia, serif', display: [700, '-.02em'], metrics: [700, 500, 4078], slots: ['display', 'heading', 'body'] },
+  { id: 'roboto-slab', name: 'Roboto Slab', group: 'Serif', file: 'roboto-slab-latin.woff2', weight: '400 800', fallback: 'Rockwell, Georgia, serif', display: [800, '-.02em'], metrics: [711, 528, 4007], slots: ['display', 'heading', 'body'] },
 ];
 
 /**
@@ -113,10 +115,27 @@ export const SPACING = [['tight', 'Tight'], ['normal', 'Normal'], ['wide', 'Wide
 /** Size choices, relative to the sizes the site is designed with. */
 export const SIZES = [['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
 
-/** What a slot's sizes are multiplied by: 1 for Medium (or anything unknown). */
+/** What a slot's sizes are multiplied by for Small / Large: 1 for Medium (or anything unknown). */
 export function sizeScale(slot, size) {
   const s = FONT_SLOTS.find((x) => x.slot === slot);
   return Object.hasOwn(s.sizes, size ?? '') ? s.sizes[size] : 1;
+}
+
+/**
+ * How much bigger or smaller a built-in font is set than the slot's default font, so that at Medium it looks about
+ * the same size. Text in sub-headings and body copy is matched by x-height (the height of lowercase letters). Headlines,
+ * and the all-capitals display faces anywhere, are matched by the area of their capitals (height × width), so a
+ * narrow face like Bebas Neue is set bigger. Kept between 0.8 and 1.3. Uploaded fonts (no id) stay at 1.
+ */
+export function fontScale(slot, id) {
+  const s = FONT_SLOTS.find((x) => x.slot === slot);
+  const f = FONT_LIBRARY.find((x) => x.id === id);
+  const d = FONT_LIBRARY.find((x) => x.id === s.default);
+  if (!f || f === d) return 1;
+  const [dCap, dX, dWidth] = d.metrics;
+  const [cap, x, width] = f.metrics;
+  const r = slot !== 'display' && f.group !== 'Display' ? dX / x : Math.sqrt((dCap * dWidth) / (cap * width));
+  return Math.min(1.3, Math.max(0.8, Math.round(r * 100) / 100));
 }
 
 /**
@@ -153,7 +172,7 @@ export function resolveFonts(fonts, { storageOrigin } = {}) {
     const lib = FONT_LIBRARY.find((f) => f.id === pick.font && f.slots.includes(s.slot));
     const family = `Shop ${s.slot[0].toUpperCase()}${s.slot.slice(1)}`;
     if (lib && lib.id !== s.default) {
-      out.push({ slot: s.slot, family, src: `fonts/${lib.file}`, weight: lib.weight ?? '100 900', fallback: lib.fallback, display: lib.display });
+      out.push({ slot: s.slot, id: lib.id, family, src: `fonts/${lib.file}`, weight: lib.weight ?? '100 900', fallback: lib.fallback, display: lib.display });
     } else if (!lib && isFontUpload(pick.upload, storageOrigin)) {
       // An uploaded file may hold one weight or many; declared for every weight, it is never faked bold.
       const dflt = FONT_LIBRARY.find((f) => f.id === s.default);
@@ -184,7 +203,8 @@ export function themeCss({ colors, fonts } = {}, opts = {}) {
     if (f && s.slot === 'display') vars.push(['--display-weight', String(f.display[0])]);
     // A new headline font brings its own spacing; any slot's Tight or Wide moves it.
     if ((f && s.slot === 'display') || Object.hasOwn(s.spacing, spacing ?? '')) vars.push([s.tracking, em(letterSpacing(s.slot, spacing, f?.display))]);
-    const scale = sizeScale(s.slot, fonts?.[s.slot]?.size);
+    // The font's own size adjustment, times Small / Large.
+    const scale = Number((fontScale(s.slot, f ? f.id : s.default) * sizeScale(s.slot, fonts?.[s.slot]?.size)).toFixed(3));
     if (scale !== 1) vars.push([s.scale, String(scale)]);
   }
   if (fonts?.display?.caps === false) vars.push(['--display-case', 'none']);

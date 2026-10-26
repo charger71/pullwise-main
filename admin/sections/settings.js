@@ -5,7 +5,7 @@ import { SOCIAL_ICONS } from '../../js/social-icons.js';
 import { tiersFrom } from '../../js/discount.js';
 import { SUPABASE_URL } from '../../js/config.js';
 import { putMedia } from '../../js/media-store.js';
-import { contrast, isLight, linkColor, FONT_LIBRARY, FONT_SLOTS, SPACING, SIZES, letterSpacing, sizeScale, isFontUpload } from '../../js/theme-vars.js';
+import { contrast, isLight, linkColor, FONT_LIBRARY, FONT_SLOTS, SPACING, SIZES, letterSpacing, sizeScale, fontScale, isFontUpload } from '../../js/theme-vars.js';
 import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, uid, db, slugify } from '../lib.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
@@ -86,7 +86,7 @@ export async function mount(el, { sb }) {
       </div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Fonts</h2></div><div class="fold__body">
         <div class="form-grid form-grid--pairs">${FONT_SLOTS.map((slot) => fontPicker(slot, s.fonts?.[slot.slot])).join('')}</div>
-        <p class="field__hint">The built-in fonts are free to use. For <strong>Your own font file</strong>, upload a .woff2 (or .woff) file of ${FONT_MAX_KB} KB or less, and only a font your shop is licensed to use on a website. Changes can take about a minute to appear on the site.</p>
+        <p class="field__hint">The built-in fonts are free to use. For <strong>Your own font file</strong>, upload a .woff2 (or .woff) file of ${FONT_MAX_KB} KB or less, and only a font your shop is licensed to use on a website. Each built-in font is sized to look about as big as the default at Medium; an uploaded font is set at the default's size. Changes can take about a minute to appear on the site.</p>
         <div class="font-preview" data-font-preview aria-hidden="true">
           <p class="font-preview__display">${esc(s.shop_name || 'Your Comic Shop')}</p>
           <p class="font-preview__heading">New this week</p>
@@ -289,7 +289,8 @@ function setupFonts(form, saved, colorOf) {
       preview.style.setProperty(PREVIEW_VARS[slot], `'${family}', ${lib.fallback}`);
       const display = v === 'upload' && uploads[slot] ? [700, '0em'] : lib.display; // as js/theme-vars.js resolveFonts
       preview.style.setProperty(PREVIEW_TRACKING[slot], `${letterSpacing(slot, spacing(slot), display).toFixed(3)}em`);
-      preview.style.setProperty(PREVIEW_SCALE[slot], sizeScale(slot, size(slot)));
+      const own = v === 'upload' ? 1 : fontScale(slot, v); // the font's own size adjustment, as on the site
+      preview.style.setProperty(PREVIEW_SCALE[slot], (own * sizeScale(slot, size(slot))).toFixed(3));
       if (slot === 'display') {
         preview.style.setProperty('--pv-display-weight', display[0]);
         preview.style.setProperty('--pv-display-case', $('[data-font-caps]', box(slot)).checked ? 'uppercase' : 'none');
