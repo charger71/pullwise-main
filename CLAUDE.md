@@ -14,4 +14,5 @@
 - `npm test` runs the unit tests and `admin/consistency.test.js`: contrast in both themes, tokens only (no bare
   colours, font sizes, z-index or breakpoints), row colours, fold markup, no unused CSS, and more. Run it before
   every commit.
-- The git pre-commit hook stamps `admin/version.js`; never edit it by hand.
+- The git pre-commit hook stamps `admin/version.js`, and the Deploy workflow stamps it again before each Worker deploy
+  (for commits made without the hook); never edit it by hand.

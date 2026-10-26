@@ -205,7 +205,8 @@ the keys in `js/config.js`: that file is the local / demo version. `"canary": tr
 Worker; use it for a demo or test shop, not a real one.
 
 
-Enable the version-stamping pre-commit hook once per clone: `git config core.hooksPath .githooks`.
+Enable the version-stamping pre-commit hook once per clone: `git config core.hooksPath .githooks`. (The Deploy
+workflow stamps the version again before it deploys, so a commit made without the hook still shows the right one.)
 
 ## 7. Go live
 

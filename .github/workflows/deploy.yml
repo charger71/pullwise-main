@@ -75,6 +75,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      - name: Stamp the admin version
+        # The footer's version, even when the commit was made without the pre-commit hook (tools/stamp-version.js).
+        run: node tools/stamp-version.js --commit-date
       - name: Deploy the canary Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -118,6 +121,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      - name: Stamp the admin version
+        # The footer's version, even when the commit was made without the pre-commit hook (tools/stamp-version.js).
+        run: node tools/stamp-version.js --commit-date
       - name: Deploy the Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
