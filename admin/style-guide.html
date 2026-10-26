@@ -289,17 +289,18 @@
                 <div class="field font-pick"><label for="sg-f1">Headlines</label>
                   <select id="sg-f1"><optgroup label="Display"><option>Archivo Black (default)</option><option>Bangers</option></optgroup><optgroup label="Your own"><option selected>Your own font file…</option></optgroup></select>
                   <p class="field__hint">Page titles and the shop name</p>
+                  <div class="font-pick__spacing"><label for="sg-f1-sp">Letter spacing</label><select id="sg-f1-sp" class="select--small"><option>Tight</option><option selected>Normal</option><option>Wide</option></select></div>
                   <div class="font-pick__upload"><input id="sg-f1-file" type="file" accept=".woff2,.woff" class="visually-hidden"><label class="btn btn--ghost btn--small" for="sg-f1-file">Upload font file…</label><span class="font-pick__file">my-shop-font</span></div>
                   <div class="field--check mt-8"><input id="sg-f1-caps" type="checkbox" checked><label for="sg-f1-caps">Headlines in capitals</label></div>
                 </div>
               </div>
-              <div class="font-preview" aria-hidden="true" style="background:#121212;color:#f4f0ea;--pv-display:'Arial Black',sans-serif;--pv-display-weight:400;--pv-display-tracking:-.045em;--pv-display-case:uppercase;--pv-heading:Arial,sans-serif;--pv-body:system-ui,sans-serif">
+              <div class="font-preview" aria-hidden="true" style="background:#121212;color:#f4f0ea;--pv-display:'Arial Black',sans-serif;--pv-display-weight:400;--pv-display-tracking:-.045em;--pv-display-case:uppercase;--pv-heading:Arial,sans-serif;--pv-heading-tracking:0em;--pv-body:system-ui,sans-serif;--pv-body-tracking:0em">
                 <p class="font-preview__display">Your Comic Shop</p>
                 <p class="font-preview__heading">New this week</p>
                 <p class="font-preview__body">Pull lists, pre-orders and the week’s new comics.</p>
               </div>
             </div>
-            <p class="admin-hint mt-8"><code>font-pick</code> is a select of fonts for one place on the public site; picking "Your own font file…" shows <code>font-pick__upload</code> (a file input behind a ghost button, and the file's name). <code>font-preview</code> shows the chosen fonts on the shop's own page colors, set inline (<code>--pv-*</code> variables) by the settings screen. Only on Shop Settings; the public site gets the same fonts from <code>js/theme-vars.js</code>.</p>
+            <p class="admin-hint mt-8"><code>font-pick</code> is a select of fonts for one place on the public site, with <code>font-pick__spacing</code> under it (Tight / Normal / Wide, moving the font's own letter spacing); picking "Your own font file…" shows <code>font-pick__upload</code> (a file input behind a ghost button, and the file's name). <code>font-preview</code> shows the chosen fonts on the shop's own page colors, set inline (<code>--pv-*</code> variables) by the settings screen. Only on Shop Settings; the public site gets the same fonts from <code>js/theme-vars.js</code>.</p>
           </div>
           <div class="sg-item" data-code>
             <h3>Opening hours row</h3>

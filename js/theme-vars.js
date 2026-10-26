@@ -97,12 +97,30 @@ export const FONT_LIBRARY = [
   { id: 'roboto-slab', name: 'Roboto Slab', group: 'Serif', file: 'roboto-slab-latin.woff2', weight: '400 800', fallback: 'Rockwell, Georgia, serif', display: [800, '-.02em'], slots: ['display', 'heading', 'body'] },
 ];
 
-/** The three places a font is used, their CSS variable, the font css/site.css uses by default, and its preload. */
+/**
+ * The three places a font is used: their CSS variables (font and letter spacing), the font css/site.css uses by
+ * default, and its preload. `spacing` is how far Tight and Wide move the font's own letter spacing, in em: less for
+ * body text, which has to stay easy to read.
+ */
 export const FONT_SLOTS = [
-  { slot: 'display', label: 'Headlines', hint: 'Page titles and the shop name', variable: '--font-display', default: 'archivo-black', preload: 'fonts/archivo-black-latin.woff2' },
-  { slot: 'heading', label: 'Sub-headings', hint: 'Section headings, card titles, footer headings', variable: '--font-heading', default: 'archivo', preload: null },
-  { slot: 'body', label: 'Body text', hint: 'Paragraphs, menus, buttons and forms', variable: '--font-body', default: 'source-sans-3', preload: 'fonts/source-sans-3-latin.woff2' },
+  { slot: 'display', label: 'Headlines', hint: 'Page titles and the shop name', variable: '--font-display', tracking: '--display-tracking', default: 'archivo-black', preload: 'fonts/archivo-black-latin.woff2', spacing: { tight: -0.03, wide: 0.05 } },
+  { slot: 'heading', label: 'Sub-headings', hint: 'Section headings, card titles, footer headings', variable: '--font-heading', tracking: '--heading-tracking', default: 'archivo', preload: null, spacing: { tight: -0.02, wide: 0.04 } },
+  { slot: 'body', label: 'Body text', hint: 'Paragraphs, menus, buttons and forms', variable: '--font-body', tracking: '--body-tracking', default: 'source-sans-3', preload: 'fonts/source-sans-3-latin.woff2', spacing: { tight: -0.01, wide: 0.03 } },
 ];
+
+/** Letter spacing choices, relative to each font's own. */
+export const SPACING = [['tight', 'Tight'], ['normal', 'Normal'], ['wide', 'Wide']];
+
+/**
+ * A slot's letter spacing in em: the font's own (a headline font's preset, else 0), moved by Tight or Wide.
+ * `display` is the [weight, tracking] pair of the headline font in use.
+ */
+export function letterSpacing(slot, spacing, display) {
+  const s = FONT_SLOTS.find((x) => x.slot === slot);
+  const base = slot === 'display' ? parseFloat(display?.[1] ?? FONT_LIBRARY.find((f) => f.id === s.default).display[1]) : 0;
+  return base + (Object.hasOwn(s.spacing, spacing) ? s.spacing[spacing] : 0);
+}
+const em = (n) => `${Number(n.toFixed(3))}em`;
 
 const UPLOAD_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.woff2?$/;
 /** Where staff-uploaded fonts live in the shop's own storage (Admin → Shop Settings uploads them there). */
@@ -151,9 +169,13 @@ export function themeCss({ colors, fonts } = {}, opts = {}) {
   const used = resolveFonts(fonts, opts);
   const faces = used.map((f) => `@font-face{font-family:'${f.family}';font-style:normal;font-weight:${f.weight};font-display:swap;src:url(${f.src}) format('${f.src.endsWith('.woff') ? 'woff' : 'woff2'}')}`);
   const vars = colorVars(colors);
-  for (const f of used) {
-    vars.push([FONT_SLOTS.find((s) => s.slot === f.slot).variable, `'${f.family}', ${f.fallback}`]);
-    if (f.slot === 'display') vars.push(['--display-weight', String(f.display[0])], ['--display-tracking', f.display[1]]);
+  for (const s of FONT_SLOTS) {
+    const f = used.find((u) => u.slot === s.slot);
+    const spacing = fonts?.[s.slot]?.spacing;
+    if (f) vars.push([s.variable, `'${f.family}', ${f.fallback}`]);
+    if (f && s.slot === 'display') vars.push(['--display-weight', String(f.display[0])]);
+    // A new headline font brings its own spacing; any slot's Tight or Wide moves it.
+    if ((f && s.slot === 'display') || Object.hasOwn(s.spacing, spacing ?? '')) vars.push([s.tracking, em(letterSpacing(s.slot, spacing, f?.display))]);
   }
   if (fonts?.display?.caps === false) vars.push(['--display-case', 'none']);
   const root = vars.length ? `:root{${vars.map(([p, v]) => `${p}:${v}`).join(';')}}` : '';

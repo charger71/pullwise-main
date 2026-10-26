@@ -1,7 +1,7 @@
 // node js/theme-vars.test.js
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { colorVars, themeCss, resolveFonts, fontPreloads, unusedDefaultPreloads, isFontUpload, FONT_LIBRARY, FONT_SLOTS, linkColor } from './theme-vars.js';
+import { colorVars, themeCss, resolveFonts, fontPreloads, unusedDefaultPreloads, isFontUpload, FONT_LIBRARY, FONT_SLOTS, linkColor, letterSpacing } from './theme-vars.js';
 
 const SB = 'https://abc.supabase.co';
 const upload = (name) => `${SB}/storage/v1/object/public/media/fonts/${name}`;
@@ -63,7 +63,18 @@ assert.equal(themeCss({ colors: {}, fonts: {} }), '');
 const css = themeCss({ colors: { primary: '#982c21' }, fonts: { display: { font: 'bebas-neue', caps: false }, body: { font: 'lora' } } });
 assert.match(css, /^@font-face\{font-family:'Shop Display';font-style:normal;font-weight:100 900;font-display:swap;src:url\(fonts\/bebas-neue-latin\.woff2\) format\('woff2'\)\}$/m);
 assert.match(css, /@font-face\{font-family:'Shop Body';[^}]*font-weight:400 700;/);
-assert.match(css, /^:root\{--brand-primary:#982c21;--on-primary:#ffffff;--font-display:'Shop Display', Impact, 'Arial Narrow', sans-serif;--display-weight:400;--display-tracking:\.01em;--font-body:'Shop Body', Georgia, serif;--display-case:none\}$/m);
+assert.match(css, /^:root\{--brand-primary:#982c21;--on-primary:#ffffff;--font-display:'Shop Display', Impact, 'Arial Narrow', sans-serif;--display-weight:400;--display-tracking:0\.01em;--font-body:'Shop Body', Georgia, serif;--display-case:none\}$/m);
+
+// Letter spacing: Tight / Wide move the font's own
+assert.equal(letterSpacing('display', 'normal'), -0.045, 'the default headline font keeps its preset');
+assert.equal(letterSpacing('display', 'tight', [400, '.01em']).toFixed(3), '-0.020');
+assert.equal(letterSpacing('body', 'wide'), 0.03);
+assert.equal(letterSpacing('heading', 'sideways'), 0, 'unknown choices are normal');
+assert.equal(themeCss({ fonts: { display: { spacing: 'wide' } } }), ':root{--display-tracking:0.005em}', 'Wide on the default headline font');
+assert.equal(themeCss({ fonts: { heading: { font: 'archivo', spacing: 'tight' }, body: { spacing: 'wide' } } }), ':root{--heading-tracking:-0.02em;--body-tracking:0.03em}');
+assert.equal(themeCss({ fonts: { body: { spacing: 'normal' } } }), '');
+assert.equal(themeCss({ fonts: { body: { spacing: 'constructor' } } }), '', 'only the listed choices');
+assert.match(themeCss({ fonts: { display: { font: 'inter', spacing: 'tight' } } }), /--display-tracking:-0\.07em/);
 assert.equal(themeCss({ fonts: { display: { caps: false } } }), ':root{--display-case:none}', 'caps can be turned off on the default headline font');
 assert.match(themeCss({ fonts: { body: { upload: upload('a.woff') } } }, { storageOrigin: SB }), /format\('woff'\)/);
 assert.doesNotMatch(themeCss({ colors: { primary: '#fff</style>' }, fonts: { body: { upload: '</style><script>' } } }, { storageOrigin: SB }), /</, 'nothing can close the <style> tag');

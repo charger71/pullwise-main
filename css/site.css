@@ -56,6 +56,8 @@
   --display-weight: 400;       /* headline font's weight, spacing and case: Shop Settings → Fonts may change them */
   --display-tracking: -.045em;
   --display-case: uppercase;
+  --heading-tracking: 0em;     /* sub-heading and body letter spacing (Shop Settings → Fonts: Tight / Wide) */
+  --body-tracking: 0em;
 
   --radius: 5px;
   --border: 1px solid var(--line);
@@ -79,6 +81,7 @@ html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 body {
   margin: 0;
   font: 16px/1.55 var(--font-body);
+  letter-spacing: var(--body-tracking);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -94,8 +97,8 @@ a:hover { color: var(--teal-hover); }
 :focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
 h1, h2, h3 { font-family: var(--font-display); font-weight: var(--display-weight); line-height: 1.15; margin: 0 0 .5em; letter-spacing: .01em; }
 h1 { font-size: clamp(34px, 5vw, 64px); line-height: .96; letter-spacing: var(--display-tracking); text-transform: var(--display-case); margin: 14px 0 16px; }
-h2 { font-family: var(--font-heading); font-weight: 700; font-size: 1.5rem; line-height: 1.2; letter-spacing: 0; }
-h3 { font-size: var(--fs-sub); font-family: var(--font-heading); font-weight: 700; letter-spacing: 0; }
+h2 { font-family: var(--font-heading); font-weight: 700; font-size: 1.5rem; line-height: 1.2; letter-spacing: var(--heading-tracking); }
+h3 { font-size: var(--fs-sub); font-family: var(--font-heading); font-weight: 700; letter-spacing: var(--heading-tracking); }
 p { margin: 0 0 1em; }
 .container { width: 100%; max-width: var(--max); margin-inline: auto; padding-inline: var(--gutter); }
 .section { padding-block: 32px; }
@@ -468,7 +471,7 @@ address { font-style: normal; margin-bottom: 1em; }
   box-shadow: none;
 }
 .card__body { padding: 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.card__title { font: 700 1rem/1.25 var(--font-body); margin: 0; font-family: var(--font-heading); font-weight: 700; }
+.card__title { font: 700 1rem/1.25 var(--font-body); margin: 0; font-family: var(--font-heading); font-weight: 700; letter-spacing: var(--heading-tracking); }
 .card__meta { font-size: .85rem; margin: 0; color: var(--muted); }
 .card__variant { font-size: .8rem; font-weight: 600; margin: -2px 0 0; }
 .show-more { display: flex; margin: 24px auto 0; }
