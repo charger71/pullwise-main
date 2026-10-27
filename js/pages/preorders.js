@@ -9,7 +9,7 @@ await initPage();
 const how = document.querySelector('.how-it-works');
 if (how) {
   how.hidden = !how.querySelector('[data-content]')?.textContent.trim();
-  if (matchMedia('(max-width: 600px)').matches) how.open = false;
+  if (matchMedia('(max-width: 599px)').matches) how.open = false;
 }
 
 const firstOpenFoc = openFocFrom();
