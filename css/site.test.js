@@ -24,4 +24,15 @@ for (const f of scripts) {
   }
 }
 assert.equal(bad.length, 0, `Use the storefront breakpoints (min-width ${MIN.join(' / ')}px, max-width ${MAX.join(' / ')}px):\n${bad.join('\n')}`);
+// Colors: every color that depends on the page is a variable in :root (the shop's settings, or a role js/theme-vars.js
+// can swap for a light page). Outside :root only page-independent ones may be written out: black, white, their
+// translucent shades (scrims, shadows, dot screens) and #161616, the dark text on the always-light callout.
+const PAGE_FREE = /^(#000|#000c|#fff|#ffffff[0-9a-f]{2}|#161616|rgb\((0 0 0|255 255 255) \/ [\d.]+\))$/i;
+const rules = css.slice(css.indexOf('\n}', css.indexOf(':root {'))) // after the :root block
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/url\("data:[^"]*"\)/g, '')
+  .replace(/\[style\*=(["'])[^\]]*?\1\]/g, ''); // staff text matched by its inline color
+const literals = [...rules.matchAll(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)/gi)].map((m) => m[0]).filter((c) => !PAGE_FREE.test(c));
+assert.equal(literals.length, 0, `Put these colors in :root as a role (and give it a light-page value in js/theme-vars.js if it is text or a badge):\n${[...new Set(literals)].join('\n')}`);
+
 console.log('storefront stylesheet tests passed');

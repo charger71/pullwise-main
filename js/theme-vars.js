@@ -60,6 +60,9 @@ export function colorVars(colors) {
     out.push(['--cream', 'var(--ink)']);
     out.push(['--error', readableOn(paper, ['#b3261e', '#7f1b15'])]);
     out.push(['--ok', readableOn(paper, ['#1e6b3a', '#124424'])]);
+    out.push(['--warn', readableOn(paper, ['#9a4a00', '#6b3300'])]);
+    out.push(['--clearance', readableOn(paper, ['#a3354a', '#7a2034'])]);
+    out.push(['--violet', readableOn(paper, ['#6b3fa0', '#4b2a73'])]);
   }
   const footer = isHex6(colors.footer) ? colors.footer : null;
   if (footer) {

@@ -1,7 +1,7 @@
 // node js/theme-vars.test.js
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { colorVars, themeCss, resolveFonts, fontPreloads, unusedDefaultPreloads, isFontUpload, FONT_LIBRARY, FONT_SLOTS, linkColor, letterSpacing, sizeScale, fontScale } from './theme-vars.js';
+import { colorVars, themeCss, resolveFonts, fontPreloads, unusedDefaultPreloads, isFontUpload, FONT_LIBRARY, FONT_SLOTS, linkColor, contrast, letterSpacing, sizeScale, fontScale } from './theme-vars.js';
 
 const SB = 'https://abc.supabase.co';
 const upload = (name) => `${SB}/storage/v1/object/public/media/fonts/${name}`;
@@ -19,6 +19,10 @@ assert.equal(light['--on-primary'], '#161616', 'dark text on a light main color'
 assert.equal(light['color-scheme'], 'light');
 assert.equal(light['--teal'], '#0b4f8a');
 assert.equal(light['--cream'], 'var(--ink)');
+for (const v of ['--error', '--ok', '--warn', '--clearance', '--violet']) {
+  assert.ok(contrast(light[v], '#ffffff') >= 4.5, `${v} reads on a light page (and the page color reads on it as a badge)`);
+}
+assert.equal(dark['--warn'], undefined, 'a dark page keeps the stylesheet’s orange');
 assert.equal(light['--footer-text'], '#161616');
 assert.equal(vars({ paper: '#ffffff', link: '#123456' })['--teal'], '#123456', 'a picked link color wins');
 assert.equal(linkColor({}), null);
