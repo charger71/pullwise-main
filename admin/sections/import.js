@@ -6,9 +6,9 @@
 
 import { readWorkbook, parseSheet } from '../../js/import/distributors.js';
 import { planImport, applyImport, logImport } from '../../js/import/apply.js';
-import { $, esc, must, setStatus, toast, fmtDate, fmtDateTime, processImage, loadScript, solidIcon, friendlyError, setupTabs, sortableTable, hintFold, uid } from '../lib.js';
+import { $, esc, must, setStatus, toast, fmtDate, fmtDateTime, processImage, loadScript, solidIcon, friendlyError, setupTabs, sortableTable, hintFold, uid, downloadCsv } from '../lib.js';
 import { tally } from '../../js/util.js';
-import { todayIn } from '../../js/dates.js';
+import { todayIn, addDays } from '../../js/dates.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../js/config.js';
 
 const SOURCE = { lunar: 'Lunar', prh: 'PRH', funko: 'Funko', sheet: 'Spreadsheet' };
@@ -51,6 +51,10 @@ export async function mount(el, ctx) {
       <input id="import-files" type="file" accept=".xlsx,.xlsm,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" multiple class="visually-hidden">
       <strong>Choose spreadsheets</strong> or drop them here
     </label>
+    <div class="admin-actions">
+      <button class="btn btn--ghost" type="button" data-sample>${solidIcon('download', 16)} Download sample CSV</button>
+      <span class="card__meta">Every column the importer reads, with one made-up title per category</span>
+    </div>
     <div data-files></div>
     </div>
     <div data-tabpane="skip">
@@ -81,9 +85,31 @@ export async function mount(el, ctx) {
     zone.classList.remove('is-over');
     addFiles(el, e.dataTransfer.files);
   });
+  $('[data-sample]', el).addEventListener('click', downloadSample);
   setupTabs(el, 'admin-import-tab', 'files');
   mountExclusions(el);
   loadLog(el);
+}
+
+// Sample sheet: the header names parseGeneric() recognises (js/import/distributors.js) and one made-up title for each
+// category, so its Category words land on every category. Dates are counted from today so the sheet stays current.
+const SAMPLE_HEADER = ['Title', 'Issue', 'Variant', 'Publisher', 'Category', 'Price', 'FOC Date', 'Release Date', 'UPC', 'ISBN', 'SKU', 'Creators', 'Artist', 'Description', 'Mature', 'Qty', 'Cover URL'];
+
+function downloadSample() {
+  const day = (n) => addDays(shopToday(), n);
+  const rows = [
+    ['Starfall Rangers', '1', 'Cover A', 'Image Comics', 'Comic', '3.99', day(14), day(42), '700000000011', '', 'SAMPLE-0001', 'Jane Doe', 'Ana Lima', 'A first issue: the new title comes in with its First Issue badge ticked.', 'N', '10', ''],
+    ['Starfall Rangers', '1', 'Cover B Variant', 'Image Comics', 'Comic', '4.99', day(14), day(42), '700000000028', '', 'SAMPLE-0002', 'Jane Doe', 'Ray Okafor', 'A second cover of the same issue, listed as its own title.', 'N', '4', ''],
+    ['Night Harbor', '2 (of 6)', '', 'Dark Horse Comics', 'Comic', '3.99', day(14), day(42), '700000000035', '', 'SAMPLE-0003', 'Sam Reyes', 'Mia Chen', 'Issue 2 of a six-issue limited series, rated mature.', 'Y', '6', ''],
+    ['The Lantern Keeper One-Shot', '', '', 'BOOM! Studios', 'Comic', '5.99', day(7), day(35), '700000000042', '', 'SAMPLE-0004', 'Lee Park', 'Lee Park', 'A one-shot: no issue number needed.', 'N', '3', ''],
+    ['Starfall Rangers Vol. 1', '', '', 'Image Comics', 'Trade Paperback', '16.99', day(21), day(56), '', '9798000000011', 'SAMPLE-0005', 'Jane Doe', 'Ana Lima', 'Collects issues 1–5. Trades, hardcovers, graphic novels and manga go under Trades.', 'N', '2', ''],
+    ['Night Harbor Omnibus', '', 'Hardcover', 'Dark Horse Comics', 'Omnibus', '99.99', day(28), day(70), '', '9798000000028', 'SAMPLE-0006', 'Sam Reyes', 'Mia Chen', 'The whole series in one book.', 'Y', '1', ''],
+    ['Pop! Starfall Ranger Captain', '', 'Glow in the Dark', 'Funko', 'Funko Pop', '14.99', day(30), day(90), '700000000059', '', 'SAMPLE-0007', '', '', 'A vinyl figure.', 'N', '6', ''],
+    ['Starfall Rangers Action Figure', '', '', 'McFarlane Toys', 'Toy', '24.99', day(30), day(90), '700000000066', '', 'SAMPLE-0008', '', '', 'Figures, statues, plush and building sets go under Toys.', 'N', '2', ''],
+    ['Starfall Rangers Original Soundtrack', '', 'Blue Vinyl', 'Mondo', 'Vinyl Record', '34.99', '', day(60), '700000000073', '', 'SAMPLE-0009', '', '', 'Records and albums.', 'N', '2', ''],
+    ['Cosmic Heroes 2027 Wall Calendar', '', '', 'Marvel', 'Other', '17.99', '', day(28), '700000000080', '', 'SAMPLE-0010', '', '', 'Anything else: calendars, games, stationery.', 'N', '', ''],
+  ];
+  downloadCsv('import-titles-sample.csv', SAMPLE_HEADER, rows);
 }
 
 let exclusions = [];
