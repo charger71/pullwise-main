@@ -186,7 +186,7 @@ check('the style guide shows every shared component', () => {
   const COMPONENTS = ['btn--primary', 'btn--ghost', 'btn--green', 'btn--blue', 'btn--danger', 'btn--add', 'btn--small', 'icon-btn', 'admin-tab', 'admin-tab__badge', 'chip',
     'admin-table', 'cards', 'card-title', 'card-key', 'card-wide', 'card-foot', 'pill', 'fold', 'fold--static', 'admin-hint-fold', 'panel', 'dash-tile', 'dash-card', 'dialog__head',
     'toast', 'notice', 'dropzone', 'sticky-actions', 'form-grid--pairs', 'field--check', 'admin-pager', 'admin-status', 'admin-hint', 'empty', 'form-error',
-    'select--small', 'cust-export-opt', 'color-grid', 'color-row', 'font-pick', 'font-preview', 'hours-row', 'media-grid', 'media-item', 'thumb', 'thumb--fix', 'thumb--sm', 'job-log', 'faq-item__move', 'is-hidden', 'is-overdue'];
+    'select--small', 'cust-export-opt', 'color-grid', 'color-row', 'font-pick', 'font-preview', 'hours-row', 'media-grid', 'media-item', 'thumb', 'thumb--fix', 'thumb--sm', 'thumb--lg', 'info-list', 'job-log', 'faq-item__move', 'is-hidden', 'is-overdue'];
   const hasClass = (c) => [...guide.matchAll(/class="([^"]*)"/g)].some((m) => m[1].split(/\s+/).includes(c));
   const missing = COMPONENTS.filter((c) => !hasClass(c));
   assert.equal(missing.length, 0, `style-guide.html has no example of: ${missing.join(', ')}.\nAdd it to the guide in the same change.`);

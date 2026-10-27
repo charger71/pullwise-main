@@ -1,9 +1,9 @@
 // Titles: every item (pre-orders and in-store stock). Search and filter, quick
-// changes in the list (status, staff pick, hidden), a full edit form, and who
-// ordered each title.
+// changes in the list (status, staff pick, hidden), a read-only info view (click
+// the name), a full edit form, and who ordered each title.
 
 import { $, $$, esc, must, toast, isPhone, openDialog, imageField, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold, fetchAll, fmtDateTime, formatPhone, itemName, withCustomers, listLocations } from '../lib.js';
-import { ITEM_BADGES } from '../../js/site.js';
+import { ITEM_BADGES, price } from '../../js/site.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, weekStart } from '../../js/dates.js';
 
@@ -162,6 +162,8 @@ export async function mount(el, ctx) {
   $('tbody', el).addEventListener('click', (e) => {
     const btn = e.target.closest('[data-edit]');
     if (btn) return edit(el, Number(btn.dataset.edit));
+    const info = e.target.closest('[data-info]');
+    if (info) return titleInfo(el, Number(info.dataset.info));
     const orders = e.target.closest('[data-orders]');
     if (orders) return whoOrdered(Number(orders.dataset.orders));
     // Click an FOC or Out date to see only the titles in that week (the dropdowns follow).
@@ -300,7 +302,7 @@ async function load(el) {
         .map(
           (i) => `<tr data-id="${i.id}"${i.hidden ? ' class="is-hidden"' : ''}>
         <td class="tt-thumb">${i.cover_url ? `<img class="thumb" src="${esc(i.cover_url)}" alt="" loading="lazy">` : `<a class="thumb thumb--fix" href="${coverSearchUrl(i)}" target="_blank" rel="noopener noreferrer" title="Find a cover (opens Google Images in a new tab)" aria-label="Find a cover for ${esc(i.title)} (opens Google Images in a new tab)">${solidIcon('fix', 18)}<span>Fix</span></a>`}</td>
-        <td class="tt-title"><strong>${esc(i.title)}${i.issue_number ? ` #${esc(i.issue_number)}` : ''}</strong>${i.variant ? `<br><span class="card__meta">${esc(i.variant)}</span>` : ''}<br><span class="card__meta">${esc(i.publisher ?? '')}${i.sku ? ` · ${esc(i.sku)}` : ''}</span><span class="tt-orders" data-orders-for="${i.id}"></span></td>
+        <td class="tt-title"><button class="tt-datelink" type="button" data-info="${i.id}" title="See everything about this title"><strong>${esc(i.title)}${i.issue_number ? ` #${esc(i.issue_number)}` : ''}</strong></button>${i.variant ? `<br><span class="card__meta">${esc(i.variant)}</span>` : ''}<br><span class="card__meta">${esc(i.publisher ?? '')}${i.sku ? ` · ${esc(i.sku)}` : ''}</span><span class="tt-orders" data-orders-for="${i.id}"></span></td>
         <td class="tt-status"><label class="visually-hidden" for="st-${i.id}">Status</label><select id="st-${i.id}" data-field="status" class="select--small">${Object.entries(STATUS_LABELS).map(([v, l]) => `<option value="${v}"${v === i.status ? ' selected' : ''}>${l}</option>`).join('')}</select></td>
         <td class="nowrap tt-dates">${i.foc_date ? `<span><button class="tt-datelink" type="button" data-date-field="foc_date" data-date="${i.foc_date}" title="Show only titles with an order cutoff this week">FOC ${fmtDate(i.foc_date, { month: 'short', day: 'numeric' })}</button></span>` : ''}${i.release_date ? `<span><button class="tt-datelink" type="button" data-date-field="release_date" data-date="${i.release_date}" title="Show only titles out this week">Out ${fmtDate(i.release_date)}</button></span>` : ''}</td>
         <td class="center tt-flag tt-flag--1" data-label="Staff"><input type="checkbox" data-field="staff_pick" aria-label="Staff pick"${i.staff_pick ? ' checked' : ''}></td>
@@ -394,6 +396,60 @@ async function whoOrdered(itemId, { onLeave = () => true } = {}) {
       }
       d.close();
     });
+  } catch (err) {
+    body.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
+  }
+}
+
+/** Everything about one title at a glance (read-only), with Edit and Who ordered. Opened by clicking its name in the list. */
+async function titleInfo(listEl, id) {
+  const d = openDialog('Title Info', '<p class="admin-hint" aria-busy="true">Loading…</p>', { wide: true });
+  const body = $('.dialog__body', d);
+  try {
+    const [item, lines] = await Promise.all([
+      must(sb.from('items').select('*').eq('id', id).single()),
+      must(sb.from('reservations').select('quantity,order_id').eq('item_id', id).in('status', LIVE_LINE).limit(5000)),
+    ]);
+    const orders = new Set(lines.map((l) => l.order_id)).size;
+    const copies = lines.reduce((n, l) => n + l.quantity, 0);
+    const category = categories.find((c) => c.id === item.category_id)?.name;
+    const source = item.catalog_id ? 'Master catalog' : { lunar: 'Lunar', prh: 'PRH' }[item.distributor] ?? 'Added by hand';
+    const flags = [item.staff_pick && 'Staff pick', item.featured && 'On homepage', item.hidden && 'Hidden from customers', item.mature && 'Mature readers'].filter(Boolean);
+    const badges = Object.entries(ITEM_BADGES).filter(([k]) => item.badges?.includes(k)).map(([, l]) => l);
+    const rows = [
+      ['Status', `<span class="pill pill--${esc(item.status)}">${esc(STATUS_LABELS[item.status] ?? item.status)}</span>`],
+      ['Category', esc(category ?? 'None')],
+      ['Publisher', esc(item.publisher ?? '')],
+      ['Variant / edition', esc(item.variant ?? '')],
+      ['Creators', esc(item.creators ?? '')],
+      ['Retail price', esc(price(item.retail_price ?? item.price))],
+      ['Shop price', item.shop_price == null ? '' : esc(price(item.shop_price))],
+      ['Order cutoff (FOC)', item.foc_date ? esc(fmtDate(item.foc_date)) : ''],
+      ['Release date', item.release_date ? esc(fmtDate(item.release_date)) : ''],
+      ['Orders', `<button class="tt-datelink" type="button" data-who-ordered>${orders ? `${orders} ${orders === 1 ? 'order' : 'orders'}${copies !== orders ? ` · ${copies} copies` : ''}` : 'No orders'}</button>`],
+      ['On the site', esc(flags.join(' · '))],
+      ['Collector badges', badges.map((b) => `<span class="pill">${esc(b)}</span>`).join(' ')],
+      ['SKU', esc(item.sku ?? '')],
+      ['UPC', esc(item.upc ?? '')],
+      ['ISBN', esc(item.isbn ?? '')],
+      ['Source', esc(source)],
+      ['Last changed', esc(fmtDateTime(item.updated_at))],
+    ].filter(([, v]) => v);
+    body.innerHTML = `
+      <div class="title-info">
+        ${item.cover_url ? `<img class="thumb thumb--lg" src="${esc(item.cover_url)}" alt="Cover of ${esc(itemName(item))}">` : `<a class="thumb thumb--lg thumb--fix" href="${coverSearchUrl(item)}" target="_blank" rel="noopener noreferrer" aria-label="Find a cover for ${esc(item.title)} (opens Google Images in a new tab)">${solidIcon('fix', 24)}<span>Find a cover</span></a>`}
+        <div>
+          <h3>${esc(itemName(item))}</h3>
+          <dl class="info-list">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+        </div>
+      </div>
+      ${item.description ? `<p class="title-info__desc">${esc(item.description)}</p>` : ''}
+      <div class="admin-actions sticky-actions">
+        <button class="btn btn--primary" type="button" data-edit-title>${solidIcon('edit', 16)} Edit</button>
+        <button class="btn btn--ghost" type="button" data-who-ordered>${solidIcon('person', 16)} Who ordered</button>
+      </div>`;
+    $('[data-edit-title]', d).addEventListener('click', () => (d.close(), edit(listEl, id)));
+    $$('[data-who-ordered]', d).forEach((b) => b.addEventListener('click', () => whoOrdered(id, { onLeave: () => (d.close(), true) })));
   } catch (err) {
     body.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
   }
