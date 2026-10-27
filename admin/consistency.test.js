@@ -49,6 +49,7 @@ const PAIRS = [
   // [text, background]; '#fff' is literal white
   ['brand-ink', 'brand-paper'], ['brand-ink', 'surface'], ['muted', 'brand-paper'], ['muted', 'surface'], ['muted', 'stripe'],
   ['muted', 'head-bg'], ['muted', 'hover-bg'], ['danger-ink', 'surface'], ['danger-ink', 'stripe'], ['danger-ink', 'brand-paper'],
+  ['success-ink', 'surface'], ['success-ink', 'stripe'], ['success-ink', 'brand-paper'],
   ['#fff', 'fold-head-bg'], ['#fff', 'brand-primary'], ['#fff', 'success'], ['#fff', 'info'], ['#fff', 'danger'],
   ['on-accent', 'brand-accent'],
 ];
@@ -74,6 +75,11 @@ for (const [name, theme] of [['light', light], ['dark', dark]]) {
     assert.equal(bad.length, 0, bad.map(([fg, bg, r]) => `${fg} (${theme[fg]}) on ${bg} (${theme[bg]}) is ${r.toFixed(2)}:1, needs 3:1`).join('\n'));
   });
 }
+// --success and --danger are fills (white text on them); as text or an icon they drop below 3:1 in the dark theme.
+check('green and red text use the -ink tokens', () => {
+  const bad = [...allCss.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{[^}]*(?<![\w-])color:\s*var\(--(success|danger)\)/g)].map((m) => `${m[1].trim()} uses --${m[2]} as a text color; use --${m[2]}-ink`);
+  assert.equal(bad.length, 0, bad.join('\n'));
+});
 check('fold headers use the shared focus ring', () => {
   assert.match(css, /\.fold__head:focus-visible\s*\{[^}]*var\(--focus\)/, 'the fold header focus ring must be var(--focus); the accent yellow is 1.3:1 on the page');
 });
@@ -85,16 +91,45 @@ check('every color token has a dark twin (or is on the same-in-both list)', () =
 });
 
 // ---- No stray colors in components ---------------------------------------------------------------------------------
-check('admin.css uses tokens, not new raw colors', () => {
-  const ALLOWED = ['#fff', '#ffffff', '#000', '#000000', '#161616', '#f6d365', '#1f1d19', '#f1ead8', '#ddd', '#ccc', '#c8102e', '#ffd100', '#a4001d', '#16723a', '#e0303f', '#b45f06', '#434f62', '#fff3', '#fff4'];
-  const found = [];
-  css.split('\n').forEach((line, i) => {
-    if (/^\s*(\/\*|\*)/.test(line)) return;
-    for (const m of line.replace(/\/\*.*?\*\//g, '').matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
-      if (!ALLOWED.includes(m[0].toLowerCase())) found.push(`admin.css:${i + 1} ${m[0]}`);
-    }
-  });
+// Literal colors that are the same whatever the theme: white and black (with their see-through shades for the image
+// tools and the dialog backdrop), the dark text used on light fills, and the Super admin pill's black and gold.
+const PAGE_FREE_COLORS = ['#fff', '#ffffff', '#000', '#000000', '#000a', '#fff3', '#fff4', '#161616', '#f6d365'];
+// The stylesheets without their comments and :root token blocks (where the values are defined).
+const rulesOnly = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/:root(\[data-theme=['"]dark['"]\])?\s*\{[^}]*\}/g, '');
+const declarations = (t) => [...rulesOnly(t).matchAll(/(?<![-\w])([a-z-]+)\s*:\s*([^;{}]+)/g)].map((m) => [m[1], m[2].trim()]);
+const outsideCalc = (v) => v.replace(/calc\((?:[^()]|\([^()]*\))*\)/g, '');
+
+check('the admin CSS uses tokens, not new raw colors', () => {
+  const found = Object.entries({ 'base.css': base, 'admin.css': css }).flatMap(([f, t]) =>
+    [...rulesOnly(t).replace(/url\("data:[^"]*"\)/g, '').matchAll(/#[0-9a-fA-F]{3,8}\b/g)]
+      .filter((m) => !PAGE_FREE_COLORS.includes(m[0].toLowerCase())).map((m) => `${f}: ${m[0]}`));
   assert.equal(found.length, 0, `${found.join('\n')}\nUse a variable from base.css (add one, with a dark value, if none fits).`);
+});
+
+// --border is a whole border (1px solid var(--line)); used where a color belongs, the declaration is dropped and no
+// border shows.
+check('--border is used as a whole border, not as a color', () => {
+  const bad = Object.entries({ 'base.css': base, 'admin.css': css, ...Object.fromEntries(Object.entries(sections).map(([f, t]) => [`sections/${f}`, t])) })
+    .flatMap(([f, t]) => [...t.matchAll(/(?:solid|dashed|dotted)\s+var\(--border\b[^)]*\)|var\(--border\s*,/g)].map((m) => `${f}: ${m[0]}`));
+  assert.equal(bad.length, 0, `${bad.join('\n')}\nWrite border: var(--border), or 1px solid var(--line) for a different width.`);
+});
+
+// ---- Spacing and corners from tokens --------------------------------------------------------------------------------
+// Margin, padding and gap use the --sp-* scale. Allowed besides: 0, auto, em/ch/% (text-relative), negative offsets that
+// line edges up (geometry, not spacing), and anything inside calc().
+check('spacing uses the --sp-* scale', () => {
+  const bad = Object.entries({ 'base.css': base, 'admin.css': css }).flatMap(([f, t]) => declarations(t)
+    .filter(([p]) => /^(margin|padding|gap|row-gap|column-gap)(-|$)/.test(p))
+    .filter(([, v]) => /(?<![\w.-])\d*\.?\d+(px|rem)\b/.test(outsideCalc(v)))
+    .map(([p, v]) => `${f}: ${p}: ${v}`));
+  assert.equal(bad.length, 0, `Bare spacing:\n${bad.join('\n')}\nUse a --sp-* step from base.css (2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 64).`);
+});
+
+check('corners use the --radius-* tokens', () => {
+  const bad = Object.entries({ 'base.css': base, 'admin.css': css }).flatMap(([f, t]) => declarations(t)
+    .filter(([p, v]) => /^border(-[a-z]+)*-radius$/.test(p) && /(?<![\w.-])\d*\.?\d+(px|rem)\b/.test(outsideCalc(v)))
+    .map(([p, v]) => `${f}: ${p}: ${v}`));
+  assert.equal(bad.length, 0, `Bare corner radii:\n${bad.join('\n')}\nUse --radius, --radius-xs|sm|lg|xl or --radius-pill (50% for circles).`);
 });
 
 // ---- Buttons ------------------------------------------------------------------------------------------------------
@@ -205,7 +240,7 @@ check('table row colours paint the row, without !important', () => {
 check('font sizes and z-index use the tokens', () => {
   const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/:root\s*\{[^}]*\}/, '');
   const bad = Object.entries({ 'base.css': base, 'admin.css': css }).flatMap(([f, t]) => [
-    ...[...strip(t).matchAll(/font-size:\s*[\d.]+rem|font:\s*(?:\d{3}\s+)?[\d.]+rem/g)].map((m) => `${f}: ${m[0]}`),
+    ...[...strip(t).matchAll(/font-size:\s*[\d.]+(?:rem|px)|font:\s*(?:\d{3}\s+)?[\d.]+(?:rem|px)/g)].map((m) => `${f}: ${m[0]}`),
     ...[...strip(t).matchAll(/z-index:\s*\d+/g)].map((m) => `${f}: ${m[0]}`),
   ]);
   assert.equal(bad.length, 0, `Bare sizes:\n${bad.join('\n')}\nUse a --fs-* step or a --z-* level from base.css.`);

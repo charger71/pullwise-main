@@ -11,3 +11,6 @@ supabase/.temp/
 
 # Database backup downloads hold customer details: never commit them
 shop-backup-*.json.gz
+
+# Design system generator output (tools/design-system/README.md)
+tools/design-system/out/

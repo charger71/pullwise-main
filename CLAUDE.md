@@ -10,9 +10,21 @@
 - Shared CSS lives in `admin/base.css` (tokens, both themes) and `admin/admin.css`; one screen per file in
   `admin/sections/`; helpers (`esc`, `uid`, `hintFold`, `setupTabs`, `openDialog`, …) in `admin/lib.js`.
 
+## Before changing the public site's look
+- The storefront's colors, breakpoints and fonts follow the rules at the top of `css/site.css` and in the design
+  system's Storefront section: text on a fill follows the fill (`--on-primary`, `--on-accent`), gold as text is
+  `--gold-text`, and every page-dependent color is a role in `:root` that `js/theme-vars.js` keeps readable when a shop
+  picks a light page. Spacing, text sizes, corners, shadows, z-index and durations are `:root` steps too, and every
+  animation has a `prefers-reduced-motion` rule. `css/site.test.js` enforces them.
+
+## Design system
+- The Pullwise design system (https://claude.ai/artifact/YWP6UsATWeCe9f6mdqxJJn) has storefront (`shop-*`) and admin
+  (`admin-*`) layers built from this repo by `tools/design-system/`. After changing the storefront or admin
+  stylesheets, tokens, style guide or icons, rebuild and republish it: see `tools/design-system/README.md`.
+
 ## Checks
 - `npm test` runs the unit tests and `admin/consistency.test.js`: contrast in both themes, tokens only (no bare
-  colours, font sizes, z-index or breakpoints), row colours, fold markup, no unused CSS, and more. Run it before
-  every commit.
+  colours, font sizes, spacing, corners, z-index or breakpoints), row colours, fold markup, no unused CSS, and more,
+  and `css/site.test.js` for the storefront (breakpoints and colors). Run it before every commit.
 - The git pre-commit hook stamps `admin/version.js`, and the Deploy workflow stamps it again before each Worker deploy
   (for commits made without the hook); never edit it by hand.
