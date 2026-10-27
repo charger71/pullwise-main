@@ -4,7 +4,9 @@
    The --brand-* colors and the --font-* fonts come from Shop Settings (js/theme-vars.js themeCss: the site Worker
    writes them into each page's <head>, and js/site.js keeps them current);
    every other color is derived from them below, or is a fixed semantic color (links, errors, success).
-   The staff admin has its own stylesheet (admin/base.css + admin/admin.css). */
+   The staff admin has its own stylesheet (admin/base.css + admin/admin.css).
+   Breakpoints: min-width 480 / 600 / 700 / 800 / 1100px, max-width one under a min step (479 / 599 / 699 / 799 / 1099px), and
+   (max-width: 599px) in scripts. css/site.test.js rejects any other width. */
 
 /* Fonts are served from this site (fonts/), Latin subset only, so no request goes to Google before the page can draw. */
 @font-face { font-family: 'Archivo Black'; font-style: normal; font-weight: 400; font-display: swap; src: url(../fonts/archivo-black-latin.woff2) format('woff2'); }
@@ -144,7 +146,7 @@ iframe.ql-video { display: block; width: 100%; max-width: 640px; aspect-ratio: 1
 .img-align-center { display: block; margin: 1em auto; }
 .prose::after, [data-content]::after, #faq-list details > div::after, .ql-editor::after { content: ''; display: table; clear: both; }
 .prose h2, .prose h3, .prose h4, .prose hr, .prose table, iframe.ql-video { clear: both; }
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   /* Phones: no text wrapping beside pictures, and small pictures get room to be seen. */
   .prose img, [data-content] img, #faq-list img { float: none; display: block; margin: 1em auto; min-width: min(60%, 100%); }
 }
@@ -152,7 +154,7 @@ iframe.ql-video { display: block; width: 100%; max-width: 640px; aspect-ratio: 1
 .prose table, [data-content] table, #faq-list table { border-collapse: collapse; margin: 1em 0; font-size: .95rem; }
 .prose td, .prose th, [data-content] td, #faq-list td { border: 1px solid var(--line); padding: 8px 10px; vertical-align: top; text-align: left; background: var(--surface); }
 .prose tr:first-child td { font-weight: 700; background: var(--raised); }
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .prose table, [data-content] table, #faq-list table { display: block; overflow-x: auto; max-width: 100%; }
 }
 .visually-hidden {
@@ -280,7 +282,7 @@ input[type='checkbox'], input[type='radio'] {
 /* ---------- Header / nav ---------- */
 /* Until the script fills the header, hold its usual height (with the search bar, and the announcement wrapped on phones). */
 #site-header:empty { min-height: 126px; }
-@media (max-width: 520px) { #site-header:empty { min-height: 165px; } }
+@media (max-width: 479px) { #site-header:empty { min-height: 165px; } }
 #site-header { position: sticky; top: 0; z-index: 50; background: var(--paper); box-shadow: none; border-bottom: 1px solid var(--line); }
 .header__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 76px; }
 .brand { text-decoration: none; display: flex; align-items: center; gap: 10px; }
@@ -323,7 +325,7 @@ input[type='checkbox'], input[type='radio'] {
 .nav-open .nav { display: block; }
 /* The open menu never runs past the bottom of the screen (phone held sideways, zoomed in): it scrolls instead.
    --nav-top is the header's bottom edge, measured by js/site.js when the menu opens. */
-@media (max-width: 1099.98px) {
+@media (max-width: 1099px) {
   .nav-open .nav {
     max-height: calc(100vh - var(--nav-top, 126px));
     max-height: calc(100dvh - var(--nav-top, 126px));
@@ -449,14 +451,14 @@ address { font-style: normal; margin-bottom: 1em; }
 #results-count { min-height: 1.6em; }
 @keyframes skeleton-pulse { from { opacity: .45; } to { opacity: .9; } }
 @media (prefers-reduced-motion: reduce) { [data-page="home"] .grid:empty::before, #results:empty::before, #series-list:empty::before { animation: none; } }
-@media (min-width: 640px) {
+@media (min-width: 600px) {
   .grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (min-width: 800px) {
   .grid { grid-template-columns: repeat(4, 1fr); }
 }
 /* Desktop: 6 across. Cards are ~175px wide here, so tighten their contents. */
-@media (min-width: 1080px) {
+@media (min-width: 1100px) {
   .grid { grid-template-columns: repeat(6, 1fr); gap: 14px; }
   .grid .card__body { padding: 10px; gap: 4px; }
   .grid .card__title { font-size: .9rem; }
@@ -537,7 +539,7 @@ address { font-style: normal; margin-bottom: 1em; }
 .top-badge__top { font-size: .55rem; letter-spacing: .08em; text-transform: uppercase; }
 .top-badge__num { font-size: 1.35rem; }
 .has-top-badge .pick-badge { right: auto; left: 8px; }
-@media (min-width: 1080px) {
+@media (min-width: 1100px) {
   .grid .top-badge { top: 6px; right: 6px; width: 40px; height: 40px; }
   .grid .top-badge__num { font-size: 1.15rem; }
   .grid .has-top-badge .pick-badge { right: auto; left: 6px; }
@@ -729,7 +731,7 @@ dialog::backdrop { background: #000c; }
 .title-modal__desc { margin: 16px 0 12px; font-size: 1rem; line-height: 1.55; }
 .title-modal .card__foot { margin: 12px 0 4px; }
 @media (min-width: 700px) { .title-modal__layout { grid-template-columns: 260px minmax(0, 1fr); gap: 28px; } .title-modal__media .cover, .title-modal__cover { max-width: none; } }
-@media (max-width: 600px) { .title-modal { width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh; border-radius: 0; } .title-modal .dialog__body { max-height: calc(100vh - 56px); padding: 0 16px 24px; } }
+@media (max-width: 599px) { .title-modal { width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh; border-radius: 0; } .title-modal .dialog__body { max-height: calc(100vh - 56px); padding: 0 16px 24px; } }
 /* ---------- Reservation list ---------- */
 .list-bar {
   position: fixed;
@@ -763,7 +765,7 @@ body.has-list-bar { padding-bottom: 76px; }
 .list-line__qty { width: 72px; }
 .list-line__remove { background: none; border: 0; padding: 8px 4px; min-height: 40px; font: inherit; font-size: .9rem; text-decoration: underline; text-underline-offset: 3px; color: var(--muted); cursor: pointer; }
 .list-line__remove:hover { color: var(--gold); }
-@media (min-width: 520px) {
+@media (min-width: 600px) {
   .list-line { grid-template-columns: 52px 1fr auto; align-items: center; }
   .list-line .cover { grid-row: auto; }
 }
@@ -836,7 +838,7 @@ body.has-list-bar { padding-bottom: 76px; }
   .map--large { min-height: 480px; }
 }
 .signup { display: flex; flex-direction: column; gap: 10px; max-width: 480px; }
-@media (min-width: 540px) {
+@media (min-width: 600px) {
   .signup { flex-direction: row; }
   .signup input { flex: 1; }
 }
@@ -906,7 +908,7 @@ details > div { padding: 0 16px 14px; }
 .field--check label { margin: 0; font-weight: 400; }
 /* Survey: a question with more than 6 choices lists them in two columns once there is room. */
 .survey-choice-other, .survey-choices--cols .field--check { break-inside: avoid; }
-@media (min-width: 640px) { .survey-choices--cols { column-count: 2; column-gap: 32px; } }
+@media (min-width: 600px) { .survey-choices--cols { column-count: 2; column-gap: 32px; } }
 .account-saved { color: var(--ok); font-weight: 700; margin: 0 0 8px; }
 .account-lines { list-style: none; margin: 0; padding: 0; }
 .account-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
@@ -938,7 +940,7 @@ details > div { padding: 0 16px 14px; }
 .follow-open--on { color: var(--muted); }
 .follow-open--on:hover { text-decoration: none; }
 a.follow-open { box-sizing: border-box; line-height: 24px; }
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .follow-open__more { display: none; }
 }
 .follow-dialog { width: min(560px, calc(100vw - 2 * var(--gutter))); }
@@ -958,7 +960,7 @@ a.follow-open { box-sizing: border-box; line-height: 24px; }
   color: var(--paper);
 }
 .follow-choices { display: grid; gap: 8px; margin-top: 6px; grid-template-columns: 1fr; }
-@media (min-width: 440px) {
+@media (min-width: 480px) {
   .follow-choices { grid-template-columns: 1fr 1fr; }
 }
 .follow-choice {
