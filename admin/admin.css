@@ -172,7 +172,7 @@
 .btn svg, .icon-btn svg { flex: none; }
 .admin-table td > .btn { vertical-align: middle; }
 .fold .sticky-actions, .panel .sticky-actions { background: var(--surface); } /* a save bar inside a card matches the card, not the page */
-.admin-status--ok { color: var(--success); }
+.admin-status--ok { color: var(--success-ink); }
 
 /* ---------- Filters & tables ---------- */
 .admin-filters { grid-template-columns: 1fr 1fr; }
@@ -451,7 +451,7 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .btn--add { background: var(--success); color: #fff; }
 .btn--add:hover { color: #fff; }
 .icon-btn--sm { width: 26px; height: 26px; }
-.icon-btn--add { color: var(--success); }
+.icon-btn--add { color: var(--success-ink); }
 .icon-btn--remove { color: var(--danger-ink); }
 .cust-status { display: inline-flex; align-items: center; gap: var(--sp-12); }
 .cust-icons { display: inline-flex; gap: var(--sp-8); align-items: center; }
@@ -842,7 +842,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 /* Text */
 .text-muted { color: var(--muted) !important; }
 .text-danger { color: var(--danger-ink) !important; }
-.text-success { color: var(--success) !important; }
+.text-success { color: var(--success-ink) !important; }
 .text-right { text-align: right !important; }
 .font-mono { font-family: ui-monospace, Menlo, Consolas, monospace !important; }
 .nowrap { white-space: nowrap !important; }
