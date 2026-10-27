@@ -30,6 +30,27 @@ export const contrast = (a, b) => {
 /** The first of `choices` that reads at 4.5:1 on `bg`, else the last one. */
 export const readableOn = (bg, choices) => choices.find((c) => contrast(c, bg) >= 4.5) ?? choices.at(-1);
 
+/** The stylesheet's own page background and accent (css/site.css :root), for settings that leave one of them out. */
+export const DEFAULT_PAPER = '#121212';
+export const DEFAULT_ACCENT = '#e7b84b';
+
+/** `hex` mixed toward `to` by `t` (0–1), as #rrggbb. */
+const mixHex = (hex, to, t) =>
+  '#' + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - t) + parseInt(to.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');
+
+/**
+ * The accent as text on this page: the accent itself when it reads at 4.5:1, else the accent darkened (on a light page)
+ * or lightened (on a dark one) in 5% steps until it does, so it stays recognizably the shop's color.
+ */
+export function accentText(accent, paper) {
+  const to = isLight(paper) ? '#000000' : '#ffffff';
+  for (let t = 0; t <= 1; t += 0.05) {
+    const c = mixHex(accent, to, Math.min(t, 1));
+    if (contrast(c, paper) >= 4.5) return c;
+  }
+  return to;
+}
+
 /** The link color the site uses on this page background: the shop's own pick, else the first readable blue. */
 export const linkColor = (colors = {}) =>
   isHex6(colors.link) ? colors.link : isHex6(colors.paper) ? readableOn(colors.paper, isLight(colors.paper) ? LINKS_ON_LIGHT : LINKS_ON_DARK) : null;
@@ -46,6 +67,12 @@ export function colorVars(colors) {
   }
   if (isHex6(colors.primary)) out.push(['--on-primary', isLight(colors.primary) ? '#161616' : '#ffffff']);
   if (isHex6(colors.accent)) out.push(['--on-accent', isLight(colors.accent) ? '#161616' : '#ffffff']);
+  // The accent as text: only written out when the stylesheet's (the accent itself) would not read on this page.
+  if (isHex6(colors.accent) || isHex6(colors.paper)) {
+    const accent = isHex6(colors.accent) ? colors.accent : DEFAULT_ACCENT;
+    const text = accentText(accent, isHex6(colors.paper) ? colors.paper : DEFAULT_PAPER);
+    if (text !== accent.toLowerCase()) out.push(['--gold-text', text]);
+  }
   const paper = isHex6(colors.paper) ? colors.paper : null;
   const lightPage = !!paper && isLight(paper);
   // Links and focus rings follow the page background (the stylesheet's blue is for the default dark page), as do
