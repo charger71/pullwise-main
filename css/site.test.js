@@ -35,4 +35,10 @@ const rules = css.slice(css.indexOf('\n}', css.indexOf(':root {'))) // after the
 const literals = [...rules.matchAll(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)/gi)].map((m) => m[0]).filter((c) => !PAGE_FREE.test(c));
 assert.equal(literals.length, 0, `Put these colors in :root as a role (and give it a light-page value in js/theme-vars.js if it is text or a badge):\n${[...new Set(literals)].join('\n')}`);
 
+// Text on a gold (accent) fill follows the accent, not the page: on a light page the page color is light too.
+const onGold = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^}]*)\}/g)]
+  .filter(([, , body]) => /background(-color)?:\s*var\(--gold\)/.test(body) && /(^|[;\s])color:\s*var\(--paper\)/.test(body))
+  .map(([, sel]) => sel.trim());
+assert.equal(onGold.length, 0, `Text on a gold fill uses --on-accent:\n${onGold.join('\n')}`);
+
 console.log('storefront stylesheet tests passed');

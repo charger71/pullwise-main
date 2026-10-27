@@ -16,6 +16,8 @@ assert.equal(dark['color-scheme'], undefined, 'a dark page keeps the stylesheetâ
 assert.equal(dark['--cream'], undefined);
 const light = vars({ primary: '#ffd100', paper: '#ffffff', footer: '#f4f4f4' });
 assert.equal(light['--on-primary'], '#161616', 'dark text on a light main color');
+assert.equal(dark['--on-accent'], '#161616', 'dark text on the default gold');
+assert.equal(vars({ accent: '#2a4d8f' })['--on-accent'], '#ffffff', 'white text on a dark accent');
 assert.equal(light['color-scheme'], 'light');
 assert.equal(light['--teal'], '#0b4f8a');
 assert.equal(light['--cream'], 'var(--ink)');

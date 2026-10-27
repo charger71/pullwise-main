@@ -23,6 +23,7 @@
   --brand-paper: #121212;     /* page background */
   --brand-footer: #121212;
   --on-primary: #fff;         /* text on the main color; applyTheme switches it to dark for light colors */
+  --on-accent: #161616;       /* text on the accent (gold) fills; applyTheme switches it to white for a dark accent */
   --footer-text: var(--muted);
   --footer-heading: var(--brand-accent);
   --footer-link: var(--teal);
@@ -125,7 +126,7 @@ p { margin: 0 0 1em; }
   font-weight: 700;
   border-radius: var(--radius);
   background: var(--gold);
-  color: var(--paper);
+  color: var(--on-accent);
 }
 .page-body { margin-bottom: 20px; }
 .page-body ul, .page-body ol { padding-left: 1.4em; }
@@ -207,11 +208,11 @@ iframe.ql-video { display: block; width: 100%; max-width: 640px; aspect-ratio: 1
   border: 0;
   cursor: pointer;
   background: var(--gold);
-  color: var(--paper);
+  color: var(--on-accent);
   border-radius: 9px;
 }
 .topbar__btn:hover { filter: none; background: color-mix(in srgb, var(--gold), white 25%); }
-.demo-banner { margin: 0; padding: 6px var(--gutter); font-size: .85rem; text-align: center; background: var(--gold); color: var(--paper); }
+.demo-banner { margin: 0; padding: 6px var(--gutter); font-size: .85rem; text-align: center; background: var(--gold); color: var(--on-accent); }
 /* ---------- Buttons & forms ---------- */
 .btn {
   display: inline-flex;
@@ -309,7 +310,7 @@ input[type='checkbox'], input[type='radio'] {
   height: 2px;
   position: relative;
   transition: transform .15s;
-  background: var(--paper);
+  background: var(--on-accent);
 }
 .nav-toggle__icon::before, .nav-toggle__icon::after { content: ''; position: absolute; left: 0; }
 .nav-toggle__icon::before { top: -6px; }
@@ -362,8 +363,8 @@ input[type='checkbox'], input[type='radio'] {
   background: var(--red-btn);
   color: var(--on-primary);
 }
-.nav a[aria-current='page'] .nav-badge { background: var(--gold); color: var(--paper); }
-.nav-badge--new, .nav a[aria-current='page'] .nav-badge--new { background: var(--gold); color: var(--paper); font-weight: 700; }
+.nav a[aria-current='page'] .nav-badge { background: var(--gold); color: var(--on-accent); }
+.nav-badge--new, .nav a[aria-current='page'] .nav-badge--new { background: var(--gold); color: var(--on-accent); font-weight: 700; }
 /* Eight menu links plus the logo need ~1000px; below 1100px the menu stays behind the button. */
 @media (min-width: 1100px) {
   .nav-toggle { display: none; }
@@ -517,7 +518,7 @@ address { font-style: normal; margin-bottom: 1em; }
   white-space: nowrap;
   padding: 5px 8px;
   background: var(--gold);
-  color: var(--paper);
+  color: var(--on-accent);
   border-radius: 2px;
   box-shadow: none;
   letter-spacing: .06em;
@@ -580,7 +581,7 @@ address { font-style: normal; margin-bottom: 1em; }
   padding: 4px 7px;
 }
 .badge--available { background: var(--ok); }
-.badge--just_arrived, .badge--new_this_wednesday { background: var(--gold); }
+.badge--just_arrived, .badge--new_this_wednesday { background: var(--gold); color: var(--on-accent); }
 .badge--sold_out { background: var(--sold-out); color: var(--on-sold-out); }
 .badge--backorder { background: var(--cream); }
 .badge--pre_order { background: var(--teal); }
@@ -645,7 +646,7 @@ address { font-style: normal; margin-bottom: 1em; }
   color: var(--ink);
 }
 .multi__actions .multi__clear { text-decoration: underline; text-underline-offset: 3px; }
-.multi__actions .multi__done { background: var(--gold); color: var(--paper); }
+.multi__actions .multi__done { background: var(--gold); color: var(--on-accent); }
 .filters {
   display: grid; gap: 12px; grid-template-columns: 1fr 1fr;
   background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
@@ -865,7 +866,7 @@ details > div { padding: 0 16px 14px; }
 .search-hits { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 12px; }
 .search-hits li { padding: 10px 14px; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
 .search-hits p { margin: 4px 0 0; }
-.search-hits mark { padding: 0 2px; border-radius: 2px; background: var(--gold); color: var(--paper); }
+.search-hits mark { padding: 0 2px; border-radius: 2px; background: var(--gold); color: var(--on-accent); }
 #pages, #faq, #events, #news { margin-top: 32px; }
 #series { margin-bottom: 24px; }
 .post-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
@@ -929,7 +930,7 @@ details > div { padding: 0 16px 14px; }
 .account-line__info .card__variant { margin: 0; }
 .account-line__qty { flex: none; font-size: .9rem; }
 /* Titles a follow added since the last visit */
-.new-badge { align-self: flex-start; display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--gold); color: var(--paper); font-size: .75rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+.new-badge { align-self: flex-start; display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--gold); color: var(--on-accent); font-size: .75rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
 .account-line--new { box-shadow: inset 4px 0 0 var(--gold); padding-left: 12px; background: color-mix(in srgb, var(--gold) 8%, transparent); }
 .account-new .new-badge { margin-right: 6px; vertical-align: 1px; }
 .account-summary { background: var(--raised); border-radius: var(--radius); padding: 14px 16px; margin: 0 0 8px; }
@@ -962,7 +963,7 @@ a.follow-open { box-sizing: border-box; line-height: 24px; }
   border-radius: 99px;
   white-space: nowrap;
   background: var(--gold);
-  color: var(--paper);
+  color: var(--on-accent);
 }
 .follow-choices { display: grid; gap: 8px; margin-top: 6px; grid-template-columns: 1fr; }
 @media (min-width: 480px) {
@@ -984,10 +985,10 @@ a.follow-open { box-sizing: border-box; line-height: 24px; }
   color: var(--ink);
 }
 .follow-choice:hover { border-color: var(--teal); }
-.follow-choice.is-on { background: var(--gold); color: var(--paper); border-color: var(--gold); }
+.follow-choice.is-on { background: var(--gold); color: var(--on-accent); border-color: var(--gold); }
 .follow-choice__label { font-weight: 700; font-size: .95rem; }
 .follow-choice__hint { font-size: .8rem; color: var(--muted); }
-.follow-choice.is-on .follow-choice__hint { color: var(--paper); }
+.follow-choice.is-on .follow-choice__hint { color: var(--on-accent); }
 .follow-choice:disabled { opacity: .6; cursor: progress; }
 .follow-dialog__status { min-height: 1.4em; margin: 4px 0 12px; font-weight: 700; color: var(--ok); }
 .follow-dialog__foot {
@@ -1064,8 +1065,8 @@ select, .multi__button {
 :is(.prose, [data-content], #faq-list, .page-body, .lede) :is([style*="color: rgb(26, 95, 255)"], [style*="color:#1a5fff"], [style*="color: #1a5fff"]) { color: var(--teal) !important; }
 :is(.prose, [data-content], #faq-list, .page-body, .lede) :is([style*="color: rgb(122, 63, 176)"], [style*="color:#7a3fb0"], [style*="color: #7a3fb0"]) { color: var(--violet) !important; }
 :is(.prose, [data-content], #faq-list, .page-body, .lede) :is([style*="color: rgb(179, 89, 0)"], [style*="color:#b35900"], [style*="color: #b35900"]) { color: var(--warn) !important; }
-:is(.prose, [data-content], #faq-list, .page-body, .lede) [style*='background'] { color: var(--paper) !important; }
-.lede blockquote a, .page-body blockquote a, #faq-list blockquote a { color: var(--paper); }
+:is(.prose, [data-content], #faq-list, .page-body, .lede) [style*='background'] { color: #161616 !important; }
+.lede blockquote a, .page-body blockquote a, #faq-list blockquote a { color: var(--on-accent); }
 /* ---------- Newsletter + footer ---------- */
 /* The email-list embed is the shop's own pasted code (any service) and brings its own styles. */
 #newsletter-form { max-width: 100%; }

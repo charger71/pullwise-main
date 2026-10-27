@@ -45,6 +45,7 @@ export function colorVars(colors) {
     if (/^[a-z]+$/.test(key) && /^#[0-9a-f]{3,8}$/i.test(value)) out.push([`--brand-${key}`, value]);
   }
   if (isHex6(colors.primary)) out.push(['--on-primary', isLight(colors.primary) ? '#161616' : '#ffffff']);
+  if (isHex6(colors.accent)) out.push(['--on-accent', isLight(colors.accent) ? '#161616' : '#ffffff']);
   const paper = isHex6(colors.paper) ? colors.paper : null;
   const lightPage = !!paper && isLight(paper);
   // Links and focus rings follow the page background (the stylesheet's blue is for the default dark page), as do
