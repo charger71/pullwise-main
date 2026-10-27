@@ -319,9 +319,10 @@ input[type='checkbox'], input[type='radio'] {
 /* ---------- Dialogs ---------- */
 dialog { border: 0; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); padding: 0; width: min(520px, calc(100vw - 2 * var(--gutter))); max-height: calc(100vh - 32px); color: var(--ink); background: var(--surface); }
 dialog::backdrop { background: #000a; }
-.dialog__head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-12); padding: var(--sp-16) var(--sp-16) 0; }
+/* The title bar (and its close ✕) stays at the top however far a long dialog is scrolled. */
+.dialog__head { position: sticky; top: 0; z-index: var(--z-sticky); display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-12); padding: var(--sp-16) var(--sp-16) var(--sp-12); background: var(--surface); }
 .dialog__head h2 { font-size: var(--fs-title); margin: 0; }
-.dialog__body { padding: var(--sp-16); }
+.dialog__body { padding: var(--sp-4) var(--sp-16) var(--sp-16); }
 .dialog__close { display: grid; place-items: center; flex: none; background: none; border: 1px solid var(--field-line); border-radius: 50%; font-size: var(--fs-sub); line-height: 1; cursor: pointer; width: 36px; height: 36px; margin: 0; color: var(--ink); }
 .dialog__close:hover { background: var(--surface); border-color: var(--ink); }
 .dialog__close:focus-visible { outline: none; background: var(--focus); border-color: var(--focus); color: #fff; }
