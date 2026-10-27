@@ -250,10 +250,8 @@ function fontPicker({ slot, label, hint, default: dflt }, pick = {}) {
     <select id="${id}" data-font-select>${options}<optgroup label="Your own"><option value="upload"${chosen === 'upload' ? ' selected' : ''}>Your own font file…</option></optgroup></select>
     <p class="field__hint">${esc(hint)}</p>
     <div class="font-pick__options">
-      <label for="${id}-size">Size</label>
-      <select id="${id}-size" class="select--small" data-font-size>${SIZES.map(([v, text]) => `<option value="${v}"${v === (pick.size ?? 'medium') ? ' selected' : ''}>${text}</option>`).join('')}</select>
-      <label for="${id}-sp">Letter spacing</label>
-      <select id="${id}-sp" class="select--small" data-font-spacing>${SPACING.map(([v, text]) => `<option value="${v}"${v === (pick.spacing ?? 'normal') ? ' selected' : ''}>${text}</option>`).join('')}</select>
+      ${radioRow(`${id}-size`, 'Size', SIZES, pick.size ?? 'medium', 'data-font-size')}
+      ${radioRow(`${id}-sp`, 'Letter spacing', SPACING, pick.spacing ?? 'normal', 'data-font-spacing')}
     </div>
     <div class="font-pick__upload"${chosen === 'upload' ? '' : ' hidden'}>
       <input id="${id}-file" type="file" accept=".woff2,.woff,font/woff2,font/woff" class="visually-hidden">
@@ -263,6 +261,11 @@ function fontPicker({ slot, label, hint, default: dflt }, pick = {}) {
     </div>
     ${slot === 'display' ? `<div class="field--check mt-8"><input id="${id}-caps" type="checkbox" data-font-caps${pick.caps === false ? '' : ' checked'}><label for="${id}-caps">Headlines in capitals</label></div>` : ''}
   </div>`;
+}
+
+/** A row of radio buttons for one font option (Size, Letter spacing); the value is read from the checked one. */
+function radioRow(name, legend, choices, checked, attr) {
+  return `<fieldset class="font-pick__choice" ${attr}><legend>${esc(legend)}</legend><span class="font-pick__radios">${choices.map(([v, text]) => `<label><input type="radio" name="${name}" value="${v}"${v === checked ? ' checked' : ''}> ${esc(text)}</label>`).join('')}</span></fieldset>`;
 }
 
 /**
@@ -275,8 +278,8 @@ function setupFonts(form, saved, colorOf) {
   previewFaces ??= document.head.appendChild(document.createElement('style')); // one for the page, kept between visits
   const box = (slot) => $(`[data-font-slot="${slot}"]`, form);
   const choice = (slot) => $('[data-font-select]', box(slot)).value;
-  const spacing = (slot) => $('[data-font-spacing]', box(slot)).value;
-  const size = (slot) => $('[data-font-size]', box(slot)).value;
+  const spacing = (slot) => $('[data-font-spacing] input:checked', box(slot)).value;
+  const size = (slot) => $('[data-font-size] input:checked', box(slot)).value;
 
   const paint = () => {
     const css = [];

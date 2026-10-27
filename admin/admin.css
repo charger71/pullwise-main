@@ -686,10 +686,11 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .color-row input[type=color]:disabled { opacity: .35; }
 /* Shop Settings → Fonts: a font per slot (with an upload for the shop's own file) and a sample in the shop's colors.
    The --pv-* variables are set on .font-preview by admin/sections/settings.js. */
-.font-pick__options { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-top: var(--sp-8); }
-.font-pick__options label { margin: 0; font-weight: 400; }
-.font-pick__options select { width: auto; }
-.font-pick__options select + label { margin-left: var(--sp-8); }
+.font-pick__options { display: grid; gap: var(--sp-8); margin-top: var(--sp-10); }
+.font-pick__choice { margin: 0; padding: 0; border: 0; min-width: 0; }
+.font-pick__choice legend { padding: 0; margin-bottom: var(--sp-2); font-weight: 600; }
+.font-pick__radios { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-16); }
+.font-pick__radios label { display: inline-flex; align-items: center; gap: var(--sp-6); margin: 0; font-weight: 400; line-height: 1.6; cursor: pointer; }
 .font-pick__upload { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-top: var(--sp-8); }
 .font-pick__upload label.btn { margin: 0; }
 .font-pick__upload input[type=file]:focus-visible + label { outline: 3px solid var(--focus); outline-offset: 2px; }
