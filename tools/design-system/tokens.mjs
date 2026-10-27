@@ -209,7 +209,9 @@ const SHOP_PAIRS = {
 export function shopTokens() {
   const color = [];
   const families = {};
-  const other = { spacing: [], radius: [], shadow: [], size: [] };
+  const other = { spacing: [], radius: [], shadow: [], size: [], fontSize: [] };
+  // The comment after a variable in :root is its note ("--fs-sm: .85rem;  /* hints, notes */").
+  const note = (n) => (site.match(new RegExp(`--${n}:[^;]*;\\s*/\\*\\s*([^*]+?)\\s*\\*/`))?.[1] ?? '').replace(/^./, (c) => c.toUpperCase());
   for (const [name, v] of sVars) {
     const t = `shop-${name}`;
     const where = usedBy(site, name);
@@ -220,7 +222,11 @@ export function shopTokens() {
       if (SHOP_PAIRS[name]) usage += ` Contrast: ${SHOP_PAIRS[name].map((bg) => `${fmt(ratio(resolveS(name), resolveS(bg)))} on ${bg}`).join(', ')}.`;
       color.push({ name: t, value: isVarRef(v) ? `{shop-${refName(v)}}` : v.toLowerCase(), usage });
     } else if (/^font-/.test(name)) families[`shop-${name.slice(5)}`] = v.replace(/'/g, '"');
-    else if (name === 'radius') other.radius.push({ name: t, value: v, usage: 'Panels, cards, filters, maps and editor images. Buttons are 3px, fields 9px, badges 2px, dialogs 8px (set in the stylesheet).' });
+    else if (name === 'radius') other.radius.push({ name: t, value: v, usage: 'Panels, cards, filters, maps and editor images.' + used });
+    else if (/^radius-/.test(name)) other.radius.push({ name: t, value: v, usage: (note(name) ? `${note(name)}.` : '') + used });
+    else if (/^sp-\d+$/.test(name)) other.spacing.push({ name: t, value: v, usage: `Spacing step (${v}) for margin, padding and gap on the storefront; never a bare pixel value.` });
+    else if (/^fs-/.test(name) && !/var\(/.test(v)) other.fontSize.push({ name: t, value: v, usage: (note(name) ? `${note(name)}.` : '') + ' Fixed: does not follow Shop Settings → Fonts → Size.' });
+    else if (name === 'list-bar-h') other.size.push({ name: t, value: v, usage: 'Height of the pull-list bar at the foot of the screen; the page leaves this much room under it.' });
     else if (name === 'shadow') other.shadow.push({ name: t, value: v, usage: 'Resting cards and panels carry no shadow: borders in shop-line separate them.' });
     else if (name === 'shadow-lg') other.shadow.push({ name: t, value: rgbaOf(v), usage: 'Dialogs and the open multi-select panel.' });
     else if (name === 'space-block') other.spacing.push({ name: t, value: v, usage: 'Gap under a page title block (section head, How it works).' });

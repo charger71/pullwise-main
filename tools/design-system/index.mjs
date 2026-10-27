@@ -3,7 +3,7 @@
 // writes an updated copy of the whole system to --out, then lists the files to publish. See README.md.
 import { cpSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { FROM as ORIG, OUT, REF } from './config.mjs';
+import { FROM as ORIG, OUT, REF, REPO } from './config.mjs';
 
 // Start from the system as it is now, so the marketing layer and anything changed on the page are kept.
 cpSync(ORIG, OUT, { recursive: true });
@@ -63,9 +63,13 @@ ${icons['Admin action icons'].length} solid icons from \`SOLID_ICONS\` in admin/
 
 The files fill in \`currentColor\`, which renders black inside an \`<img>\`; inline them so they take the button's color (\`admin-success\` for Add, \`admin-danger-ink\` for Remove, \`admin-alert-icon\` / \`admin-minor-icon\` for status).
 `);
+// The networks and the Simple Icons version, as js/social-icons.js lists them.
+const socialSrc = readFileSync(join(REPO, 'js/social-icons.js'), 'utf8');
+const networks = [...socialSrc.matchAll(/label: "([^"]+)"/g)].map((m) => m[1]).join(', ');
+const simpleIcons = socialSrc.match(/simpleicons\.org, (v[\d.]+)/)?.[1];
 write('assets/Social icons/README.md', `# Social icons
 
-${icons['Social icons'].length} network marks for the storefront footer and Visit page, from js/social-icons.js (Simple Icons, CC0).
+${icons['Social icons'].length} network marks for the storefront footer and Visit page, from js/social-icons.js (Simple Icons${simpleIcons ? ' ' + simpleIcons : ''}, CC0): ${networks}.
 
 Single color in \`currentColor\` (black inside an \`<img>\`): inline at 20px in a 44px tap area and let it take the footer's text color, \`shop-footer-link-hover\` on hover. Never recolor them in the networks' own brand colors, and always give the link an \`aria-label\` with the network's name.
 `);
