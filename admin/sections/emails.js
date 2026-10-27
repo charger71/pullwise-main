@@ -357,7 +357,7 @@ async function emailAction(sb, btn, status) {
     if (action === 'preview') {
       setStatus(status, '');
       const d = openDialog(`Preview — ${data.subject}`, `<p class="card__meta">${data.sample ? 'Sample: no titles are waiting to be announced, so this shows someone’s open titles as if they had just arrived. Customer: ' : 'Customer: '}${esc(data.customer)}</p><iframe class="email-preview" sandbox title="Email preview" srcdoc="${esc(data.html)}"></iframe>`, { wide: true });
-      d.querySelector('iframe').style.cssText = 'width:100%;height:70vh;border:1px solid #ddd;border-radius:6px';
+      d.querySelector('iframe').style.cssText = 'width:100%;height:70vh;border:var(--border);border-radius:var(--radius)';
     } else if (action === 'test') {
       setStatus(status, `Test sent to ${data.to}.`, 'ok');
     } else {
