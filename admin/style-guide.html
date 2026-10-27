@@ -38,7 +38,7 @@
     .sg-do, .sg-dont { padding: 6px 12px; margin: 0 0 8px; max-width: 70ch; background: var(--surface); border: var(--border); border-left-width: 4px; border-radius: var(--radius-sm); }
     .sg-do { border-left-color: var(--success); }
     .sg-dont { border-left-color: var(--danger); }
-    .sg-dialog { width: min(520px, 100%); border-radius: 10px; box-shadow: var(--shadow-lg); background: var(--surface); }
+    .sg-dialog { width: min(520px, 100%); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); background: var(--surface); }
     .sg-theme { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; max-width: 100%; }
     .sg-theme .btn { min-width: 0; }
     .sg-theme button[aria-pressed='true'] { background: var(--brand-primary); color: #fff; box-shadow: none; }
@@ -712,7 +712,7 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
         <!-- ===================================================== -->
         <section class="sg-section" id="spacing">
           <h2>Spacing &amp; utilities</h2>
-          <p>Use the <code>--sp-*</code> scale for margin, padding and gap, the <code>--radius-*</code> steps, and the status colors from <code>base.css</code>. Do not write bare pixel values.</p>
+          <p>Use the <code>--sp-*</code> scale for margin, padding and gap, the <code>--radius-*</code> steps for corners, and the status colors from <code>base.css</code>. Do not write bare pixel values: <code>consistency.test.js</code> rejects a px or rem margin, padding, gap or corner. Allowed besides: <code>0</code>, <code>auto</code>, em / ch / % (sizes relative to the text), a negative offset that lines edges up, and anything inside <code>calc()</code>.</p>
           <div class="sg-item">
             <h3>Spacing scale</h3>
             <div class="sg-demo">
@@ -720,6 +720,7 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
                 <div><span class="sg-spacer" style="width:var(--sp-2)"></span> <code>--sp-2</code> 2px · <span class="sg-spacer" style="width:var(--sp-4)"></span> <code>--sp-4</code> 4px · <span class="sg-spacer" style="width:var(--sp-6)"></span> <code>--sp-6</code> 6px · <span class="sg-spacer" style="width:var(--sp-8)"></span> <code>--sp-8</code> 8px</div>
                 <div><span class="sg-spacer" style="width:var(--sp-10)"></span> <code>--sp-10</code> · <span class="sg-spacer" style="width:var(--sp-12)"></span> <code>--sp-12</code> · <span class="sg-spacer" style="width:var(--sp-14)"></span> <code>--sp-14</code> · <span class="sg-spacer" style="width:var(--sp-16)"></span> <code>--sp-16</code></div>
                 <div><span class="sg-spacer" style="width:var(--sp-20)"></span> <code>--sp-20</code> · <span class="sg-spacer" style="width:var(--sp-24)"></span> <code>--sp-24</code> · <span class="sg-spacer" style="width:var(--sp-32)"></span> <code>--sp-32</code></div>
+                <div><span class="sg-spacer" style="width:var(--sp-40)"></span> <code>--sp-40</code> · <span class="sg-spacer" style="width:var(--sp-64)"></span> <code>--sp-64</code> (page-level space: the sign-in box, the foot of the page)</div>
               </div>
             </div>
           </div>
@@ -734,7 +735,8 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
           </div>
           <div class="sg-item">
             <h3>Sizes and layers</h3>
-            <pre class="sg-code">--tap 44px        smallest touch target (fields, small buttons, toggles)
+            <pre class="sg-code">--radius-xs 3px · --radius-sm 4px · --radius 6px (panels, fields, buttons) · --radius-lg 8px · --radius-xl 10px (dialogs) · --radius-pill
+--tap 44px        smallest touch target (fields, small buttons, toggles)
 --tap-btn 48px    a button on a phone
 --tap-head 52px   a fold header you click or tap open
 --header-h 60px   the sticky admin header; sticky things sit at top: var(--header-h)
@@ -762,7 +764,7 @@ text-muted · text-danger · text-success · text-right · font-mono · nowrap</
             <li><strong>Customer details:</strong> show a customer’s current name, phone and email, not what an order was placed with. Use <code>withCustomers(sb, orders)</code>.</li>
             <li><strong>Accessibility:</strong> visible labels, <code>role="status"</code> for save results and <code>role="alert"</code> for errors, buttons not links for actions, and text that keeps at least 4.5:1 contrast in both themes. Field borders and focus rings keep 3:1; focus rings use <code>--focus</code>. Never make a whole screen a live region, and never put a button inside a <code>&lt;summary&gt;</code>. Tab rows (<code>role="tablist"</code>) get arrow keys from <code>admin.js</code>.</li>
             <li><strong>Query builders:</strong> never return a Supabase query from an <code>async</code> function; it runs early and breaks <code>.range()</code>.</li>
-            <li><strong>New component?</strong> Add it to this page in the same commit. <code>npm test</code> (<code>admin/consistency.test.js</code>) fails if a shared component is missing here, if text contrast drops below 4.5:1 in either theme, if a screen adds a one-off button height or a raw color, or if a button or pill class has no style.</li>
+            <li><strong>New component?</strong> Add it to this page in the same commit. <code>npm test</code> (<code>admin/consistency.test.js</code>) fails if a shared component is missing here, if text contrast drops below 4.5:1 in either theme, if a screen adds a one-off button height, a raw color, a bare spacing value or corner, or uses <code>--border</code> as a color, or if a button or pill class has no style.</li>
           </ul>
           <div class="sg-item">
             <h3>Deliberate exceptions</h3>

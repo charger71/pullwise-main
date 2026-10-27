@@ -5,7 +5,7 @@ import { SOCIAL_ICONS } from '../../js/social-icons.js';
 import { tiersFrom } from '../../js/discount.js';
 import { SUPABASE_URL } from '../../js/config.js';
 import { putMedia } from '../../js/media-store.js';
-import { contrast, isLight, linkColor, FONT_LIBRARY, FONT_SLOTS, SPACING, SIZES, letterSpacing, sizeScale, fontScale, isFontUpload } from '../../js/theme-vars.js';
+import { contrast, colorVars, FONT_LIBRARY, FONT_SLOTS, SPACING, SIZES, letterSpacing, sizeScale, fontScale, isFontUpload } from '../../js/theme-vars.js';
 import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, uid, db, slugify } from '../lib.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
@@ -157,17 +157,20 @@ export async function mount(el, { sb }) {
   // Accessibility check of the colors as picked (WCAG: 4.5:1 for text, 3:1 for large or bold text), updated as you pick.
   const val = (k) => $(`[data-color="${k}"]`, form).value;
   const checkContrast = () => {
+    // Check the colors the public site will actually show: js/theme-vars.js picks link, button-text and accent-text
+    // colors from these settings (the same colorVars() the site Worker uses), so test those, not the raw picks.
     const paper = val('paper');
-    // The same choices the public site makes (js/theme-vars.js): the first blue that reads, else its own pick.
+    const accent = val('accent');
     const auto = $('[data-link-auto]', form).checked;
-    const link = linkColor({ paper, link: auto ? null : val('link') });
-    const onPrimary = isLight(val('primary')) ? '#161616' : '#ffffff'; // the site's choice of button text
+    const site = Object.fromEntries(colorVars({ primary: val('primary'), accent, ink: val('ink'), paper, footer: val('footer'), ...(auto ? {} : { link: val('link') }) }));
+    const accentText = site['--gold-text'] ?? accent;
     const rows = [
       ['Text on the page background', val('ink'), paper, 4.5],
-      [`Text links on the page background${auto ? ' (automatic)' : ''}`, link, paper, 4.5],
-      ['Button text on the main color', onPrimary, val('primary'), 4.5],
-      ['Accent on the page background (headings, highlights)', val('accent'), paper, 3],
-      ['Accent on the footer background (footer headings)', val('accent'), val('footer'), 3],
+      [`Text links on the page background${auto ? ' (automatic)' : ''}`, site['--teal'], paper, 4.5],
+      ['Button text on the main color', site['--on-primary'], val('primary'), 4.5],
+      ['Badge text on the accent', site['--on-accent'], accent, 4.5],
+      [`Accent as text on the page background${accentText !== accent ? ' (adjusted automatically)' : ''}`, accentText, paper, 4.5],
+      ['Footer headings on the footer background', site['--footer-heading'] ?? accent, val('footer'), 3],
     ];
     $('[data-contrast]', form).innerHTML = `<h3>Readability check</h3><ul class="contrast__list">${rows.map(([label, fg, bg, need]) => {
       const r = contrast(fg, bg);
