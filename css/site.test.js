@@ -49,4 +49,19 @@ const onGold = ruleList
   .map(([, sel]) => sel.trim());
 assert.equal(onGold.length, 0, `Text on a gold fill uses --on-accent:\n${onGold.join('\n')}`);
 
+// Spacing, text sizes and corners come from the steps in :root (see the comments there). Allowed besides: 0, auto,
+// em / ch / % (relative to the text), negative offsets that line edges up, and anything inside calc(), clamp(), min()
+// or max(), which is how sizes follow Shop Settings → Fonts.
+const FUNCS = /(?:calc|clamp|min|max)\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)/g;
+const BARE = /(?<![\w.-])\d*\.?\d+(px|rem)\b/;
+const decls = [...css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/:root\s*\{[^}]*\}/g, '').matchAll(/(?<![-\w])([a-z-]+)\s*:\s*([^;{}]+)/g)]
+  .map((m) => [m[1], m[2].trim()]);
+const bare = (test, pick = (v) => v) => decls.filter(([p, v]) => test(p) && BARE.test(pick(v.replace(FUNCS, '')))).map(([p, v]) => `${p}: ${v}`);
+const spacing = bare((p) => /^(margin|padding|gap|row-gap|column-gap)(-|$)/.test(p));
+assert.equal(spacing.length, 0, `Use a --sp-* step from :root (2–32, 40, 64, 96):\n${spacing.join('\n')}`);
+const sizes = [...bare((p) => p === 'font-size'), ...bare((p) => p === 'font', (v) => v.split('/')[0])];
+assert.equal(sizes.length, 0, `Use a --fs-* step from :root, or a calc() with the slot's --*-scale for headings:\n${sizes.join('\n')}`);
+const corners = bare((p) => /^border(-[a-z]+)*-radius$/.test(p));
+assert.equal(corners.length, 0, `Use --radius, --radius-xs|sm|lg|field or --radius-pill (50% for circles):\n${corners.join('\n')}`);
+
 console.log('storefront stylesheet tests passed');
