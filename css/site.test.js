@@ -64,4 +64,33 @@ assert.equal(sizes.length, 0, `Use a --fs-* step from :root, or a calc() with th
 const corners = bare((p) => /^border(-[a-z]+)*-radius$/.test(p));
 assert.equal(corners.length, 0, `Use --radius, --radius-xs|sm|lg|field or --radius-pill (50% for circles):\n${corners.join('\n')}`);
 
+// Layers, motion and shadows come from :root too: a bare z-index, duration or shadow fails.
+const layers = decls.filter(([p, v]) => p === 'z-index' && /\d/.test(v.replace(FUNCS, ''))).map(([p, v]) => `${p}: ${v}`);
+assert.equal(layers.length, 0, `Use a --z-* layer from :root (raised, popover, bar, header, skip, busy):\n${layers.join('\n')}`);
+const times = decls.filter(([p, v]) => /^(transition|animation)(-duration|-delay)?$/.test(p) && /(?<![\w.-])\d*\.?\d+m?s\b/.test(v.replace(FUNCS, '')))
+  .map(([p, v]) => `${p}: ${v}`);
+assert.equal(times.length, 0, `Use a --dur-* step from :root:\n${times.join('\n')}`);
+const shadows = decls.filter(([p, v]) => p === 'box-shadow' && !/^(none|var\(--[\w-]+\)|inset\b.*)$/.test(v)).map(([p, v]) => `${p}: ${v}`);
+assert.equal(shadows.length, 0, `Use --shadow, --shadow-lg or a --shadow-* role from :root (an inset edge may be written out):\n${shadows.join('\n')}`);
+
+// Reduced motion: transitions stop everywhere, and every animation has its own prefers-reduced-motion rule that stops
+// or slows it.
+const plain = css.replace(/\/\*[\s\S]*?\*\//g, '');
+let calm = '';
+let moving = plain;
+for (let at = plain.indexOf('prefers-reduced-motion'); at !== -1; at = plain.indexOf('prefers-reduced-motion', at + 1)) {
+  let i = plain.indexOf('{', at) + 1;
+  const start = i;
+  for (let depth = 1; depth; i++) depth += plain[i] === '{' ? 1 : plain[i] === '}' ? -1 : 0;
+  calm += plain.slice(start, i - 1) + '\n';
+  moving = moving.replace(plain.slice(start, i - 1), '');
+}
+const selectors = (text) => text.split(/,(?![^(]*\))/).map((x) => x.trim().replace(/\s+/g, ' '));
+const calmed = new Set([...calm.matchAll(/([^{};]+)\{([^{}]*)\}/g)].filter(([, , b]) => /animation/.test(b)).flatMap(([, sel]) => selectors(sel)));
+assert.match(calm, /\*\s*\{\s*transition:\s*none !important;?\s*\}/, 'Keep `* { transition: none !important; }` under prefers-reduced-motion');
+const restless = [...moving.matchAll(/([^{};]+)\{([^{}]*)\}/g)]
+  .filter(([, sel, b]) => !sel.trim().startsWith('@') && /(?<![-\w])animation:\s*(?!none)/.test(b))
+  .flatMap(([, sel]) => selectors(sel)).filter((sel) => !calmed.has(sel));
+assert.equal(restless.length, 0, `Stop or slow these animations under @media (prefers-reduced-motion: reduce):\n${restless.join('\n')}`);
+
 console.log('storefront stylesheet tests passed');

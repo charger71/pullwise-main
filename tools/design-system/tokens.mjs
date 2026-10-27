@@ -209,9 +209,14 @@ const SHOP_PAIRS = {
 export function shopTokens() {
   const color = [];
   const families = {};
-  const other = { spacing: [], radius: [], shadow: [], size: [], fontSize: [] };
+  const other = { spacing: [], radius: [], shadow: [], size: [], fontSize: [], zIndex: [], duration: [] };
   // The comment after a variable in :root is its note ("--fs-sm: .85rem;  /* hints, notes */").
   const note = (n) => (site.match(new RegExp(`--${n}:[^;]*;\\s*/\\*\\s*([^*]+?)\\s*\\*/`))?.[1] ?? '').replace(/^./, (c) => c.toUpperCase());
+  // A shadow token holds plain values: a color-mix of a color with transparent becomes that color at the same alpha.
+  const plainShadow = (v) => rgbaOf(v).replace(/color-mix\(in srgb, var\(--([\w-]+)\) (\d+)%, transparent\)/g, (_, c, pc) => {
+    const h = resolveS(c);
+    return `rgba(${parseInt(h.slice(1, 3), 16)}, ${parseInt(h.slice(3, 5), 16)}, ${parseInt(h.slice(5, 7), 16)}, ${Number(pc) / 100})`;
+  });
   for (const [name, v] of sVars) {
     const t = `shop-${name}`;
     const where = usedBy(site, name);
@@ -229,6 +234,9 @@ export function shopTokens() {
     else if (name === 'list-bar-h') other.size.push({ name: t, value: v, usage: 'Height of the pull-list bar at the foot of the screen; the page leaves this much room under it.' });
     else if (name === 'shadow') other.shadow.push({ name: t, value: v, usage: 'Resting cards and panels carry no shadow: borders in shop-line separate them.' });
     else if (name === 'shadow-lg') other.shadow.push({ name: t, value: rgbaOf(v), usage: 'Dialogs and the open multi-select panel.' });
+    else if (/^shadow-/.test(name)) other.shadow.push({ name: t, value: plainShadow(v), usage: `${note(name)}.` + used });
+    else if (/^z-/.test(name)) other.zIndex.push({ name: t, value: /var\(/.test(v) ? v : String(Number(v)), usage: `${note(name)}.` });
+    else if (/^dur(-|$)/.test(name)) other.duration.push({ name: t, value: v, usage: `${note(name)}.` });
     else if (name === 'space-block') other.spacing.push({ name: t, value: v, usage: 'Gap under a page title block (section head, How it works).' });
     else if (name === 'field-h') other.size.push({ name: t, value: v, usage: 'Height of every input, select and multi-select button.' });
     else if (name === 'gutter') other.size.push({ name: t, value: v, usage: 'Side padding of the page container.' });

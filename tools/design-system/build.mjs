@@ -89,13 +89,14 @@ fam('radius', [...S.radius, ...A.radius]);
 fam('shadow', [...S.shadow, ...A.shadow]);
 tokens.size = { note: 'Fixed sizes: touch targets, field heights, the sticky header and list bar, page width.', tokens: [...S.size, ...A.size] };
 tokens.fontSize = { note: 'Text-size steps: the storefront\'s fixed sizes (the headline, sub-heading and body sizes follow Shop Settings and are type styles) and the admin\'s. The tests reject bare px or rem sizes in both.', tokens: [...S.fontSize, ...A.fontSize] };
-tokens.zIndex = { note: 'The admin\'s stacking order. Never a bare z-index.', tokens: A.zIndex };
+tokens.zIndex = { note: 'Stacking order, lowest first, for the storefront and the admin. Never a bare z-index; both test suites reject one.', tokens: [...S.zIndex, ...A.zIndex] };
+tokens.duration = { note: 'The storefront\'s motion steps. Transitions stop and the skeleton stops pulsing under prefers-reduced-motion; the spinner slows to shop-dur-spin-calm. css/site.test.js rejects a bare duration.', tokens: S.duration };
 write('tokens.json', JSON.stringify(tokens, null, 2) + '\n');
 
 // ---------------------------------------------------------------------------------------------------------------------
 // bundle.css: the repo's own stylesheets, each under one wrapper, reading their values from the tokens.
 // ---------------------------------------------------------------------------------------------------------------------
-const tokenNames = new Set([...tokens.color.tokens, ...tokens.spacing.tokens, ...tokens.radius.tokens, ...tokens.shadow.tokens, ...tokens.size.tokens, ...tokens.fontSize.tokens, ...tokens.zIndex.tokens].map((t) => t.name));
+const tokenNames = new Set([...tokens.color.tokens, ...tokens.spacing.tokens, ...tokens.radius.tokens, ...tokens.shadow.tokens, ...tokens.size.tokens, ...tokens.fontSize.tokens, ...tokens.zIndex.tokens, ...tokens.duration.tokens].map((t) => t.name));
 const mapping = (vars, prefix) => vars.map(([n, v]) => {
   if (tokenNames.has(`${prefix}-${n}`)) return `--${n}: var(--${prefix}-${n});`;
   if (/^font-/.test(n)) return `--${n}: var(--font-${prefix}-${n.slice(5)});`;

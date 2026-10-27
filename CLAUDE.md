@@ -14,7 +14,8 @@
 - The storefront's colors, breakpoints and fonts follow the rules at the top of `css/site.css` and in the design
   system's Storefront section: text on a fill follows the fill (`--on-primary`, `--on-accent`), gold as text is
   `--gold-text`, and every page-dependent color is a role in `:root` that `js/theme-vars.js` keeps readable when a shop
-  picks a light page. `css/site.test.js` enforces them.
+  picks a light page. Spacing, text sizes, corners, shadows, z-index and durations are `:root` steps too, and every
+  animation has a `prefers-reduced-motion` rule. `css/site.test.js` enforces them.
 
 ## Design system
 - The Pullwise design system (https://claude.ai/artifact/YWP6UsATWeCe9f6mdqxJJn) has storefront (`shop-*`) and admin

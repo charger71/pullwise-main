@@ -6,7 +6,9 @@
    every other color is derived from them below, or is a fixed semantic color (links, errors, success).
    The staff admin has its own stylesheet (admin/base.css + admin/admin.css).
    Breakpoints: min-width 480 / 600 / 700 / 800 / 1100px, max-width one under a min step (479 / 599 / 699 / 799 / 1099px), and
-   (max-width: 599px) in scripts. css/site.test.js rejects any other width. */
+   (max-width: 599px) in scripts. css/site.test.js rejects any other width.
+   Spacing, text sizes, corners, shadows, layers (z-index) and durations are steps in :root; the test rejects bare ones,
+   and every animation needs a prefers-reduced-motion rule that stops or slows it. */
 
 /* Fonts are served from this site (fonts/), Latin subset only, so no request goes to Google before the page can draw. */
 @font-face { font-family: 'Archivo Black'; font-style: normal; font-weight: 400; font-display: swap; src: url(../fonts/archivo-black-latin.woff2) format('woff2'); }
@@ -111,6 +113,26 @@
   --radius-lg: 8px;      /* dialogs and the open multi-select */
   --radius-field: 9px;   /* inputs, selects, the search box */
   --radius-pill: 999px;  /* count badges and pills */
+
+  /* Shadows besides --shadow / --shadow-lg (dialogs). */
+  --shadow-menu: 0 12px 24px rgb(0 0 0 / .5);              /* the open phone menu */
+  --shadow-badge: 0 2px 6px rgb(0 0 0 / .4);               /* the Top 10 disc on a cover */
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--focus) 20%, transparent);   /* glow round a focused field */
+
+  /* Stacking order, lowest first. Use these instead of a bare z-index; css/site.test.js rejects one. */
+  --z-raised: 1;         /* above the rest of its card (the Top 10 disc) */
+  --z-popover: 30;       /* an open multi-select panel */
+  --z-bar: 40;           /* the pull-list bar at the foot of the screen */
+  --z-header: 50;        /* the sticky site header and its menu */
+  --z-skip: 100;         /* the skip link, above everything it jumps over */
+  --z-busy: 9998;        /* the loading dimmer; its spinner sits one above */
+
+  /* Motion. Every transition stops and the skeleton stops pulsing under prefers-reduced-motion; the spinner slows. */
+  --dur-press: .08s;     /* a button's press */
+  --dur: .15s;           /* hovers, the menu icon, a fold's arrow */
+  --dur-spin: .7s;       /* one turn of the loading spinner */
+  --dur-spin-calm: 2s;   /* the spinner under prefers-reduced-motion */
+  --dur-pulse: 1.2s;     /* the loading skeleton's pulse */
 }
 *,
 *::before,
@@ -200,7 +222,7 @@ iframe.ql-video { display: block; width: 100%; max-width: 640px; aspect-ratio: 1
   left: 8px;
   top: -60px;
   padding: var(--sp-8) var(--sp-12);
-  z-index: 100;
+  z-index: var(--z-skip);
   background: var(--paper);
   color: var(--ink);
   outline: 3px solid var(--teal);
@@ -249,7 +271,7 @@ iframe.ql-video { display: block; width: 100%; max-width: 640px; aspect-ratio: 1
   gap: var(--sp-6);
   text-decoration: none;
   cursor: pointer;
-  transition: transform .08s, box-shadow .08s, filter .08s;
+  transition: transform var(--dur-press), box-shadow var(--dur-press), filter var(--dur-press);
   min-height: 46px;
   padding: var(--sp-10) var(--sp-20);
   border: 1px solid transparent;
@@ -317,7 +339,7 @@ input[type='checkbox'], input[type='radio'] {
 /* Until the script fills the header, hold its usual height (with the search bar, and the announcement wrapped on phones). */
 #site-header:empty { min-height: 126px; }
 @media (max-width: 479px) { #site-header:empty { min-height: 165px; } }
-#site-header { position: sticky; top: 0; z-index: 50; background: var(--paper); box-shadow: none; border-bottom: 1px solid var(--line); }
+#site-header { position: sticky; top: 0; z-index: var(--z-header); background: var(--paper); box-shadow: none; border-bottom: 1px solid var(--line); }
 .header__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: 76px; }
 .brand { text-decoration: none; display: flex; align-items: center; gap: var(--sp-10); }
 .brand__name { font-family: var(--font-display); font-weight: var(--display-weight); line-height: 1.1; font-size: calc(1.5rem * var(--display-scale)); letter-spacing: var(--display-tracking); color: var(--cream); }
@@ -337,7 +359,7 @@ input[type='checkbox'], input[type='radio'] {
   width: 20px;
   height: 2px;
   position: relative;
-  transition: transform .15s;
+  transition: transform var(--dur);
   background: var(--on-accent);
 }
 .nav-toggle__icon::before, .nav-toggle__icon::after { content: ''; position: absolute; left: 0; }
@@ -353,7 +375,7 @@ input[type='checkbox'], input[type='radio'] {
   right: 0;
   top: 100%;
   background: var(--surface);
-  box-shadow: 0 12px 24px rgb(0 0 0 / .5);
+  box-shadow: var(--shadow-menu);
   border-bottom: 1px solid var(--line);
 }
 .nav-open .nav { display: block; }
@@ -423,7 +445,7 @@ address { font-style: normal; margin-bottom: 1em; }
   height: 44px;
   border-radius: 50%;
   color: inherit;
-  transition: background .15s, color .15s;
+  transition: background var(--dur), color var(--dur);
   background: rgb(255 255 255 / .08);
 }
 .socials a:hover { background: var(--red-btn); color: var(--on-primary); }
@@ -479,7 +501,7 @@ address { font-style: normal; margin-bottom: 1em; }
   min-height: 640px;
   border-radius: var(--radius);
   background: var(--raised);
-  animation: skeleton-pulse 1.2s ease-in-out infinite alternate;
+  animation: skeleton-pulse var(--dur-pulse) ease-in-out infinite alternate;
 }
 #series-list:empty::before { min-height: 700px; }
 #results-count { min-height: 1.6em; }
@@ -557,7 +579,7 @@ address { font-style: normal; margin-bottom: 1em; }
   position: absolute;
   top: 8px;
   right: 8px;
-  z-index: 1;
+  z-index: var(--z-raised);
   display: grid;
   place-content: center;
   width: 46px;
@@ -565,7 +587,7 @@ address { font-style: normal; margin-bottom: 1em; }
   border-radius: 50%;
   background: #fff;
   color: var(--brand-primary);
-  box-shadow: 0 2px 6px rgb(0 0 0 / .4);
+  box-shadow: var(--shadow-badge);
   text-align: center;
   line-height: .9;
   font-weight: 800;
@@ -642,7 +664,7 @@ address { font-style: normal; margin-bottom: 1em; }
 .multi__summary { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .multi__panel {
   position: absolute;
-  z-index: 30;
+  z-index: var(--z-popover);
   top: calc(100% + 4px);
   left: 0;
   width: max(100%, min(300px, calc(100vw - 2 * var(--gutter))));
@@ -772,7 +794,7 @@ dialog::backdrop { background: #000c; }
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 40;
+  z-index: var(--z-bar);
   padding: var(--sp-10) 0 calc(10px + env(safe-area-inset-bottom));
   background: var(--surface);
   border-top: 1px solid var(--line);
@@ -883,7 +905,7 @@ summary::-webkit-details-marker { display: none; }
 summary::after {
   content: ''; flex: none; width: .5em; height: .5em; margin-left: auto; margin-top: -.25em;
   border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
-  transform: rotate(45deg); transition: transform .15s;
+  transform: rotate(45deg); transition: transform var(--dur);
 }
 details[open] > summary::after { transform: rotate(225deg); margin-top: .25em; }
 @media (prefers-reduced-motion: reduce) {
@@ -1066,7 +1088,7 @@ a.follow-open { box-sizing: border-box; line-height: 24px; }
 /* ---------- Buttons ---------- */
 /* ---------- Forms ---------- */
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 20%, transparent); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--teal); box-shadow: var(--shadow-focus); }
 input:disabled, select:disabled, textarea:disabled { opacity: 1; color: var(--muted); cursor: not-allowed; }
 select, .multi__button {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23bdb4a8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -1110,17 +1132,17 @@ select, .multi__button {
    spinner sits in the middle of the window. Clicks pass through so a stuck load never traps anyone. */
 @keyframes spin { to { transform: rotate(360deg); } }
 body:has([aria-busy="true"], .loading)::before {
-  content: ""; position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+  content: ""; position: fixed; inset: 0; z-index: var(--z-busy); pointer-events: none;
   background: rgb(0 0 0 / .35);
 }
 body:has([aria-busy="true"], .loading)::after {
-  content: ""; position: fixed; top: 50%; left: 50%; z-index: 9999; pointer-events: none;
+  content: ""; position: fixed; top: 50%; left: 50%; z-index: calc(var(--z-busy) + 1); pointer-events: none;
   width: 28px; height: 28px; margin: -14px 0 0 -14px; box-sizing: border-box;
   border: 3px solid rgb(255 255 255 / .35); border-top-color: #fff; border-radius: 50%;
-  animation: spin .7s linear infinite;
+  animation: spin var(--dur-spin) linear infinite;
 }
 .loading { text-align: center; color: var(--muted); }
 .empty.loading { border: 0; }
 @media (prefers-reduced-motion: reduce) {
-  body:has([aria-busy="true"], .loading)::after { animation-duration: 2s; }
+  body:has([aria-busy="true"], .loading)::after { animation-duration: var(--dur-spin-calm); }
 }
