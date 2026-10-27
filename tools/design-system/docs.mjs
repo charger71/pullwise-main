@@ -80,6 +80,7 @@ Three font slots, each a Shop Settings choice with a Size (Small / Medium / Larg
 
 - **Font library** (all in \`fonts/\`, Latin subset, SIL Open Font License). Display only: Archivo Black, Bangers, Bebas Neue, Anton, Alfa Slab One. Any slot: Oswald, Source Sans 3, Inter, Work Sans, Rubik, Lora, Roboto Slab. Archivo: headlines and sub-headings. A shop can also upload a .woff2.
 - Sizes multiply by \`--display-scale\`, \`--heading-scale\` and \`--body-scale\`; each library font carries its own scale so Medium looks as big as the default. Never set a storefront heading size without its scale.
+- **Fixed text sizes** (labels, badges, meta lines, buttons) use \`shop-fs-*\`: 3xs .6 · 2xs .72 · xs .8 · sm .85 · ui .9 · md .95 · base 1rem (the admin's steps), \`shop-fs-btn\` .875rem, \`shop-fs-lede\` 1.1rem and \`shop-fs-num-sm\` / \`shop-fs-num\` for date and Top 10 numbers. They do not follow the shop's Size setting; headings and body text do, through \`calc(… * var(--*-scale))\`.
 - One h1 per page. Body text is 18px. Buttons, badges, footer headings and the top bar's "Announcement" label are the only upper-case text besides headlines.
 
 ## Layout
@@ -88,7 +89,9 @@ Three font slots, each a Shop Settings choice with a Size (Small / Medium / Larg
 - A page opens with \`.section__head\`: the title and its links on one line, \`shop-space-block\` (24px) under it.
 - The catalog grid is 2 → 3 (600px) → 4 (800px) → 6 (1100px) across. Info pages use \`.info-grid\` (two columns from 800px).
 - **Breakpoints:** only \`min-width: 480 / 600 / 700 / 800 / 1100px\` and \`max-width\` one under a step (\`479 / 599 / 699 / 799 / 1099px\`), in CSS and in \`matchMedia\`; css/site.test.js rejects any other width. 600 is phones, 800 two columns and four across, 1100 the full menu and six across.
-- **Shape:** \`shop-radius\` (5px) for panels, cards, filters and maps; buttons 3px; fields 9px; badges and chips 2px; dialogs 8px; pills and count badges fully round.
+- **Spacing** uses \`shop-sp-*\` (the admin's scale: 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 64, plus 96 for the desktop hero); \`shop-list-bar-h\` is the room left under the pull-list bar.
+- **Shape:** \`shop-radius\` (5px) for panels, cards, filters and maps; \`shop-radius-sm\` (3px) buttons and thumbnails; \`shop-radius-field\` (9px) fields; \`shop-radius-xs\` (2px) badges and chips; \`shop-radius-lg\` (8px) dialogs; \`shop-radius-pill\` count badges.
+- css/site.test.js rejects a bare px or rem margin, padding, gap, font size or corner (0, auto, em / ch / %, negative offsets and anything inside \`calc()\`, \`clamp()\`, \`min()\` or \`max()\` are allowed).
 - **Depth:** no shadows at rest. Borders in \`line\` separate things; only dialogs and the open multi-select float (\`shop-shadow-lg\`).
 - The comic texture: a faint dot screen (7px pitch) behind the hero and on cover placeholders. Nothing else is decorated.
 

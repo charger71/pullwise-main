@@ -87,8 +87,8 @@ const fam = (key, list) => { tokens[key] ??= { tokens: [] }; tokens[key].tokens 
 fam('spacing', [...S.spacing, ...A.spacing]);
 fam('radius', [...S.radius, ...A.radius]);
 fam('shadow', [...S.shadow, ...A.shadow]);
-tokens.size = { note: 'Fixed sizes: touch targets, field heights, the sticky header, page width.', tokens: [...S.size, ...A.size] };
-tokens.fontSize = { note: 'The admin\'s font-size steps (admin/base.css). consistency.test.js rejects any bare rem value in the admin.', tokens: A.fontSize };
+tokens.size = { note: 'Fixed sizes: touch targets, field heights, the sticky header and list bar, page width.', tokens: [...S.size, ...A.size] };
+tokens.fontSize = { note: 'Text-size steps: the storefront\'s fixed sizes (the headline, sub-heading and body sizes follow Shop Settings and are type styles) and the admin\'s. The tests reject bare px or rem sizes in both.', tokens: [...S.fontSize, ...A.fontSize] };
 tokens.zIndex = { note: 'The admin\'s stacking order. Never a bare z-index.', tokens: A.zIndex };
 write('tokens.json', JSON.stringify(tokens, null, 2) + '\n');
 
