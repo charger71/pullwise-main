@@ -71,6 +71,7 @@
   --danger-ink: #a4001d;   /* red used as text or an outline on the page (the solid red keeps --danger) */
   --danger-soft: #fff1f1;
   --success: #16723a;
+  --success-ink: #16723a;  /* green used as text or an icon on the page (the solid green keeps --success) */
   --success-hover: #0f5a2c;
   --info: #2c6aa8;
   --info-hover: #1f5183;
@@ -136,6 +137,7 @@
   --danger-ink: #ff9aa4;
   --danger-soft: #523538;
   --success: #1f7d43;
+  --success-ink: #6fcf8f;
   --success-hover: #1b6f3c;
   --info: #3574b7;
   --info-hover: #2b6099;

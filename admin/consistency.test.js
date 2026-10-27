@@ -49,6 +49,7 @@ const PAIRS = [
   // [text, background]; '#fff' is literal white
   ['brand-ink', 'brand-paper'], ['brand-ink', 'surface'], ['muted', 'brand-paper'], ['muted', 'surface'], ['muted', 'stripe'],
   ['muted', 'head-bg'], ['muted', 'hover-bg'], ['danger-ink', 'surface'], ['danger-ink', 'stripe'], ['danger-ink', 'brand-paper'],
+  ['success-ink', 'surface'], ['success-ink', 'stripe'], ['success-ink', 'brand-paper'],
   ['#fff', 'fold-head-bg'], ['#fff', 'brand-primary'], ['#fff', 'success'], ['#fff', 'info'], ['#fff', 'danger'],
   ['on-accent', 'brand-accent'],
 ];
@@ -74,6 +75,11 @@ for (const [name, theme] of [['light', light], ['dark', dark]]) {
     assert.equal(bad.length, 0, bad.map(([fg, bg, r]) => `${fg} (${theme[fg]}) on ${bg} (${theme[bg]}) is ${r.toFixed(2)}:1, needs 3:1`).join('\n'));
   });
 }
+// --success and --danger are fills (white text on them); as text or an icon they drop below 3:1 in the dark theme.
+check('green and red text use the -ink tokens', () => {
+  const bad = [...allCss.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{[^}]*(?<![\w-])color:\s*var\(--(success|danger)\)/g)].map((m) => `${m[1].trim()} uses --${m[2]} as a text color; use --${m[2]}-ink`);
+  assert.equal(bad.length, 0, bad.join('\n'));
+});
 check('fold headers use the shared focus ring', () => {
   assert.match(css, /\.fold__head:focus-visible\s*\{[^}]*var\(--focus\)/, 'the fold header focus ring must be var(--focus); the accent yellow is 1.3:1 on the page');
 });
