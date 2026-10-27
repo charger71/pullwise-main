@@ -414,36 +414,45 @@ async function titleInfo(listEl, id) {
     const copies = lines.reduce((n, l) => n + l.quantity, 0);
     const category = categories.find((c) => c.id === item.category_id)?.name;
     const source = item.catalog_id ? 'Master catalog' : { lunar: 'Lunar', prh: 'PRH' }[item.distributor] ?? 'Added by hand';
-    const flags = [item.staff_pick && 'Staff pick', item.featured && 'On homepage', item.hidden && 'Hidden from customers', item.mature && 'Mature readers'].filter(Boolean);
-    const badges = Object.entries(ITEM_BADGES).filter(([k]) => item.badges?.includes(k)).map(([, l]) => l);
-    const rows = [
-      ['Status', `<span class="pill pill--${esc(item.status)}">${esc(STATUS_LABELS[item.status] ?? item.status)}</span>`],
-      ['Category', esc(category ?? 'None')],
-      ['Publisher', esc(item.publisher ?? '')],
-      ['Variant / edition', esc(item.variant ?? '')],
-      ['Creators', esc(item.creators ?? '')],
-      ['Retail price', esc(price(item.retail_price ?? item.price))],
-      ['Shop price', item.shop_price == null ? '' : esc(price(item.shop_price))],
-      ['Order cutoff (FOC)', item.foc_date ? esc(fmtDate(item.foc_date)) : ''],
-      ['Release date', item.release_date ? esc(fmtDate(item.release_date)) : ''],
-      ['Orders', `<button class="tt-datelink" type="button" data-who-ordered>${orders ? `${orders} ${orders === 1 ? 'order' : 'orders'}${copies !== orders ? ` · ${copies} copies` : ''}` : 'No orders'}</button>`],
-      ['On the site', esc(flags.join(' · '))],
-      ['Collector badges', badges.map((b) => `<span class="pill">${esc(b)}</span>`).join(' ')],
-      ['SKU', esc(item.sku ?? '')],
-      ['UPC', esc(item.upc ?? '')],
-      ['ISBN', esc(item.isbn ?? '')],
-      ['Source', esc(source)],
-      ['Last changed', esc(fmtDateTime(item.updated_at))],
+    // Laid out like the shop's own title details (cover beside the title, description under it), plus what only staff see.
+    const pills = [
+      `<span class="pill pill--${esc(item.status)}">${esc(STATUS_LABELS[item.status] ?? item.status)}</span>`,
+      ...[item.staff_pick && 'Staff pick', item.featured && 'On homepage', item.hidden && 'Hidden', item.mature && 'Mature readers'].filter(Boolean).map((f) => `<span class="pill">${esc(f)}</span>`),
+      ...Object.entries(ITEM_BADGES).filter(([k]) => item.badges?.includes(k)).map(([, l]) => `<span class="pill">${esc(l)}</span>`),
+    ];
+    const retail = item.retail_price ?? item.price;
+    const meta = [item.publisher, retail != null && `${price(retail)} retail`, item.shop_price != null && `${price(item.shop_price)} shop price`].filter(Boolean);
+    const longDate = (iso) => fmtDate(iso, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const paragraphs = String(item.description ?? '').split(/\n{2,}/).map((t) => t.trim()).filter(Boolean);
+    const more = [
+      ['Category', category ?? 'None'],
+      ['SKU', item.sku],
+      ['UPC', item.upc],
+      ['ISBN', item.isbn],
+      ['Source', source],
+      ['Last changed', fmtDateTime(item.updated_at)],
     ].filter(([, v]) => v);
     body.innerHTML = `
       <div class="title-info">
-        ${item.cover_url ? `<img class="thumb thumb--lg" src="${esc(item.cover_url)}" alt="Cover of ${esc(itemName(item))}">` : `<a class="thumb thumb--lg thumb--fix" href="${coverSearchUrl(item)}" target="_blank" rel="noopener noreferrer" aria-label="Find a cover for ${esc(item.title)} (opens Google Images in a new tab)">${solidIcon('fix', 24)}<span>Find a cover</span></a>`}
-        <div>
-          <h3>${esc(itemName(item))}</h3>
-          <dl class="info-list">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+        <div class="title-info__media">${item.cover_url ? `<img class="thumb thumb--lg" src="${esc(item.cover_url)}" alt="Cover of ${esc(itemName(item))}">` : `<a class="thumb thumb--lg thumb--fix" href="${coverSearchUrl(item)}" target="_blank" rel="noopener noreferrer" aria-label="Find a cover for ${esc(item.title)} (opens Google Images in a new tab)">${solidIcon('fix', 24)}<span>Find a cover</span></a>`}</div>
+        <div class="title-info__main">
+          <p class="title-info__pills">${pills.join(' ')}</p>
+          <h3 class="title-info__title">${esc(item.title)}${item.issue_number ? ` #${esc(item.issue_number)}` : ''}</h3>
+          ${item.variant ? `<p class="title-info__variant">${esc(item.variant)}</p>` : ''}
+          ${meta.length ? `<p class="card__meta">${meta.map(esc).join(' · ')}</p>` : ''}
+          <dl class="info-list">
+            ${item.foc_date ? `<dt>Order cutoff</dt><dd>${esc(longDate(item.foc_date))}</dd>` : ''}
+            ${item.release_date ? `<dt>${item.release_date > new Date().toLocaleDateString('en-CA') ? 'Out' : 'Released'}</dt><dd>${esc(longDate(item.release_date))}</dd>` : ''}
+            <dt>Orders</dt><dd><button class="tt-datelink" type="button" data-who-ordered>${orders ? `${orders} ${orders === 1 ? 'order' : 'orders'}${copies !== orders ? ` · ${copies} copies` : ''}` : 'No orders'}</button></dd>
+          </dl>
+          ${paragraphs.length ? `<div class="title-info__desc">${paragraphs.map((t) => `<p>${esc(t)}</p>`).join('')}</div>` : ''}
+          ${item.creators ? `<p class="card__meta">By ${esc(item.creators)}</p>` : ''}
         </div>
       </div>
-      ${item.description ? `<p class="title-info__desc">${esc(item.description)}</p>` : ''}
+      <section class="title-info__more" aria-label="More about this title">
+        <h4>More</h4>
+        <dl class="info-list">${more.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+      </section>
       <div class="admin-actions sticky-actions">
         <button class="btn btn--primary" type="button" data-edit-title>${solidIcon('edit', 16)} Edit</button>
         <button class="btn btn--ghost" type="button" data-who-ordered>${solidIcon('person', 16)} Who ordered</button>
