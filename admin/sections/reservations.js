@@ -481,7 +481,6 @@ async function renderReady(body) {
     <form class="filters admin-filters" role="search" aria-label="Find titles">
       <div class="field field--search"><label for="rd-q">Title</label><input id="rd-q" type="search" placeholder="Filter by title or publisher"></div>
       <div class="field"><label class="cust-export-opt" for="rd-future"><input type="checkbox" id="rd-future"> Include titles releasing after this week</label></div>
-      <div class="field"><label class="cust-export-opt" for="rd-reserved"><input type="checkbox" id="rd-reserved"> Only titles with reservations</label></div>
     </form>
     <div data-ready aria-busy="true"></div>`;
   const box = $('[data-ready]', body);
@@ -490,6 +489,8 @@ async function renderReady(body) {
   let seeded = false;
   // Column sort, kept across redraws (ticking a title redraws the table). Starts by title, A to Z.
   let sort = { key: 'title', dir: 'asc' };
+  // "Only titles with reservations" sits in the tick-buttons row, which is redrawn with the table, so its state lives here.
+  let onlyReserved = false;
   const weekStart = addDays(today(), -new Date(`${today()}T00:00:00Z`).getUTCDay());
   const weekEnd = addDays(weekStart, 6);
 
@@ -552,9 +553,8 @@ async function renderReady(body) {
   const visible = () => {
     const q = $('#rd-q', body).value.trim().toLowerCase();
     const future = $('#rd-future', body).checked;
-    const reserved = $('#rd-reserved', body).checked;
     return rows
-      .filter((r) => (future || isOut(r)) && (!reserved || r.lineIds.length) && (!q || `${itemName(r.item)} ${r.item.publisher ?? ''}`.toLowerCase().includes(q)))
+      .filter((r) => (future || isOut(r)) && (!onlyReserved || r.lineIds.length) && (!q || `${itemName(r.item)} ${r.item.publisher ?? ''}`.toLowerCase().includes(q)))
       .sort(byColumn);
   };
 
@@ -564,8 +564,10 @@ async function renderReady(body) {
       rows.filter(startTicked).forEach((r) => picked.add(r.item.id));
       seeded = true;
     }
+    const onlyBox = `<label class="cust-export-opt ready-picks__only" for="rd-reserved"><input type="checkbox" id="rd-reserved"${onlyReserved ? ' checked' : ''}> Only titles with reservations</label>`;
     if (!list.length) {
-      box.innerHTML = `<p class="empty">${rows.length ? 'No titles match.' : 'Nothing is releasing this week and nothing is waiting.'}</p>`;
+      // Keep the tick-box when it is what emptied the list, so it can be unticked.
+      box.innerHTML = `${onlyReserved ? `<div class="admin-actions ready-picks">${onlyBox}</div>` : ''}<p class="empty">${rows.length ? 'No titles match.' : 'Nothing is releasing this week and nothing is waiting.'}</p>`;
       return;
     }
     const chosen = list.filter((r) => picked.has(r.item.id));
@@ -576,7 +578,7 @@ async function renderReady(body) {
           <button type="button" class="btn btn--small btn--green" data-go${chosen.length ? '' : ' disabled'}>Mark ${chosen.length} ${chosen.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) ready</button>
         </div>
         <div class="fold__body">
-        <p><button type="button" class="btn btn--ghost btn--small" data-pick="all">Tick all shown</button> <button type="button" class="btn btn--ghost btn--small" data-pick="none">Clear ticks</button></p>
+        <div class="admin-actions ready-picks"><button type="button" class="btn btn--ghost btn--small" data-pick="all">Tick all shown</button><button type="button" class="btn btn--ghost btn--small" data-pick="none">Clear ticks</button>${onlyBox}</div>
       <table class="admin-table cards"><thead><tr><th scope="col"><span class="visually-hidden">Ready</span></th><th scope="col" data-sort="title">Title</th><th scope="col" data-sort="publisher">Publisher</th><th scope="col" data-sort="out">Out</th><th scope="col" class="col-qty" data-sort="copies" data-first="desc">Copies</th><th scope="col" class="col-qty" data-sort="customers" data-first="desc">Customers</th></tr></thead>
       <tbody>${list.map((r) => `<tr>
         <td class="card-lead"><input type="checkbox" data-item="${r.item.id}" aria-label="Ready: ${esc(itemName(r.item))}"${picked.has(r.item.id) ? ' checked' : ''}${r.lineIds.length ? '' : ' disabled title="Nobody has reserved this title"'}>
@@ -596,6 +598,10 @@ async function renderReady(body) {
   $('form', body).addEventListener('input', draw);
   $('form', body).addEventListener('submit', (e) => e.preventDefault());
   box.addEventListener('change', (e) => {
+    if (e.target.id === 'rd-reserved') {
+      onlyReserved = e.target.checked;
+      return draw();
+    }
     const cb = e.target.closest('[data-item]');
     if (!cb) return;
     cb.checked ? picked.add(Number(cb.dataset.item)) : picked.delete(Number(cb.dataset.item));
