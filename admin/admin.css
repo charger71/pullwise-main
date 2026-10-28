@@ -1025,8 +1025,9 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
   .cust-more { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 0 var(--sp-14); }
   .cust-more__body .btn { width: 100%; }
   .cust-more__body .cust-export-opt { min-height: var(--tap); font-size: var(--fs-base); }
-  /* One row of tabs that scrolls sideways instead of wrapping onto a second line. */
-  .admin-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  /* One row of tabs that scrolls sideways instead of wrapping onto a second line. overflow-y: hidden: overflow-x
+     alone makes the row scroll up and down too, by the 3px the chosen tab reaches over the line. */
+  .admin-tabs { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
   .admin-tabs::-webkit-scrollbar { display: none; }
   .admin-tabs .admin-tab { flex: none; white-space: nowrap; }
   .admin-hint-fold .cust-legend { justify-content: flex-start; padding-bottom: var(--sp-8); }
