@@ -578,7 +578,7 @@ function createDialog() {
         <p class="notice">No payment now — pay in-store at pickup.</p>
         <p class="field__hint"><a href="account.html">Sign in or create an account</a> to keep your pull list, change it online and follow series and artists.</p>
         <p class="form-error" role="alert"></p>
-        <button class="btn btn--primary" type="submit" style="width:100%">Submit pull list</button>
+        <button class="btn btn--primary btn--block" type="submit">Submit pull list</button>
       </form>
       <div class="confirm" hidden role="status">
         <p class="confirm__big">You're on the list!</p>

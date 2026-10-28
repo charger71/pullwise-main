@@ -192,7 +192,7 @@ function renderVisit(s) {
   $('#visit').innerHTML = `
     ${addr.length ? `<p><a href="${mapsHref(s)}">${addr.map(esc).join('<br>')}</a></p>` : ''}
     ${hoursList(s.hours ?? [])}
-    ${s.phone ? `<p style="margin-top:1em"><a href="${telHref(s.phone)}">${esc(formatPhone(s.phone))}</a></p>` : ''}
+    ${s.phone ? `<p class="mt-1em"><a href="${telHref(s.phone)}">${esc(formatPhone(s.phone))}</a></p>` : ''}
     ${mapEmbed(s, 'map map--small')}`;
 }
 

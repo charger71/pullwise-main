@@ -25,21 +25,21 @@ function field(q, i) {
   const text = `${esc(q.label)}${q.required ? ' <span aria-hidden="true">*</span><span class="visually-hidden"> (required)</span>' : ''}`;
   const label = `<span class="label" id="${name}-l">${text}</span>`;
   const forLabel = `<label id="${name}-l" for="${name}">${text}</label>`;
-  const group = (inner) => `<fieldset class="field" style="border:0;padding:0;margin:0 0 22px" aria-labelledby="${name}-l">${label}${inner}</fieldset>`;
+  const group = (inner) => `<fieldset class="field survey-q" aria-labelledby="${name}-l">${label}${inner}</fieldset>`;
   // More than 6 choices flow into two columns on wider screens (see .survey-choices in site.css).
   const opts = (type, list) => {
     const items = list.map((o, j) => `<div class="field--check"><input id="${name}-${j}" type="${type}" name="${name}" value="${esc(o)}"><label for="${name}-${j}">${esc(o)}</label></div>`).join('');
-    const other = q.other ? `<div class="survey-choice-other"><div class="field--check"><input id="${name}-other" type="${type}" name="${name}" value="__other__" data-other><label for="${name}-other">Other</label></div><div class="field" data-other-text="${name}" hidden style="margin:0 0 8px 34px"><label class="visually-hidden" for="${name}-other-text">Other: please specify</label><input id="${name}-other-text" maxlength="200" placeholder="Please specify"></div></div>` : '';
+    const other = q.other ? `<div class="survey-choice-other"><div class="field--check"><input id="${name}-other" type="${type}" name="${name}" value="__other__" data-other><label for="${name}-other">Other</label></div><div class="field survey-other" data-other-text="${name}" hidden><label class="visually-hidden" for="${name}-other-text">Other: please specify</label><input id="${name}-other-text" maxlength="200" placeholder="Please specify"></div></div>` : '';
     return `<div class="survey-choices${list.length + (q.other ? 1 : 0) > 6 ? ' survey-choices--cols' : ''}">${items}${other}</div>`;
   };
   switch (q.type) {
-    case 'section': return `<h2>${esc(q.label)}</h2>${paragraphs(q.text)}<hr style="margin:1.2em 0 1.8em">`;
-    case 'long': return `<div class="field" style="margin-bottom:22px">${forLabel}<textarea id="${name}" name="${name}" maxlength="3000" rows="4"${q.required ? ' required' : ''}></textarea></div>`;
+    case 'section': return `<h2>${esc(q.label)}</h2>${paragraphs(q.text)}<hr class="survey-break">`;
+    case 'long': return `<div class="field survey-q">${forLabel}<textarea id="${name}" name="${name}" maxlength="3000" rows="4"${q.required ? ' required' : ''}></textarea></div>`;
     case 'choice': return group(opts('radio', q.options));
     case 'multi': return group(opts('checkbox', q.options));
     case 'yesno': return group(opts('radio', ['Yes', 'No']));
-    case 'rating': return group(`<div style="display:flex;gap:18px;flex-wrap:wrap">${[1, 2, 3, 4, 5].map((n) => `<div class="field--check"><input id="${name}-${n}" type="radio" name="${name}" value="${n}"><label for="${name}-${n}">${n}</label></div>`).join('')}</div><p class="field__hint">1 = not at all, 5 = absolutely</p>`);
-    default: return `<div class="field" style="margin-bottom:22px">${forLabel}<input id="${name}" name="${name}" maxlength="300"${q.required ? ' required' : ''}></div>`;
+    case 'rating': return group(`<div class="survey-rating">${[1, 2, 3, 4, 5].map((n) => `<div class="field--check"><input id="${name}-${n}" type="radio" name="${name}" value="${n}"><label for="${name}-${n}">${n}</label></div>`).join('')}</div><p class="field__hint">1 = not at all, 5 = absolutely</p>`);
+    default: return `<div class="field survey-q">${forLabel}<input id="${name}" name="${name}" maxlength="300"${q.required ? ' required' : ''}></div>`;
   }
 }
 
@@ -65,13 +65,13 @@ if (!survey) {
     <h1>${esc(survey.title)}</h1>
     ${paragraphs(survey.intro)}
     <p class="card__meta">${questions.length} question${questions.length === 1 ? '' : 's'} · about ${minutes} minute${minutes === 1 ? '' : 's'}</p>
-    ${paged ? '<div id="survey-progress" tabindex="-1"><p class="card__meta" id="survey-step"></p><div role="progressbar" aria-label="Survey progress" aria-valuemin="0" aria-valuemax="100" style="height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-bottom:1.5em"><div id="survey-bar" style="height:100%;background:var(--teal);width:0;transition:width .2s"></div></div></div>' : ''}
+    ${paged ? '<div id="survey-progress" tabindex="-1"><p class="card__meta" id="survey-step"></p><div role="progressbar" aria-label="Survey progress" aria-valuemin="0" aria-valuemax="100" class="survey-progress"><div id="survey-bar" class="survey-progress__bar"></div></div></div>' : ''}
     <form id="survey-form" novalidate>
       ${pages.map((qs, i) => `<div data-page="${i}"${i ? ' hidden' : ''}>${qs.map(field).join('')}</div>`).join('')}
       ${survey.collect_email ? `<div class="field" data-email-wrap${paged ? ' hidden' : ''}><label for="survey-email">${esc(emailPrompt)} <span class="card__meta">(optional)</span></label><input id="survey-email" name="email" type="email" autocomplete="email" maxlength="200"><p class="field__hint">We keep your email separate from your answers, so your answers stay anonymous.</p></div>` : ''}
       <div hidden aria-hidden="true"><label>Leave this empty<input name="website" tabindex="-1" autocomplete="off"></label></div>
       <p class="form-error" role="alert" id="survey-error"></p>
-      <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div class="form-actions">
         ${paged ? '<button class="btn btn--ghost" type="button" data-back hidden>Back</button><button class="btn btn--primary" type="button" data-next>Next</button>' : ''}
         <button class="btn btn--primary" type="submit"${paged ? ' hidden' : ''}>Submit</button>
       </div>

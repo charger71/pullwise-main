@@ -6,10 +6,10 @@ const addr = addressLines(s);
 
 /** Email, social links and the Whatnot stream: shared by every location. */
 const touch = (heading) => `
-  <h2${heading ? ' style="margin-top:1em"' : ''}>Get in Touch</h2>
+  <h2${heading ? ' class="mt-1em"' : ''}>Get in Touch</h2>
   ${s.email ? `<p><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></p>` : ''}
   ${socialIcons(s, { except: ['whatnot'] })}
-  ${s.socials?.whatnot ? `<h2 style="margin-top:1em">Watch Us Live</h2><p>We stream on Whatnot — dollar-bin digs, new-release breaks and more.</p><p><a class="btn btn--primary" href="${esc(s.socials.whatnot)}" rel="noopener">Watch on Whatnot</a></p>` : ''}`;
+  ${s.socials?.whatnot ? `<h2 class="mt-1em">Watch Us Live</h2><p>We stream on Whatnot — dollar-bin digs, new-release breaks and more.</p><p><a class="btn btn--primary" href="${esc(s.socials.whatnot)}" rel="noopener">Watch on Whatnot</a></p>` : ''}`;
 
 if (s.locations?.length) {
   // Several locations: a card for each (address, phone, hours, its own map), then the shared contact details.
@@ -34,11 +34,11 @@ $('#contact-info').innerHTML = `
   ${addr.length ? `<h2>Address</h2><address><a href="${mapsHref(s)}">${addr.map(esc).join('<br>')}</a></address>` : ''}
   <h2>Hours</h2>
   ${hoursList(s.hours ?? [])}
-  <h2 style="margin-top:1em">Get in Touch</h2>
+  <h2 class="mt-1em">Get in Touch</h2>
   ${s.phone ? `<p><a class="btn btn--ghost" href="${telHref(s.phone)}">Call ${esc(formatPhone(s.phone))}</a></p>` : ''}
   ${s.email ? `<p><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></p>` : ''}
   ${socialIcons(s, { except: ['whatnot'] })}
-  ${s.socials?.whatnot ? `<h2 style="margin-top:1em">Watch Us Live</h2><p>We stream on Whatnot — dollar-bin digs, new-release breaks and more.</p><p><a class="btn btn--primary" href="${esc(s.socials.whatnot)}" rel="noopener">Watch on Whatnot</a></p>` : ''}`;
+  ${s.socials?.whatnot ? `<h2 class="mt-1em">Watch Us Live</h2><p>We stream on Whatnot — dollar-bin digs, new-release breaks and more.</p><p><a class="btn btn--primary" href="${esc(s.socials.whatnot)}" rel="noopener">Watch on Whatnot</a></p>` : ''}`;
 
 const map = mapEmbed(s, 'map map--large');
 if (map) {
