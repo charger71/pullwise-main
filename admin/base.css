@@ -55,6 +55,15 @@
   --z-header: 10;        /* the admin header */
   --z-float: 100;        /* toasts and the update banner */
   --z-busy: 9998;        /* the loading dimmer; its spinner sits one above */
+  --shadow-hover: 0 2px 4px rgb(0 0 0 / .08), 0 8px 20px rgb(0 0 0 / .1);   /* a button lifted under the pointer */
+  --shadow-press: 0 1px 2px rgb(0 0 0 / .1);                                /* a button pressed */
+  --shadow-tile-hover: var(--shadow), 0 0 0 2px var(--brand-accent);       /* a dashboard tile under the pointer */
+  --shadow-flash: 0 0 0 3px var(--brand-accent);                           /* the ring that marks a found QR code */
+  --dur-press: .08s;     /* a button's lift and press */
+  --dur: .15s;           /* a fold's arrow, the menu chevron */
+  --dur-spin: .7s;       /* one turn of the loading spinner */
+  --dur-spin-calm: 2s;   /* the spinner under prefers-reduced-motion */
+  --dur-flash: 2.5s;     /* the found-QR-code ring (qr.js removes the class after the same 2.5s) */
 
   /* Spacing scale, named by pixels. Use these for margin, padding and gap instead of bare numbers. */
   --sp-2: 2px;  --sp-4: 4px;  --sp-6: 6px;  --sp-8: 8px;  --sp-10: 10px;  --sp-12: 12px;
@@ -261,10 +270,10 @@ iframe.ql-video { display: block; clear: both; width: 100%; max-width: 640px; as
   color: var(--on-accent); background: var(--brand-accent);
   border: 0; border-radius: var(--radius); box-shadow: var(--shadow);
   text-decoration: none; cursor: pointer;
-  transition: transform .08s, box-shadow .08s, filter .08s;
+  transition: transform var(--dur-press), box-shadow var(--dur-press), filter var(--dur-press);
 }
-.btn:hover { color: var(--on-accent); transform: translateY(-1px); filter: brightness(1.04); box-shadow: 0 2px 4px rgb(0 0 0 / .08), 0 8px 20px rgb(0 0 0 / .1); }
-.btn:active { transform: translateY(0); box-shadow: 0 1px 2px rgb(0 0 0 / .1); }
+.btn:hover { color: var(--on-accent); transform: translateY(-1px); filter: brightness(1.04); box-shadow: var(--shadow-hover); }
+.btn:active { transform: translateY(0); box-shadow: var(--shadow-press); }
 .btn--primary { background: var(--brand-primary); color: #fff; }
 .btn--primary:hover { color: #fff; }
 .btn--ghost { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--field-line); }
@@ -338,7 +347,7 @@ summary::-webkit-details-marker { display: none; }
 summary::after {
   content: ''; flex: none; width: .5em; height: .5em; margin-left: auto; margin-top: -.25em;
   border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
-  transform: rotate(45deg); transition: transform .15s;
+  transform: rotate(45deg); transition: transform var(--dur);
 }
 details[open] > summary::after { transform: rotate(225deg); margin-top: .25em; }
 details > div { padding: 0 var(--sp-16) var(--sp-14); }
@@ -362,10 +371,10 @@ body:has([aria-busy="true"], .loading)::after {
   content: ""; position: fixed; top: 50%; left: 50%; z-index: calc(var(--z-busy) + 1); pointer-events: none;
   width: 28px; height: 28px; margin: -14px 0 0 -14px; box-sizing: border-box;
   border: 3px solid rgb(255 255 255 / .35); border-top-color: #fff; border-radius: 50%;
-  animation: spin .7s linear infinite;
+  animation: spin var(--dur-spin) linear infinite;
 }
 .loading { text-align: center; color: var(--muted); }
 .empty.loading { border: 0; }
 @media (prefers-reduced-motion: reduce) {
-  body:has([aria-busy="true"], .loading)::after { animation-duration: 2s; }
+  body:has([aria-busy="true"], .loading)::after { animation-duration: var(--dur-spin-calm); }
 }

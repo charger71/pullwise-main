@@ -246,6 +246,37 @@ check('font sizes and z-index use the tokens', () => {
   assert.equal(bad.length, 0, `Bare sizes:\n${bad.join('\n')}\nUse a --fs-* step or a --z-* level from base.css.`);
 });
 
+// Motion and shadows come from base.css too. A shadow may be written out only as an inset edge, or built from tokens
+// with zero offsets (the sticky Save button's halo).
+check('durations and shadows use the tokens', () => {
+  const bad = Object.entries({ 'base.css': base, 'admin.css': css }).flatMap(([f, t]) => declarations(t)
+    .filter(([p, v]) => (/^(transition|animation)(-duration|-delay)?$/.test(p) && /(?<![\w.-])\d*\.?\d+m?s\b/.test(outsideCalc(v)))
+      || (p === 'box-shadow' && v.split(/,(?![^(]*\))/).some((part) => !/^\s*(inset\b|none\s*$)/.test(part) && /[^\s0]/.test(part.replace(/var\([^)]*\)/g, '')))))
+    .map(([p, v]) => `${f}: ${p}: ${v}`));
+  assert.equal(bad.length, 0, `${bad.join('\n')}\nUse a --dur-* step, or --shadow, --shadow-lg or a --shadow-* role from base.css.`);
+});
+
+// Under prefers-reduced-motion every transition stops, and every animation has its own rule that stops or slows it.
+check('animations stop or slow under prefers-reduced-motion', () => {
+  const plain = allCss.replace(/\/\*[\s\S]*?\*\//g, '');
+  let calm = '';
+  let moving = plain;
+  for (let at = plain.indexOf('prefers-reduced-motion'); at !== -1; at = plain.indexOf('prefers-reduced-motion', at + 1)) {
+    let i = plain.indexOf('{', at) + 1;
+    const start = i;
+    for (let depth = 1; depth; i++) depth += plain[i] === '{' ? 1 : plain[i] === '}' ? -1 : 0;
+    calm += plain.slice(start, i - 1) + '\n';
+    moving = moving.replace(plain.slice(start, i - 1), '');
+  }
+  const selectors = (text) => text.split(/,(?![^(]*\))/).map((x) => x.trim().replace(/\s+/g, ' '));
+  const calmed = new Set([...calm.matchAll(/([^{};]+)\{([^{}]*)\}/g)].filter(([, , b]) => /animation/.test(b)).flatMap(([, sel]) => selectors(sel)));
+  assert.match(calm, /\*\s*\{\s*transition:\s*none !important;?\s*\}/, 'Keep `* { transition: none !important; }` under prefers-reduced-motion in base.css.');
+  const restless = [...moving.matchAll(/([^{};]+)\{([^{}]*)\}/g)]
+    .filter(([sel, , b]) => !/^\s*(@|\d|from|to)/.test(sel) && /(?<![-\w])animation:\s*(?!none)/.test(b))
+    .flatMap(([, sel]) => selectors(sel)).filter((sel) => !calmed.has(sel));
+  assert.equal(restless.length, 0, `Stop or slow these animations under @media (prefers-reduced-motion: reduce):\n${restless.join('\n')}`);
+});
+
 // ---- Markup habits --------------------------------------------------------------------------------------------------
 check('no empty spacer labels, and ids come from uid()', () => {
   const files = { ...Object.fromEntries(Object.entries(sections).map(([f, t]) => [`sections/${f}`, t])), 'lib.js': lib, 'style-guide.html': guide };

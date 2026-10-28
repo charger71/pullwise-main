@@ -25,7 +25,8 @@
 
 ## Checks
 - `npm test` runs the unit tests and `admin/consistency.test.js`: contrast in both themes, tokens only (no bare
-  colours, font sizes, spacing, corners, z-index or breakpoints), row colours, fold markup, no unused CSS, and more,
-  and `css/site.test.js` for the storefront (breakpoints and colors). Run it before every commit.
+  colours, font sizes, spacing, corners, z-index, durations, shadows or breakpoints; every animation stops or slows
+  under reduced motion), row colours, fold markup, no unused CSS, and more,
+  and `css/site.test.js` for the storefront (the same token rules, colors and no inline styles). Run it before every commit.
 - The git pre-commit hook stamps `admin/version.js`, and the Deploy workflow stamps it again before each Worker deploy
   (for commits made without the hook); never edit it by hand.

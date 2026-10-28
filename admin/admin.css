@@ -154,7 +154,7 @@
 .admin-nav__heading { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: var(--sp-10); padding: var(--sp-8) var(--sp-10) var(--sp-4); border: 0; border-top: var(--border); background: none; cursor: pointer; font: 700 var(--fs-2xs) var(--font-body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .admin-nav__heading:hover { color: var(--ink); }
 .admin-nav__heading:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.admin-nav__chev { flex: none; fill: currentColor; transition: transform .15s; }
+.admin-nav__chev { flex: none; fill: currentColor; transition: transform var(--dur); }
 .admin-nav__heading[aria-expanded='false'] .admin-nav__chev { transform: rotate(-90deg); }
 .admin-nav a:hover { background: var(--hover-bg); color: var(--ink); }
 .admin-nav a[aria-current='page'], .admin-nav a[aria-current='page']:hover { background: var(--brand-accent); color: var(--on-accent); }
@@ -354,7 +354,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 @media (min-width: 1200px) { .dash-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 380px) { .dash-tiles { grid-template-columns: minmax(0, 1fr); } }
 .dash-tile a { display: flex; flex-direction: column; gap: var(--sp-2); height: 100%; padding: var(--sp-14) var(--sp-16); background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); color: var(--ink); text-decoration: none; border-top: 4px solid var(--brand-accent); }
-.dash-tile a:hover { box-shadow: var(--shadow), 0 0 0 2px var(--brand-accent); }
+.dash-tile a:hover { box-shadow: var(--shadow-tile-hover); }
 .dash-tile--alert a { border-top-color: var(--danger); }
 .dash-tile__label { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .dash-tile__value { font: var(--fs-stat)/1.1 var(--font-display); }
@@ -1251,9 +1251,9 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .sq-head h2 { overflow-wrap: anywhere; }
 
 /* A QR code opened from a link (e.g. a survey's View QR code) flashes once so it is easy to spot. */
-.qr-item.is-flash { animation: qr-flash 2.5s ease-out; }
-@keyframes qr-flash { 0%, 60% { box-shadow: 0 0 0 3px var(--brand-accent); } 100% { box-shadow: var(--shadow); } }
-@media (prefers-reduced-motion: reduce) { .qr-item.is-flash { animation: none; box-shadow: 0 0 0 3px var(--brand-accent); } }
+.qr-item.is-flash { animation: qr-flash var(--dur-flash) ease-out; }
+@keyframes qr-flash { 0%, 60% { box-shadow: var(--shadow-flash); } 100% { box-shadow: var(--shadow); } }
+@media (prefers-reduced-motion: reduce) { .qr-item.is-flash { animation: none; box-shadow: var(--shadow-flash); } }
 
 /* ---------- Tablets (600 to 899px) ----------
    The phone layouts above run up to 899px so lists become cards, but a button stretched across a 700px-wide card looks
