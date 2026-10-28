@@ -122,8 +122,12 @@ const FS_A = { 'fs-title': 'Panel, month, post and dialog titles.', 'fs-sub': 'S
 const RADIUS_A = { radius: 'Default for panels, folds, fields and buttons.', 'radius-xs': 'Small inner corners (calendar picker button).', 'radius-sm': 'Chips and do / don\'t notes.', 'radius-lg': 'Media tiles and larger cards.', 'radius-xl': 'Dialogs.', 'radius-pill': 'Pills and count badges.' };
 
 export function adminTokens() {
-  const color = [], spacing = [], radius = [], shadow = [], size = [], zIndex = [], fontSize = [];
+  const color = [], spacing = [], radius = [], shadow = [], size = [], zIndex = [], fontSize = [], duration = [];
   const families = {};
+  // The comment after a variable in :root is its note. A shadow token holds plain values, so the variables inside one
+  // (--shadow, a color) are written out for each theme.
+  const note = (n) => (base.match(new RegExp(`--${n}:[^;]*;\\s*/\\*\\s*([^*]+?)\\s*\\*/`))?.[1] ?? '').replace(/^./, (c) => c.toUpperCase());
+  const plainShadow = (v, theme) => rgbaOf(v.replace(/var\(--([\w-]+)\)/g, (_, r) => plainShadow(resolveA(r, theme) ?? '', theme)));
   for (const [name, v] of [...aLight, ...aBtn]) {
     const d = aDark[name];
     const t = `admin-${name}`;
@@ -141,14 +145,18 @@ export function adminTokens() {
       color.push({ name: t, value, usage: usage.trim() });
     } else if (/^sp-/.test(name)) spacing.push({ name: t, value: v, usage: `Spacing step (${v}) for margin, padding and gap in the admin; never a bare pixel value.` });
     else if (/^radius/.test(name)) radius.push({ name: t, value: v, usage: RADIUS_A[name] + used });
-    else if (/^shadow/.test(name)) shadow.push({ name: t, value: d && d !== v ? { dark: rgbaOf(d), light: rgbaOf(v) } : rgbaOf(v), usage: (name === 'shadow' ? 'Resting cards, panels, folds and buttons.' : 'Dialogs and floating panels.') + used });
+    else if (name === 'shadow' || name === 'shadow-lg') shadow.push({ name: t, value: d && d !== v ? { dark: rgbaOf(d), light: rgbaOf(v) } : rgbaOf(v), usage: (name === 'shadow' ? 'Resting cards, panels, folds and buttons.' : 'Dialogs and floating panels.') + used });
+    else if (/^shadow-/.test(name)) {
+      const [light, dark] = [plainShadow(v, 'light'), plainShadow(v, 'dark')];
+      shadow.push({ name: t, value: light === dark ? light : { dark, light }, usage: `${note(name)}.` + used });
+    } else if (/^dur(-|$)/.test(name)) duration.push({ name: t, value: v, usage: `${note(name)}.` });
     else if (/^z-/.test(name)) zIndex.push({ name: t, value: v, usage: Z_A[name] });
     else if (/^fs-/.test(name)) fontSize.push({ name: t, value: v, usage: FS_A[name] });
     else if (SIZE_A[name]) size.push({ name: t, value: isVarRef(v) ? lightMap[refName(v)] : v, usage: SIZE_A[name] });
     else if (/^font-/.test(name)) families[`admin-${name.slice(5)}`] = v.replace(/'/g, '"');
     // --border (a shorthand) stays in the stylesheet.
   }
-  return { color, spacing, radius, shadow, size, zIndex, fontSize, families };
+  return { color, spacing, radius, shadow, size, zIndex, fontSize, duration, families };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

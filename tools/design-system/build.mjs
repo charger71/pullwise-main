@@ -90,7 +90,7 @@ fam('shadow', [...S.shadow, ...A.shadow]);
 tokens.size = { note: 'Fixed sizes: touch targets, field heights, the sticky header and list bar, page width.', tokens: [...S.size, ...A.size] };
 tokens.fontSize = { note: 'Text-size steps: the storefront\'s fixed sizes (the headline, sub-heading and body sizes follow Shop Settings and are type styles) and the admin\'s. The tests reject bare px or rem sizes in both.', tokens: [...S.fontSize, ...A.fontSize] };
 tokens.zIndex = { note: 'Stacking order, lowest first, for the storefront and the admin. Never a bare z-index; both test suites reject one.', tokens: [...S.zIndex, ...A.zIndex] };
-tokens.duration = { note: 'The storefront\'s motion steps. Transitions stop and the skeleton stops pulsing under prefers-reduced-motion; the spinner slows to shop-dur-spin-calm. css/site.test.js rejects a bare duration.', tokens: S.duration };
+tokens.duration = { note: 'Motion steps for the storefront and the admin (the same names in both). Under prefers-reduced-motion every transition stops, every animation stops or slows (the spinners slow to *-dur-spin-calm), and both test suites reject a bare duration.', tokens: [...S.duration, ...A.duration] };
 write('tokens.json', JSON.stringify(tokens, null, 2) + '\n');
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -133,6 +133,8 @@ The shop's back office: customers and pull lists, reservations, Place Order, tit
 - \`--border\` is a whole border (\`1px solid admin-line\`): write \`border: var(--border)\`, never \`1px solid var(--border)\`.
 - Touch: \`admin-tap-btn\` (48px) buttons and \`admin-tap\` (44px) small buttons and fields on phones; clickable fold headers \`admin-tap-head\` (52px). Fields are \`admin-field-h\`.
 - Stacking: \`admin-z-raised\` → \`admin-z-sticky\` → \`admin-z-header\` → \`admin-z-float\` (toasts) → \`admin-z-busy\` (loading). Never a bare z-index.
+- Shadows: \`admin-shadow\` resting cards, \`admin-shadow-lg\` dialogs and toasts, \`admin-shadow-hover\` / \`admin-shadow-press\` a button lifted and pressed, \`admin-shadow-tile-hover\` a dashboard tile under the pointer, \`admin-shadow-flash\` the found-QR ring. Written out, a shadow may only be an inset edge.
+- Motion: \`admin-dur-press\` (.08s) button lift, \`admin-dur\` (.15s) arrows and chevrons, \`admin-dur-spin\` the spinner, \`admin-dur-flash\` the QR ring. Under \`prefers-reduced-motion\` transitions stop, the QR ring stays still and the spinner slows to \`admin-dur-spin-calm\`. consistency.test.js rejects a bare duration or shadow and an animation with no reduced-motion rule.
 - Helpers: \`m-0\`, \`mt-*\` / \`mb-*\` (0–24), \`ml-auto\`, \`stack\`, \`cluster\`, \`gap-*\`, \`justify-between\`, \`items-start|end\`, \`flex-1\`, \`text-muted\`, \`text-danger\`, \`text-success\`, \`text-right\`, \`font-mono\`, \`nowrap\`.
 
 ## Breakpoints

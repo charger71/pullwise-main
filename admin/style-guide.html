@@ -773,7 +773,10 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
 --tap-btn 48px    a button on a phone
 --tap-head 52px   a fold header you click or tap open
 --header-h 60px   the sticky admin header; sticky things sit at top: var(--header-h)
-z-index: --z-raised 3 · --z-sticky 5 · --z-header 10 · --z-float 100 (toasts) · --z-busy 9998 (loading)</pre>
+z-index: --z-raised 3 · --z-sticky 5 · --z-header 10 · --z-float 100 (toasts) · --z-busy 9998 (loading)
+shadows: --shadow (cards) · --shadow-lg (dialogs, toasts) · --shadow-hover / --shadow-press (buttons) · --shadow-tile-hover · --shadow-flash
+motion:  --dur-press .08s (button lift) · --dur .15s (arrows, chevrons) · --dur-spin .7s · --dur-spin-calm 2s · --dur-flash 2.5s
+         Under prefers-reduced-motion every transition stops and each animation has its own rule that stops or slows it.</pre>
           </div>
           <div class="sg-item">
             <h3>Helpers</h3>
