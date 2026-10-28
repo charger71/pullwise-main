@@ -100,6 +100,9 @@
 .admin-hint code { background: var(--code-bg); padding: var(--sp-2) var(--sp-6); border-radius: var(--radius-sm); font-size: var(--fs-sm); }
 .admin-actions { display: flex; align-items: center; gap: var(--sp-14); margin-top: var(--sp-8); }
 .toorder__actions { margin: 0 0 var(--sp-10); justify-content: flex-end; }
+/* Received: Tick all shown / Clear ticks on the left, the "Only titles with reservations" tick-box pushed right. */
+.ready-picks { flex-wrap: wrap; gap: var(--sp-8); margin: 0 0 var(--sp-12); }
+.ready-picks .ready-picks__only { margin-left: auto; } /* beats .cust-export-opt's margin: 0, which comes later */
 .admin-status { font-weight: 700; }
 .admin-status--error { color: var(--danger-ink); }
 
@@ -996,7 +999,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .admin-hint-fold > summary { cursor: pointer; font-weight: 600; color: var(--muted); min-height: var(--tap); display: flex; align-items: center; }
 .admin-hint-fold > .admin-hint { margin: 0; padding: 0 var(--sp-16) var(--sp-14); } /* the text lines up with the heading above it, not the box edge */
 @media (max-width: 899px) {
-  .field .cust-export-opt { min-height: var(--tap); font-size: var(--fs-base); white-space: normal; }
+  .field .cust-export-opt, .ready-picks .cust-export-opt { min-height: var(--tap); font-size: var(--fs-base); white-space: normal; }
 }
 @media (max-width: 899px) {
   .admin-filters .field:has(.cust-export-opt) { grid-column: 1 / -1; }
