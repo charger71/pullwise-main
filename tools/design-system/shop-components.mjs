@@ -104,7 +104,7 @@ The storefront footer: the newsletter band, then three columns (address and cont
 </footer>`, 'pw-shop'),
   },
   {
-    name: 'ShopHero', group: G('Layout'), height: 422, width: 1000,
+    name: 'ShopHero', group: G('Layout'), height: 424, width: 1000,
     readme: `# ShopHero
 
 The home page opener: the shop's headline over a faint halftone dot screen, an intro line and up to two actions.
@@ -144,7 +144,7 @@ Storefront buttons: upper-case labels on square-cornered (3px) blocks, 46px tall
 </div>`),
   },
   {
-    name: 'ShopField', group: G('Forms'), height: 498,
+    name: 'ShopField', group: G('Forms'), height: 501,
     readme: `# ShopField
 
 Form fields on the storefront: a visible label above every control, a hint under it, and one shared field height.
@@ -168,7 +168,7 @@ Form fields on the storefront: a visible label above every control, a hint under
 </form>`),
   },
   {
-    name: 'ShopMultiSelect', group: G('Forms'), height: 465,
+    name: 'ShopMultiSelect', group: G('Forms'), height: 466,
     readme: `# ShopMultiSelect
 
 A checkbox dropdown for catalog filters (publisher, format): a button that looks like a select, opening a panel of tick boxes.
@@ -198,7 +198,7 @@ A checkbox dropdown for catalog filters (publisher, format): a button that looks
 </div>`),
   },
   {
-    name: 'ShopFilters', group: G('Forms'), height: 197, width: 1000,
+    name: 'ShopFilters', group: G('Forms'), height: 198, width: 1000,
     readme: `# ShopFilters
 
 The filter bar above a catalog grid: a search box and select or multi-select filters, with a live count under it.
@@ -236,7 +236,7 @@ ${card({ status: 'just_arrived', icon: '★', label: 'Just Arrived', title: 'Mon
 </div>`),
   },
   {
-    name: 'ShopStatusBadge', group: G('Catalog'), height: 128,
+    name: 'ShopStatusBadge', group: G('Catalog'), height: 129,
     readme: `# ShopStatusBadge
 
 A title's stock status: an icon and an upper-case word on a colored chip, never color alone.
@@ -308,7 +308,7 @@ The reservation list: a bar fixed to the bottom of the screen while a guest has 
 <div class="list-bar" style="position:static;margin-top:16px"><div class="container list-bar__inner"><p class="list-bar__text"><strong>Your Pull List</strong> · 2 titles, 3 copies</p><button class="btn btn--primary" type="button">Review and send</button></div></div>`),
   },
   {
-    name: 'ShopEvent', group: G('Content'), height: 327,
+    name: 'ShopEvent', group: G('Content'), height: 328,
     readme: `# ShopEvent
 
 An event on the calendar: a tear-off date block beside the type, title, time and place, with the event's photo on the right on wider screens.
