@@ -149,6 +149,7 @@ Phone up to 599px, tablet 600–899px, desktop from 900px, wide from 1200px; sma
 - **Accessibility:** visible labels; \`role="status"\` for save results and \`role="alert"\` for errors; buttons, not links, for actions; never a whole screen as a live region; never a button inside a \`<summary>\`; tab rows get arrow keys.
 - **Safety:** escape every piece of text put into markup with \`esc()\`; make label/field id pairs with \`uid()\`.
 - **Templates:** start a new line at each block tag, never between inline ones (buttons, spans, links), where a line break shows as a space.
+- **No fixed inline styles:** a look is a class in admin.css (or a helper such as \`font-mono\`); \`style="…"\` only carries a value worked out at run time (a bar's width). consistency.test.js rejects any other.
 - **Deliberate exceptions:** Titles filter labels are a little smaller so seven filters fit; the FAQ arrows are fixed-width icon buttons; the Titles list's Edit button is tighter on phones.
 
 ## Screen patterns

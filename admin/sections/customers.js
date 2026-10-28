@@ -30,9 +30,9 @@ const ICON = {
   noEmail: ['<path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM4 5.4 12 11l8-5.6v2L12 13 4 7.4z"/>', 'No email address', '', 'No email'],
   emailOff: ['<path d="M7.5 2h2v3h-2zM14.5 2h2v3h-2zM5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM5 9.5h14V11H5z"/>', 'Weekly email off', '', 'Weekly email off'],
   arrivalsOff: ['<path d="M12 3a6 6 0 0 0-6 6v5l-1.5 2.5h15L18 14V9a6 6 0 0 0-6-6zM9.5 18.5h5a2.5 2.5 0 0 1-5 0z"/>', 'Arrival emails off', '', 'Arrival email off'],
-  noName: ['<path d="M12 3a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM3 21c0-4.4 4-7 9-7s9 2.6 9 7z"/><path d="M9.5 5.5h5v1.6h-5z" style="fill:#fff"/>', 'No name saved', '', 'No name'],
+  noName: ['<path d="M12 3a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM3 21c0-4.4 4-7 9-7s9 2.6 9 7zM9.5 5.5h5v1.6h-5z"/>', 'No name saved', '', 'No name'],
   noPhone: ['<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>', 'No phone number', '', 'No phone'],
-  noLogin: ['<path d="M9 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM2 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5z"/><path d="m17.5 6.5 4 4m0-4-4 4" style="fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round"/>', 'No login (no online account)', ' is-minor', 'No login'],
+  noLogin: ['<path d="M9 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM2 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5z"/><path class="cust-icon__stroke" d="m17.5 6.5 4 4m0-4-4 4"/>', 'No login (no online account)', ' is-minor', 'No login'],
 };
 /** Fix button for rows with an action-needed (red) icon; opens the customer to correct it. Minor issues (no login) don't get one. */
 const needsFix = (c) => statusKeys(c).some((k) => !ICON[k][2].includes('is-minor'));

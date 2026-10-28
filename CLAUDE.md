@@ -9,6 +9,8 @@
   `admin/consistency.test.js` fails when a shared component is missing from the guide.
 - Shared CSS lives in `admin/base.css` (tokens, both themes) and `admin/admin.css`; one screen per file in
   `admin/sections/`; helpers (`esc`, `uid`, `hintFold`, `setupTabs`, `openDialog`, …) in `admin/lib.js`.
+- Markup a screen writes carries no fixed `style="…"`: give it a class in `admin.css` (inline styles only carry values
+  worked out at run time, such as a bar's width). `admin/consistency.test.js` enforces it.
 
 ## Before changing the public site's look
 - The storefront's colors, breakpoints and fonts follow the rules at the top of `css/site.css` and in the design

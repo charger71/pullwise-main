@@ -278,6 +278,15 @@ check('animations stop or slow under prefers-reduced-motion', () => {
 });
 
 // ---- Markup habits --------------------------------------------------------------------------------------------------
+// A screen's look is a class in admin.css, where the checks above see it. An inline style is only for a value worked
+// out at run time (a bar's width, a contrast sample's colors), so it must contain a ${…}.
+check('markup carries no fixed inline styles', () => {
+  const scripts = { 'lib.js': lib, 'admin.js': read('admin.js'), ...Object.fromEntries(Object.entries(sections).map(([f, t]) => [`sections/${f}`, t])) };
+  const bad = Object.entries(scripts).flatMap(([f, t]) => [...t.matchAll(/\sstyle=\\?(["'])((?:(?!\1).)*)\1/g)]
+    .filter((m) => !m[2].includes('${')).map((m) => `${f}: ${m[0].trim()}`));
+  assert.equal(bad.length, 0, `${bad.join('\n')}\nMove these into a class in admin.css (or use a helper such as font-mono).`);
+});
+
 check('no empty spacer labels, and ids come from uid()', () => {
   const files = { ...Object.fromEntries(Object.entries(sections).map(([f, t]) => [`sections/${f}`, t])), 'lib.js': lib, 'style-guide.html': guide };
   const bad = Object.entries(files).flatMap(([f, t]) => [
