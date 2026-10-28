@@ -477,16 +477,19 @@ async function exportCsv() {
 /** Open, ordered and reordered reservations, totalled per title. Titles releasing after this week (Sunday to Saturday) are listed only when asked for. */
 async function renderReady(body) {
   // The instructions are long: folded away on phones, where they would fill the first screen.
-  body.innerHTML = `${hintFold(`Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.`)}
+  body.innerHTML = `${hintFold(`Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked; tick Only titles with reservations to hide them. Click a column heading to sort by it. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.`)}
     <form class="filters admin-filters" role="search" aria-label="Find titles">
       <div class="field field--search"><label for="rd-q">Title</label><input id="rd-q" type="search" placeholder="Filter by title or publisher"></div>
       <div class="field"><label class="cust-export-opt" for="rd-future"><input type="checkbox" id="rd-future"> Include titles releasing after this week</label></div>
+      <div class="field"><label class="cust-export-opt" for="rd-reserved"><input type="checkbox" id="rd-reserved"> Only titles with reservations</label></div>
     </form>
     <div data-ready aria-busy="true"></div>`;
   const box = $('[data-ready]', body);
   const picked = new Set();
   let rows = [];
   let seeded = false;
+  // Column sort, kept across redraws (ticking a title redraws the table). Starts by title, A to Z.
+  let sort = { key: 'title', dir: 'asc' };
   const weekStart = addDays(today(), -new Date(`${today()}T00:00:00Z`).getUTCDay());
   const weekEnd = addDays(weekStart, 6);
 
@@ -531,10 +534,28 @@ async function renderReady(body) {
   // Ticked to start: titles out this week with copies open or on order. Titles with no release date, from earlier
   // weeks, or only reordered (the replacement comes later) are listed but have to be ticked by hand.
   const startTicked = (r) => r.onOrder && r.item.release_date >= weekStart && r.item.release_date <= weekEnd;
+  const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+  const SORT_VALUE = {
+    title: (r) => itemName(r.item),
+    publisher: (r) => r.item.publisher ?? '',
+    out: (r) => r.item.release_date ?? '',
+    copies: (r) => r.copies,
+    customers: (r) => r.orders.size,
+  };
+  const byColumn = (a, b) => {
+    const val = SORT_VALUE[sort.key];
+    const x = val(a), y = val(b);
+    if (!x !== !y) return !x ? 1 : -1; // blanks last either way
+    const c = typeof x === 'number' ? x - y : collator.compare(x, y);
+    return (sort.dir === 'asc' ? c : -c) || collator.compare(itemName(a.item), itemName(b.item));
+  };
   const visible = () => {
     const q = $('#rd-q', body).value.trim().toLowerCase();
     const future = $('#rd-future', body).checked;
-    return rows.filter((r) => (future || isOut(r)) && (!q || `${itemName(r.item)} ${r.item.publisher ?? ''}`.toLowerCase().includes(q)));
+    const reserved = $('#rd-reserved', body).checked;
+    return rows
+      .filter((r) => (future || isOut(r)) && (!reserved || r.lineIds.length) && (!q || `${itemName(r.item)} ${r.item.publisher ?? ''}`.toLowerCase().includes(q)))
+      .sort(byColumn);
   };
 
   function draw() {
@@ -556,7 +577,7 @@ async function renderReady(body) {
         </div>
         <div class="fold__body">
         <p><button type="button" class="btn btn--ghost btn--small" data-pick="all">Tick all shown</button> <button type="button" class="btn btn--ghost btn--small" data-pick="none">Clear ticks</button></p>
-      <table class="admin-table cards"><thead><tr><th scope="col"><span class="visually-hidden">Ready</span></th><th scope="col">Title</th><th scope="col">Publisher</th><th scope="col">Out</th><th scope="col" class="col-qty">Copies</th><th scope="col" class="col-qty">Customers</th></tr></thead>
+      <table class="admin-table cards"><thead><tr><th scope="col"><span class="visually-hidden">Ready</span></th><th scope="col" data-sort="title">Title</th><th scope="col" data-sort="publisher">Publisher</th><th scope="col" data-sort="out">Out</th><th scope="col" class="col-qty" data-sort="copies" data-first="desc">Copies</th><th scope="col" class="col-qty" data-sort="customers" data-first="desc">Customers</th></tr></thead>
       <tbody>${list.map((r) => `<tr>
         <td class="card-lead"><input type="checkbox" data-item="${r.item.id}" aria-label="Ready: ${esc(itemName(r.item))}"${picked.has(r.item.id) ? ' checked' : ''}${r.lineIds.length ? '' : ' disabled title="Nobody has reserved this title"'}>
         </td>
@@ -569,6 +590,7 @@ async function renderReady(body) {
         </table>
         </div>
       </section>`;
+    sortableTable($('table', box), { sort: sort.key, dir: sort.dir, onSort: (key, dir) => ((sort = { key, dir }), draw()) });
   }
 
   $('form', body).addEventListener('input', draw);
