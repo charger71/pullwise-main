@@ -104,7 +104,7 @@ export async function mount(el, { sb }) {
       </div></div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Footer Code</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="s-footer-scripts">Code for the bottom of every page</label>
-          <textarea id="s-footer-scripts" name="footer_scripts" rows="8" maxlength="20000" spellcheck="false" autocomplete="off" placeholder="&lt;script src=&quot;https://…&quot;&gt;&lt;/script&gt;" style="font-family:monospace">${esc(s.footer_scripts)}</textarea>
+          <textarea id="s-footer-scripts" class="font-mono" name="footer_scripts" rows="8" maxlength="20000" spellcheck="false" autocomplete="off" placeholder="&lt;script src=&quot;https://…&quot;&gt;&lt;/script&gt;">${esc(s.footer_scripts)}</textarea>
           <p class="field__hint">Paste the snippet a service gives you (a help chat, for example), including its &lt;script&gt; tags. It runs on every public page, but not in the admin. <strong>Only paste code from a source you trust:</strong> it can see everything a customer sees. A mistake here can break the site, so if pages misbehave, clear this box and save. Leave blank for none.</p></div>
       </div></div></section>
       </div>
