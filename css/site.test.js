@@ -93,4 +93,9 @@ const restless = [...moving.matchAll(/([^{};]+)\{([^{}]*)\}/g)]
   .flatMap(([, sel]) => selectors(sel)).filter((sel) => !calmed.has(sel));
 assert.equal(restless.length, 0, `Stop or slow these animations under @media (prefers-reduced-motion: reduce):\n${restless.join('\n')}`);
 
+// Markup written by the storefront's scripts carries no style attribute: a look belongs in a class in css/site.css,
+// where the rules above check it. Scripts may still set a computed value through element.style (a progress width).
+const inline = scripts.flatMap((f) => [...readFileSync(join(root, f), 'utf8').matchAll(/\sstyle=\\?["'][^"']*/g)].map((m) => `${f}: ${m[0].trim()}`));
+assert.equal(inline.length, 0, `Move these inline styles into a class in css/site.css:\n${inline.join('\n')}`);
+
 console.log('storefront stylesheet tests passed');

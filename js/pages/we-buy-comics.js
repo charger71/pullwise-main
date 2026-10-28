@@ -21,7 +21,7 @@ async function shrink(file) {
 
 function mountSellForm(root) {
   root.insertAdjacentHTML('beforeend', `
-    <h2 id="sell-form-h" style="margin-top:0">Send us a few pictures</h2>
+    <h2 id="sell-form-h" class="mt-0">Send us a few pictures</h2>
     <p>Not ready to haul everything in? Tell us what you have and attach a few photos (up to 8) of the covers, the boxes, or the best books. We'll reply with our interest and next steps.</p>
     <form id="sell-form" class="panel" novalidate aria-labelledby="sell-form-h">
       <div hidden aria-hidden="true"><label>Leave this empty<input name="website" tabindex="-1" autocomplete="off"></label></div>
@@ -31,7 +31,7 @@ function mountSellForm(root) {
       <div class="field"><label for="sf-loc">Town or area (optional)</label><input id="sf-loc" name="location" maxlength="200"><p class="field__hint">Helps us tell whether a house call makes sense.</p></div>
       <div class="field"><label for="sf-details">What do you have?</label><textarea id="sf-details" name="details" rows="5" maxlength="4000" placeholder="Roughly how many books, titles or eras, condition, anything graded or special…"></textarea></div>
       <div class="field"><label for="sf-photos">Photos</label><input id="sf-photos" name="photos" type="file" accept="image/*" multiple><p class="field__hint" id="sf-photo-note">Up to 8 pictures.</p></div>
-      <p role="alert" id="sf-err" style="color:var(--red-btn);font-weight:600"></p>
+      <p class="form-error" role="alert" id="sf-err"></p>
       <button class="btn btn--primary" type="submit">Send</button>
     </form>`);
   const form = $('#sell-form', root);

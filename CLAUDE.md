@@ -15,7 +15,8 @@
   system's Storefront section: text on a fill follows the fill (`--on-primary`, `--on-accent`), gold as text is
   `--gold-text`, and every page-dependent color is a role in `:root` that `js/theme-vars.js` keeps readable when a shop
   picks a light page. Spacing, text sizes, corners, shadows, z-index and durations are `:root` steps too, and every
-  animation has a `prefers-reduced-motion` rule. `css/site.test.js` enforces them.
+  animation has a `prefers-reduced-motion` rule. Markup written by `js/` carries no `style="…"`: give it a class in
+  `site.css`. `css/site.test.js` enforces them.
 
 ## Design system
 - The Pullwise design system (https://claude.ai/artifact/YWP6UsATWeCe9f6mdqxJJn) has storefront (`shop-*`) and admin

@@ -22,6 +22,6 @@ if (post === undefined) {
     <p><a href="blog.html">← All news</a></p>
     <time class="card__meta" datetime="${esc(post.published_at)}">${fmtDate(post.published_at, { month: 'long', day: 'numeric', year: 'numeric' })}</time>
     <h1>${esc(post.title)}</h1>
-    ${post.cover_url ? `<a href="${esc(post.cover_url)}" data-lightbox><img src="${esc(post.cover_url)}" alt="${esc(post.title)}" loading="lazy" style="border-radius:var(--radius);margin-bottom:1em"></a>` : ''}
+    ${post.cover_url ? `<a href="${esc(post.cover_url)}" data-lightbox><img src="${esc(post.cover_url)}" alt="${esc(post.title)}" loading="lazy" class="post__cover"></a>` : ''}
     ${body}`;
 }

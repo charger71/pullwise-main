@@ -335,6 +335,11 @@ input[type='checkbox'], input[type='radio'] {
 .field { margin-bottom: var(--sp-14); }
 .field__hint { font-size: var(--fs-sm); color: var(--muted); margin-top: var(--sp-4); }
 .form-error { font-weight: 700; color: var(--error); }
+.btn--block { width: 100%; }
+.form-actions { display: flex; flex-wrap: wrap; gap: var(--sp-12); }
+/* Margin helpers for markup written by page scripts; they win over .prose headings. */
+.mt-0 { margin-top: 0 !important; }
+.mt-1em { margin-top: 1em !important; }
 /* ---------- Header / nav ---------- */
 /* Until the script fills the header, hold its usual height (with the search bar, and the announcement wrapped on phones). */
 #site-header:empty { min-height: 126px; }
@@ -964,6 +969,13 @@ details > div { padding: 0 var(--sp-16) var(--sp-14); }
 .field--check label { margin: 0; font-weight: 400; }
 /* Survey: a question with more than 6 choices lists them in two columns once there is room. */
 .survey-choice-other, .survey-choices--cols .field--check { break-inside: avoid; }
+.survey-q { border: 0; padding: 0; margin: 0 0 var(--sp-24); }
+.survey-other { margin: 0 0 var(--sp-8) calc(var(--sp-24) + var(--sp-10)); }   /* lines up with the "Other" label */
+.survey-rating { display: flex; flex-wrap: wrap; gap: var(--sp-20); }
+.prose hr.survey-break { margin: 1.2em 0 1.8em; }
+.survey-progress { height: var(--sp-8); margin-bottom: 1.5em; overflow: hidden; border-radius: var(--radius-pill); background: var(--line); }
+.survey-progress__bar { width: 0; height: 100%; background: var(--teal); transition: width var(--dur); }
+.post__cover { margin-bottom: 1em; }
 @media (min-width: 600px) { .survey-choices--cols { column-count: 2; column-gap: var(--sp-32); } }
 .account-saved { color: var(--ok); font-weight: 700; margin: 0 0 var(--sp-8); }
 .account-lines { list-style: none; margin: 0; padding: 0; }
