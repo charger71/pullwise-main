@@ -9,7 +9,9 @@
     "binding": "ASSETS",
     // Every request goes to the Worker first so it can serve each shop's config.js and page titles;
     // anything else it hands straight to the static files.
-    "run_worker_first": true
+    "run_worker_first": true,
+    // An address with no file gets 404.html with a 404 status; the Worker brands it like the other pages.
+    "not_found_handling": "404-page"
   },
   // Covers and series images for shops marked "media": "r2" (worker/media.js). The bucket must exist before a
   // deploy; MEDIA_PUBLIC_URL is the custom domain connected to it (R2 → the bucket → Settings → Custom Domains).
