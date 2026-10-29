@@ -67,6 +67,9 @@ export const PAGE_SLUGS = {
   'privacy.html': 'privacy', 'terms.html': 'terms', 'search.html': 'search', 'survey.html': 'survey',
 };
 
+/** The page served, with a 404 status, for any address that has no file (wrangler.jsonc's not_found_handling). */
+export const NOT_FOUND_FILE = '404.html';
+
 const unesc = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
 
 /**

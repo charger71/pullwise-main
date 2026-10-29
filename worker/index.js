@@ -6,13 +6,14 @@
 //    on the way out (worker/shop-page.js), from its settings and pages tables. Those are cached for CACHE_SECONDS, so a
 //    change in the admin shows up on the site within about a minute.
 //  * /sitemap.xml is generated on the shop's main domain, and /robots.txt (the static file) gets its address.
+//  * An address with no file gets 404.html (wrangler.jsonc's not_found_handling), branded like the other pages.
 //  * PUT /__media stores covers and series images in R2 for shops using it (worker/media.js).
 //  * Everything else is the static file as is. A domain that isn't in shops.json gets the plain files, which
 //    run in demo mode.
 
 import SHOPS from '../shops.json';
 import { mediaUpload } from './media.js';
-import { MEDIA_UPLOAD_PATH, findShop, configJs, fileOf, PAGE_SLUGS, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { MEDIA_UPLOAD_PATH, findShop, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
 const CACHE_SECONDS = 60;
@@ -32,15 +33,21 @@ export default {
       return res.ok ? text(robotsTxt(shop, await res.text()), 'text/plain', request) : res;
     }
 
-    const file = request.method === 'GET' || request.method === 'HEAD' ? fileOf(url.pathname) : null;
-    if (!file) return env.ASSETS.fetch(request);
-
-    // Ask for the whole file: a 304 would leave nothing to rewrite (and the browser's copy has the old titles).
-    const headers = new Headers(request.headers);
-    headers.delete('If-None-Match');
-    headers.delete('If-Modified-Since');
-    const res = await env.ASSETS.fetch(new Request(request, { headers }));
-    if (!res.ok || !(res.headers.get('Content-Type') ?? '').includes('text/html')) return res;
+    const page = request.method === 'GET' || request.method === 'HEAD';
+    let file = page ? fileOf(url.pathname) : null;
+    let res;
+    if (file) {
+      // Ask for the whole file: a 304 would leave nothing to rewrite (and the browser's copy has the old titles).
+      const headers = new Headers(request.headers);
+      headers.delete('If-None-Match');
+      headers.delete('If-Modified-Since');
+      res = await env.ASSETS.fetch(new Request(request, { headers }));
+    } else {
+      res = await env.ASSETS.fetch(request);
+      if (!page) return res;
+    }
+    if (res.status === 404) file = NOT_FOUND_FILE;
+    if ((!res.ok && file !== NOT_FOUND_FILE) || !(res.headers.get('Content-Type') ?? '').includes('text/html')) return res;
 
     const data = await shopData(shop, ctx);
     if (!data) return res; // Supabase unreachable and nothing cached: the page's own script fills in the details
@@ -115,7 +122,7 @@ async function shopData(shop, ctx) {
 
 function rewrite(res, file, { settings, pages }, shop) {
   const slug = PAGE_SLUGS[file];
-  const row = slug ? pages[slug] ?? {} : null;
+  const row = slug ? pages[slug] ?? {} : file === NOT_FOUND_FILE ? {} : null; // its title gets the shop name too
   const desc = row?.meta_description?.trim();
   let title = null;
   let rw = new HTMLRewriter();
