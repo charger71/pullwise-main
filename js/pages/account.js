@@ -11,7 +11,7 @@ import { whenIn as whenLabel } from '../dates.js';
 import { thumbOf, thumbFallback, artistMeta } from '../util.js';
 import * as pull from '../customer.js';
 import * as guest from '../reservation-list.js';
-import { seriesCount, discountFor, totals, tiersFrom } from '../discount.js';
+import { followedSeries, discountFor, totals, tiersFrom } from '../discount.js';
 
 const root = $('#account');
 
@@ -370,14 +370,14 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
 
-  // Discount tier from the distinct series on the active list, and the estimated total at cover price.
-  const seriesN = seriesCount(active);
+  // Discount tier from the series they follow (titles added one at a time don't count), and the estimated total at cover price.
+  const seriesN = followedSeries(pull.getSubscriptions());
   const tiers = tiersFrom(settings);
   const { pct, next } = discountFor(seriesN, tiers);
   const { subtotal, discount, total } = totals(active, pct);
   const summary = active.length
     ? `<div class="account-summary">
-        ${tiers.length ? `<p class="account-summary__tier"><strong>${seriesN} series</strong> on your pull list · <strong>${pct}% off</strong>${next ? `<br>Add <strong>${next.more} more series</strong> to get ${next.pct}% off.` : '<br>You’ve reached our top discount!'}</p>` : ''}
+        ${tiers.length ? `<p class="account-summary__tier">You follow <strong>${seriesN} series</strong> · <strong>${pct}% off</strong>${next ? `<br>Follow <strong>${next.more} more series</strong> to get ${next.pct}% off.` : '<br>You’ve reached our top discount!'}</p>` : ''}
         <dl class="account-summary__totals">
           <div><dt>Subtotal</dt><dd>${esc(price(subtotal))}</dd></div>
           ${pct ? `<div><dt>Discount (${pct}%)</dt><dd>−${esc(price(discount))}</dd></div>` : ''}

@@ -1,5 +1,5 @@
-// Pull list discount: the more distinct series on a customer's active pull list, the bigger the
-// percent off. The tiers and the on/off switch live in Shop Settings (settings.discount_tiers and
+// Pull list discount: the more series a customer follows, the bigger the percent off. Only series
+// follows count: titles or covers added to the list one at a time don't, and neither do artist follows. The tiers and the on/off switch live in Shop Settings (settings.discount_tiers and
 // settings.discount_enabled); DEFAULT_TIERS only applies if the settings row doesn't have them.
 // A tier's `min` is the fewest series that earns it. A copy of this file sits in
 // supabase/functions/weekly-pull-list/discount.js for the emails: copy it across after any change.
@@ -20,9 +20,9 @@ export function tiersFrom(settings) {
   return (Array.isArray(t) ? t : DEFAULT_TIERS).map(({ min, pct }) => ({ min: Number(min), pct: Number(pct) })).sort((a, b) => a.min - b.min);
 }
 
-/** Distinct series among the active lines ({ status, item: { series_key } }). Items with no series (toys, etc.) don't count. */
-export function seriesCount(lines) {
-  return new Set(lines.filter((l) => ACTIVE.includes(l.status)).map((l) => l.item?.series_key).filter(Boolean)).size;
+/** Distinct series the customer follows, from their subscriptions ({ kind, key }); artist follows don't count. */
+export function followedSeries(follows = []) {
+  return new Set(follows.filter((f) => f.kind === 'series').map((f) => f.key).filter(Boolean)).size;
 }
 
 /** The current tier's percent, and what the next tier needs: { pct, next: { pct, more } | null }. */

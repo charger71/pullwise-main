@@ -888,9 +888,17 @@ async function exportCustomersPdf(btn) {
       if (data.length < 1000) break;
     }
     if (!byCustomer.size) return void toast('No pull-list titles to print.', 'error');
-    const customers = [...byCustomer.values()]
-      .sort((a, b) => fullName(a.c).localeCompare(fullName(b.c), undefined, { sensitivity: 'base' }))
-      .map(({ c, lines }) => ({ name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || 'Customer', phone: c.phone, lines }));
+    // Series follows set each customer's discount.
+    const follows = new Map();
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await sb.from('subscriptions').select('customer_id,kind,key').eq('kind', 'series').order('id').range(from, from + 999);
+      if (error) throw fromError(error);
+      for (const f of data) follows.set(f.customer_id, [...(follows.get(f.customer_id) ?? []), f]);
+      if (data.length < 1000) break;
+    }
+    const customers = [...byCustomer.entries()]
+      .sort(([, a], [, b]) => fullName(a.c).localeCompare(fullName(b.c), undefined, { sensitivity: 'base' }))
+      .map(([id, { c, lines }]) => ({ name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || 'Customer', phone: c.phone, lines, follows: follows.get(id) ?? [] }));
     const { buildAllPullListsPdf } = await import('../pull-list-pdf.js');
     const pdf = await buildAllPullListsPdf({ shop: settings, customers, holdDays: settings.hold_days ?? 30, today: shopToday() });
     if (!pdf.customers) return void toast('Nobody has anything ready for pickup or due at their next FOC.', 'error');
@@ -907,8 +915,9 @@ async function exportCustomerPdf(btn, c) {
   if (!shownLines.some((l) => ['open', 'ordered', 'reordered', 'arrived'].includes(l.status))) return void toast('Nothing on this pull list to export.', 'error');
   btn.disabled = true;
   try {
+    const follows = await must(sb.from('subscriptions').select('kind,key').eq('customer_id', c.id).eq('kind', 'series'));
     const { buildPullListPdf } = await import('../pull-list-pdf.js');
-    const pdf = await buildPullListPdf({ shop: settings, customerName: c.name || c.email || 'Customer', customerPhone: c.phone, lines: shownLines, holdDays: settings.hold_days ?? 30, today: shopToday(), lastUpdated: lastUpdate ? `Last updated ${fmtDateTime(lastUpdate.at)}${lastUpdate.who ? ` by ${lastUpdate.who}` : ''}` : '' });
+    const pdf = await buildPullListPdf({ shop: settings, customerName: c.name || c.email || 'Customer', customerPhone: c.phone, lines: shownLines, follows, holdDays: settings.hold_days ?? 30, today: shopToday(), lastUpdated: lastUpdate ? `Last updated ${fmtDateTime(lastUpdate.at)}${lastUpdate.who ? ` by ${lastUpdate.who}` : ''}` : '' });
     if (!pdf.count) {
       btn.disabled = false;
       return void toast('Nothing ready for pickup and nothing due at the next FOC.', 'error');

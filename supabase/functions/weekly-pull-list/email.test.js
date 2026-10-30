@@ -71,28 +71,30 @@ assert.match(am.subject, /3 titles ready for pickup/);
 assert.match(am.html, /Your books are in!/);
 assert.match(am.html, /ready for pickup\. Pay when you pick them up/);
 assert.match(am.html, /Tue–Sat 11 AM – 7 PM/);
-// 12.97 + 4.99 = 16.97 at cover; no series_key on these lines → 0 series → no discount line
+// 12.97 + 4.99 = 16.97 at cover; no follows → 0 series → no discount line
 assert.match(am.html, /Estimated total \$16\.97/);
-assert.ok(!/pull list discount|series on your pull list/.test(am.html));
+assert.ok(!/pull list discount|You follow/.test(am.html));
 
-// With series: 3 series, 10% off
+// Series on the list don't count, only series follows (artist follows don't either): 5 series, 10% off
 const dl = alines.map((l, i) => ({ ...l, item: { ...l.item, series_key: `s${i}` } }));
-const dsec = arrivalSections(dl, { holdDays: 30 });
-assert.equal(dsec.series, 5); // 4 arrived + the open one
+assert.equal(arrivalSections(dl, { holdDays: 30 }).series, 0);
+const follows = [...['a', 'b', 'c', 'd', 'e', 'a'].map((key) => ({ kind: 'series', key })), { kind: 'artist', key: 'x' }];
+const dsec = arrivalSections(dl, { holdDays: 30, follows });
+assert.equal(dsec.series, 5);
 const dm = buildArrival({ customer: { first_name: 'Jane' }, arrival: dsec, shop: shop2, manageUrl: 'x', unsubscribeUrl: 'y' });
 assert.match(dm.html, /Estimated total \$15\.27/);
 assert.match(dm.html, /10% pull list discount \(−\$1\.70\) from \$16\.97/);
-assert.match(dm.html, /Add 11 more to get 15% off/);
+assert.match(dm.html, /Follow 11 more to get 15% off/);
 assert.match(dm.text, /Estimated total \$15\.27/);
 const wk = build({ customer: {}, sections: { ...sec, series: 16 }, shop, today, manageUrl: 'x', unsubscribeUrl: 'y' });
-assert.match(wk.html, /16 series on your pull list: 15% off\. Add 15 more to get 20% off\./);
+assert.match(wk.html, /You follow 16 series: 15% off\. Follow 15 more to get 20% off\./);
 assert.match(wk.text, /15% off/);
 
 // Switched off in settings: no discount, no tier line
 const offShop = { ...shop2, discount_enabled: false };
 const om = buildArrival({ customer: { first_name: 'Jane' }, arrival: dsec, shop: offShop, manageUrl: 'x', unsubscribeUrl: 'y' });
 assert.match(om.html, /Estimated total \$16\.97/);
-assert.ok(!/pull list discount|series on your pull list/.test(om.html));
+assert.ok(!/pull list discount|You follow/.test(om.html));
 // Custom tiers from settings
 const cm = buildArrival({ customer: {}, arrival: dsec, shop: { ...shop2, discount_tiers: [{ min: 1, pct: 50 }] }, manageUrl: 'x', unsubscribeUrl: 'y' });
 assert.match(cm.html, /Estimated total \$8\.4[89]/);
