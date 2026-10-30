@@ -17,5 +17,8 @@
   // deploy; MEDIA_PUBLIC_URL is the custom domain connected to it (R2 → the bucket → Settings → Custom Domains).
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "pullwise-media" }],
   "vars": { "MEDIA_PUBLIC_URL": "https://images.pullwise.shop" },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Preview builds of non-production branches (`wrangler preview`) refuse to run without this block. Empty means a
+  // Preview gets no R2 bucket or vars, so it can't upload media (worker/media.js answers 404) and never touches production's.
+  "previews": {}
 }
