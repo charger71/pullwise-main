@@ -116,7 +116,7 @@ export async function mount(el, { sb }) {
         <div class="field span-2"><label for="s-pinned">Publishers pinned to the top of the Publisher filter</label><textarea id="s-pinned" name="pinned_publishers" rows="3">${esc((s.pinned_publishers ?? []).join(', '))}</textarea><p class="field__hint">Comma-separated, in order — spelled as they appear in the filter.</p></div>
       </div></div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Pull List Discount</h2></div><div class="fold__body">
-        <div class="field"><label><input type="checkbox" name="discount_enabled"${s.discount_enabled === false ? '' : ' checked'}> Give customers a discount based on how many series are on their pull list</label>
+        <div class="field"><label><input type="checkbox" name="discount_enabled"${s.discount_enabled === false ? '' : ' checked'}> Give customers a discount based on how many series they follow (titles added one at a time don’t count)</label>
         <p class="field__hint">Shown on My Pull List and in the pull list emails and printed pull lists. Unticked, no discount is shown or applied anywhere (your tiers are kept).</p></div>
         <div data-tiers></div>
         <button class="btn btn--add btn--small mt-14" type="button" data-add-tier>${solidIcon('add', 16)} Add a tier</button>

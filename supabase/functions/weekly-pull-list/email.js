@@ -1,7 +1,7 @@
 // Builds one customer's weekly pull-list email. Pure functions (no network, no Deno
 // APIs) so they can be tested with plain Node:  node supabase/functions/weekly-pull-list/email.test.js
 
-import { seriesCount, discountFor, totals, tiersFrom } from './discount.js';
+import { followedSeries, discountFor, totals, tiersFrom } from './discount.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -29,7 +29,7 @@ const SOURCE_NOTE = { variant: 'all covers', series: 'from a series you follow',
  * `lines`: [{ quantity, status, arrived_on, source, created_at, item: { title, issue_number, variant, release_date, foc_date, price, cover_url } }]
  * Returns null when there is nothing worth emailing about.
  */
-export function sections(lines, { today, holdDays = 30 }) {
+export function sections(lines, { today, holdDays = 30, follows = [] }) {
   const ready = [];
   const soon = [];
   const later = [];
@@ -57,7 +57,7 @@ export function sections(lines, { today, holdDays = 30 }) {
     }
   }
   if (!ready.length && !soon.length && !later.length) return null;
-  const series = seriesCount(lines);
+  const series = followedSeries(follows);
   const byTitle = (a, b) => a.title.localeCompare(b.title) || (a.variant ?? '').localeCompare(b.variant ?? '');
   ready.sort((a, b) => (a.holdUntil ?? '9').localeCompare(b.holdUntil ?? '9') || byTitle(a, b));
   soon.sort((a, b) => (a.out ?? '9').localeCompare(b.out ?? '9') || byTitle(a, b));
@@ -69,8 +69,8 @@ export function sections(lines, { today, holdDays = 30 }) {
 export function tierNote(series, tiers) {
   const { pct, next } = discountFor(series, tiers);
   if (!series || !tiers.length) return { pct, line: '' };
-  const have = `You have ${plural(series, 'series', 'series')} on your pull list: ${pct}% off.`;
-  return { pct, line: next ? `${have} Add ${next.more} more to get ${next.pct}% off.` : `${have} That's our top discount!` };
+  const have = `You follow ${plural(series, 'series', 'series')}: ${pct}% off.`;
+  return { pct, line: next ? `${have} Follow ${next.more} more to get ${next.pct}% off.` : `${have} That's our top discount!` };
 }
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -205,9 +205,10 @@ export function build({ customer, sections: sec, shop, today, manageUrl, unsubsc
 /**
  * Split a customer's lines into titles that just arrived (no email sent yet) and ones still waiting from
  * earlier. Returns null when nothing new has arrived.
- * `lines`: all the customer's active lines { quantity, status, arrived_on, arrival_notified_at, item: { title, issue_number, variant, price, series_key } }; only arrived ones are listed, the rest set the discount tier.
+ * `lines`: all the customer's active lines { quantity, status, arrived_on, arrival_notified_at, item: { title, issue_number, variant, price, series_key } }; only arrived ones are listed.
+ * `follows`: the customer's subscriptions { kind, key }; their series follows set the discount tier.
  */
-export function arrivalSections(lines, { holdDays = 30 }) {
+export function arrivalSections(lines, { holdDays = 30, follows = [] }) {
   const entry = (l) => ({
     title: titleOf(l.item),
     variant: l.item.variant,
@@ -219,7 +220,7 @@ export function arrivalSections(lines, { holdDays = 30 }) {
   const byTitle = (a, b) => a.title.localeCompare(b.title) || (a.variant ?? '').localeCompare(b.variant ?? '');
   const fresh = arrived.filter((l) => !l.arrival_notified_at).map(entry).sort(byTitle);
   const waiting = arrived.filter((l) => l.arrival_notified_at).map(entry).sort((a, b) => (a.holdUntil ?? '9').localeCompare(b.holdUntil ?? '9') || byTitle(a, b));
-  return fresh.length ? { fresh, waiting, series: seriesCount(lines) } : null;
+  return fresh.length ? { fresh, waiting, series: followedSeries(follows) } : null;
 }
 
 export const arrivalSubject = (n, shopName) => `Your books are in at ${shopName}: ${plural(n, 'title')} ready for pickup`;

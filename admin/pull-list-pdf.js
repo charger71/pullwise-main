@@ -5,7 +5,7 @@
 import { holdUntil } from '../js/dates.js';
 import { itemTitle, sizedImage, formatPhone } from '../js/util.js';
 import { SITE_URL } from '../js/config.js';
-import { seriesCount, discountFor, totals, tiersFrom } from '../js/discount.js';
+import { followedSeries, discountFor, totals, tiersFrom } from '../js/discount.js';
 import { loadScript } from './lib.js';
 
 const JSPDF = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
@@ -65,6 +65,7 @@ export const day = (iso, opts = { month: 'short', day: 'numeric' }) => (iso ? ne
  * @param {string} o.customerName
  * @param {string} [o.customerPhone]  printed on the right of the name line
  * @param {Array}  o.lines    pull-list lines: { quantity, status, arrived_on, item: { title, issue_number, variant, publisher, price, release_date } }
+ * @param {Array}  [o.follows] the customer's subscriptions { kind, key }: their series follows set the discount
  * @param {number} o.holdDays
  * @param {string} o.today    YYYY-MM-DD in shop time
  * @param {string} [o.lastUpdated] e.g. "Last updated Thu, Oct 1, 6:43 PM by Jane Smith (customer)"
@@ -86,7 +87,7 @@ export function selectPullListLines(lines, today) {
   return { ready, coming, printed: [...ready, ...coming] };
 }
 
-function drawPullList(doc, { shop, customerName, customerPhone = '', lines, holdDays = 30, today, lastUpdated = '', logo = null }) {
+function drawPullList(doc, { shop, customerName, customerPhone = '', lines, follows = [], holdDays = 30, today, lastUpdated = '', logo = null }) {
   const W = doc.internal.pageSize.getWidth();
   const M = 40;
   const primary = rgb(shop.colors?.primary, 'c8102e');
@@ -207,10 +208,11 @@ function drawPullList(doc, { shop, customerName, customerPhone = '', lines, hold
     groups.push(...byFoc);
     const shownGroups = groups.filter(([, ls]) => ls.length);
     const priced = printed.filter((l) => l.item.price != null);
-    // The pull-list discount is set by the series on the whole active list, not just the printed groups.
-    const seriesN = seriesCount(lines);
-    const { pct } = discountFor(seriesN, tiersFrom(shop));
-    if (y > doc.internal.pageSize.getHeight() - (60 + shownGroups.length * 16)) {
+    // The pull-list discount is set by the series the customer follows, not by what's on the list.
+    const seriesN = followedSeries(follows);
+    const tiers = tiersFrom(shop);
+    const { pct } = discountFor(seriesN, tiers);
+    if (y > doc.internal.pageSize.getHeight() - (72 + shownGroups.length * 16)) {
       doc.addPage();
       y = M;
     }
@@ -224,7 +226,9 @@ function drawPullList(doc, { shop, customerName, customerPhone = '', lines, hold
       rowY += 16;
     }
     doc.setTextColor(...grey).setFont('helvetica', 'normal').setFontSize(8.5);
-    doc.text(`Based on cover prices${pct ? `, less ${pct}% pull list discount (${seriesN} series)` : ''}${priced.length < printed.length ? ` (${printed.length - priced.length} without a price are not counted)` : ''}; tax not included. Pay at pickup.`, M, rowY + 2);
+    // While the discount program is on, every printout says the shop can adjust it at the register.
+    const note = `Based on cover prices${pct ? `, less ${pct}% pull list discount (${seriesN} series followed)` : ''}${priced.length < printed.length ? ` (${printed.length - priced.length} without a price are not counted)` : ''}; tax not included. Pay at pickup.${tiers.length ? ` ${clean(shop.shop_name) || 'The shop'} reserves the right to adjust or remove pull list discounts based on actual purchases.` : ''}`;
+    doc.text(doc.splitTextToSize(note, W - 2 * M), M, rowY + 2);
   }
 
   return { count: printed.length };
@@ -258,7 +262,7 @@ export async function buildPullListPdf(opts) {
  * Everyone's pull list in one PDF, each customer starting on a new page (to print and put in their bag).
  * Customers with nothing on their list are left out.
  * @param {object} o
- * @param {Array}  o.customers  in print order: { name, phone, lines } (lines as for buildPullListPdf)
+ * @param {Array}  o.customers  in print order: { name, phone, lines, follows } (as for buildPullListPdf)
  * @returns {Promise<{ blob: Blob, save: (name: string) => void, customers: number, titles: number }>}
  */
 export async function buildAllPullListsPdf(opts) {
@@ -272,7 +276,7 @@ export async function buildAllPullListsPdf(opts) {
     if (!selectPullListLines(c.lines, today).printed.length) continue;
     if (ranges.length) doc.addPage();
     const from = doc.getNumberOfPages();
-    titles += drawPullList(doc, { shop, customerName: c.name, customerPhone: c.phone, lines: c.lines, holdDays, today, logo }).count;
+    titles += drawPullList(doc, { shop, customerName: c.name, customerPhone: c.phone, lines: c.lines, follows: c.follows, holdDays, today, logo }).count;
     ranges.push([from, doc.getNumberOfPages()]);
   }
   addFooters(doc, shop, ranges);

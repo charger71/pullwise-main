@@ -75,6 +75,17 @@ async function allCustomers(db: typeof admin, columns: string) {
   }
 }
 
+/** Every customer's series follows ({ kind, key }), by customer id: they set the pull-list discount. Paged like allCustomers. */
+async function seriesFollows(db: typeof admin) {
+  const byCustomer = new Map<number, { kind: string; key: string }[]>();
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await db.from('subscriptions').select('customer_id,kind,key').eq('kind', 'series').order('id').range(offset, offset + 999);
+    if (error) throw error;
+    for (const f of data) byCustomer.set(f.customer_id, [...(byCustomer.get(f.customer_id) ?? []), f]);
+    if (data.length < 1000) return byCustomer;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
   const url = new URL(req.url);
@@ -217,11 +228,13 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
     if (data.length < 1000) break;
   }
 
+  const follows = await seriesFollows(admin);
+
   // A test or preview (`forStaff`) gets a dummy unsubscribe link: the sample customer's real one would unsubscribe them.
   const locs = await loadLocations();
   const compose = (c: (typeof customers)[number], forStaff = false) => {
     const shop = withLocation(shopBase, locs.byId.get(c.home_location_id) ?? locs.fallback, { multi: locs.multi });
-    const sec = sections((lines.get(c.id) ?? []) as never[], { today, holdDays: shop.hold_days ?? 30 });
+    const sec = sections((lines.get(c.id) ?? []) as never[], { today, holdDays: shop.hold_days ?? 30, follows: follows.get(c.id) });
     if (!sec) return null;
     const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}`;
     return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl }) };
@@ -320,10 +333,11 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
     if (data.length < 1000) break;
   }
 
+  const follows = await seriesFollows(admin);
   const unsubUrl = (c: (typeof customers)[number]) => `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}&k=arrivals`;
   const locs = await loadLocations();
   const compose = (c: (typeof customers)[number], customerLines: any[], sample = false, forStaff = false) => {
-    const arrival = arrivalSections(customerLines, { holdDays });
+    const arrival = arrivalSections(customerLines, { holdDays, follows: follows.get(c.id) });
     if (!arrival) return null;
     // The store the waiting books are at (they stay put if the customer later changes home store), else their home store.
     const waiting = customerLines.find((l) => l.status === 'arrived' && !l.arrival_notified_at);
