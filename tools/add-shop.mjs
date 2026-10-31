@@ -84,8 +84,8 @@ export function authConfig(domains, resend = {}) {
   return {
     ...smtp,
     site_url: site,
-    // account.html: customers' sign-in links; admin/: staff password-reset links.
-    uri_allow_list: [...domains.flatMap((d) => [`https://${d}/account.html`, `https://${d}/admin/`]), 'http://localhost:8080/account.html', 'http://localhost:8080/admin/'].join(','),
+    // account.html and app (the pull list app): customers' sign-in links; admin/: staff password-reset links.
+    uri_allow_list: [...domains.flatMap((d) => [`https://${d}/account.html`, `https://${d}/app`, `https://${d}/admin/`]), 'http://localhost:8080/account.html', 'http://localhost:8080/app.html', 'http://localhost:8080/admin/'].join(','),
     disable_signup: false,
     external_email_enabled: true,
     mailer_subjects_magic_link: 'Your sign-in link',

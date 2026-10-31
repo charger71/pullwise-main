@@ -403,6 +403,28 @@ The customer's pull list on My Pull List: grouped lines with a cover, title, qua
 <div class="account-summary" style="margin-top:16px"><dl class="account-summary__totals"><div><dt>Ready now</dt><dd>$3.99</dd></div><div class="account-summary__total"><dt>Total</dt><dd>$13.97</dd></div></dl></div>`),
   },
   {
+    name: 'ShopApp', group: G('Account'), height: 420, width: 375,
+    readme: `# ShopApp
+
+The shop's installable pull list app (app.html, at /app; app.<shop domain> forwards there): the account page as one view at a time, under the shop's own brand.
+
+- \`.app-bar\`: the shop's logo and/or name (the header's \`.brand\`, logo up to 40px) and a Website link; no menu or search. The header clears the phone's notch.
+- \`.tab-bar\`: fixed to the foot, \`surface\` with a \`line\` top edge, four equal tabs (My List, Following, Shop, Account): a 24px line icon over a \`fs-2xs\` bold label in \`muted\`. The current tab (\`aria-current="page"\`) is \`ink\` with a 3px \`gold\` edge on top and a \`gold-text\` icon. \`.tab-bar__count\` is a gold pill with the number ready for pickup.
+- \`.app-install\`: a \`surface\` strip under the header offering Add to Home Screen (an Install button, or Share directions on an iPhone) with a ✕ to dismiss.
+- \`.app-shop\`: the Shop view, centred: logo, name in the headline font, tagline, Call and Directions buttons, address, hours and socials, then \`.app-shop__links\` to the website two to a row.
+- Consumer provides: the shop's settings and the signed-in customer. Built by js/pages/app.js and js/pages/account.js (views in \`[data-view]\`).`,
+    html: page('ShopApp', `
+<div class="app-bar" style="border-bottom:1px solid var(--line)"><a class="brand" href="#"><span class="brand__name">Your Comic Shop</span></a><a class="app-bar__site" href="#">Website</a></div>
+<div class="app-install" style="padding-inline:12px"><p class="app-install__text"><strong>Add Your Comic Shop to your Home Screen</strong> for one-tap access to your pull list.</p><button class="btn btn--primary" type="button">Install</button><button class="app-install__close" type="button" aria-label="Not now">✕</button></div>
+<div class="app-shop panel" style="margin-top:16px"><p class="app-shop__name">Your Comic Shop</p><p class="app-shop__tagline">Comics, collectibles &amp; more</p></div>
+<nav class="tab-bar" aria-label="App" style="position:static;margin-top:16px"><ul>
+  <li><a href="#" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span>My List</span><span class="tab-bar__count">3</span></a></li>
+  <li><a href="#"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg><span>Following</span></a></li>
+  <li><a href="#"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v10h16V10"/><path d="M3 10l2-6h14l2 6z"/><path d="M10 20v-5h4v5"/></svg><span>Shop</span></a></li>
+  <li><a href="#"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></svg><span>Account</span></a></li>
+</ul></nav>`),
+  },
+  {
     name: 'ShopFollow', group: G('Account'), height: 348,
     readme: `# ShopFollow
 

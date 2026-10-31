@@ -92,6 +92,7 @@
   --sp-2: 2px;  --sp-4: 4px;  --sp-6: 6px;  --sp-8: 8px;  --sp-10: 10px;  --sp-12: 12px;  --sp-14: 14px;
   --sp-16: 16px;  --sp-20: 20px;  --sp-24: 24px;  --sp-32: 32px;  --sp-40: 40px;  --sp-64: 64px;  --sp-96: 96px;
   --list-bar-h: 76px;    /* the pull-list bar at the foot of the screen; the page leaves this much room under it */
+  --tab-bar-h: 60px;     /* the pull list app's tab bar (app.html), not counting the phone's home-bar inset */
 
   /* Text sizes outside the headline, sub-heading and body scales above (which follow Shop Settings → Fonts).
      The same steps as the admin's where they overlap. */
@@ -1158,3 +1159,41 @@ body:has([aria-busy="true"], .loading)::after {
 @media (prefers-reduced-motion: reduce) {
   body:has([aria-busy="true"], .loading)::after { animation-duration: var(--dur-spin-calm); }
 }
+/* ---------- Pull list app (app.html) ----------
+   The account page as an installed app: the shop's brand on top, one view at a time, a tab bar at the foot. The
+   header and tab bar clear the phone's notch and home bar (viewport-fit=cover). */
+[data-page="app"] #site-header { padding-top: env(safe-area-inset-top); }
+[data-page="app"] #site-header:empty { min-height: 60px; }
+.app-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: 60px; }
+.app-bar .brand__logo { max-height: 40px; }
+.app-bar .brand__name { font-size: calc(1.25rem * var(--display-scale)); }
+.app-bar__site { flex: none; font-size: var(--fs-ui); font-weight: 700; }
+.app-main { padding: var(--sp-16) 0 calc(var(--tab-bar-h) + var(--sp-24) + env(safe-area-inset-bottom)); }
+.app-view > * + *, [data-shop] > * + * { margin-top: var(--sp-16); }
+.app-view__title { font-size: var(--fs-title); margin: 0 0 var(--sp-12); }
+.app-install { display: flex; align-items: center; gap: var(--sp-12); margin-top: var(--sp-12); padding-block: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
+.app-install__text { flex: 1; margin: 0; font-size: var(--fs-sm); }
+.app-install .btn { flex: none; }
+.app-install__close { flex: none; width: 44px; height: 44px; border: 0; background: none; color: var(--muted); font-size: var(--fs-lede); cursor: pointer; }
+.app-install__close:hover { color: var(--ink); }
+.tab-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-bar); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+.tab-bar ul { display: grid; grid-template-columns: repeat(4, 1fr); max-width: var(--max); margin: 0 auto; padding: 0; list-style: none; }
+.tab-bar a { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); min-height: var(--tab-bar-h); padding: var(--sp-6) var(--sp-4); color: var(--muted); font-size: var(--fs-2xs); font-weight: 700; text-decoration: none; }
+.tab-bar a:hover { color: var(--ink); }
+.tab-bar a[aria-current="page"] { color: var(--ink); box-shadow: inset 0 3px 0 var(--gold); }
+.tab-bar a[aria-current="page"] svg { stroke: var(--gold-text); }
+.tab-bar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tab-bar__count { position: absolute; top: var(--sp-4); left: calc(50% + 8px); min-width: 18px; padding: 0 var(--sp-4); border-radius: var(--radius-pill); background: var(--gold); color: var(--on-accent); font-size: var(--fs-3xs); line-height: 18px; text-align: center; }
+.app-shop { text-align: center; }
+.app-shop__logo { max-height: 96px; width: auto; margin: 0 auto var(--sp-12); }
+.app-shop__name { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: calc(1.6rem * var(--display-scale)); letter-spacing: var(--display-tracking); text-transform: var(--display-case); color: var(--cream); line-height: 1.1; }
+.app-shop__tagline { margin: var(--sp-6) 0 0; color: var(--muted); }
+.app-shop__place { font-size: var(--fs-sub); margin: var(--sp-24) 0 0; }
+.app-shop__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-8); margin: var(--sp-16) 0 var(--sp-12); }
+.app-shop__address { font-style: normal; margin: 0 0 var(--sp-12); }
+.app-shop__sub { font-size: var(--fs-compact); margin: var(--sp-12) 0 var(--sp-6); }
+.app-shop .hours div { margin-inline: auto; }
+.app-shop .socials { justify-content: center; }
+.app-shop__links { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); }
+.app-shop__links a { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: var(--sp-8); background: var(--surface); border: var(--border); border-radius: var(--radius); font-weight: 700; text-decoration: none; }
+.app-shop__links a:hover { background: var(--raised); }

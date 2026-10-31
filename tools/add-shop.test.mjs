@@ -30,7 +30,7 @@ assert.match(staffSql('u1', o), /on conflict \(user_id\) do nothing/);
 // Auth settings
 const auth = authConfig(o.domains);
 assert.equal(auth.site_url, 'https://mainstreet.com');
-assert.equal(auth.uri_allow_list, 'https://mainstreet.com/account.html,https://mainstreet.com/admin/,https://www.mainstreet.com/account.html,https://www.mainstreet.com/admin/,http://localhost:8080/account.html,http://localhost:8080/admin/');
+assert.equal(auth.uri_allow_list, 'https://mainstreet.com/account.html,https://mainstreet.com/app,https://mainstreet.com/admin/,https://www.mainstreet.com/account.html,https://www.mainstreet.com/app,https://www.mainstreet.com/admin/,http://localhost:8080/account.html,http://localhost:8080/app.html,http://localhost:8080/admin/');
 assert.equal('smtp_host' in auth, false, 'no Resend details: Supabase sends the emails');
 const viaResend = authConfig(o.domains, { apiKey: 're_x', from: 'Main Street Comics <hello@mainstreet.com>' });
 assert.deepEqual([viaResend.smtp_host, viaResend.smtp_port, viaResend.smtp_user, viaResend.smtp_pass, viaResend.smtp_admin_email, viaResend.smtp_sender_name],

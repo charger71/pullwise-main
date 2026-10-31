@@ -1,6 +1,6 @@
 // node worker/shop-page.test.js
 import assert from 'node:assert/strict';
-import { findShop, siteUrl, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { findShop, siteUrl, appRedirect, appManifest, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 
 const shops = [
   { id: 'a', domains: ['a-comics.com', 'www.a-comics.com'], supabaseUrl: 'https://aaa.supabase.co', anonKey: 'key-a', gaMeasurementId: 'G-1' },
@@ -88,5 +88,29 @@ assert.equal(h.className, 'hero hero--photo');
 assert.match(h.style, /^--hero-image: url\("https:\/\/aaa\.supabase\.co\/storage\/v1\/render\/image\/public\/media\/hero\.jpg\?width=1400/);
 assert.equal(h.headlineHtml, 'Comics. <span>Toys.</span> &lt;b&gt;');
 assert.equal(hero({ hero_image_url: 'javascript:alert(1)' }).style, null, 'only https photos');
+
+// The pull list app: app.<domain> forwards to /app on the shop's main domain; the manifest is the shop's own
+assert.equal(appRedirect(shops, 'app.a-comics.com'), 'https://a-comics.com/app');
+assert.equal(appRedirect(shops, 'APP.www.a-comics.com.'), 'https://a-comics.com/app', 'any of its domains, to the main one');
+assert.equal(appRedirect(shops, 'app.evil.com'), null);
+assert.equal(appRedirect(shops, 'a-comics.com'), null);
+assert.equal(fileOf('/app'), 'app.html');
+const app = appManifest({ shop_name: ' A Comics ', colors: { paper: '#f5f0e6' }, logo_url: `${MEDIA}/logo.png` });
+assert.equal(app.name, 'A Comics');
+assert.equal(app.start_url, '/app');
+assert.equal(app.scope, '/app');
+assert.equal(app.display, 'standalone');
+assert.equal(app.theme_color, '#f5f0e6');
+assert.deepEqual(app.icons.map((i) => i.sizes), ['192x192', '512x512']);
+assert.match(app.icons[1].src, /render\/image\/public\/media\/logo\.png\?width=512&height=512&resize=contain/);
+const plain = appManifest({ colors: { paper: 'red' }, logo_url: 'javascript:x' });
+assert.equal(plain.name, 'My Pull List', 'a name even before the shop has one');
+assert.equal(plain.theme_color, '#121212', 'only a hex color');
+assert.equal('icons' in plain, false, 'only https icons');
+const appHead = headTags('app.html', { shop_name: 'A & B', colors: { paper: '#f5f0e6' }, logo_url: `${MEDIA}/logo.png` }).join('\n');
+assert.match(appHead, /<meta name="apple-mobile-web-app-title" content="A &amp; B">/, 'the name under the home-screen icon');
+assert.match(appHead, /<meta name="theme-color" content="#f5f0e6">/);
+assert.match(appHead, /<link rel="apple-touch-icon" href="[^"]*width=180&amp;height=180/);
+assert.doesNotMatch(headTags('index.html', { logo_url: `${MEDIA}/logo.png` }).join(''), /apple-touch-icon|theme-color/, 'only the app page');
 
 console.log('shop page tests passed');

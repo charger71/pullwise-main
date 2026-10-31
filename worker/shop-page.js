@@ -13,6 +13,51 @@ export function findShop(shops, hostname) {
 /** The shop's public site address: its first domain. */
 export const siteUrl = (shop) => `https://${shop.domains[0]}`;
 
+/** Where the pull list app lives on every shop's own domain (app.html; installed from there, see appManifest). */
+export const APP_PATH = '/app';
+
+/**
+ * The address "app.<shop domain>" forwards to (the shop's app on its main domain), or null. The app stays on the
+ * shop's own domain so a customer signed in on the website is signed in in the app too; app.… is just the easy
+ * address to print on a flyer. Each one must be attached to the Worker as a custom domain, like the shop's own.
+ */
+export function appRedirect(shops, hostname) {
+  const host = String(hostname ?? '').toLowerCase().replace(/\.$/, '');
+  const shop = host.startsWith('app.') ? findShop(shops, host.slice(4)) : null;
+  return shop ? `${siteUrl(shop)}${APP_PATH}` : null;
+}
+
+const DEFAULT_PAPER = '#121212'; // css/site.css's --brand-paper
+const hexColor = (v) => (/^#[0-9a-f]{6}$/i.test(v ?? '') ? v : null);
+
+/** The app's home-screen icon at one size: the shop's tab icon (or logo), squared by Supabase's image service. */
+const appIcon = (settings, size) => {
+  const src = settings.favicon_url || settings.logo_url;
+  return /^https:\/\//.test(src ?? '') ? sizedImage(src, size, { format: 'origin', square: true }) : null;
+};
+
+/**
+ * /manifest.webmanifest for one shop: what "Add to Home Screen" installs. It's the shop's own app, under its name,
+ * icon and page color, opening on its pull list.
+ */
+export function appManifest(settings = {}) {
+  const name = (settings.shop_name ?? '').trim() || 'My Pull List';
+  const paper = hexColor(settings.colors?.paper) ?? DEFAULT_PAPER;
+  const icons = [192, 512].map((size) => appIcon(settings, size) && { src: appIcon(settings, size), sizes: `${size}x${size}`, purpose: 'any' }).filter(Boolean);
+  return {
+    id: APP_PATH,
+    name,
+    short_name: name,
+    description: `Your pull list at ${name}`,
+    start_url: APP_PATH,
+    scope: APP_PATH,
+    display: 'standalone',
+    background_color: paper,
+    theme_color: paper,
+    ...(icons.length ? { icons } : {}),
+  };
+}
+
 /**
  * js/config.js for one shop: the same exports as the static file, filled in from shops.json. `settings` is the
  * Worker's last copy of the shop's settings (may be empty), for the name and timezone shown before they load.
@@ -93,6 +138,13 @@ export function headTags(file, settings, supabaseUrl) {
   if (supabaseUrl) tags.push(`<link rel="preconnect" href="${esc(supabaseUrl)}" crossorigin>`);
   const icon = settings.favicon_url || settings.logo_url;
   if (icon) tags.push(`<link rel="icon" href="${esc(sizedImage(icon, 64, { format: 'origin', square: true }))}">`);
+  if (file === 'app.html') {
+    // The installed app's status bar color and its icon on an iPhone (which doesn't read the manifest's icons).
+    tags.push(`<meta name="theme-color" content="${esc(hexColor(settings.colors?.paper) ?? DEFAULT_PAPER)}">`);
+    if (settings.shop_name?.trim()) tags.push(`<meta name="apple-mobile-web-app-title" content="${esc(settings.shop_name.trim())}">`);
+    const touch = appIcon(settings, 180);
+    if (touch) tags.push(`<link rel="apple-touch-icon" href="${esc(touch)}">`);
+  }
   if (settings.logo_url) tags.push(`<link rel="preload" as="image" fetchpriority="high" href="${esc(sizedImage(settings.logo_url, LOGO_WIDTH))}">`);
   if (file === 'index.html' && settings.hero_image_url) {
     tags.push(`<link rel="preload" as="image" fetchpriority="high" href="${esc(sizedImage(settings.hero_image_url, HERO_WIDTH))}">`);

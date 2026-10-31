@@ -238,3 +238,6 @@ Sign in at `https://<your site>/admin/` as the owner, then:
 - [ ] Shop added to `shops.json` in a pull request
 - [ ] Merged; the Deploy run is green and the site answers on its domain
 - [ ] Shop Settings, About page and email sender filled in; test email received
+- [ ] Pull list app: `https://<domain>/app` is in the Auth redirect URLs (`npm run add-shop` adds it), and for the
+      short address to print on flyers, `app.<domain>` is attached to the Worker as a custom domain (it forwards to
+      `/app`). The app's name, icon and colors come from Shop Settings (the tab icon, else the logo).

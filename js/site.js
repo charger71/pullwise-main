@@ -27,6 +27,7 @@ const NAV = [
 ];
 
 const FOOTER_LINKS = [
+  { href: 'app.html', label: 'Get the App' },
   { href: 'about.html', label: 'About' },
   { href: 'gift-cards.html', label: 'Gift Cards' },
   { href: 'how-to.html', label: 'How To' },
@@ -244,15 +245,31 @@ function applyTheme(s) {
   if (el.textContent !== css) el.textContent = css;
 }
 
-function renderHeader(s, page, extraNav = []) {
-  // Logo, name, or both (settings.show_name_with_logo). With both, the logo is
-  // decorative (empty alt) so screen readers don't hear the name twice.
+/**
+ * The shop's logo, name, or both (settings.show_name_with_logo). With both, the logo is decorative (empty alt) so
+ * screen readers don't hear the name twice.
+ */
+function brandHtml(s) {
   const name = `<span class="brand__name">${esc(s.shop_name).replace('&amp;', '<span>&amp;</span>')}</span>`;
-  const brand = !s.logo_url
+  return !s.logo_url
     ? name
     : s.show_name_with_logo
       ? `<img src="${esc(sizedImage(s.logo_url, LOGO_WIDTH))}" alt="" class="brand__logo" fetchpriority="high">${name}`
       : `<img src="${esc(sizedImage(s.logo_url, LOGO_WIDTH))}" alt="${esc(s.shop_name)}" class="brand__logo" fetchpriority="high">`;
+}
+
+/** The pull list app's header (app.html): the shop's brand and a way out to its website, nothing else. */
+function renderAppHeader(s) {
+  $('#site-header').innerHTML = `
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="app-bar container">
+      <a class="brand" href="#list">${brandHtml(s)}</a>
+      <a class="app-bar__site" href="index.html" target="_blank" rel="noopener">Website<span class="visually-hidden"> (opens in your browser)</span></a>
+    </div>`;
+}
+
+function renderHeader(s, page, extraNav = []) {
+  const brand = brandHtml(s);
   $('#site-header').innerHTML = `
     <a class="skip-link" href="#main">Skip to content</a>
     <div class="topbar">
@@ -598,6 +615,8 @@ function outageMessage({ slow }) {
 export async function initPage() {
   // Staff-made pages are all data-page="custom"; tell them apart by slug so the menu can mark the current one.
   const page = document.body.dataset.page === 'custom' ? `page:${new URLSearchParams(location.search).get('slug')}` : document.body.dataset.page;
+  // The pull list app (app.html) has just the shop's brand on top and its own tab bar: no menu, footer or list bar.
+  const app = page === 'app';
   loadAboveTheFoldImages();
   addCanonical();
 
@@ -614,10 +633,13 @@ export async function initPage() {
     shopTimeZone = knownZone(s.timezone);
     // The built-in fallback has no colors or fonts: leave the Worker's theme alone until the real settings arrive.
     if (s !== FALLBACK_SETTINGS) applyTheme(s);
-    const pageHref = (p) => `page.html?slug=${encodeURIComponent(p.slug)}`;
-    renderHeader(s, page, custom.filter((p) => p.placement === 'menu').map((p) => ({ page: `page:${p.slug}`, href: pageHref(p), label: p.title })));
-    renderFooter(s, custom.filter((p) => p.placement === 'footer').map((p) => ({ href: pageHref(p), label: p.title })));
-    loadNewsletterForm(s.newsletter_embed?.trim() ?? '');
+    if (app) renderAppHeader(s);
+    else {
+      const pageHref = (p) => `page.html?slug=${encodeURIComponent(p.slug)}`;
+      renderHeader(s, page, custom.filter((p) => p.placement === 'menu').map((p) => ({ page: `page:${p.slug}`, href: pageHref(p), label: p.title })));
+      renderFooter(s, custom.filter((p) => p.placement === 'footer').map((p) => ({ href: pageHref(p), label: p.title })));
+      loadNewsletterForm(s.newsletter_embed?.trim() ?? '');
+    }
     fillSettings(s);
   };
   let shown = { s: readCache('settings'), custom: readCache('custom-pages') };
@@ -662,9 +684,10 @@ export async function initPage() {
   // Neither may hold the page up for good if the database stops answering.
   await within(customerP, SETTINGS_TIMEOUT, null); // before any cards render, so they show the right button
   await within(contentP, SETTINGS_TIMEOUT, null).catch((err) => console.error('Page content failed to load', err));
-  injectSchema(s);
   setupLightbox();
   loadAnalyticsWhenIdle(s);
+  if (app) return s; // staff footer code (a help chat) would sit on the tab bar
+  injectSchema(s);
   runFooterScripts(s);
   // Reservation list bar follows the customer across pages. Loaded lazily:
   // components.js imports this module, so a static import would be circular.
