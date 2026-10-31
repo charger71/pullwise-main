@@ -799,6 +799,8 @@ dialog::backdrop { background: #000c; }
 .title-modal__media > .card__meta { text-align: center; }
 .title-modal__title { font-size: clamp(1.5rem, 4vw, 2.1rem); margin: var(--sp-8) 0 var(--sp-4); text-transform: uppercase; letter-spacing: -.02em; line-height: 1; }
 .title-modal__when { margin: 0 0 var(--sp-8); }
+.title-modal__share { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-12); margin: var(--sp-16) 0 0; }
+.title-modal__shared:empty { display: none; }
 .title-modal__desc { margin: var(--sp-16) 0 var(--sp-12); font-size: var(--fs-base); line-height: 1.55; }
 .title-modal .card__foot { margin: var(--sp-12) 0 var(--sp-4); }
 @media (min-width: 700px) { .title-modal__layout { grid-template-columns: 260px minmax(0, 1fr); gap: var(--sp-24); } .title-modal__media .cover, .title-modal__cover { max-width: none; } }
@@ -1211,6 +1213,24 @@ body:has([aria-busy="true"], .loading)::after {
   .app-shelf__row::-webkit-scrollbar { display: none; }
 }
 .app-shelf__row > * { scroll-snap-align: start; display: grid; }
+/* Search at the top of Hot: its results stand in for the rows while the box has words in it. */
+.app-search { margin: 0 0 var(--sp-20); }
+.app-search input { width: 100%; }
+.app-search__follow { margin-top: var(--sp-16); }
+/* My List's pickup code (js/pages/account.js): a QR code staff scan, and the number to type into Customers. The code
+   stays dark on white in every theme, as scanners need. */
+.app-pickup { display: flex; align-items: center; gap: var(--sp-16); margin: 0 0 var(--sp-12); padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
+.app-pickup__qr { flex: none; width: 112px; padding: var(--sp-4); background: white; border-radius: var(--radius-sm); }
+.app-pickup__qr svg { display: block; width: 100%; height: auto; fill: black; }
+.app-pickup__label { margin: 0; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.app-pickup__code { margin: 0 0 var(--sp-4); font-family: var(--font-display); font-size: calc(1.6rem * var(--display-scale)); letter-spacing: var(--display-tracking); line-height: 1.1; }
+.app-pickup .card__meta { margin: 0; }
+/* The first-run welcome on My List, until "Got it". */
+.app-welcome { margin: 0 0 var(--sp-20); padding: 0 0 var(--sp-20); border-bottom: var(--border); }
+.app-welcome__title { margin: 0 0 var(--sp-8); font-size: var(--fs-sub); }
+.app-welcome__steps { margin: 0 0 var(--sp-16); padding-left: var(--sp-20); }
+.app-welcome__steps li + li { margin-top: var(--sp-8); }
+.app-welcome__actions { display: flex; flex-wrap: wrap; gap: var(--sp-12); }
 /* The app's loading screen (app.html): the shop's logo and name on its page color, over the status bar too. Script
    fades it once the first view is drawn; with no script it still fades after --dur-splash-max. */
 @keyframes splash-out { to { opacity: 0; visibility: hidden; } }
