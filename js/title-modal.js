@@ -3,7 +3,7 @@
 // to, and the browser's back button closes it.
 
 import { getItem, getVariants, getTopReserved } from './data.js';
-import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shopToday } from './site.js';
+import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shownStatus, shopToday } from './site.js';
 import { enableReservations, seenItems, focLabel, reserveButton, variantsButton, followButton, creatorNames, collectorBadges, topBadge } from './components.js';
 
 let dialog;
@@ -34,7 +34,7 @@ function details(item) {
   const meta = [item.publisher, price(item.price), item.mature && 'Mature readers'].filter(Boolean);
   const when = item.release_date ? fmtDate(item.release_date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '';
   return `
-    <div>${badge(item.status)}</div>
+    <div>${badge(shownStatus(item))}</div>
     ${collectorBadges(item)}
     <h2 id="tm-title" class="title-modal__title">${esc(itemTitle(item))}</h2>
     ${item.variant ? `<p class="card__variant">${esc(item.variant)}</p>` : ''}

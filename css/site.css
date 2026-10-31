@@ -639,7 +639,7 @@ address { font-style: normal; margin-bottom: 1em; }
 .badge--just_arrived, .badge--new_this_wednesday { background: var(--gold); color: var(--on-accent); }
 .badge--sold_out { background: var(--sold-out); color: var(--on-sold-out); }
 .badge--backorder { background: var(--cream); }
-.badge--pre_order { background: var(--teal); }
+.badge--pre_order, .badge--coming_soon { background: var(--teal); }
 .badge--low_stock { background: var(--warn); }
 .badge--sale { background: var(--red-btn); color: var(--on-primary); }
 .badge--clearance { background: var(--clearance); }
