@@ -222,27 +222,66 @@ const splitCode = (code) => {
   return /^97[89]\d{10}$/.test(c) ? { isbn: c, upc: null } : { isbn: null, upc: c };
 };
 
-/** Map header names → column index so column order changes don't break parsing. */
-function columns(header, wanted) {
+/**
+ * Map header names → column index so column order changes don't break parsing.
+ * `wanted` is { key: [label, field] }: the distributor's own header, and the general field (FIELD_HEADERS) whose
+ * other names are tried when that header isn't there, so "RetailCost" renamed "SRP" is still the price.
+ * A plain string is a header with no other names. Only `required` keys (by default all of them) stop the import.
+ * Any other column the sheet doesn't have is listed in `missing`, and the parser leaves that field undefined so a
+ * re-import keeps what titles already have.
+ */
+function columns(header, specs, required = Object.keys(specs)) {
+  const wanted = Object.fromEntries(Object.entries(specs).map(([k, v]) => [k, [].concat(v)]));
+  const names = header.map(normHeader);
   const idx = {};
-  for (const [key, label] of Object.entries(wanted)) {
-    const i = header.findIndex((h) => String(h ?? '').trim().toLowerCase() === label.toLowerCase());
-    if (i < 0) throw new Error(`Missing column "${label}" — has the sheet format changed?`);
-    idx[key] = i;
+  const used = new Set();
+  // Exact headers first, so another column's own header is never taken as a stand-in.
+  for (const [key, [label]] of Object.entries(wanted)) {
+    const i = names.findIndex((n, j) => n === normHeader(label) && !used.has(j));
+    if (i >= 0) (idx[key] = i, used.add(i));
   }
-  return idx;
+  const renamed = [];
+  const missing = [];
+  for (const [key, [label, field]] of Object.entries(wanted)) {
+    if (idx[key] != null) continue;
+    let i = -1;
+    for (const alias of FIELD_HEADERS[field] ?? []) {
+      i = names.findIndex((n, j) => n === alias && !used.has(j));
+      if (i >= 0) break;
+    }
+    if (i >= 0) {
+      idx[key] = i;
+      used.add(i);
+      renamed.push({ label, header: clean(header[i]) });
+    } else if (required.includes(key)) {
+      throw new Error(`Missing column "${label}" — has the sheet format changed?`);
+    } else missing.push(label);
+  }
+  return { c: idx, renamed, missing };
 }
+
+/** A cell by column key, or undefined when the sheet has no such column. */
+const cellOf = (c) => (r, key, fn = clean) => (c[key] == null ? undefined : fn(r[c[key]]));
 
 // ---------------------------------------------------------------------------
 // Distributors
 // ---------------------------------------------------------------------------
 
+// A Lunar or PRH sheet is known by its code column plus its usual cutoff column, or plus two of its other usual
+// columns: with one of them renamed the sheet still gets its distributor's rules (covers, descriptions), and only
+// that one field is missed.
+const LUNAR_MARKS = ['finalordercutoff', 'instoredate', 'retailcost', 'coverartist'];
+const PRH_MARKS = ['focdate', 'onsaledate', 'retailpriceus', 'imprint'];
+const looksLike = (names, code, marks) =>
+  names.includes(code) && (names.includes(marks[0]) || marks.filter((m) => names.includes(m)).length >= 2);
+
 /** Find the header row and which distributor produced the sheet. */
 function detectDistributor(rows) {
   for (let i = 0; i < Math.min(rows.length, 10); i++) {
     const cells = (rows[i] ?? []).map((c) => String(c ?? '').trim().toLowerCase());
-    if (cells.includes('productcode') && cells.includes('finalordercutoff')) return { distributor: 'lunar', headerRow: i };
-    if (cells.includes('isbn/upc') && cells.includes('foc date')) return { distributor: 'prh', headerRow: i };
+    const names = (rows[i] ?? []).map(normHeader);
+    if (looksLike(names, 'productcode', LUNAR_MARKS)) return { distributor: 'lunar', headerRow: i };
+    if (looksLike(names, 'isbnupc', PRH_MARKS)) return { distributor: 'prh', headerRow: i };
     if (cells.includes('pop name/wave') && cells.includes('preorder deadline')) return { distributor: 'funko', headerRow: i };
     if (cells.includes('item name') && cells.includes('upc/ean') && cells.includes('box number')) return { distributor: 'funko-catalog', headerRow: i };
   }
@@ -358,11 +397,15 @@ export function applyExclusions(parsed, rules) {
 const LUNAR_HIRES = 'https://media.lunardistribution.com/images/covers/hires/';
 
 function parseLunar(header, body) {
-  const c = columns(header, {
-    code: 'ProductCode', title: 'Title', price: 'RetailCost', publisher: 'Publisher', description: 'Description',
-    foc: 'FinalOrderCutoff', instore: 'InstoreDate', upc: 'UPC', isbn: 'ISBN',
-    writer: 'Writer', artist: 'Artist', coverArtist: 'CoverArtist', mature: 'Mature', adult: 'Adult',
-  });
+  const { c, renamed, missing } = columns(header, {
+    code: ['ProductCode', 'sku'], title: ['Title', 'title'], price: ['RetailCost', 'price'], publisher: ['Publisher', 'publisher'],
+    description: ['Description', 'description'], foc: ['FinalOrderCutoff', 'foc'], instore: ['InstoreDate', 'release'],
+    upc: ['UPC', 'upc'], isbn: ['ISBN', 'isbn'], writer: ['Writer', 'creators'], artist: ['Artist', 'artist'],
+    coverArtist: ['CoverArtist'], mature: ['Mature', 'mature'], adult: ['Adult'],
+  }, ['code', 'title']);
+  const cell = cellOf(c);
+  const creatorKeys = ['writer', 'artist', 'coverArtist'].filter((k) => c[k] != null);
+  const ratingKeys = ['mature', 'adult'].filter((k) => c[k] != null);
   const items = [];
   const skipped = [];
   for (const r of body) {
@@ -375,39 +418,41 @@ function parseLunar(header, body) {
       continue;
     }
     const t = splitTitle(rawTitle);
-    const creators = [...new Set([r[c.writer], r[c.artist], r[c.coverArtist]].flatMap((v) => String(v ?? '').split(/\s*,\s*/)).filter(Boolean))];
-    const flag = (v) => v === true || /^true$/i.test(String(v ?? ''));
+    const creators = [...new Set(creatorKeys.flatMap((k) => String(r[c[k]] ?? '').split(/\s*,\s*/)).filter(Boolean))];
+    const flag = (k) => r[c[k]] === true || /^true$/i.test(String(r[c[k]] ?? ''));
     items.push({
       distributor: 'lunar',
       sku,
       title: t.title,
       issue_number: t.issue_number,
       variant: t.variant,
-      publisher: normalizePublisher(r[c.publisher]),
+      publisher: cell(r, 'publisher', normalizePublisher),
       category: categorize({ rawTitle }),
-      price: money(r[c.price]),
-      foc_date: isoDate(r[c.foc]),
-      release_date: isoDate(r[c.instore]),
-      upc: clean(r[c.upc]),
-      isbn: clean(r[c.isbn]),
-      creators: creators.join(', ') || null,
-      mature: t.mature || flag(r[c.mature]) || flag(r[c.adult]),
-      description: htmlToText(r[c.description]),
+      price: cell(r, 'price', money),
+      foc_date: cell(r, 'foc', isoDate),
+      release_date: cell(r, 'instore', isoDate),
+      upc: cell(r, 'upc'),
+      isbn: cell(r, 'isbn'),
+      creators: creatorKeys.length ? creators.join(', ') || null : undefined,
+      mature: t.mature || ratingKeys.some(flag) || (ratingKeys.length ? false : undefined),
+      description: cell(r, 'description', htmlToText),
       // Lunar's hi-res cover by product code; the small picture in the sheet is the fallback.
       cover: { url: `${LUNAR_HIRES}${encodeURIComponent(sku)}.jpg`, preferUrl: true, embedded: sku },
     });
   }
-  return { items, skipped };
+  return { items, skipped, columnsRenamed: renamed, columnsMissing: missing };
 }
 
 // PRH's Format column: HC hardcover, TR trade paperback (CB comics, BX box sets and the rest keep their plain title).
 const BINDING = { HC: 'Hardcover', TR: 'Paperback' };
 
 function parsePRH(header, body) {
-  const c = columns(header, {
-    code: 'ISBN/UPC', title: 'Title', subtitle: 'Subtitle', creators: 'Creators', imprint: 'Imprint',
-    price: 'Retail Price (US)', format: 'Format', foc: 'FOC Date', onsale: 'On-Sale Date',
-  });
+  const { c, renamed, missing } = columns(header, {
+    code: ['ISBN/UPC', 'upc'], title: ['Title', 'title'], subtitle: ['Subtitle'], creators: ['Creators', 'creators'],
+    imprint: ['Imprint', 'publisher'], price: ['Retail Price (US)', 'price'], format: ['Format', 'category'],
+    foc: ['FOC Date', 'foc'], onsale: ['On-Sale Date', 'release'],
+  }, ['code', 'title']);
+  const cell = cellOf(c);
   const items = [];
   const skipped = [];
   for (const r of body) {
@@ -420,30 +465,31 @@ function parsePRH(header, body) {
       continue;
     }
     const t = splitTitle(rawTitle);
-    const subtitle = clean(r[c.subtitle]);
+    const subtitle = cell(r, 'subtitle');
+    const format = cell(r, 'format');
     const base = subtitle && !t.issue_number ? `${t.title}: ${subtitle}` : t.title;
     // The same book often comes as both a hardcover and a paperback, with the same name and a different price:
     // say which this is, unless the title already does.
-    const binding = BINDING[clean(r[c.format])];
+    const binding = BINDING[format];
     items.push({
       distributor: 'prh',
       sku,
       title: binding && !/\b(hardcover|paperback)\b/i.test(base) ? `${base} (${binding})` : base,
       issue_number: t.issue_number,
       variant: t.variant,
-      publisher: normalizePublisher(r[c.imprint]),
-      category: categorize({ rawTitle, format: clean(r[c.format]) }),
-      price: money(r[c.price]),
-      foc_date: isoDate(r[c.foc]),
-      release_date: isoDate(r[c.onsale]),
+      publisher: cell(r, 'imprint', normalizePublisher),
+      category: categorize({ rawTitle, format }),
+      price: cell(r, 'price', money),
+      foc_date: cell(r, 'foc', isoDate),
+      release_date: cell(r, 'onsale', isoDate),
       ...splitCode(sku),
-      creators: clean(r[c.creators]),
+      creators: cell(r, 'creators'),
       mature: t.mature,
       description: null,
       cover: { url: `https://images.penguinrandomhouse.com/cover/${encodeURIComponent(sku)}` },
     });
   }
-  return { items, skipped };
+  return { items, skipped, columnsRenamed: renamed, columnsMissing: missing };
 }
 
 const slug = (s) => String(s).toLowerCase().normalize('NFKD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '');
@@ -453,7 +499,7 @@ const slug = (s) => String(s).toLowerCase().normalize('NFKD').replace(/[^\w]+/g,
  * mixes dates with words ("FOC Closed", "Open - Limited").
  */
 function parseFunko(header, body, today) {
-  const c = columns(header, {
+  const { c } = columns(header, {
     release: 'Release/By Date', franchise: 'Franchise', name: 'Pop Name/Wave', type: 'Figure Type',
     source: 'Distributor', price: 'MSRP (Est.)', deadline: 'Preorder Deadline',
   });
@@ -522,7 +568,7 @@ function funkoSkus(items) {
  * already has rather than blanking it.
  */
 function parseFunkoCatalog(header, body) {
-  const c = columns(header, {
+  const { c } = columns(header, {
     itemNumber: 'Item Number', box: 'Box Number', name: 'Item Name', license: 'License',
     type: 'Product Type', price: 'MSRP', upc: 'UPC/EAN', source: 'Distributor', release: 'Release Date',
   });
