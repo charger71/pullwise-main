@@ -1,5 +1,6 @@
 // What the app's notifications say: pure functions, so Node can test them (messages.test.js). index.ts sends them.
-// A notification is { title, body, url, tag, icon }; sw.js shows it, and tapping it opens the app at `url`.
+// A notification is { title, body, url, tag, icon, badge? }; sw.js shows it, and tapping it opens the app at `url`:
+// the title's details when it's about one title, else My List. `badge` is the number for the app's icon.
 // Notifications with the same tag replace each other on the phone, so a second "ready" push doesn't stack up.
 
 /** "Absolute Batman #14", as on the site (js/util.js itemTitle). */
@@ -16,15 +17,22 @@ export function nameList(names, show = 2) {
 /** The distinct titles of some lines (several covers of one issue count once), in the order given. */
 const titles = (lines) => [...new Set(lines.map((l) => itemTitle(l.item ?? { title: 'A title' })))];
 
-/** Books newly ready for pickup. */
-export function arrivalMessage(lines, shopName = '') {
+/** Where tapping goes: one title's details (js/title-modal.js opens ?title=), or My List for several. */
+const linkFor = (lines, names) => {
+  const id = Number(lines[0]?.item?.id);
+  return names.length === 1 && id > 0 ? `/app?title=${id}#list` : '/app#list';
+};
+
+/** Books newly ready for pickup; `readyCount` is every line waiting at the counter (the icon's number). */
+export function arrivalMessage(lines, shopName = '', readyCount = lines.length) {
   const names = titles(lines);
   const at = shopName.trim() ? ` at ${shopName.trim()}` : '';
   return {
     title: names.length === 1 ? 'Your book is ready for pickup' : `${names.length} books are ready for pickup`,
     body: `${nameList(names)} ${names.length === 1 ? 'is' : 'are'} waiting for you${at}.`,
-    url: '/app#list',
+    url: linkFor(lines, names),
     tag: 'arrivals',
+    badge: readyCount,
   };
 }
 
@@ -34,7 +42,7 @@ export function newTitlesMessage(lines) {
   return {
     title: names.length === 1 ? 'New on your pull list' : `${names.length} new titles on your pull list`,
     body: `${nameList(names)}, from what you follow. Remove any you don’t want before the order cutoff.`,
-    url: '/app#list',
+    url: linkFor(lines, names),
     tag: 'new-titles',
   };
 }

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone } from './messages.js';
 
-const line = (title, issue) => ({ item: { title, issue_number: issue } });
+const line = (title, issue, id) => ({ item: { id, title, issue_number: issue } });
 
 assert.equal(itemTitle({ title: 'Saga', issue_number: '71' }), 'Saga #71');
 assert.equal(itemTitle({ title: 'Bone Omnibus' }), 'Bone Omnibus');
@@ -11,20 +11,27 @@ assert.equal(nameList(['A', 'B']), 'A and B');
 assert.equal(nameList(['A', 'B', 'C', 'D']), 'A, B and 2 more');
 
 // Ready for pickup: one or many, covers of one issue counted once, the shop named
-const one = arrivalMessage([line('Saga', '71')], ' Area71 Comics ');
+const one = arrivalMessage([line('Saga', '71', 5)], ' Area71 Comics ', 3);
 assert.equal(one.title, 'Your book is ready for pickup');
 assert.equal(one.body, 'Saga #71 is waiting for you at Area71 Comics.');
-assert.equal(one.url, '/app#list');
+assert.equal(one.url, '/app?title=5#list', 'one title opens its details');
+assert.equal(one.badge, 3, 'the icon counts everything waiting, not just the new ones');
+assert.equal(arrivalMessage([line('Saga', '71')]).url, '/app#list', 'no id: My List');
 assert.equal(one.tag, 'arrivals');
 const many = arrivalMessage([line('Saga', '71'), line('Saga', '71'), line('Spawn', '400'), line('Batman', '1')]);
 assert.equal(many.title, '3 books are ready for pickup');
 assert.equal(many.body, 'Saga #71, Spawn #400 and 1 more are waiting for you.');
+assert.equal(many.url, '/app#list');
+assert.equal(many.badge, 4);
 
 // New from follows
 const added = newTitlesMessage([line('Spawn', '401'), line('Saga', '72')]);
 assert.equal(added.title, '2 new titles on your pull list');
 assert.match(added.body, /^Spawn #401 and Saga #72, from what you follow\./);
-assert.equal(newTitlesMessage([line('Spawn', '401')]).title, 'New on your pull list');
+assert.equal(newTitlesMessage([line('Spawn', '401', 9)]).title, 'New on your pull list');
+assert.equal(newTitlesMessage([line('Spawn', '401', 9)]).url, '/app?title=9#list');
+assert.equal(added.url, '/app#list');
+assert.equal('badge' in added, false, 'new titles leave the icon alone');
 
 assert.equal(testMessage('Area71').title, 'Area71');
 assert.equal(testMessage().title, 'Notifications are on');

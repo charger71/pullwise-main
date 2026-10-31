@@ -7,5 +7,19 @@
   "scope": "/app",
   "display": "standalone",
   "background_color": "#121212",
-  "theme_color": "#121212"
+  "theme_color": "#121212",
+  "shortcuts": [
+    {
+      "name": "My List",
+      "url": "/app#list"
+    },
+    {
+      "name": "Following",
+      "url": "/app#following"
+    },
+    {
+      "name": "Shop",
+      "url": "/app#shop"
+    }
+  ]
 }

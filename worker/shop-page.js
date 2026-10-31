@@ -55,8 +55,16 @@ export function appManifest(settings = {}) {
     background_color: paper,
     theme_color: paper,
     ...(icons.length ? { icons } : {}),
+    // Long-press the icon (Android): straight to a tab.
+    shortcuts: APP_SHORTCUTS,
   };
 }
+
+const APP_SHORTCUTS = [
+  { name: 'My List', url: `${APP_PATH}#list` },
+  { name: 'Following', url: `${APP_PATH}#following` },
+  { name: 'Shop', url: `${APP_PATH}#shop` },
+];
 
 /**
  * js/config.js for one shop: the same exports as the static file, filled in from shops.json. `settings` is the

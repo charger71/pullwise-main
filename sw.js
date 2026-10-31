@@ -34,7 +34,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Notifications from the shop (a push carries { title, body, url, tag, icon }: supabase/functions/push-notify);
+// Notifications from the shop (a push carries { title, body, url, tag, icon, badge? }: supabase/functions/push-notify);
 // tapping one opens the app at its url.
 self.addEventListener('push', (event) => {
   let data = {};
@@ -44,7 +44,12 @@ self.addEventListener('push', (event) => {
     data = { body: event.data?.text() ?? '' };
   }
   const icon = /^https:\/\//.test(data.icon ?? '') ? data.icon : undefined; // the shop's icon (push-notify messages.js)
-  event.waitUntil(self.registration.showNotification(data.title || 'Your pull list', { body: data.body || '', tag: data.tag, icon, data: { url: data.url || '/app' } }));
+  const shown = self.registration.showNotification(data.title || 'Your pull list', { body: data.body || '', tag: data.tag, icon, data: { url: data.url || '/app' } });
+  // `badge`: how many books are ready, for the number on the app's icon (the app sets it too, each time it opens).
+  const badge = Number.isInteger(data.badge) && 'setAppBadge' in navigator
+    ? (data.badge > 0 ? navigator.setAppBadge(data.badge) : navigator.clearAppBadge()).catch(() => {})
+    : null;
+  event.waitUntil(Promise.all([shown, badge]));
 });
 
 self.addEventListener('notificationclick', (event) => {

@@ -100,6 +100,7 @@ assert.equal(app.name, 'A Comics');
 assert.equal(app.start_url, '/app');
 assert.equal(app.scope, '/app');
 assert.equal(app.display, 'standalone');
+assert.deepEqual(app.shortcuts.map((x) => x.url), ['/app#list', '/app#following', '/app#shop']);
 assert.equal(app.theme_color, '#f5f0e6');
 assert.deepEqual(app.icons.map((i) => i.sizes), ['192x192', '512x512']);
 assert.match(app.icons[1].src, /render\/image\/public\/media\/logo\.png\?width=512&height=512&resize=contain/);
