@@ -403,17 +403,31 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
   const tiers = tiersFrom(settings);
   const { pct, next } = discountFor(seriesN, tiers);
   const { subtotal, discount, total } = totals(active, pct);
-  const summary = active.length
-    ? `<div class="account-summary">
-        ${tiers.length ? `<p class="account-summary__tier">You follow <strong>${seriesN} series</strong> · <strong>${pct}% off</strong>${next ? `<br>Follow <strong>${next.more} more series</strong> to get ${next.pct}% off.` : '<br>You’ve reached our top discount!'}</p>` : ''}
-        <dl class="account-summary__totals">
+  const tierNote = tiers.length ? `<p class="account-summary__tier">You follow <strong>${seriesN} series</strong> · <strong>${pct}% off</strong>${next ? `<br>Follow <strong>${next.more} more series</strong> to get ${next.pct}% off.` : '<br>You’ve reached our top discount!'}</p>` : '';
+  const subtotalRows = `
           <div><dt>Subtotal</dt><dd>${esc(price(subtotal))}</dd></div>
-          ${pct ? `<div><dt>Discount (${pct}%)</dt><dd>−${esc(price(discount))}</dd></div>` : ''}
-          <div class="account-summary__total"><dt>Estimated total</dt><dd>${esc(price(total))}</dd></div>
-        </dl>
-        <p class="card__meta">At cover price, before tax. Titles without a price aren’t counted.</p>
-      </div>`
-    : '';
+          ${pct ? `<div><dt>Discount (${pct}%)</dt><dd>−${esc(price(discount))}</dd></div>` : ''}`;
+  const priceNote = '<p class="card__meta">At cover price, before tax. Titles without a price aren’t counted.</p>';
+  // The app folds the figures away under the estimated total, so the list starts higher on a phone.
+  const summary = !active.length
+    ? ''
+    : APP
+      ? `<details class="account-summary account-summary--fold">
+          <summary><span>Estimated total</span><span class="account-summary__amount">${esc(price(total))}</span></summary>
+          <div>
+            ${tierNote}
+            <dl class="account-summary__totals">${subtotalRows}</dl>
+            ${priceNote}
+          </div>
+        </details>`
+      : `<div class="account-summary">
+          ${tierNote}
+          <dl class="account-summary__totals">
+            ${subtotalRows}
+            <div class="account-summary__total"><dt>Estimated total</dt><dd>${esc(price(total))}</dd></div>
+          </dl>
+          ${priceNote}
+        </div>`;
 
   // Titles a follow added since the last visit (the hourly sweep, or just now on follow).
   const isNew = (r) => pull.isNewAuto(r, seenBefore);
@@ -464,7 +478,7 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
           ${r.item.variant ? `<span class="card__variant">${esc(r.item.variant)}</span>` : ''}
           <span class="card__meta">${esc([r.item.publisher, price(r.item.price), note].filter(Boolean).join(' · '))}</span>
           ${r.updated_via === 'staff' ? `<span class="card__meta">Updated by the shop · ${esc(whenLabel(r.updated_at, settings.timezone))}</span>` : ''}
-          <span class="account-line__status account-line__status--${esc(r.status)}">${esc(LINE_STATUS[r.status] ?? r.status)}${r.status === 'open' && !editable ? ' — order is in, call the shop to change' : ''}${r.status === 'not_ordered' ? ' — call the shop if you have questions' : ''}</span>
+          ${r.status === 'open' && editable ? '' : `<span class="account-line__status account-line__status--${esc(r.status)}">${r.status === 'open' ? 'Order is in, call the shop to change' : esc(LINE_STATUS[r.status] ?? r.status)}${r.status === 'not_ordered' ? ' — call the shop if you have questions' : ''}</span>`}
           ${editable
             ? `<div class="account-line__controls">
                 <label class="account-line__qty-label" for="pq-${r.id}">Qty<span class="visually-hidden"> of ${name}</span></label>

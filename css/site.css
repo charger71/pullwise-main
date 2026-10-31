@@ -793,7 +793,14 @@ dialog::backdrop { background: #000c; }
 .title-modal__desc { margin: var(--sp-16) 0 var(--sp-12); font-size: var(--fs-base); line-height: 1.55; }
 .title-modal .card__foot { margin: var(--sp-12) 0 var(--sp-4); }
 @media (min-width: 700px) { .title-modal__layout { grid-template-columns: 260px minmax(0, 1fr); gap: var(--sp-24); } .title-modal__media .cover, .title-modal__cover { max-width: none; } }
-@media (max-width: 599px) { .title-modal { width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh; border-radius: 0; } .title-modal .dialog__body { max-height: calc(100vh - 56px); padding: 0 var(--sp-16) var(--sp-24); } }
+/* Phones: the whole screen (100dvh, so iPhone's browser bars and the app's status bar don't push it off), the close
+   button below the status bar and always in view, and only the body scrolls. */
+@media (max-width: 599px) {
+  .title-modal { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; }
+  .title-modal[open] { display: flex; flex-direction: column; }
+  .title-modal__head { flex: none; padding: calc(var(--sp-8) + env(safe-area-inset-top)) calc(var(--sp-8) + env(safe-area-inset-right)) var(--sp-4) var(--sp-8); }
+  .title-modal .dialog__body { flex: 1 1 auto; min-height: 0; max-height: none; overscroll-behavior: contain; padding: 0 var(--sp-16) calc(var(--sp-24) + env(safe-area-inset-bottom)); }
+}
 /* ---------- Reservation list ---------- */
 .list-bar {
   position: fixed;
@@ -1002,6 +1009,11 @@ details > div { padding: 0 var(--sp-16) var(--sp-14); }
 .account-summary__totals div { display: flex; justify-content: space-between; gap: var(--sp-12); padding: var(--sp-2) 0; }
 .account-summary__totals dt, .account-summary__totals dd { margin: 0; }
 .account-summary__total { border-top: var(--border); margin-top: var(--sp-4); padding-top: var(--sp-6) !important; font-weight: 700; }
+.account-summary--fold { padding: 0; border: 0; box-shadow: none; }
+.account-summary--fold > summary { gap: var(--sp-12); padding: var(--sp-12) var(--sp-16); }
+.account-summary__amount { margin-left: auto; }
+.account-summary--fold > summary::after { margin-left: 0; }
+.account-summary--fold > div { padding: 0 var(--sp-16) var(--sp-12); }
 .account-move { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); flex-wrap: wrap; }
 /* ---------- Follow (signed-in cards): a link on the card, choices in a dialog ---------- */
 .follow-open { display: block; width: 100%; margin-top: var(--sp-6); padding: var(--sp-8) 0; min-height: 40px; background: none; border: 0; font: inherit; font-size: var(--fs-ui); font-weight: 700; text-align: left; color: var(--teal); cursor: pointer; }
@@ -1170,6 +1182,7 @@ body:has([aria-busy="true"], .loading)::after {
 .app-bar__site { flex: none; font-size: var(--fs-ui); font-weight: 700; }
 .app-main { padding: var(--sp-16) 0 calc(var(--tab-bar-h) + var(--sp-24) + env(safe-area-inset-bottom)); }
 .app-view > * + *, [data-shop] > * + * { margin-top: var(--sp-16); }
+[data-shop] > .app-shop__links { margin-top: var(--sp-24); }
 .app-view__title { font-size: var(--fs-title); margin: 0 0 var(--sp-12); }
 .app-install { display: flex; align-items: center; gap: var(--sp-12); margin-top: var(--sp-12); padding-block: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
 .app-install__text { flex: 1; margin: 0; font-size: var(--fs-sm); }
@@ -1188,18 +1201,21 @@ body:has([aria-busy="true"], .loading)::after {
 .app-shop__logo { max-height: 96px; width: auto; margin: 0 auto var(--sp-12); }
 .app-shop__name { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: calc(1.6rem * var(--display-scale)); letter-spacing: var(--display-tracking); text-transform: var(--display-case); color: var(--cream); line-height: 1.1; }
 .app-shop__tagline { margin: var(--sp-6) 0 0; color: var(--muted); }
-.app-shop__place { font-size: var(--fs-sub); margin: var(--sp-24) 0 0; }
-.app-shop__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-8); margin: var(--sp-16) 0 var(--sp-12); }
-.app-shop__address { font-style: normal; margin: 0 0 var(--sp-12); }
-.app-shop__sub { font-size: var(--fs-compact); margin: var(--sp-12) 0 var(--sp-6); }
+.app-shop__place { margin-top: var(--sp-24); padding-top: var(--sp-24); border-top: var(--border); }
+.app-shop__place-name { font-size: var(--fs-sub); margin: 0; }
+.app-shop__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-12); margin: var(--sp-16) 0 var(--sp-20); }
+.app-shop__place-name + .app-shop__actions { margin-top: var(--sp-12); }
+.app-shop__email { margin: var(--sp-24) 0 var(--sp-16); padding-top: var(--sp-24); border-top: var(--border); }
+.app-shop__address { font-style: normal; margin: 0 0 var(--sp-16); }
+.app-shop__sub { font-size: var(--fs-compact); margin: var(--sp-16) 0 var(--sp-6); }
 .app-shop .hours div { margin-inline: auto; }
 .app-shop .socials { justify-content: center; }
 .app-shop__links { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); }
 .app-shop__links a { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: var(--sp-8); background: var(--surface); border: var(--border); border-radius: var(--radius); font-weight: 700; text-decoration: none; }
 .app-shop__links a:hover { background: var(--raised); }
 /* My List in the app: a bigger cover, the title across the rest of the line, copies and a remove icon under the details. */
-.account-line--app { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: start; gap: var(--sp-14); padding: var(--sp-14) 0; }
-.account-line--app .cover { width: 88px; }
+.account-line--app { display: grid; grid-template-columns: 116px minmax(0, 1fr); align-items: start; gap: var(--sp-14); padding: var(--sp-14) 0; }
+.account-line--app .cover { width: 116px; }
 .account-line__open { display: block; padding: 0; border: 0; background: none; cursor: pointer; }
 .account-line__open:hover .cover { filter: brightness(1.08); }
 .account-line__title { font-size: var(--fs-compact); line-height: 1.25; }

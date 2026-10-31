@@ -43,14 +43,15 @@ showView();
 /** One place's address, phone and hours. */
 const placeHtml = (s, title) => {
   const addr = addressLines(s);
-  return `
-    ${title ? `<h3 class="app-shop__place">${esc(title)}</h3>` : ''}
+  return `<section class="app-shop__place">
+    ${title ? `<h3 class="app-shop__place-name">${esc(title)}</h3>` : ''}
     <div class="app-shop__actions">
       ${s.phone ? `<a class="btn btn--primary" href="${esc(telHref(s.phone))}">Call ${esc(formatPhone(s.phone))}</a>` : ''}
       ${addr.length ? `<a class="btn btn--ghost" href="${esc(mapsHref(s))}" target="_blank" rel="noopener">Directions</a>` : ''}
     </div>
     ${addr.length ? `<address class="app-shop__address">${addr.map(esc).join('<br>')}</address>` : ''}
-    ${s.hours?.length ? `<h4 class="app-shop__sub">Hours</h4>${hoursList(s.hours)}` : ''}`;
+    ${s.hours?.length ? `<h4 class="app-shop__sub">Hours</h4>${hoursList(s.hours)}` : ''}
+  </section>`;
 };
 
 // Pages of the shop's website, opened in the browser: an installed app has no back button to return from them.
@@ -79,7 +80,7 @@ async function renderShop() {
       <p class="app-shop__name">${esc(s.shop_name)}</p>
       ${s.tagline ? `<p class="app-shop__tagline">${esc(s.tagline)}</p>` : ''}
       ${many ? s.locations.map((l) => placeHtml(locationAs(s, l), l.name)).join('') : placeHtml(s)}
-      ${s.email ? `<p><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></p>` : ''}
+      ${s.email ? `<p class="app-shop__email"><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></p>` : ''}
       ${social}
     </div>
     <ul class="app-shop__links">${SITE_LINKS.map((l) => `<li><a href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.label)}<span class="visually-hidden"> (opens in your browser)</span></a></li>`).join('')}</ul>`;
