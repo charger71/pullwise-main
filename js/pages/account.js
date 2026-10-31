@@ -220,6 +220,7 @@ async function signedIn(sb, user) {
   // A first sign-in has no customer record yet (id null). Ask for a name and phone before anything else.
   if (!customer.id || !customer.first_name?.trim() || !customer.last_name?.trim() || !customer.phone?.trim()) return setupProfile(sb, user, customer);
   const locations = await getLocations(sb);
+  pickupName = [customer.last_name, customer.first_name].map((n) => n?.trim()).filter(Boolean).join(', ');
 
   const who = `<p class="account-who">Signed in as <strong>${esc(user.email)}</strong> · <button class="link-button" type="button" data-out>Sign out</button></p>`;
   const orders = titled('orders-h', 'Coming Up', `${APP && !welcomed() ? WELCOME : ''}
@@ -375,8 +376,10 @@ const loadQr = () =>
     el.onerror = () => ((qrLib = null), reject(new Error('QR library unavailable')));
     document.head.append(el);
   }));
+let pickupName = ''; // "Smith, Jane": shops file held books by last name, so it leads the pickup code
 const pickupCard = (customerId) => `
     <div class="app-pickup">
+      ${pickupName ? `<p class="app-pickup__name">${esc(pickupName)}</p>` : ''}
       <div class="app-pickup__qr" data-pickup-qr="${esc(`${SITE_URL.replace(/\/$/, '')}/admin/#customers/${customerId}`)}"></div>
       <div>
         <p class="app-pickup__label">Pickup code</p>

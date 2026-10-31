@@ -1219,7 +1219,9 @@ body:has([aria-busy="true"], .loading)::after {
 .app-search__follow { margin-top: var(--sp-16); }
 /* My List's pickup code (js/pages/account.js): a QR code staff scan, and the number to type into Customers. The code
    stays dark on white in every theme, as scanners need. */
-.app-pickup { display: flex; align-items: center; gap: var(--sp-16); margin: 0 0 var(--sp-12); padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
+.app-pickup { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-12) var(--sp-16); margin: 0 0 var(--sp-12); padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
+.app-pickup > div:last-child { flex: 1 1 140px; }
+.app-pickup__name { flex: 1 0 100%; margin: 0; font-family: var(--font-heading); font-size: var(--fs-title); font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
 .app-pickup__qr { flex: none; width: 112px; padding: var(--sp-4); background: white; border-radius: var(--radius-sm); }
 .app-pickup__qr svg { display: block; width: 100%; height: auto; fill: black; }
 .app-pickup__label { margin: 0; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
