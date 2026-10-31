@@ -71,9 +71,11 @@ export function applyColors(colors) {
 }
 
 /** Save the overrides on the account. Resolves to an error (or null). */
+// Send only this key: Supabase merges it into the account's metadata. Spreading the page-load copy of
+// user_metadata would put back whatever else was saved since (a reset undone by the next theme change).
 export async function saveColors(sb, user, colors) {
   applyColors(colors);
-  const { error } = await sb.auth.updateUser({ data: { ...user.user_metadata, admin_colors: colors } });
+  const { error } = await sb.auth.updateUser({ data: { admin_colors: colors } });
   return error;
 }
 
@@ -101,6 +103,6 @@ export function syncTheme(user) {
 /** Choose a theme and save it on the account. Resolves to an error (or null). */
 export async function saveTheme(sb, user, choice) {
   applyTheme(choice);
-  const { error } = await sb.auth.updateUser({ data: { ...user.user_metadata, admin_theme: choice } });
+  const { error } = await sb.auth.updateUser({ data: { admin_theme: choice } }); // only this key, as saveColors
   return error;
 }

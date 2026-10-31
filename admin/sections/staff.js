@@ -126,7 +126,7 @@ export async function mount(el, ctx) {
       <form class="admin-form" data-colors>
         ${hintFold('Pick your own colors for the admin. They apply to the <strong data-colors-mode></strong> theme you are using now (switch Appearance above to set the other one), for you only, on every device you sign in from.')}
         <div class="form-grid form-grid--pairs color-grid">${COLOR_VARS.map(([v, label, hint], i) => `<div class="field"><label for="st-c${i}">${label}</label><input id="st-c${i}" data-var="${v}" type="color"><p class="field__hint">${hint}</p></div>`).join('')}</div>
-        <div class="admin-form__actions"><button class="btn btn--primary" type="submit">Save colors</button> <button class="btn btn--ghost" type="button" data-colors-reset>Back to standard colors</button></div>
+        <div class="admin-form__actions"><button class="btn btn--primary" type="submit">Save colors</button> <button class="btn btn--ghost" type="button" data-colors-reset>Back to standard colors (both themes)</button></div>
         <p class="admin-status" role="status" data-colors-status></p>
       </form>
       </div>
@@ -217,10 +217,9 @@ export async function mount(el, ctx) {
     return '#' + [r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('');
   };
   fillColors();
-  const persist = async (mine, msg) => {
+  const persist = async (all, msg) => {
     const status = $('[data-colors-status]', el);
     setStatus(status, 'Saving…');
-    const all = { ...getColors(), [currentMode()]: mine };
     const err = await saveColors(sb, user, all);
     if (err) setStatus(status, `Applied here, but not saved to your account: ${friendlyError(err)}`, 'error');
     else setStatus(status, msg, 'ok');
@@ -230,9 +229,9 @@ export async function mount(el, ctx) {
     e.preventDefault();
     const mine = {};
     $$('[data-var]', colorForm).forEach((i) => { if (i.value.toLowerCase() !== standard[i.dataset.var].toLowerCase()) mine[i.dataset.var] = i.value; });
-    persist(mine, Object.keys(mine).length ? 'Saved.' : 'Saved. Everything is on the standard colors.');
+    persist({ ...getColors(), [currentMode()]: mine }, Object.keys(mine).length ? 'Saved.' : 'Saved. Everything is on the standard colors.');
   });
-  $('[data-colors-reset]', el).addEventListener('click', () => persist({}, 'Back to the standard colors.'));
+  $('[data-colors-reset]', el).addEventListener('click', () => persist({ light: {}, dark: {} }, 'Back to the standard colors in both themes.'));
   // Preview as you pick.
   colorForm.addEventListener('input', (e) => {
     const v = e.target.dataset?.var;
