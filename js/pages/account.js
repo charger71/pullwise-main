@@ -18,6 +18,14 @@ import { setBadge, saveList, savedList, forgetList } from '../app-device.js';
 const root = $('#account');
 const APP = document.body.dataset.page === 'app';
 
+/** A titled panel. In the app the title sits above the panel, as every view's title does (the Shop's too). */
+const titled = (id, title, body, { focusable = false } = {}) => {
+  const h = `<h2 id="${id}"${APP ? ' class="app-view__title"' : ''}${focusable ? ' tabindex="-1"' : ''}>${title}</h2>`;
+  return APP
+    ? `<section class="app-section" aria-labelledby="${id}">${h}<div class="panel">${body}</div></section>`
+    : `<section class="panel" aria-labelledby="${id}">${h}${body}</section>`;
+};
+
 // An emailed link that has expired or was already used comes back with the reason in the address
 // (#error=access_denied&error_code=otp_expired&error_description=…). Read it before supabase-js looks at the
 // address, then tidy the address so a reload doesn't show it again.
@@ -90,10 +98,7 @@ function showSaved() {
   const later = (what) => `<p class="empty">Your ${what} will show here when you’re back online.</p>`;
   root.innerHTML = `
     <div class="app-view" data-view="list">
-      <section class="panel" aria-labelledby="orders-h">
-        <h2 id="orders-h" tabindex="-1">Coming Up</h2>
-        <div class="account-saved-list" inert>${saved.html}</div>
-      </section>
+      ${titled('orders-h', 'Coming Up', `<div class="account-saved-list" inert>${saved.html}</div>`, { focusable: true })}
     </div>
     <div class="app-view" data-view="following">${later('follows')}</div>
     <div class="app-view" data-view="me">${later('account')}</div>`;
@@ -129,8 +134,9 @@ function signedOut(sb) {
   const linkNote = linkError; // once: not again after a later sign-out
   linkError = null;
   root.innerHTML = `
+    ${APP ? '<h2 class="app-view__title">Sign in</h2>' : ''}
     <div class="panel account-panel">
-      <h2>Sign in</h2>
+      ${APP ? '' : '<h2>Sign in</h2>'}
       <p>Enter your email and we’ll send you ${APP ? 'a 6-digit code' : 'a link and a 6-digit code'}. No password needed — if you’re new, this creates your account.</p>
       <form id="email-form" novalidate>
         <div class="field">
@@ -216,15 +222,10 @@ async function signedIn(sb, user) {
   const locations = await getLocations(sb);
 
   const who = `<p class="account-who">Signed in as <strong>${esc(user.email)}</strong> · <button class="link-button" type="button" data-out>Sign out</button></p>`;
-  const orders = `
-        <section class="panel" aria-labelledby="orders-h">
-          <h2 id="orders-h" tabindex="-1">Coming Up</h2>
+  const orders = titled('orders-h', 'Coming Up', `
           <p class="visually-hidden" role="status" aria-live="polite" data-orders-status></p>
-          <div data-orders><p class="empty loading">Loading…</p></div>
-        </section>`;
-  const following = `
-        <section class="panel" aria-labelledby="follow-h">
-          <h2 id="follow-h">Following</h2>
+          <div data-orders><p class="empty loading">Loading…</p></div>`, { focusable: true });
+  const following = titled('follow-h', 'Following', `
           <p class="field__hint">New issues from anything you follow are added to your pull list automatically, until the order cutoff. A series adds its main cover; tick <strong>All covers</strong> to get every variant too (never incentive covers). Remove any you don’t want from Coming Up.</p>
           <form class="follow-form" data-follow-search role="search">
             <div class="follow-form__row">
@@ -233,12 +234,9 @@ async function signedIn(sb, user) {
             </div>
           </form>
           <div data-follow-results></div>
-          <div data-follows></div>
-        </section>`;
+          <div data-follows></div>`);
   const terms = `<p class="callout">We reserve the right to cancel any pre-order for any reason, and pre-orders over $100 may require a deposit. See our <a href="terms.html">terms</a>.</p>`;
-  const profile = `
-      <section class="panel" aria-labelledby="profile-h">
-        <h2 id="profile-h">My Profile</h2>
+  const profile = titled('profile-h', 'My Profile', `
         <form id="profile-form" novalidate>
           <div class="account-row">
             <div class="field"><label for="p-first">First name (required to place orders)</label><input id="p-first" name="first_name" autocomplete="given-name" required maxlength="80" value="${esc(customer.first_name)}"></div>
@@ -271,15 +269,14 @@ async function signedIn(sb, user) {
           <p class="form-error" role="alert"></p>
           <p class="account-saved" role="status"></p>
           <button class="btn btn--primary" type="submit">Save profile</button>
-        </form>
-      </section>`;
+        </form>`);
   // The app shows one view at a time under its tab bar (js/pages/app.js); the page lays them out side by side.
   root.innerHTML = APP
     ? `
     <div class="app-view" data-view="list">${orders}</div>
     <div class="app-view" data-view="following">${following}</div>
     <div class="app-view" data-view="me">${who}
-      <section class="panel" aria-labelledby="push-h"><h2 id="push-h">Notifications</h2><div data-push><p class="empty loading">Loading…</p></div></section>
+      ${titled('push-h', 'Notifications', '<div data-push><p class="empty loading">Loading…</p></div>')}
       ${profile}${terms}</div>`
     : `
     ${who}
@@ -326,6 +323,18 @@ async function signedIn(sb, user) {
       .catch((err) => console.error('Notification settings failed to load', err));
   }
   setupFollowing(sb, customer.id, seenBefore);
+  if (APP) watchHot(sb, customer.id, seenBefore);
+}
+
+/** Titles added or taken off from the app's Hot view (js/pages/app.js) show on My List right away. */
+let hotArgs = null;
+function watchHot(...args) {
+  const first = !hotArgs;
+  hotArgs = args;
+  if (!first) return;
+  pull.onChange(() => {
+    if (showing === 'in' && location.hash === '#hot') loadOrders(...hotArgs);
+  });
 }
 
 /** First sign-in: collect the details orders need (first name, last name, phone) before showing the account. */
@@ -333,8 +342,9 @@ async function setupProfile(sb, user, customer) {
   const locations = await getLocations(sb);
   root.innerHTML = `
     <p class="account-who">Signed in as <strong>${esc(user.email)}</strong> · <button class="link-button" type="button" data-out>Sign out</button></p>
+    ${APP ? '<h2 id="setup-h" class="app-view__title">Welcome! Let’s finish your account</h2>' : ''}
     <section class="panel account-setup" aria-labelledby="setup-h">
-      <h2 id="setup-h">Welcome! Let’s finish your account</h2>
+      ${APP ? '' : '<h2 id="setup-h">Welcome! Let’s finish your account</h2>'}
       <p class="field__hint">We need your name and phone number so the shop can set aside your books and reach you when they arrive.</p>
       <form id="setup-form" novalidate>
         <div class="account-row">

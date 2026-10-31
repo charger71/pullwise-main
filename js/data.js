@@ -54,6 +54,7 @@ export async function getCategories() {
 
 /**
  * @param {object} f
+ * @param {number[]} [f.ids]       only these titles
  * @param {string[]} [f.statuses]  item_status values to include
  * @param {string[]} [f.excludeStatuses]
  * @param {number}   [f.categoryId]
@@ -108,6 +109,7 @@ async function fetchItems(f) {
     const text = (i) => squash(`${i.title} ${i.variant ?? ''} ${i.creators ?? ''} ${i.issue_number ?? ''}`);
     let rows = items.filter(
       (i) =>
+        (!f.ids || f.ids.includes(i.id)) &&
         (!f.statuses || f.statuses.includes(i.status)) &&
         (!f.excludeStatuses || !f.excludeStatuses.includes(i.status)) &&
         (!f.categoryId || i.category_id === f.categoryId) &&
@@ -146,6 +148,7 @@ async function fetchItems(f) {
     .select(columns, f.countOnly ? { count: 'exact', head: true } : f.withCount ? { count: 'exact' } : undefined)
     .eq('hidden', false);
   if (f.categorySlug) query = query.eq('cat.slug', f.categorySlug);
+  if (f.ids) query = query.in('id', f.ids);
   if (f.statuses) query = query.in('status', f.statuses);
   if (f.excludeStatuses) query = query.not('status', 'in', `(${f.excludeStatuses.join(',')})`);
   if (f.categoryId) query = query.eq('category_id', f.categoryId);

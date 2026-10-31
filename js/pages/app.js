@@ -1,13 +1,16 @@
 // The shop's pull list app (app.html, served at /app; the Worker gives it the shop's install manifest). It's the
-// account page (js/pages/account.js) shown one view at a time under a tab bar — My List, Following, Shop and
+// account page (js/pages/account.js) shown one view at a time under a tab bar — My List, Hot, Following, Shop and
 // Account — with the shop's brand on top, so the installed app is the shop's own. Tabs are #hash links, so the back
 // button and links from outside (a notification) can open one. sw.js keeps the app opening without a connection.
 
-import { $, esc, sizedImage, addressLines, hoursList, mapsHref, telHref, socialIcons, linkify, locationAs } from '../site.js';
-import { getSettings } from '../data.js';
+import { $, esc, sizedImage, addressLines, hoursList, mapsHref, telHref, socialIcons, linkify, locationAs, openFocFrom, addDays } from '../site.js';
+import { getSettings, getItems, getTopReserved } from '../data.js';
+import { todayIn } from '../dates.js';
+import { itemCard, enableReservations } from '../components.js';
 import { formatPhone, LOGO_WIDTH } from '../util.js';
 
-const VIEWS = ['list', 'following', 'shop', 'me'];
+const VIEWS = ['list', 'hot', 'following', 'shop', 'me'];
+const OWN_VIEWS = ['hot', 'shop']; // drawn here; the rest are the account page's
 const account = $('#account');
 
 /** Show the view the address names (My List by default) and mark its tab. */
@@ -16,7 +19,8 @@ function showView({ focus = false } = {}) {
   const view = VIEWS.includes(want) ? want : 'list';
   // Signed out (or still loading) there are no account views: the sign-in form stands in for all but Shop.
   for (const el of document.querySelectorAll('[data-view]')) el.hidden = el.dataset.view !== view;
-  account.hidden = view === 'shop';
+  account.hidden = OWN_VIEWS.includes(view);
+  if (view === 'hot' && !hotShown) renderHot();
   for (const a of document.querySelectorAll('.tab-bar [data-tab]')) {
     if (a.dataset.tab === view) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
@@ -31,10 +35,74 @@ function showView({ focus = false } = {}) {
   }
 }
 
+let hotShown = false; // the Hot view loads the first time it's opened
 addEventListener('hashchange', () => showView({ focus: true }));
 // The account page draws its views after sign-in (and again after signing out and in): show the right one.
 new MutationObserver(() => showView()).observe(account, { childList: true });
 showView();
+
+// ---------------------------------------------------------------------------
+// Hot: the shop's Top 10, cutoffs coming up and this week's new books, as rows of the website's cards to swipe
+// through. The cards' buttons add to the pull list as on the website; js/pages/account.js redraws My List.
+// ---------------------------------------------------------------------------
+
+const ROW = 12;
+const IN_STORE = ['new_this_wednesday', 'just_arrived', 'available', 'low_stock', 'sale', 'clearance', 'backorder'];
+const hotItems = new Map(); // id → item, for the cards' buttons
+
+async function loadHot() {
+  const tz = (await getSettings()).timezone;
+  const ids = [...(await getTopReserved())]; // most pulled first
+  const [top, foc, fresh, recent] = await Promise.all([
+    ids.length ? getItems({ ids }) : [],
+    getItems({ statuses: ['pre_order'], focFrom: openFocFrom(tz), focBefore: addDays(todayIn(tz), 14), order: 'foc', limit: ROW }),
+    getItems({ statuses: ['new_this_wednesday', 'just_arrived'], order: 'released', limit: ROW }),
+    // The latest releases top up the row when this week's books are few or not in yet (as on the home page).
+    getItems({ statuses: IN_STORE, order: 'released', limit: ROW }),
+  ]);
+  const seen = new Set(fresh.map((i) => i.id));
+  return {
+    top: top.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)),
+    foc,
+    fresh: [...fresh, ...recent.filter((i) => !seen.has(i.id))].slice(0, ROW),
+  };
+}
+
+const SHELVES = [
+  { key: 'top', title: 'Top 10', lede: 'The most pulled titles at the shop right now.', empty: 'The Top 10 shows once customers start their pull lists.' },
+  { key: 'foc', title: 'Order Cutoff Soon', lede: 'Get these on your list before the shop places its order.', empty: 'No order cutoffs in the next two weeks.', more: { href: 'pre-orders.html', label: 'All pre-orders' } },
+  { key: 'fresh', title: 'New This Week', lede: 'Just in at the shop.', empty: 'New books land every Wednesday — check back soon.', more: { href: 'new-arrivals.html', label: 'All new arrivals' } },
+];
+
+async function renderHot() {
+  hotShown = true;
+  const host = $('[data-hot]');
+  if (!host.children.length) host.innerHTML = '<p class="empty loading">Loading…</p>'; // a pull to refresh keeps the rows up
+  let data;
+  try {
+    data = await loadHot();
+  } catch (err) {
+    console.error(err);
+    hotShown = false; // try again next time
+    host.innerHTML = '<p class="empty">The titles couldn’t be loaded. Pull down to try again.</p>';
+    return;
+  }
+  hotItems.clear();
+  for (const i of [...data.top, ...data.foc, ...data.fresh]) hotItems.set(i.id, i);
+  host.innerHTML = SHELVES.map(({ key, title, lede, empty, more }) => `
+    <section class="app-shelf" aria-labelledby="hot-${key}-h">
+      <div class="app-shelf__head">
+        <h3 id="hot-${key}-h">${esc(title)}</h3>
+        ${more ? `<a href="${esc(more.href)}" target="_blank" rel="noopener">See all<span class="visually-hidden"> — ${esc(more.label)} (opens in your browser)</span></a>` : ''}
+      </div>
+      <p class="app-shelf__lede">${esc(lede)}</p>
+      ${data[key].length
+        ? `<div class="app-shelf__row" role="list">${data[key].map((i) => `<div role="listitem">${itemCard(i, { reservable: true, level: 4 })}</div>`).join('')}</div>`
+        : `<p class="empty">${esc(empty)}</p>`}
+    </section>`).join('');
+}
+
+enableReservations($('[data-hot]'), (id) => hotItems.get(id));
 
 // ---------------------------------------------------------------------------
 // Shop: who the app belongs to, how to reach it, and its website
@@ -151,10 +219,11 @@ function setupPull() {
 }
 
 /**
- * Fetch the current view again. The account page redraws its views in place when signed in (it answers the
- * app:refresh event with a promise); the Shop view, or a signed-out app, simply loads again.
+ * Fetch the current view again. Hot draws its rows again; the account page redraws its views in place when signed
+ * in (it answers the app:refresh event with a promise); the Shop view, or a signed-out app, simply loads again.
  */
 async function refresh() {
+  if (location.hash === '#hot') return renderHot();
   const waits = [];
   if (location.hash !== '#shop') document.dispatchEvent(new CustomEvent('app:refresh', { detail: { wait: (p) => waits.push(p) } }));
   if (!waits.length) return location.reload();
