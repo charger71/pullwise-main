@@ -62,6 +62,7 @@ export function appManifest(settings = {}) {
 
 const APP_SHORTCUTS = [
   { name: 'My List', url: `${APP_PATH}#list` },
+  { name: 'Hot', url: `${APP_PATH}#hot` },
   { name: 'Following', url: `${APP_PATH}#following` },
   { name: 'Shop', url: `${APP_PATH}#shop` },
 ];
