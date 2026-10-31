@@ -3,7 +3,7 @@
 // submit them together as one order, signed-in customers keep a standing list.
 
 import { reserve, getSettings, coverArtists } from './data.js';
-import { $, esc, badge, ITEM_BADGES, cover, price, fmtDate, daysUntil, lastReserveDay, cutoffPassed, itemTitle, itemFullTitle } from './site.js';
+import { $, esc, badge, ITEM_BADGES, cover, price, fmtDate, daysUntil, lastReserveDay, cutoffPassed, shownStatus, itemTitle, itemFullTitle } from './site.js';
 import { thumbOf, thumbFallback, formatPhone, nameKey, artistMeta } from './util.js';
 import * as list from './reservation-list.js';
 import * as pull from './customer.js';
@@ -190,7 +190,7 @@ export function itemCard(item, { reservable = false, level = 3, followSeries = f
         ${item.staff_pick ? '<span class="pick-badge"><span aria-hidden="true">★</span> Staff Pick</span>' : ''}
       </div>
       <div class="card__body">
-        <div>${badge(item.status)}</div>
+        <div>${badge(shownStatus(item))}</div>
         ${collectorBadges(item)}
         <h${level} class="card__title"><button class="card__title-open" type="button" data-title-open="${item.id}">${esc(itemTitle(item))}<span class="visually-hidden"> (details)</span></button></h${level}>
         ${item.variant ? `<p class="card__variant">${esc(item.variant)}</p>` : ''}

@@ -62,11 +62,12 @@ export async function getCategories() {
  * @param {string[]} [f.publishers] any of these publishers
  * @param {string}   [f.focFrom]   ISO date; skip items whose FOC is before this
  * @param {string}   [f.focBefore] ISO date; pre-orders with FOC on/before this
+ * @param {string}   [f.closedBefore] ISO date (from openFocFrom()); leave out pre-orders still open to reserve
  * @param {string}   [f.q]         search title, variant and creators
  * @param {string[]} [f.badges]     titles with any of these collector badges
  * @param {boolean}  [f.featured]   staff-chosen for the homepage
  * @param {boolean}  [f.staffPick]
- * @param {string}   [f.order]     'foc' | 'title' | 'newest' | 'released' (latest release date first) | 'arrivals' (New This Wednesday, Just Arrived, then the rest)
+ * @param {string}   [f.order]     'foc' | 'title' | 'newest' | 'released' (latest release date first) | 'arrivals' (New This Wednesday, Just Arrived, in stock, Backorder / Sold Out, then Coming Soon)
  * @param {number}   [f.limit]
  * @param {number}   [f.offset]
  * @param {boolean}  [f.withCount] resolve { rows, count } instead of rows
@@ -115,6 +116,7 @@ async function fetchItems(f) {
         (!f.publishers?.length || f.publishers.includes(i.publisher)) &&
         (!f.focFrom || !i.foc_date || i.foc_date >= f.focFrom) &&
         (!f.focBefore || (i.foc_date && i.foc_date <= f.focBefore)) &&
+        (!f.closedBefore || i.status !== 'pre_order' || (i.foc_date && i.foc_date < f.closedBefore)) &&
         (!f.badges?.length || f.badges.some((b) => i.badges?.includes(b))) &&
         (!f.featured || i.featured) &&
         (!f.staffPick || i.staff_pick) &&
@@ -198,7 +200,7 @@ function sorter(order) {
   if (order === 'newest') return (a, b) => b.id - a.id;
   if (order === 'released') return (a, b) => (b.release_date ?? '').localeCompare(a.release_date ?? '') || byTitle(a, b);
   if (order === 'arrivals') {
-    const rank = (i) => ({ new_this_wednesday: 0, just_arrived: 1, backorder: 3, sold_out: 3 })[i.status] ?? 2;
+    const rank = (i) => ({ new_this_wednesday: 0, just_arrived: 1, backorder: 3, sold_out: 3, pre_order: 4 })[i.status] ?? 2;
     return (a, b) => rank(a) - rank(b) || byTitle(a, b);
   }
   return byTitle;
