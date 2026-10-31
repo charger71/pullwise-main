@@ -3,6 +3,7 @@
 // to, and the browser's back button closes it.
 
 import { getItem, getVariants, getTopReserved } from './data.js';
+import { SITE_URL } from './config.js';
 import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shownStatus, shopToday } from './site.js';
 import { enableReservations, seenItems, focLabel, reserveButton, variantsButton, followButton, creatorNames, collectorBadges, topBadge } from './components.js';
 
@@ -19,6 +20,11 @@ const urlWith = (id) => {
   else url.searchParams.delete('title');
   return url;
 };
+
+/** The title on the shop's website: pre-orders while it can be ordered, else new arrivals (both open its details). */
+const shareUrl = (item) => `${SITE_URL.replace(/\/$/, '')}/${item.status === 'pre_order' ? 'pre-orders' : 'new-arrivals'}.html?title=${item.id}`;
+// Phones open their share sheet; elsewhere the link is copied.
+const canShare = () => typeof navigator.share === 'function' || !!navigator.clipboard?.writeText;
 
 const paragraphs = (text) =>
   String(text ?? '')
@@ -45,7 +51,29 @@ function details(item) {
     ${item.status !== 'pre_order' ? '<p class="notice">In-store titles can’t be held or reserved: first to pay gets it. Want a guaranteed copy of something upcoming? <a href="pre-orders.html">Pre-order it</a>.</p>' : ''}
     ${item.description ? `<div class="title-modal__desc">${paragraphs(item.description)}</div>` : ''}
     ${people.length ? `<ul class="chips" aria-label="Creators">${people.map((p) => `<li>${esc(p.name)}</li>`).join('')}</ul>` : ''}
-    ${item.isbn ? `<p class="card__meta">ISBN ${esc(item.isbn)}</p>` : ''}`;
+    ${item.isbn ? `<p class="card__meta">ISBN ${esc(item.isbn)}</p>` : ''}
+    ${canShare() ? `<p class="title-modal__share"><button class="btn btn--ghost" type="button" data-title-share>Share</button><span class="title-modal__shared" role="status"></span></p>` : ''}`;
+}
+
+async function share(btn) {
+  const item = current;
+  const url = shareUrl(item);
+  const said = $('.title-modal__shared', dialog);
+  said.textContent = '';
+  if (typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title: itemTitle(item), text: `${itemTitle(item)}${item.variant ? ` (${item.variant})` : ''}`, url });
+    } catch {
+      /* closed the share sheet */
+    }
+    return btn.focus();
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    said.textContent = 'Link copied.';
+  } catch {
+    said.textContent = 'Couldn’t copy the link.';
+  }
 }
 
 function render() {
@@ -78,6 +106,8 @@ function create() {
   document.body.append(d);
   d.addEventListener('click', async (e) => {
     if (e.target === d || e.target.closest('.dialog__close')) return d.close();
+    const shareBtn = e.target.closest('[data-title-share]');
+    if (shareBtn) return share(shareBtn);
     const thumb = e.target.closest('[data-title-switch]');
     if (thumb) {
       const next = covers.find((v) => v.id === Number(thumb.dataset.titleSwitch));

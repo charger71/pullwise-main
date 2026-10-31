@@ -113,6 +113,11 @@ export async function mount(el, ctx) {
     /* start on All customers */
   }
   if (['no_email', 'link_guests'].includes(state.show)) state.show = 'to_fix'; // the two old tabs, from a link or a remembered choice
+  // A customer's pickup code in the app (js/pages/account.js) is a link to #customers/<id>: scanning it opens them.
+  if (/^\d+$/.test(ctx.arg ?? '')) {
+    state.customerId = Number(ctx.arg);
+    history.replaceState(null, '', '#customers');
+  }
   state.customerId ? renderCustomer(el) : renderList(el);
 }
 
@@ -145,7 +150,7 @@ function renderList(el) {
       <button type="button" class="admin-tab" role="tab" data-show="to_fix">Needs Attention</button>
     </div>
     <form class="filters admin-filters" role="search" aria-label="Find customers">
-      <div class="field field--search"><label for="c-q">Customer</label><input id="c-q" name="q" type="search" placeholder="Name, phone or email" value="${esc(state.q)}"></div>
+      <div class="field field--search"><label for="c-q">Customer</label><input id="c-q" name="q" type="search" placeholder="Name, phone, email or #pickup code" value="${esc(state.q)}"></div>
     </form>
     <p class="results-count" role="status" data-count></p>
     ${phone ? `<details class="admin-hint-fold"><summary>Status icon key</summary>${iconLegend()}</details>` : iconLegend()}
@@ -174,6 +179,13 @@ function renderList(el) {
   form.addEventListener('input', (e) => {
     clearTimeout(timer);
     timer = setTimeout(() => {
+      // "#1042": the pickup code the customer shows in the app.
+      const code = form.elements.q.value.trim().match(/^#\s*(\d{1,9})$/);
+      if (code) {
+        state.q = '';
+        state.customerId = Number(code[1]);
+        return renderCustomer(el);
+      }
       state.q = form.elements.q.value;
       state.location = form.elements.location?.value ?? state.location;
       state.offset = 0;

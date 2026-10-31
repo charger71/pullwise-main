@@ -135,6 +135,89 @@ async function renderHot() {
 if ($('[data-hot]')) enableReservations($('[data-hot]'), (id) => hotItems.get(id));
 
 // ---------------------------------------------------------------------------
+// Search, at the top of Hot: the shop's titles, as on the website's search (titles that can still be ordered
+// first). The rows come back when the box is cleared. Series and artists to follow are on the Following tab.
+// ---------------------------------------------------------------------------
+
+const FOUND_PAGE = 24;
+const found = { q: '', items: [], total: 0, req: 0 };
+
+async function search(q, { more = false } = {}) {
+  const box = $('[data-hot-results]');
+  const mine = ++found.req;
+  if (!more) Object.assign(found, { q, items: [], total: 0 });
+  if (!more) box.innerHTML = '<p class="empty loading">Searching…</p>';
+  let rows;
+  let count;
+  try {
+    const tz = (await getSettings()).timezone;
+    ({ rows, count } = await getItems({ q, openFirst: openFocFrom(tz), limit: FOUND_PAGE, offset: found.items.length, withCount: true }));
+  } catch (err) {
+    console.error(err);
+    if (mine === found.req) box.innerHTML = '<p class="empty">Couldn’t search right now. Please try again shortly.</p>';
+    return;
+  }
+  if (mine !== found.req) return; // a newer search has started
+  const first = found.items.length;
+  found.items.push(...rows);
+  found.total = count;
+  for (const i of rows) hotItems.set(i.id, i);
+  const left = found.total - found.items.length;
+  const cards = rows.map((i) => itemCard(i, { reservable: true })).join('');
+  if (!more) {
+    box.innerHTML = `
+      <p class="results-count" role="status">${found.total ? `${found.total} ${found.total === 1 ? 'title' : 'titles'} for “${esc(q)}”` : `No titles match “${esc(q)}”.`}</p>
+      <div class="grid" data-found>${cards}</div>
+      <button class="btn btn--ghost show-more" type="button" data-found-more hidden></button>
+      <p class="field__hint app-search__follow">Looking for a series or artist to follow? <a href="#following">Search on the Following tab</a>.</p>`;
+  } else {
+    $('[data-found]', box).insertAdjacentHTML('beforeend', cards);
+    $('[data-found]', box).children[first]?.querySelector('button, a')?.focus();
+  }
+  const moreBtn = $('[data-found-more]', box);
+  moreBtn.hidden = left <= 0;
+  moreBtn.textContent = `Show more (${left} left)`;
+}
+
+function setupSearch() {
+  const form = $('[data-hot-search]');
+  if (!form) return;
+  const box = $('[data-hot-results]');
+  const input = form.elements.q;
+  let timer;
+  const run = () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    const searching = q.length > 0;
+    box.hidden = !searching;
+    $('[data-hot]').hidden = searching;
+    if (!searching) {
+      found.req++; // drop any answer still on its way
+      box.innerHTML = '';
+      return;
+    }
+    if (q !== found.q) search(q);
+  };
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(run, 350);
+  });
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    input.blur(); // put the phone's keyboard away to show the results
+    run();
+  });
+  box.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-found-more]')) return;
+    e.target.disabled = true;
+    search(found.q, { more: true }).finally(() => (e.target.disabled = false));
+  });
+  enableReservations(box, (id) => hotItems.get(id));
+}
+
+setupSearch();
+
+// ---------------------------------------------------------------------------
 // Shop: who the app belongs to, how to reach it, and its website
 // ---------------------------------------------------------------------------
 

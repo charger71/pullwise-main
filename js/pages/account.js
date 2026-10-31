@@ -220,9 +220,10 @@ async function signedIn(sb, user) {
   // A first sign-in has no customer record yet (id null). Ask for a name and phone before anything else.
   if (!customer.id || !customer.first_name?.trim() || !customer.last_name?.trim() || !customer.phone?.trim()) return setupProfile(sb, user, customer);
   const locations = await getLocations(sb);
+  pickupName = [customer.last_name, customer.first_name].map((n) => n?.trim()).filter(Boolean).join(', ');
 
   const who = `<p class="account-who">Signed in as <strong>${esc(user.email)}</strong> · <button class="link-button" type="button" data-out>Sign out</button></p>`;
-  const orders = titled('orders-h', 'Coming Up', `
+  const orders = titled('orders-h', 'Coming Up', `${APP && !welcomed() ? WELCOME : ''}
           <p class="visually-hidden" role="status" aria-live="polite" data-orders-status></p>
           <div data-orders><p class="empty loading">Loading…</p></div>`, { focusable: true });
   const following = titled('follow-h', 'Following', `
@@ -290,6 +291,13 @@ async function signedIn(sb, user) {
     </div>`;
 
   $('[data-out]', root).addEventListener('click', () => sb.auth.signOut());
+  $('[data-welcome]', root)?.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-welcome-done], a')) return;
+    setWelcomed();
+    const done = e.target.closest('[data-welcome-done]');
+    $('[data-welcome]', root).remove();
+    if (done) $('#orders-h', root)?.focus();
+  });
 
   const form = $('#profile-form', root);
   form.addEventListener('submit', async (e) => {
@@ -317,6 +325,7 @@ async function signedIn(sb, user) {
   const seenBefore = await pull.markSeen().catch(() => null);
   loadOrders(sb, customer.id, seenBefore);
   if (APP) {
+    sb.rpc('mark_app_seen').then(({ error: seenError }) => seenError && console.error(seenError)); // for the shop's app numbers
     openTitleDetails(sb, customer.id, seenBefore);
     import('../app-notifications.js')
       .then((m) => m.setupNotifications($('[data-push]', root), sb, customer))
@@ -324,6 +333,77 @@ async function signedIn(sb, user) {
   }
   setupFollowing(sb, customer.id, seenBefore);
   if (APP) watchHot(sb, customer.id, seenBefore);
+}
+
+// The app's welcome on My List, until it's dismissed on this phone: how the pull list fills itself.
+const WELCOMED = 'pc-app-welcomed';
+const welcomed = () => {
+  try {
+    return localStorage.getItem(WELCOMED) === '1';
+  } catch {
+    return true; // nowhere to remember it: don't show it every time
+  }
+};
+const setWelcomed = () => {
+  try {
+    localStorage.setItem(WELCOMED, '1');
+  } catch {
+    /* shown again next time */
+  }
+};
+const WELCOME = `
+    <section class="app-welcome" aria-labelledby="welcome-h" data-welcome>
+      <h3 id="welcome-h" class="app-welcome__title">Welcome! Here’s how it works</h3>
+      <ol class="app-welcome__steps">
+        <li><strong>Follow what you read.</strong> Find a series or artist on the Following tab.</li>
+        <li><strong>New issues land on your list by themselves,</strong> until the shop’s order cutoff. Take off any you don’t want.</li>
+        <li><strong>Hear when they’re in.</strong> Turn on notifications on the Account tab.</li>
+      </ol>
+      <div class="app-welcome__actions">
+        <a class="btn btn--primary" href="#following">Follow a series</a>
+        <button class="btn btn--ghost" type="button" data-welcome-done>Got it</button>
+      </div>
+    </section>`;
+
+// The app's pickup code: staff scan it with a phone (it opens this customer in the admin) or type the number into
+// Customers. Drawn with the same QR library as the admin's QR Codes screen (admin/sections/qr.js).
+const QR_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+const QR_QUIET = 4; // blank border, in modules, that scanners need
+let qrLib = null;
+const loadQr = () =>
+  (qrLib ??= new Promise((resolve, reject) => {
+    const el = Object.assign(document.createElement('script'), { src: QR_LIB, async: true, onload: resolve });
+    el.onerror = () => ((qrLib = null), reject(new Error('QR library unavailable')));
+    document.head.append(el);
+  }));
+let pickupName = ''; // "Smith, Jane": shops file held books by last name, so it leads the pickup code
+const pickupCard = (customerId) => `
+    <div class="app-pickup">
+      ${pickupName ? `<p class="app-pickup__name">${esc(pickupName)}</p>` : ''}
+      <div class="app-pickup__qr" data-pickup-qr="${esc(`${SITE_URL.replace(/\/$/, '')}/admin/#customers/${customerId}`)}"></div>
+      <div>
+        <p class="app-pickup__label">Pickup code</p>
+        <p class="app-pickup__code">#${customerId}</p>
+        <p class="card__meta">Show this at the counter and the shop will find your books.</p>
+      </div>
+    </div>`;
+/** Draw the pickup QR code; without the library (offline, say) the number alone is shown. */
+async function drawPickupQr(el) {
+  const box = $('[data-pickup-qr]', el);
+  if (!box) return;
+  try {
+    await loadQr();
+    const qr = window.qrcode(0, 'M');
+    qr.addData(box.dataset.pickupQr);
+    qr.make();
+    const n = qr.getModuleCount();
+    let d = '';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + QR_QUIET} ${r + QR_QUIET}h1v1h-1z`;
+    const size = n + QR_QUIET * 2;
+    box.innerHTML = `<svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Pickup QR code" shape-rendering="crispEdges"><path d="${d}"/></svg>`;
+  } catch {
+    box.remove();
+  }
 }
 
 /** Titles added or taken off from the app's Hot view (js/pages/app.js) show on My List right away. */
@@ -544,7 +624,7 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
         </div>
       </li>`;
   };
-  const section = (title, rows) => (rows.length ? `<h3 class="account-group">${esc(title)}</h3><ul class="account-lines">${rows.map(row).join('')}</ul>` : '');
+  const section = (title, rows, lead = '') => (rows.length ? `<h3 class="account-group">${esc(title)}</h3>${lead}<ul class="account-lines">${rows.map(row).join('')}</ul>` : '');
 
   el.innerHTML = `
     ${last ? `<p class="card__meta account-lastupdate">Last updated ${esc(whenLabel(last.updated_at, settings.timezone))} ${esc(BY[last.updated_via] ?? '')}</p>` : ''}
@@ -552,12 +632,13 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
     <p class="form-error" role="alert" data-error></p>
     ${freshNote}
     ${summary}
-    ${section('Ready for pickup', ready)}
+    ${section('Ready for pickup', ready, APP ? pickupCard(customerId) : '')}
     ${[...groups].map(([date, rows]) => section(date ? `Out ${fmtDate(date, { weekday: 'short', month: 'short', day: 'numeric' })}` : 'Release date to be announced', rows)).join('')}
     ${section('Not ordered by the shop', notOrdered)}
     ${!active.length ? '<p class="empty">Your pull list is empty. Tap <strong>Add to pull list</strong> on any title on the <a href="pre-orders.html">Pre-Orders</a> page, or <strong>Add all covers</strong> to pull every cover of an issue.</p>' : ''}
     ${past.length ? `<details class="account-past"><summary>Past (${past.length})</summary>${section('', past)}</details>` : ''}`;
-  if (APP) saveList(el.innerHTML, ready.length);
+  // The copy kept for offline use includes the pickup code, once it's drawn.
+  if (APP) drawPickupQr(el).finally(() => el.isConnected && saveList(el.innerHTML, ready.length));
 
   // Keyboard focus goes back where it was (or the next sensible place) after a redraw.
   for (const sel of focus ?? []) {

@@ -1,8 +1,8 @@
 // Dashboard: the staff landing page. Reservation headlines (new orders, what's
 // waiting to be ordered or picked up), the latest orders, a 30-day order
-// chart, and product stats (titles by status, next order cutoff, most-reserved
-// titles, titles needing attention). Read-only; links out to the sections
-// where things get changed.
+// chart, product stats (titles by status, next order cutoff, most-reserved
+// titles, titles needing attention) and how many customers use the pull list
+// app. Read-only; links out to the sections where things get changed.
 
 import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations, fmtTime } from '../lib.js';
 import { lastReserveDay } from '../../js/site.js';
@@ -91,6 +91,11 @@ export async function mount(el, ctx) {
         <p class="admin-hint">Copies on open, ordered or arrived reservations.</p>
         <div data-top aria-busy="true"></div>
       </section>
+      <section class="dash-card" aria-labelledby="dash-app">
+        <h2 id="dash-app">Pull List App</h2>
+        <p class="admin-hint">Customers signed in to the shop’s app (your website address + /app) on their phones.</p>
+        <div data-app aria-busy="true"></div>
+      </section>
       <section class="dash-card" aria-labelledby="dash-status">
         <div class="admin-title-row"><h2 id="dash-status">Titles by Status</h2><a class="btn btn--small btn--green" href="#titles">Titles →</a></div>
         <div data-status aria-busy="true"></div>
@@ -178,6 +183,7 @@ export async function mount(el, ctx) {
     shown === null ? loadToday('') : null,
     panel('[data-trend]', async (box) => renderTrend(box, await recent, since)),
     panel('[data-status]', renderStatus),
+    panel('[data-app]', renderApp),
     panel('[data-top]', async (box) => renderTop(box, await lines)),
     panel('[data-health]', renderHealth),
   ]);
@@ -298,6 +304,27 @@ function renderTrend(box, recent, since) {
     });
     col.addEventListener('pointerleave', () => (tip.hidden = true));
   });
+}
+
+/** How many customers use the app, lately, and with notifications on (app_visits, push_subscriptions). */
+async function renderApp(box) {
+  const ago = (days) => new Date(Date.now() - days * 86400000).toISOString();
+  const visits = () => sb.from('app_visits').select('customer_id', { count: 'exact', head: true });
+  const [users, week, month, devices] = await Promise.all([
+    count(visits()),
+    count(visits().gte('last_seen_at', ago(7))),
+    count(visits().gte('last_seen_at', ago(30))),
+    all(() => sb.from('push_subscriptions').select('customer_id').order('id')),
+  ]);
+  const notified = new Set(devices.map((d) => d.customer_id)).size;
+  const fact = (n, text) => `<li${n ? '' : ' class="is-zero"'}><strong>${n.toLocaleString()}</strong> ${text}</li>`;
+  box.innerHTML = `
+    <p class="dash-big">${users.toLocaleString()} <span>${users === 1 ? 'customer uses' : 'customers use'} the app</span></p>
+    <ul class="dash-facts">
+      ${fact(week, 'opened it in the last 7 days')}
+      ${fact(month, 'opened it in the last 30 days')}
+      ${fact(notified, `${notified === 1 ? 'gets' : 'get'} notifications (${plural(devices.length, 'phone')})`)}
+    </ul>`;
 }
 
 async function renderStatus(box) {
