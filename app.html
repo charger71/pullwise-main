@@ -28,6 +28,8 @@
   <link rel="modulepreload" href="js/vendor/supabase.mjs">
   <link rel="modulepreload" href="js/reservation-list.js">
   <link rel="modulepreload" href="js/discount.js">
+  <link rel="modulepreload" href="js/components.js">
+  <link rel="modulepreload" href="js/app-device.js">
   <link rel="preload" href="fonts/archivo-black-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/source-sans-3-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/site.css">
@@ -35,12 +37,18 @@
   <script type="module" src="js/pages/app.js"></script>
 </head>
 <body data-page="app">
+  <!-- Loading screen: the shop's logo and name on its page color until the first view is drawn (js/pages/app.js).
+       The Worker fills them in (worker/shop-page.js appSplash); with no script at all it still fades by itself. -->
+  <div class="app-splash" data-splash aria-hidden="true">
+    <img class="app-splash__logo" data-splash-logo alt="" hidden>
+    <p class="app-splash__name" data-splash-name></p>
+  </div>
   <header id="site-header"></header>
-  <div class="app-note container" role="status" data-offline hidden></div>
+  <div class="app-note container" data-offline hidden></div>
   <div class="app-note container" data-update hidden></div>
   <div class="app-install container" data-install hidden></div>
   <div class="app-pull" data-pull aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg></div>
-  <p class="visually-hidden" role="status" aria-live="polite" data-pull-status></p>
+  <p class="visually-hidden" role="status" aria-live="polite" data-app-status></p>
 
   <main id="main" class="app-main">
     <div class="container">

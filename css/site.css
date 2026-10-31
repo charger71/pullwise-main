@@ -93,6 +93,7 @@
   --sp-16: 16px;  --sp-20: 20px;  --sp-24: 24px;  --sp-32: 32px;  --sp-40: 40px;  --sp-64: 64px;  --sp-96: 96px;
   --list-bar-h: 76px;    /* the pull-list bar at the foot of the screen; the page leaves this much room under it */
   --tab-bar-h: 60px;     /* the pull list app's tab bar (app.html), not counting the phone's home-bar inset */
+  --app-bar-h: 60px;     /* the pull list app's header bar, under the phone's status bar */
 
   /* Text sizes outside the headline, sub-heading and body scales above (which follow Shop Settings → Fonts).
      The same steps as the admin's where they overlap. */
@@ -127,6 +128,7 @@
   --z-header: 50;        /* the sticky site header and its menu */
   --z-skip: 100;         /* the skip link, above everything it jumps over */
   --z-busy: 9998;        /* the loading dimmer; its spinner sits one above */
+  --z-splash: 10000;     /* the pull list app's loading screen, over everything while it opens */
 
   /* Motion. Every transition stops and the skeleton stops pulsing under prefers-reduced-motion; the spinner slows. */
   --dur-press: .08s;     /* a button's press */
@@ -134,6 +136,7 @@
   --dur-spin: .7s;       /* one turn of the loading spinner */
   --dur-spin-calm: 2s;   /* the spinner under prefers-reduced-motion */
   --dur-pulse: 1.2s;     /* the loading skeleton's pulse */
+  --dur-splash-max: 4s;  /* the app's loading screen fades by itself after this, even if no script runs */
 }
 *,
 *::before,
@@ -157,6 +160,9 @@ img { max-width: 100%; height: auto; display: block; }
 a { text-decoration-thickness: 2px; color: var(--teal); text-underline-offset: 5px; }
 a:hover { color: var(--teal-hover); }
 :focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+/* A heading that a script focuses (tabindex="-1": the app's view titles when a tab opens, Coming Up after a redraw)
+   is there so screen readers start reading from it. It isn't a control, so it gets no ring. */
+:is(h1, h2, h3)[tabindex="-1"]:focus { outline: none; }
 h1, h2, h3 { font-family: var(--font-display); font-weight: var(--display-weight); line-height: 1.15; margin: 0 0 .5em; letter-spacing: .01em; }
 h1 { font-size: calc(clamp(34px, 5vw, 64px) * var(--display-scale)); line-height: .96; letter-spacing: var(--display-tracking); text-transform: var(--display-case); margin: var(--sp-14) 0 var(--sp-16); }
 h2 { font-family: var(--font-heading); font-weight: 700; font-size: calc(1.5rem * var(--heading-scale)); line-height: 1.2; letter-spacing: var(--heading-tracking); }
@@ -774,6 +780,9 @@ dialog::backdrop { background: #000c; }
 .card__open:hover .cover { filter: brightness(1.08); }
 .card__title-open { display: inline; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; text-align: left; cursor: pointer; }
 .card__title-open:hover { text-decoration: underline; text-underline-offset: 3px; }
+/* A title is one line of text; its tap area reaches past it to 44px tall, without moving anything. */
+.card__title { position: relative; }
+.card__title-open::after { content: ""; position: absolute; inset: -13px 0; }
 .title-modal { width: min(900px, calc(100vw - 2 * var(--gutter))); max-height: calc(100vh - 32px); overflow: hidden; }
 .title-modal__head { justify-content: flex-end; padding: var(--sp-8) var(--sp-8) 0; }
 .title-modal .dialog__body { overflow-y: auto; max-height: calc(100vh - 100px); padding: 0 var(--sp-24) var(--sp-24); }
@@ -1175,11 +1184,11 @@ body:has([aria-busy="true"], .loading)::after {
    The account page as an installed app: the shop's brand on top, one view at a time, a tab bar at the foot. The
    header and tab bar clear the phone's notch and home bar (viewport-fit=cover). */
 [data-page="app"] #site-header { padding-top: env(safe-area-inset-top); }
-[data-page="app"] #site-header:empty { min-height: 60px; }
-.app-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: 60px; }
+[data-page="app"] #site-header:empty { min-height: var(--app-bar-h); }
+.app-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: var(--app-bar-h); }
 .app-bar .brand__logo { max-height: 40px; }
 .app-bar .brand__name { font-size: calc(1.25rem * var(--display-scale)); }
-.app-bar__site { flex: none; font-size: var(--fs-ui); font-weight: 700; }
+.app-bar__site { flex: none; display: inline-flex; align-items: center; min-height: 44px; font-size: var(--fs-ui); font-weight: 700; }
 .app-main { padding: var(--sp-16) 0 calc(var(--tab-bar-h) + var(--sp-24) + env(safe-area-inset-bottom)); }
 .app-view > * + *, [data-shop] > * + * { margin-top: var(--sp-16); }
 [data-shop] > .app-shop__links { margin-top: var(--sp-24); }
@@ -1188,22 +1197,37 @@ body:has([aria-busy="true"], .loading)::after {
 .app-view > .app-section + .app-section { margin-top: var(--sp-32); }
 /* Hot: rows of cards to swipe through, running to the screen's edges. */
 .app-shelf + .app-shelf { margin-top: var(--sp-32); }
-.app-shelf__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-12); }
+.app-shelf__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
 .app-shelf__head h3 { margin: 0; font-size: var(--fs-sub); }
-.app-shelf__head a { flex: none; font-size: var(--fs-sm); font-weight: 700; }
-.app-shelf__lede { margin: var(--sp-4) 0 var(--sp-12); color: var(--muted); font-size: var(--fs-sm); }
-.app-shelf__row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 44%); gap: var(--sp-12); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); margin-inline: calc(-1 * var(--gutter)); padding: 0 var(--gutter) var(--sp-8); scrollbar-width: none; }
-.app-shelf__row::-webkit-scrollbar { display: none; }
+.app-shelf__head a { flex: none; display: inline-flex; align-items: center; min-height: 44px; font-size: var(--fs-sm); font-weight: 700; }
+.app-shelf__lede { margin: 0 0 var(--sp-12); color: var(--muted); font-size: var(--fs-sm); }
+.app-shelf__row { display: grid; grid-auto-flow: column; grid-auto-columns: min(62%, 280px); gap: var(--sp-12); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); margin-inline: calc(-1 * var(--gutter)); padding: 0 var(--gutter) var(--sp-8); }
+/* The row holds the cards' hidden screen-reader text (position: absolute), so it must be their containing block:
+   otherwise that text sits outside the row and the whole page scrolls sideways. */
+.app-shelf__row { position: relative; }
+/* Phones swipe the rows, so the scrollbar goes; a mouse keeps it, as its only way to scroll them. */
+@media (pointer: coarse) {
+  .app-shelf__row { scrollbar-width: none; }
+  .app-shelf__row::-webkit-scrollbar { display: none; }
+}
 .app-shelf__row > * { scroll-snap-align: start; display: grid; }
+/* The app's loading screen (app.html): the shop's logo and name on its page color, over the status bar too. Script
+   fades it once the first view is drawn; with no script it still fades after --dur-splash-max. */
+@keyframes splash-out { to { opacity: 0; visibility: hidden; } }
+.app-splash { position: fixed; inset: 0; z-index: var(--z-splash); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-16); padding: var(--gutter); background: var(--paper); text-align: center; transition: opacity var(--dur), visibility var(--dur); animation: splash-out var(--dur) var(--dur-splash-max) forwards; }
+.app-splash.is-gone { opacity: 0; visibility: hidden; pointer-events: none; }
+.app-splash__logo { width: auto; max-width: 60%; max-height: 120px; }
+.app-splash__name { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: calc(1.6rem * var(--display-scale)); letter-spacing: var(--display-tracking); text-transform: var(--display-case); color: var(--cream); line-height: 1.1; }
+.app-splash__name:empty { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .app-splash { transition: none; animation-duration: var(--dur-press); }
+}
 /* A strip under the header: offline, or a new version ready. */
-.app-note { display: flex; align-items: center; gap: var(--sp-12); margin-top: var(--sp-12); padding-block: var(--sp-10); background: var(--surface); border: var(--border); border-radius: var(--radius); }
-.app-note__text { flex: 1; margin: 0; font-size: var(--fs-sm); }
-.app-note .btn { flex: none; }
+.app-note, .app-install { display: flex; align-items: center; gap: var(--sp-12); margin-top: var(--sp-12); padding-block: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
+.app-note__text, .app-install__text { flex: 1; margin: 0; font-size: var(--fs-sm); }
+.app-note .btn, .app-install .btn { flex: none; }
 /* The list as last drawn, shown offline: read-only, so its controls are left out. */
 .account-saved-list .account-line__controls, .account-saved-list .account-move, .account-saved-list .form-error { display: none; }
-.app-install { display: flex; align-items: center; gap: var(--sp-12); margin-top: var(--sp-12); padding-block: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
-.app-install__text { flex: 1; margin: 0; font-size: var(--fs-sm); }
-.app-install .btn { flex: none; }
 .app-install__close { flex: none; width: 44px; height: 44px; border: 0; background: none; color: var(--muted); font-size: var(--fs-lede); cursor: pointer; }
 .app-install__close:hover { color: var(--ink); }
 .tab-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-bar); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
@@ -1212,6 +1236,8 @@ body:has([aria-busy="true"], .loading)::after {
 .tab-bar a:hover { color: var(--ink); }
 .tab-bar a[aria-current="page"] { color: var(--ink); box-shadow: inset 0 3px 0 var(--gold); }
 .tab-bar a[aria-current="page"] svg { stroke: var(--gold-text); }
+/* High-contrast modes drop the shadow that marks the current tab: give it a real edge there. */
+@media (forced-colors: active) { .tab-bar a[aria-current="page"] { border-top: 3px solid Highlight; } }
 .tab-bar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tab-bar__count { position: absolute; top: var(--sp-4); left: calc(50% + 8px); min-width: 18px; padding: 0 var(--sp-4); border-radius: var(--radius-pill); background: var(--gold); color: var(--on-accent); font-size: var(--fs-3xs); line-height: 18px; text-align: center; }
 .app-shop { text-align: center; }
@@ -1222,7 +1248,8 @@ body:has([aria-busy="true"], .loading)::after {
 .app-shop__place-name { font-size: var(--fs-sub); margin: 0; }
 .app-shop__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-12); margin: var(--sp-16) 0 var(--sp-20); }
 .app-shop__place-name + .app-shop__actions { margin-top: var(--sp-12); }
-.app-shop__email { margin: var(--sp-24) 0 var(--sp-16); padding-top: var(--sp-24); border-top: var(--border); }
+.app-shop__email { margin: var(--sp-24) 0 var(--sp-16); padding-top: var(--sp-16); border-top: var(--border); }
+.app-shop__email a { display: inline-flex; align-items: center; min-height: 44px; }
 .app-shop__address { font-style: normal; margin: 0 0 var(--sp-16); }
 .app-shop__sub { font-size: var(--fs-compact); margin: var(--sp-16) 0 var(--sp-6); }
 .app-shop .hours div { margin-inline: auto; }

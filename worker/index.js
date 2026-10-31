@@ -15,7 +15,7 @@
 
 import SHOPS from '../shops.json';
 import { mediaUpload } from './media.js';
-import { MEDIA_UPLOAD_PATH, findShop, appRedirect, appManifest, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { MEDIA_UPLOAD_PATH, findShop, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
 const CACHE_SECONDS = 60;
@@ -159,6 +159,18 @@ function rewrite(res, file, { settings, pages }, shop) {
   const unused = new Set(unusedDefaultPreloads(settings.fonts, { storageOrigin: shop.supabaseUrl }));
   if (unused.size) rw = rw.on('link[rel="preload"][as="font"]', { element(el) { if (unused.has(el.getAttribute('href'))) el.remove(); } });
 
+  if (file === 'app.html') {
+    const splash = appSplash(settings);
+    rw = rw
+      .on('img[data-splash-logo]', {
+        element(el) {
+          if (!splash.logo) return;
+          el.setAttribute('src', escAttr(splash.logo));
+          el.removeAttribute('hidden');
+        },
+      })
+      .on('[data-splash-name]', { element(el) { el.setInnerContent(splash.name); } });
+  }
   if (file === 'index.html') {
     const h = hero(settings);
     rw = rw
