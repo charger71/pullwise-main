@@ -87,6 +87,80 @@ async function renderShop() {
 }
 
 // ---------------------------------------------------------------------------
+// Pull down to refresh: an installed app has no reload button, and an iPhone gives it no pull of its own
+// ---------------------------------------------------------------------------
+
+const PULL_MAX = 110; // px the indicator travels at most
+const PULL_GO = 70; // px of travel that refreshes on release
+
+function setupPull() {
+  const spot = $('[data-pull]');
+  const status = $('[data-pull-status]');
+  let startY = null;
+  let pull = 0;
+  let busy = false;
+  const place = (px) => {
+    pull = px;
+    spot.style.setProperty('--pull', `${px}px`);
+    spot.style.setProperty('--pull-turn', String(px / PULL_GO));
+    spot.classList.toggle('is-ready', px >= PULL_GO);
+  };
+  const settle = () => {
+    spot.classList.add('is-settling');
+    spot.classList.remove('is-pulling', 'is-ready', 'is-refreshing');
+    place(0);
+    setTimeout(() => spot.classList.remove('is-settling'), 200);
+  };
+
+  addEventListener('touchstart', (e) => {
+    // Only from the very top, with one finger, and not inside an open dialog.
+    startY = !busy && scrollY <= 0 && e.touches.length === 1 && !document.querySelector('dialog[open]') ? e.touches[0].clientY : null;
+  }, { passive: true });
+  addEventListener('touchmove', (e) => {
+    if (startY === null) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy <= 0 || scrollY > 0) {
+      if (pull) settle();
+      return;
+    }
+    // Under the header, wherever it ends (it grows with the iPhone's status bar).
+    spot.style.setProperty('--pull-top', `${$('#site-header')?.getBoundingClientRect().bottom ?? 0}px`);
+    spot.classList.add('is-pulling');
+    place(Math.min(PULL_MAX, dy * 0.5)); // resists, like a native pull
+  }, { passive: true });
+  addEventListener('touchend', async () => {
+    if (startY === null) return;
+    startY = null;
+    if (pull < PULL_GO) return settle();
+    busy = true;
+    spot.classList.add('is-refreshing');
+    place(PULL_GO);
+    status.textContent = 'Refreshing…';
+    await refresh();
+    status.textContent = 'Updated.';
+    busy = false;
+    settle();
+  });
+  addEventListener('touchcancel', () => {
+    startY = null;
+    if (!busy) settle();
+  });
+}
+
+/**
+ * Fetch the current view again. The account page redraws its views in place when signed in (it answers the
+ * app:refresh event with a promise); the Shop view, or a signed-out app, simply loads again.
+ */
+async function refresh() {
+  const waits = [];
+  if (location.hash !== '#shop') document.dispatchEvent(new CustomEvent('app:refresh', { detail: { wait: (p) => waits.push(p) } }));
+  if (!waits.length) return location.reload();
+  await Promise.all([...waits, new Promise((resolve) => setTimeout(resolve, 400))]).catch((err) => console.error(err)); // long enough to see it spin
+}
+
+setupPull();
+
+// ---------------------------------------------------------------------------
 // Install: "Add to Home Screen", offered until it's installed or dismissed
 // ---------------------------------------------------------------------------
 

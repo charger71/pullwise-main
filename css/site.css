@@ -1225,6 +1225,19 @@ body:has([aria-busy="true"], .loading)::after {
 .account-line__remove { display: grid; place-items: center; width: 44px; height: 44px; margin-left: var(--sp-4); padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--muted); cursor: pointer; }
 .account-line__remove:hover { color: var(--error); background: var(--raised); }
 .account-line__remove svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* Pull down to refresh: a round badge drops from under the header, its arrow turning as it's pulled, gold once letting
+   go will refresh, then spinning until the views are drawn again. js/pages/app.js sets --pull, --pull-turn, --pull-top. */
+html:has(body[data-page="app"]) { overscroll-behavior-y: none; }
+.app-pull { position: fixed; top: var(--pull-top, 0px); left: 50%; z-index: var(--z-popover); display: grid; place-items: center; width: 40px; height: 40px; margin-left: -20px; border: var(--border); border-radius: 50%; background: var(--surface); box-shadow: var(--shadow-menu); color: var(--muted); opacity: 0; pointer-events: none; transform: translateY(calc(var(--pull, 0px) - 48px)); }
+.app-pull.is-pulling, .app-pull.is-refreshing { opacity: 1; }
+.app-pull.is-settling { transition: transform var(--dur), opacity var(--dur); }
+.app-pull svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; transform: rotate(calc(var(--pull-turn, 0) * 270deg)); }
+.app-pull.is-ready, .app-pull.is-refreshing { color: var(--gold-text); }
+.app-pull.is-refreshing svg { animation: spin var(--dur-spin) linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .app-pull.is-settling { transition: none; }
+  .app-pull.is-refreshing svg { animation-duration: var(--dur-spin-calm); }
+}
 /* App → Account → Notifications */
 .push-on { margin: 0 0 var(--sp-8); color: var(--ok); font-weight: 700; }
 .push-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-16); margin-top: var(--sp-12); }

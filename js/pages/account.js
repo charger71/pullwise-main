@@ -44,6 +44,14 @@ if (DEMO) {
     if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') show(sb);
   });
   show(sb);
+  // The app's pull down to refresh (js/pages/app.js): draw the signed-in views again from the database.
+  if (APP) {
+    document.addEventListener('app:refresh', (e) => {
+      if (showing !== 'in') return;
+      showing = null;
+      e.detail.wait(show(sb));
+    });
+  }
 }
 
 let showing; // 'in' | 'out': avoids redrawing (and wiping a half-edited form) on token refresh
