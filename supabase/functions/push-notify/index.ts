@@ -2,7 +2,9 @@
 //
 //   GET                                          { publicKey }: the VAPID public key the app subscribes with ('' = not set up)
 //   POST  x-cron-secret: <CRON_SECRET>  { "mode": "send" }   the hourly tick (public.push_notify_tick): one notice per
-//           customer for books newly ready for pickup, and one for titles their follows added since the last
+//           customer for books newly ready for pickup, one for titles their follows added since the last, a reminder
+//           for books still waiting (after a week, and near the end of the hold), and one the day before the last
+//           day to change the list
 //   POST  Authorization: Bearer <customer>  { "mode": "test" }   a test notice to the signed-in customer's own devices
 //
 // Secrets (supabase secrets set …): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (`node tools/vapid-keys.mjs` makes a pair; the
@@ -13,7 +15,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
-import { arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone } from './messages.js';
+import { arrivalMessage, newTitlesMessage, pickupReminderMessage, cutoffMessage, testMessage, notificationIcon, subscriptionGone, shopToday, addDays, focsChangingOn, pickupDue } from './messages.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
@@ -69,7 +71,7 @@ Deno.serve(async (req) => {
 });
 
 async function loadShop() {
-  const { data, error } = await admin.from('settings').select('shop_name,favicon_url,logo_url').eq('id', 1).single();
+  const { data, error } = await admin.from('settings').select('shop_name,favicon_url,logo_url,hold_days,timezone').eq('id', 1).single();
   if (error) throw error;
   return data;
 }
@@ -125,25 +127,31 @@ async function sendAll() {
   const byCustomer = new Map<number, Device[]>();
   for (const d of devices) byCustomer.set(d.customer_id, [...(byCustomer.get(d.customer_id) ?? []), d]);
   const ids = [...byCustomer.keys()];
-  const out = { customers: ids.length, arrivals: 0, newTitles: 0, sent: 0, failed: 0, errors: [] as string[] };
+  const out = { customers: ids.length, arrivals: 0, newTitles: 0, pickupReminders: 0, cutoffReminders: 0, sent: 0, failed: 0, errors: [] as string[] };
+  const today = shopToday(shop.timezone || 'America/New_York');
+  const holdDays = shop.hold_days ?? 30;
+  const changeDay = addDays(today, 1); // remind the day before the last day to change
+  const cutoffFocs = focsChangingOn(changeDay);
 
   for (let i = 0; i < ids.length; i += CHUNK) {
     const chunk = ids.slice(i, i + CHUNK);
-    const { data: customers, error: cErr } = await admin.from('customers').select('id,push_arrivals,push_new_titles,new_titles_pushed_at').in('id', chunk);
+    const { data: customers, error: cErr } = await admin.from('customers').select('id,push_arrivals,push_new_titles,push_reminders,new_titles_pushed_at,cutoff_pushed_on').in('id', chunk);
     if (cErr) throw cErr;
     const lineQuery = () =>
       admin
         .from('reservations')
-        .select('id,status,source,created_at,arrival_pushed_at,item:items(id,title,issue_number),order:reservation_orders!inner(customer_id)')
+        .select('id,status,source,created_at,arrived_on,arrival_pushed_at,pickup_reminders,item:items!inner(id,title,issue_number,foc_date),order:reservation_orders!inner(customer_id)')
         .in('order.customer_id', chunk)
         .order('created_at');
     const since = new Date(Date.now() - 7 * 864e5).toISOString(); // a week back is plenty for an hourly job
-    const [arrived, added] = await Promise.all([
+    const [arrived, added, closing] = await Promise.all([
       lineQuery().eq('status', 'arrived'), // all of them: the new ones are announced, and the count goes on the icon
       lineQuery().eq('status', 'open').in('source', NEW_SOURCES).gt('created_at', since),
+      lineQuery().eq('status', 'open').in('item.foc_date', cutoffFocs), // changes close tomorrow
     ]);
     if (arrived.error) throw arrived.error;
     if (added.error) throw added.error;
+    if (closing.error) throw closing.error;
     const linesOf = (rows: any[], id: number) => rows.filter((r) => r.order.customer_id === id);
 
     for (const c of customers) {
@@ -173,6 +181,37 @@ async function sendAll() {
         if (r.sent || !r.retry) {
           const { error } = await admin.from('customers').update({ new_titles_pushed_at: fresh.at(-1).created_at }).eq('id', c.id);
           if (error) out.errors.push(`customer ${c.id} new titles: ${error.message}`);
+        }
+      }
+      if (!c.push_reminders) continue;
+      // Still waiting at the counter: one notice for every book due a reminder, worded for the most urgent
+      const due = waiting.map((l) => ({ l, stage: pickupDue(l, today, holdDays) })).filter((d) => d.stage);
+      if (due.length) {
+        const stage = Math.max(...due.map((d) => d.stage));
+        const holdUntil = due.map((d) => addDays(d.l.arrived_on, holdDays)).sort()[0];
+        const r = await sendTo(mine, { ...pickupReminderMessage(due.map((d) => d.l), { stage, holdUntil, shopName: shop.shop_name, readyCount: waiting.length }), icon });
+        out.pickupReminders++;
+        out.sent += r.sent;
+        out.failed += r.failed;
+        if (r.sent || !r.retry) {
+          for (const s of [1, 2]) {
+            const lineIds = due.filter((d) => d.stage === s).map((d) => d.l.id);
+            if (!lineIds.length) continue;
+            const { error } = await admin.from('reservations').update({ pickup_reminders: s }).in('id', lineIds);
+            if (error) out.errors.push(`customer ${c.id} pickup reminder: ${error.message}`);
+          }
+        }
+      }
+      // Tomorrow is the last day to change these
+      const changing = c.cutoff_pushed_on === changeDay ? [] : linesOf(closing.data, c.id);
+      if (changing.length) {
+        const r = await sendTo(mine, { ...cutoffMessage(changing, changeDay), icon });
+        out.cutoffReminders++;
+        out.sent += r.sent;
+        out.failed += r.failed;
+        if (r.sent || !r.retry) {
+          const { error } = await admin.from('customers').update({ cutoff_pushed_on: changeDay }).eq('id', c.id);
+          if (error) out.errors.push(`customer ${c.id} cutoff reminder: ${error.message}`);
         }
       }
     }

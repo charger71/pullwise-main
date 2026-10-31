@@ -1,6 +1,6 @@
 // node supabase/functions/push-notify/messages.test.js
 import assert from 'node:assert/strict';
-import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone } from './messages.js';
+import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone, addDays, shopToday, dayLabel, lastChangeDay, focsChangingOn, pickupDue, pickupReminderMessage, cutoffMessage } from './messages.js';
 
 const line = (title, issue, id) => ({ item: { id, title, issue_number: issue } });
 
@@ -32,6 +32,44 @@ assert.equal(newTitlesMessage([line('Spawn', '401', 9)]).title, 'New on your pul
 assert.equal(newTitlesMessage([line('Spawn', '401', 9)]).url, '/app?title=9#list');
 assert.equal(added.url, '/app#list');
 assert.equal('badge' in added, false, 'new titles leave the icon alone');
+
+// Dates
+assert.equal(addDays('2026-10-31', 1), '2026-11-01');
+assert.equal(shopToday('America/New_York', new Date('2026-11-01T03:30:00Z')), '2026-10-31', 'still Saturday evening in New York');
+assert.equal(dayLabel('2026-11-07'), 'Sat, Nov 7');
+assert.equal(lastChangeDay('2026-11-09'), '2026-11-07', 'a Monday FOC: the Saturday before');
+assert.equal(lastChangeDay('2026-11-07'), '2026-10-31', 'a Saturday FOC: the Saturday a week before');
+assert.deepEqual(focsChangingOn('2026-11-07'), ['2026-11-08', '2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14']);
+for (const foc of focsChangingOn('2026-11-07')) assert.equal(lastChangeDay(foc), '2026-11-07');
+
+// Pickup reminders: a week waiting, then two days of a 30-day hold left; each once; none after the hold
+const waiting = (arrived_on, pickup_reminders = 0) => ({ arrived_on, pickup_reminders });
+assert.equal(pickupDue(waiting('2026-10-26'), '2026-11-01', 30), 0, 'six days: not yet');
+assert.equal(pickupDue(waiting('2026-10-25'), '2026-11-01', 30), 1, 'a week');
+assert.equal(pickupDue(waiting('2026-10-25', 1), '2026-11-01', 30), 0, 'already had it');
+assert.equal(pickupDue(waiting('2026-10-05', 1), '2026-11-01', 30), 0, 'three days left: not yet');
+assert.equal(pickupDue(waiting('2026-10-04', 1), '2026-11-01', 30), 2, 'two days left');
+assert.equal(pickupDue(waiting('2026-10-04', 2), '2026-11-01', 30), 0, 'already had the last call');
+assert.equal(pickupDue(waiting('2026-10-02', 1), '2026-11-01', 30), 2, 'the hold’s last day');
+assert.equal(pickupDue(waiting('2026-10-01'), '2026-11-01', 30), 0, 'hold over: the shop decides');
+assert.equal(pickupDue(waiting('2026-10-25'), '2026-11-01', 8), 2, 'a short hold goes straight to the last call');
+assert.equal(pickupDue({ arrived_on: null }, '2026-11-01', 30), 0);
+
+const week = pickupReminderMessage([line('Saga', '71', 5)], { stage: 1, holdUntil: '2026-11-24', shopName: 'Area71', readyCount: 2 });
+assert.equal(week.title, 'Your book is still waiting');
+assert.equal(week.body, 'Saga #71 is waiting for you at Area71. We’ll hold it until Tue, Nov 24.');
+assert.equal(week.url, '/app?title=5#list');
+assert.equal(week.badge, 2);
+assert.equal(week.tag, 'pickup');
+const last = pickupReminderMessage([line('Saga', '71'), line('Spawn', '400')], { stage: 2, holdUntil: '2026-11-03' });
+assert.equal(last.title, 'Last days to pick up your books');
+assert.equal(last.body, 'Pick up Saga #71 and Spawn #400 by Tue, Nov 3, or they may go back on the shelf.');
+
+const cut = cutoffMessage([line('Saga', '72'), line('Spawn', '401'), line('Batman', '2')], '2026-11-07');
+assert.equal(cut.title, 'Last chance to change your pull list');
+assert.equal(cut.body, 'Saga #72, Spawn #401 and 1 more: change or remove them by tomorrow (Sat, Nov 7), before the shop places its order.');
+assert.equal(cut.url, '/app#list');
+assert.equal('badge' in cut, false);
 
 assert.equal(testMessage('Area71').title, 'Area71');
 assert.equal(testMessage().title, 'Notifications are on');
