@@ -10,6 +10,14 @@ import { itemCard, enableReservations } from '../components.js';
 import { formatPhone, LOGO_WIDTH } from '../util.js';
 
 const VIEWS = ['list', 'hot', 'following', 'shop', 'me'];
+
+// What screen readers hear about the app itself (refreshing, offline, a new version): one live region that is always
+// on the page, so the words are read even when the strip showing them appears at the same moment.
+const appStatus = $('[data-app-status]');
+const say = (text) => {
+  appStatus.textContent = '';
+  setTimeout(() => (appStatus.textContent = text), 50); // a change, even to the same words, is read out
+};
 const OWN_VIEWS = ['hot', 'shop']; // drawn here; the rest are the account page's
 const account = $('#account');
 
@@ -77,6 +85,7 @@ const SHELVES = [
 async function renderHot() {
   hotShown = true;
   const host = $('[data-hot]');
+  if (!host) return; // a page from before the Hot tab (an old copy kept offline): the other tabs still work
   if (!host.children.length) host.innerHTML = '<p class="empty loading">Loading…</p>'; // a pull to refresh keeps the rows up
   let data;
   try {
@@ -102,7 +111,7 @@ async function renderHot() {
     </section>`).join('');
 }
 
-enableReservations($('[data-hot]'), (id) => hotItems.get(id));
+if ($('[data-hot]')) enableReservations($('[data-hot]'), (id) => hotItems.get(id));
 
 // ---------------------------------------------------------------------------
 // Shop: who the app belongs to, how to reach it, and its website
@@ -165,7 +174,6 @@ const PULL_MAX = 100; // px the badge travels at most
 
 function setupPull() {
   const spot = $('[data-pull]');
-  const status = $('[data-pull-status]');
   let startY = null;
   let pull = 0;
   let busy = false;
@@ -206,9 +214,9 @@ function setupPull() {
     busy = true;
     spot.classList.add('is-refreshing');
     place(PULL_GO);
-    status.textContent = 'Refreshing…';
+    say('Refreshing…');
     await refresh();
-    status.textContent = 'Updated.';
+    say('Updated.');
     busy = false;
     settle();
   });
@@ -244,7 +252,9 @@ function showOffline() {
   const stamp = when && !Number.isNaN(when.getTime())
     ? when.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
     : null;
-  offlineNote.innerHTML = `<p class="app-note__text"><strong>You’re offline.</strong> ${stamp ? `Showing your list from ${esc(stamp)}.` : 'Your list will update when you’re back online.'}</p>`;
+  const text = stamp ? `Showing your list from ${stamp}.` : 'Your list will update when you’re back online.';
+  offlineNote.innerHTML = `<p class="app-note__text"><strong>You’re offline.</strong> ${esc(text)}</p>`;
+  if (offlineNote.hidden) say(`You’re offline. ${text}`);
   offlineNote.hidden = false;
 }
 
@@ -276,6 +286,7 @@ function offerUpdate() {
     <p class="app-note__text"><strong>A new version of the app is ready.</strong></p>
     <button class="btn btn--primary" type="button" data-update-go>Update</button>`;
   box.hidden = false;
+  say('A new version of the app is ready. The Update button is at the top of the screen.');
   $('[data-update-go]', box).addEventListener('click', () => location.reload());
 }
 
