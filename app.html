@@ -37,6 +37,12 @@
   <script type="module" src="js/pages/app.js"></script>
 </head>
 <body data-page="app">
+  <!-- Loading screen: the shop's logo and name on its page color until the first view is drawn (js/pages/app.js).
+       The Worker fills them in (worker/shop-page.js appSplash); with no script at all it still fades by itself. -->
+  <div class="app-splash" data-splash aria-hidden="true">
+    <img class="app-splash__logo" data-splash-logo alt="" hidden>
+    <p class="app-splash__name" data-splash-name></p>
+  </div>
   <header id="site-header"></header>
   <div class="app-note container" data-offline hidden></div>
   <div class="app-note container" data-update hidden></div>

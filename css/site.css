@@ -128,6 +128,7 @@
   --z-header: 50;        /* the sticky site header and its menu */
   --z-skip: 100;         /* the skip link, above everything it jumps over */
   --z-busy: 9998;        /* the loading dimmer; its spinner sits one above */
+  --z-splash: 10000;     /* the pull list app's loading screen, over everything while it opens */
 
   /* Motion. Every transition stops and the skeleton stops pulsing under prefers-reduced-motion; the spinner slows. */
   --dur-press: .08s;     /* a button's press */
@@ -135,6 +136,7 @@
   --dur-spin: .7s;       /* one turn of the loading spinner */
   --dur-spin-calm: 2s;   /* the spinner under prefers-reduced-motion */
   --dur-pulse: 1.2s;     /* the loading skeleton's pulse */
+  --dur-splash-max: 4s;  /* the app's loading screen fades by itself after this, even if no script runs */
 }
 *,
 *::before,
@@ -1209,6 +1211,17 @@ body:has([aria-busy="true"], .loading)::after {
   .app-shelf__row::-webkit-scrollbar { display: none; }
 }
 .app-shelf__row > * { scroll-snap-align: start; display: grid; }
+/* The app's loading screen (app.html): the shop's logo and name on its page color, over the status bar too. Script
+   fades it once the first view is drawn; with no script it still fades after --dur-splash-max. */
+@keyframes splash-out { to { opacity: 0; visibility: hidden; } }
+.app-splash { position: fixed; inset: 0; z-index: var(--z-splash); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-16); padding: var(--gutter); background: var(--paper); text-align: center; transition: opacity var(--dur), visibility var(--dur); animation: splash-out var(--dur) var(--dur-splash-max) forwards; }
+.app-splash.is-gone { opacity: 0; visibility: hidden; pointer-events: none; }
+.app-splash__logo { width: auto; max-width: 60%; max-height: 120px; }
+.app-splash__name { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: calc(1.6rem * var(--display-scale)); letter-spacing: var(--display-tracking); text-transform: var(--display-case); color: var(--cream); line-height: 1.1; }
+.app-splash__name:empty { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .app-splash { transition: none; animation-duration: var(--dur-press); }
+}
 /* A strip under the header: offline, or a new version ready. */
 .app-note, .app-install { display: flex; align-items: center; gap: var(--sp-12); margin-top: var(--sp-12); padding-block: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
 .app-note__text, .app-install__text { flex: 1; margin: 0; font-size: var(--fs-sm); }

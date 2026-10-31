@@ -1,6 +1,6 @@
 // node worker/shop-page.test.js
 import assert from 'node:assert/strict';
-import { findShop, siteUrl, appRedirect, appManifest, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { findShop, siteUrl, appRedirect, appManifest, appSplash, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 
 const shops = [
   { id: 'a', domains: ['a-comics.com', 'www.a-comics.com'], supabaseUrl: 'https://aaa.supabase.co', anonKey: 'key-a', gaMeasurementId: 'G-1' },
@@ -104,6 +104,9 @@ assert.deepEqual(app.shortcuts.map((x) => x.url), ['/app#list', '/app#hot', '/ap
 assert.equal(app.theme_color, '#f5f0e6');
 assert.deepEqual(app.icons.map((i) => i.sizes), ['192x192', '512x512']);
 assert.match(app.icons[1].src, /render\/image\/public\/media\/logo\.png\?width=512&height=512&resize=contain/);
+// The app's loading screen: the logo at the header's width, and the name; nothing for a picture that isn't https
+assert.deepEqual(appSplash({ shop_name: ' A Comics ', logo_url: `${MEDIA}/logo.png` }), { logo: `https://aaa.supabase.co/storage/v1/render/image/public/media/logo.png?width=320&height=2500&resize=contain&quality=75`, name: 'A Comics' });
+assert.deepEqual(appSplash({ logo_url: 'javascript:x' }), { logo: '', name: '' });
 const plain = appManifest({ colors: { paper: 'red' }, logo_url: 'javascript:x' });
 assert.equal(plain.name, 'My Pull List', 'a name even before the shop has one');
 assert.equal(plain.theme_color, '#121212', 'only a hex color');

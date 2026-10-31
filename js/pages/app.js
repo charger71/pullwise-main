@@ -11,6 +11,27 @@ import { formatPhone, LOGO_WIDTH } from '../util.js';
 
 const VIEWS = ['list', 'hot', 'following', 'shop', 'me'];
 
+// The loading screen (app.html) goes once the view on screen has something in it, or after 3 seconds at most.
+const splash = $('[data-splash]');
+function hideSplash() {
+  if (!splash || splash.classList.contains('is-gone')) return;
+  splash.classList.add('is-gone');
+  setTimeout(() => splash.remove(), 400);
+}
+const stillLoading = () => [...document.querySelectorAll('main .loading')].some((el) => el.offsetParent !== null);
+if (splash) {
+  const watch = new MutationObserver(() => {
+    if (stillLoading()) return;
+    watch.disconnect();
+    hideSplash();
+  });
+  watch.observe($('main'), { childList: true, subtree: true });
+  setTimeout(() => {
+    watch.disconnect();
+    hideSplash();
+  }, 3000);
+}
+
 // What screen readers hear about the app itself (refreshing, offline, a new version): one live region that is always
 // on the page, so the words are read even when the strip showing them appears at the same moment.
 const appStatus = $('[data-app-status]');

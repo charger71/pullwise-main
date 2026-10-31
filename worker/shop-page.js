@@ -67,6 +67,12 @@ const APP_SHORTCUTS = [
   { name: 'Shop', url: `${APP_PATH}#shop` },
 ];
 
+/** The app's loading screen: the shop's logo (at the header's width) and name. */
+export function appSplash(settings = {}) {
+  const logo = /^https:\/\//.test(settings.logo_url ?? '') ? sizedImage(settings.logo_url, LOGO_WIDTH) : '';
+  return { logo, name: (settings.shop_name ?? '').trim() };
+}
+
 /**
  * js/config.js for one shop: the same exports as the static file, filled in from shops.json. `settings` is the
  * Worker's last copy of the shop's settings (may be empty), for the name and timezone shown before they load.
