@@ -157,6 +157,9 @@ img { max-width: 100%; height: auto; display: block; }
 a { text-decoration-thickness: 2px; color: var(--teal); text-underline-offset: 5px; }
 a:hover { color: var(--teal-hover); }
 :focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+/* A heading that a script focuses (tabindex="-1": the app's view titles when a tab opens, Coming Up after a redraw)
+   is there so screen readers start reading from it. It isn't a control, so it gets no ring. */
+:is(h1, h2, h3)[tabindex="-1"]:focus { outline: none; }
 h1, h2, h3 { font-family: var(--font-display); font-weight: var(--display-weight); line-height: 1.15; margin: 0 0 .5em; letter-spacing: .01em; }
 h1 { font-size: calc(clamp(34px, 5vw, 64px) * var(--display-scale)); line-height: .96; letter-spacing: var(--display-tracking); text-transform: var(--display-case); margin: var(--sp-14) 0 var(--sp-16); }
 h2 { font-family: var(--font-heading); font-weight: 700; font-size: calc(1.5rem * var(--heading-scale)); line-height: 1.2; letter-spacing: var(--heading-tracking); }
