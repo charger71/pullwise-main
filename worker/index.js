@@ -47,6 +47,9 @@ export default {
       if (!page) return res;
     }
     if (res.status === 404) file = NOT_FOUND_FILE;
+    // Any other page outside the root (admin/ and its style guide) is served as is: the shop's theme uses the same
+    // --brand-* names as the admin's own colors and would paint over them.
+    if (!file) return res;
     if ((!res.ok && file !== NOT_FOUND_FILE) || !(res.headers.get('Content-Type') ?? '').includes('text/html')) return res;
 
     const data = await shopData(shop, ctx);
