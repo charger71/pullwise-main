@@ -8,12 +8,14 @@
 //  * /sitemap.xml is generated on the shop's main domain, and /robots.txt (the static file) gets its address.
 //  * An address with no file gets 404.html (wrangler.jsonc's not_found_handling), branded like the other pages.
 //  * PUT /__media stores covers and series images in R2 for shops using it (worker/media.js).
+//  * /manifest.webmanifest is the shop's installable pull list app (app.html), under its name, icon and colors;
+//    app.<shop domain> forwards to that app on the shop's main domain.
 //  * Everything else is the static file as is. A domain that isn't in shops.json gets the plain files, which
 //    run in demo mode.
 
 import SHOPS from '../shops.json';
 import { mediaUpload } from './media.js';
-import { MEDIA_UPLOAD_PATH, findShop, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { MEDIA_UPLOAD_PATH, findShop, appRedirect, appManifest, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
 const CACHE_SECONDS = 60;
@@ -24,9 +26,13 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const shop = findShop(SHOPS.shops, url.hostname);
-    if (!shop) return env.ASSETS.fetch(request);
+    if (!shop) {
+      const app = appRedirect(SHOPS.shops, url.hostname);
+      return app ? Response.redirect(app, 301) : env.ASSETS.fetch(request);
+    }
     if (url.pathname === MEDIA_UPLOAD_PATH) return mediaUpload(request, shop, env);
     if (url.pathname === '/js/config.js') return config(shop, request, await cachedShopData(shop));
+    if (url.pathname === '/manifest.webmanifest') return text(JSON.stringify(appManifest((await shopData(shop, ctx))?.settings)), 'application/manifest+json', request);
     if (url.pathname === '/sitemap.xml') return text(sitemapXml(shop), 'application/xml', request);
     if (url.pathname === '/robots.txt') {
       const res = await env.ASSETS.fetch(new Request(new URL('/robots.txt', url), { method: 'GET' }));

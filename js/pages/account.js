@@ -2,6 +2,7 @@
 // profile, and manage the pull list under this email. Everything the page
 // reads or writes is limited to the signed-in customer by row-level security;
 // claim_customer() links the record, and create_my_customer() creates it from the first-sign-in form.
+// The pull list app (app.html, js/pages/app.js) runs this same page, laid out as views for its tab bar.
 
 import { initPage, $, esc, fmtDate, itemFullTitle, itemTitle, cover, price, cutoffPassed } from '../site.js';
 import { DEMO, supabase, getSettings, searchSeries, searchArtists } from '../data.js';
@@ -14,6 +15,7 @@ import * as guest from '../reservation-list.js';
 import { followedSeries, discountFor, totals, tiersFrom } from '../discount.js';
 
 const root = $('#account');
+const APP = document.body.dataset.page === 'app';
 
 // An emailed link that has expired or was already used comes back with the reason in the address
 // (#error=access_denied&error_code=otp_expired&error_description=…). Read it before supabase-js looks at the
@@ -73,9 +75,10 @@ const errText = (err) => (err && 'signIn' in err ? err.message : pull.customerMe
 
 // Where the emailed link brings the customer back. On the live site always use the public https
 // address, even if they happened to open the page over http; locally, stay on localhost.
+// The app's link opens the app (on an iPhone it opens Safari instead, which keeps its own sign-in: hence the code).
 function redirectUrl() {
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-  return local ? new URL('account.html', location.href).href : `${SITE_URL.replace(/\/$/, '')}/account.html`;
+  return local ? new URL(APP ? 'app.html' : 'account.html', location.href).href : `${SITE_URL.replace(/\/$/, '')}/${APP ? 'app' : 'account.html'}`;
 }
 
 function signedOut(sb) {
@@ -84,17 +87,17 @@ function signedOut(sb) {
   root.innerHTML = `
     <div class="panel account-panel">
       <h2>Sign in</h2>
-      <p>Enter your email and we’ll send you a link and a 6-digit code. No password needed — if you’re new, this creates your account.</p>
+      <p>Enter your email and we’ll send you ${APP ? 'a 6-digit code' : 'a link and a 6-digit code'}. No password needed — if you’re new, this creates your account.</p>
       <form id="email-form" novalidate>
         <div class="field">
           <label for="a-email">Email</label>
           <input id="a-email" name="email" type="email" autocomplete="email" required maxlength="254">
         </div>
         <p class="form-error" role="alert">${esc(linkNote ?? '')}</p>
-        <button class="btn btn--primary" type="submit">Email me a sign-in link</button>
+        <button class="btn btn--primary" type="submit">${APP ? 'Email me a sign-in code' : 'Email me a sign-in link'}</button>
       </form>
       <form id="code-form" hidden novalidate>
-        <p role="status">Check your email. Click the link, or enter the code here.</p>
+        <p role="status">${APP ? 'Check your email and enter the 6-digit code here.' : 'Check your email. Click the link, or enter the code here.'}</p>
         <div class="field">
           <label for="a-code">6-digit code</label>
           <input id="a-code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required>
@@ -168,15 +171,14 @@ async function signedIn(sb, user) {
   if (!customer.id || !customer.first_name?.trim() || !customer.last_name?.trim() || !customer.phone?.trim()) return setupProfile(sb, user, customer);
   const locations = await getLocations(sb);
 
-  root.innerHTML = `
-    <p class="account-who">Signed in as <strong>${esc(user.email)}</strong> · <button class="link-button" type="button" data-out>Sign out</button></p>
-    <div class="account-grid">
-      <div class="account-col">
+  const who = `<p class="account-who">Signed in as <strong>${esc(user.email)}</strong> · <button class="link-button" type="button" data-out>Sign out</button></p>`;
+  const orders = `
         <section class="panel" aria-labelledby="orders-h">
           <h2 id="orders-h" tabindex="-1">Coming Up</h2>
           <p class="visually-hidden" role="status" aria-live="polite" data-orders-status></p>
           <div data-orders><p class="empty loading">Loading…</p></div>
-        </section>
+        </section>`;
+  const following = `
         <section class="panel" aria-labelledby="follow-h">
           <h2 id="follow-h">Following</h2>
           <p class="field__hint">New issues from anything you follow are added to your pull list automatically, until the order cutoff. A series adds its main cover; tick <strong>All covers</strong> to get every variant too (never incentive covers). Remove any you don’t want from Coming Up.</p>
@@ -188,10 +190,9 @@ async function signedIn(sb, user) {
           </form>
           <div data-follow-results></div>
           <div data-follows></div>
-        </section>
-      </div>
-      <div class="account-col">
-      <p class="callout">We reserve the right to cancel any pre-order for any reason, and pre-orders over $100 may require a deposit. See our <a href="terms.html">terms</a>.</p>
+        </section>`;
+  const terms = `<p class="callout">We reserve the right to cancel any pre-order for any reason, and pre-orders over $100 may require a deposit. See our <a href="terms.html">terms</a>.</p>`;
+  const profile = `
       <section class="panel" aria-labelledby="profile-h">
         <h2 id="profile-h">My Profile</h2>
         <form id="profile-form" novalidate>
@@ -227,7 +228,21 @@ async function signedIn(sb, user) {
           <p class="account-saved" role="status"></p>
           <button class="btn btn--primary" type="submit">Save profile</button>
         </form>
-      </section>
+      </section>`;
+  // The app shows one view at a time under its tab bar (js/pages/app.js); the page lays them out side by side.
+  root.innerHTML = APP
+    ? `
+    <div class="app-view" data-view="list">${orders}</div>
+    <div class="app-view" data-view="following">${following}</div>
+    <div class="app-view" data-view="me">${who}${profile}${terms}</div>`
+    : `
+    ${who}
+    <p class="notice account-app"><strong>Get the app:</strong> open <a href="app.html">our pull list app</a> on your phone and add it to your Home Screen.</p>
+    <div class="account-grid">
+      <div class="account-col">${orders}${following}
+      </div>
+      <div class="account-col">
+      ${terms}${profile}
       </div>
     </div>`;
 
@@ -363,6 +378,11 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
 
   // Group by release date so the list reads like a shop week; "Ready for pickup" first.
   const ready = active.filter((r) => r.status === 'arrived');
+  const tabCount = APP && $('[data-tab-count="list"]');
+  if (tabCount) {
+    tabCount.hidden = !ready.length;
+    tabCount.innerHTML = ready.length ? `${ready.length}<span class="visually-hidden"> ready for pickup</span>` : '';
+  }
   const upcoming = active.filter((r) => r.status !== 'arrived');
   const groups = new Map();
   for (const r of upcoming.sort((a, b) => (a.item.release_date ?? '9999').localeCompare(b.item.release_date ?? '9999') || itemFullTitle(a.item).localeCompare(itemFullTitle(b.item)))) {

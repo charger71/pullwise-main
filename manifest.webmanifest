@@ -1,0 +1,11 @@
+{
+  "id": "/app",
+  "name": "My Pull List",
+  "short_name": "Pull List",
+  "description": "Your comic shop pull list",
+  "start_url": "/app",
+  "scope": "/app",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212"
+}

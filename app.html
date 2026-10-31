@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>My Pull List</title>
+  <meta name="robots" content="noindex">
+  <!-- The shop's installable pull list app. The Worker serves it at /app with the shop's manifest, colors and icons
+       (worker/shop-page.js appManifest, headTags); app.<shop domain> forwards here. -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preload" href="css/site.css" as="style">
+  <link rel="modulepreload" href="js/pages/app.js">
+  <link rel="modulepreload" href="js/pages/account.js">
+  <link rel="modulepreload" href="js/site.js">
+  <link rel="modulepreload" href="js/theme-vars.js">
+  <link rel="modulepreload" href="js/data.js">
+  <link rel="modulepreload" href="js/config.js">
+  <link rel="modulepreload" href="js/util.js">
+  <link rel="modulepreload" href="js/errors.js">
+  <link rel="modulepreload" href="js/cache.js">
+  <link rel="modulepreload" href="js/social-icons.js">
+  <link rel="modulepreload" href="js/content.js">
+  <link rel="modulepreload" href="js/customer.js">
+  <link rel="modulepreload" href="js/labels.js">
+  <link rel="modulepreload" href="js/dates.js">
+  <link rel="modulepreload" href="js/vendor/supabase.mjs">
+  <link rel="modulepreload" href="js/reservation-list.js">
+  <link rel="modulepreload" href="js/discount.js">
+  <link rel="preload" href="fonts/archivo-black-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/source-sans-3-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+  <script>try{var p=JSON.parse(localStorage.getItem('pc-preload')||'{}');[p.logo].forEach(function(u){if(u&&/^https:/.test(u)){var l=document.createElement('link');l.rel='preload';l.as='image';l.href=u;document.head.appendChild(l)}})}catch(e){}</script>
+  <script type="module" src="js/pages/app.js"></script>
+</head>
+<body data-page="app">
+  <header id="site-header"></header>
+  <div class="app-install container" data-install hidden></div>
+
+  <main id="main" class="app-main">
+    <div class="container">
+      <h1 class="visually-hidden">My Pull List</h1>
+      <div id="account"><p class="empty loading">Loading…</p></div>
+      <section class="app-view" data-view="shop" aria-labelledby="shop-h" hidden>
+        <h2 id="shop-h" class="app-view__title" tabindex="-1">The Shop</h2>
+        <div data-shop><p class="empty loading">Loading…</p></div>
+      </section>
+    </div>
+  </main>
+
+  <nav class="tab-bar" aria-label="App">
+    <ul>
+      <li><a href="#list" data-tab="list">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>
+        <span>My List</span><span class="tab-bar__count" data-tab-count="list" hidden></span>
+      </a></li>
+      <li><a href="#following" data-tab="following">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>
+        <span>Following</span>
+      </a></li>
+      <li><a href="#shop" data-tab="shop">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 10v10h16V10"/><path d="M3 10l2-6h14l2 6z"/><path d="M10 20v-5h4v5"/></svg>
+        <span>Shop</span>
+      </a></li>
+      <li><a href="#me" data-tab="me">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></svg>
+        <span>Account</span>
+      </a></li>
+    </ul>
+  </nav>
+</body>
+</html>
