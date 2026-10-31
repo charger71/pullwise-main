@@ -90,8 +90,10 @@ async function renderShop() {
 // Pull down to refresh: an installed app has no reload button, and an iPhone gives it no pull of its own
 // ---------------------------------------------------------------------------
 
-const PULL_MAX = 110; // px the indicator travels at most
-const PULL_GO = 70; // px of travel that refreshes on release
+const PULL_SLACK = 30; // px of finger travel ignored first, so a small drag at the top never starts one
+const PULL_RESIST = 0.35; // the badge moves this much per px of finger travel after that
+const PULL_GO = 80; // px of badge travel that refreshes on release (about 260px of finger travel in all)
+const PULL_MAX = 100; // px the badge travels at most
 
 function setupPull() {
   const spot = $('[data-pull]');
@@ -118,15 +120,16 @@ function setupPull() {
   }, { passive: true });
   addEventListener('touchmove', (e) => {
     if (startY === null) return;
-    const dy = e.touches[0].clientY - startY;
+    const dy = e.touches[0].clientY - startY - PULL_SLACK;
     if (dy <= 0 || scrollY > 0) {
       if (pull) settle();
       return;
     }
     // Under the header, wherever it ends (it grows with the iPhone's status bar).
     spot.style.setProperty('--pull-top', `${$('#site-header')?.getBoundingClientRect().bottom ?? 0}px`);
+    spot.classList.remove('is-settling'); // follow the finger at once, even right after the last one let go
     spot.classList.add('is-pulling');
-    place(Math.min(PULL_MAX, dy * 0.5)); // resists, like a native pull
+    place(Math.min(PULL_MAX, dy * PULL_RESIST)); // resists, like a native pull
   }, { passive: true });
   addEventListener('touchend', async () => {
     if (startY === null) return;
