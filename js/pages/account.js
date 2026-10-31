@@ -13,6 +13,7 @@ import { thumbOf, thumbFallback, artistMeta } from '../util.js';
 import * as pull from '../customer.js';
 import * as guest from '../reservation-list.js';
 import { followedSeries, discountFor, totals, tiersFrom } from '../discount.js';
+import { setBadge, saveList, savedList, forgetList } from '../app-device.js';
 
 const root = $('#account');
 const APP = document.body.dataset.page === 'app';
@@ -47,15 +48,17 @@ if (DEMO) {
   // The app's pull down to refresh (js/pages/app.js): draw the signed-in views again from the database.
   if (APP) {
     document.addEventListener('app:refresh', (e) => {
-      if (showing !== 'in') return;
+      if (showing !== 'in' && showing !== 'offline') return;
       showing = null;
       e.detail.wait(show(sb));
     });
   }
 }
 
-let showing; // 'in' | 'out': avoids redrawing (and wiping a half-edited form) on token refresh
+let showing; // 'in' | 'out' | 'offline': avoids redrawing (and wiping a half-edited form) on token refresh
 async function show(sb) {
+  // The app without a connection shows the list it last drew rather than waiting on the network.
+  if (APP && !navigator.onLine && showSaved()) return;
   const { data } = await sb.auth.getSession();
   const state = data.session ? 'in' : 'out';
   if (state === showing) return;
@@ -63,15 +66,44 @@ async function show(sb) {
   if (state === 'in') {
     try {
       await signedIn(sb, data.session.user);
+      if (APP) document.dispatchEvent(new Event('app:online'));
     } catch (err) {
       console.error(err);
       showing = null;
+      if (APP && showSaved()) return; // no answer from the shop: most likely a bad connection
       root.innerHTML = `<p class="form-error" role="alert">${esc(errText(err))}</p><p><button class="btn" type="button" data-out>Sign out</button></p>`;
       $('[data-out]', root).addEventListener('click', () => sb.auth.signOut());
     }
   } else {
     signedOut(sb);
   }
+}
+
+/**
+ * The app's last copy of the list (js/app-device.js), read-only, in place of the views. js/pages/app.js says the app
+ * is offline and when the copy is from, and draws the views again when the connection comes back. False if none.
+ */
+function showSaved() {
+  const saved = savedList();
+  if (!saved) return false;
+  showing = 'offline';
+  const later = (what) => `<p class="empty">Your ${what} will show here when you’re back online.</p>`;
+  root.innerHTML = `
+    <div class="app-view" data-view="list">
+      <section class="panel" aria-labelledby="orders-h">
+        <h2 id="orders-h" tabindex="-1">Coming Up</h2>
+        <div class="account-saved-list" inert>${saved.html}</div>
+      </section>
+    </div>
+    <div class="app-view" data-view="following">${later('follows')}</div>
+    <div class="app-view" data-view="me">${later('account')}</div>`;
+  const tabCount = $('[data-tab-count="list"]');
+  if (tabCount) {
+    tabCount.hidden = !saved.ready;
+    tabCount.innerHTML = saved.ready ? `${saved.ready}<span class="visually-hidden"> ready for pickup</span>` : '';
+  }
+  document.dispatchEvent(new CustomEvent('app:offline', { detail: { at: saved.at } }));
+  return true;
 }
 
 // Errors from customer.js are already worded for customers; anything else goes through the same mapping.
@@ -90,6 +122,10 @@ function redirectUrl() {
 }
 
 function signedOut(sb) {
+  if (APP) {
+    forgetList();
+    setBadge(0);
+  }
   const linkNote = linkError; // once: not again after a later sign-out
   linkError = null;
   root.innerHTML = `
@@ -398,6 +434,7 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
   if (tabCount) {
     tabCount.hidden = !ready.length;
     tabCount.innerHTML = ready.length ? `${ready.length}<span class="visually-hidden"> ready for pickup</span>` : '';
+    setBadge(ready.length);
   }
   const upcoming = active.filter((r) => r.status !== 'arrived');
   const groups = new Map();
@@ -510,6 +547,7 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
     ${section('Not ordered by the shop', notOrdered)}
     ${!active.length ? '<p class="empty">Your pull list is empty. Tap <strong>Add to pull list</strong> on any title on the <a href="pre-orders.html">Pre-Orders</a> page, or <strong>Add all covers</strong> to pull every cover of an issue.</p>' : ''}
     ${past.length ? `<details class="account-past"><summary>Past (${past.length})</summary>${section('', past)}</details>` : ''}`;
+  if (APP) saveList(el.innerHTML, ready.length);
 
   // Keyboard focus goes back where it was (or the next sensible place) after a redraw.
   for (const sel of focus ?? []) {

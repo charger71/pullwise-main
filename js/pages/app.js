@@ -161,6 +161,58 @@ async function refresh() {
 setupPull();
 
 // ---------------------------------------------------------------------------
+// Offline: say so, and when the list on screen is from (js/pages/account.js shows its last copy)
+// ---------------------------------------------------------------------------
+
+const offlineNote = $('[data-offline]');
+let savedAt = null;
+
+function showOffline() {
+  const when = savedAt && new Date(savedAt);
+  const stamp = when && !Number.isNaN(when.getTime())
+    ? when.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+    : null;
+  offlineNote.innerHTML = `<p class="app-note__text"><strong>You’re offline.</strong> ${stamp ? `Showing your list from ${esc(stamp)}.` : 'Your list will update when you’re back online.'}</p>`;
+  offlineNote.hidden = false;
+}
+
+addEventListener('offline', showOffline);
+addEventListener('online', () => {
+  offlineNote.hidden = true;
+  // Fetch everything again now the shop can be reached.
+  document.dispatchEvent(new CustomEvent('app:refresh', { detail: { wait: () => {} } }));
+});
+document.addEventListener('app:offline', (e) => {
+  savedAt = e.detail?.at ?? null;
+  showOffline();
+});
+document.addEventListener('app:online', () => {
+  savedAt = null;
+  if (navigator.onLine) offlineNote.hidden = true;
+});
+if (!navigator.onLine) showOffline();
+
+// ---------------------------------------------------------------------------
+// Updates: an installed app can stay open for days, running the code it opened with. admin/update-check.js
+// compares the published fingerprint of the site's files with the one loaded, on a timer and whenever the app
+// comes back to the front, and a strip offers the new version.
+// ---------------------------------------------------------------------------
+
+function offerUpdate() {
+  const box = $('[data-update]');
+  box.innerHTML = `
+    <p class="app-note__text"><strong>A new version of the app is ready.</strong></p>
+    <button class="btn btn--primary" type="button" data-update-go>Update</button>`;
+  box.hidden = false;
+  $('[data-update-go]', box).addEventListener('click', () => location.reload());
+}
+
+// Not kept for offline use (it lives with the admin): without a connection there's nothing to check anyway.
+import('../../admin/update-check.js')
+  .then(({ watchForUpdates }) => watchForUpdates({ onUpdate: offerUpdate }))
+  .catch(() => {});
+
+// ---------------------------------------------------------------------------
 // Install: "Add to Home Screen", offered until it's installed or dismissed
 // ---------------------------------------------------------------------------
 

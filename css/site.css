@@ -1184,6 +1184,12 @@ body:has([aria-busy="true"], .loading)::after {
 .app-view > * + *, [data-shop] > * + * { margin-top: var(--sp-16); }
 [data-shop] > .app-shop__links { margin-top: var(--sp-24); }
 .app-view__title { font-size: var(--fs-title); margin: 0 0 var(--sp-12); }
+/* A strip under the header: offline, or a new version ready. */
+.app-note { display: flex; align-items: center; gap: var(--sp-12); margin-top: var(--sp-12); padding-block: var(--sp-10); background: var(--surface); border: var(--border); border-radius: var(--radius); }
+.app-note__text { flex: 1; margin: 0; font-size: var(--fs-sm); }
+.app-note .btn { flex: none; }
+/* The list as last drawn, shown offline: read-only, so its controls are left out. */
+.account-saved-list .account-line__controls, .account-saved-list .account-move, .account-saved-list .form-error { display: none; }
 .app-install { display: flex; align-items: center; gap: var(--sp-12); margin-top: var(--sp-12); padding-block: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
 .app-install__text { flex: 1; margin: 0; font-size: var(--fs-sm); }
 .app-install .btn { flex: none; }

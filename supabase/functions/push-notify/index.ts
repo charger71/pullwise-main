@@ -134,12 +134,12 @@ async function sendAll() {
     const lineQuery = () =>
       admin
         .from('reservations')
-        .select('id,status,source,created_at,item:items(title,issue_number),order:reservation_orders!inner(customer_id)')
+        .select('id,status,source,created_at,arrival_pushed_at,item:items(id,title,issue_number),order:reservation_orders!inner(customer_id)')
         .in('order.customer_id', chunk)
         .order('created_at');
     const since = new Date(Date.now() - 7 * 864e5).toISOString(); // a week back is plenty for an hourly job
     const [arrived, added] = await Promise.all([
-      lineQuery().eq('status', 'arrived').is('arrival_pushed_at', null),
+      lineQuery().eq('status', 'arrived'), // all of them: the new ones are announced, and the count goes on the icon
       lineQuery().eq('status', 'open').in('source', NEW_SOURCES).gt('created_at', since),
     ]);
     if (arrived.error) throw arrived.error;
@@ -149,9 +149,10 @@ async function sendAll() {
     for (const c of customers) {
       const mine = byCustomer.get(c.id) ?? [];
       // Ready for pickup
-      const ready = c.push_arrivals ? linesOf(arrived.data, c.id) : [];
+      const waiting = linesOf(arrived.data, c.id);
+      const ready = c.push_arrivals ? waiting.filter((l) => !l.arrival_pushed_at) : [];
       if (ready.length) {
-        const r = await sendTo(mine, { ...arrivalMessage(ready, shop.shop_name), icon });
+        const r = await sendTo(mine, { ...arrivalMessage(ready, shop.shop_name, waiting.length), icon });
         out.arrivals++;
         out.sent += r.sent;
         out.failed += r.failed;
