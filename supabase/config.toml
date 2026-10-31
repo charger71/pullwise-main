@@ -13,5 +13,8 @@ verify_jwt = false
 [functions.weekly-pull-list]
 verify_jwt = false
 
+[functions.push-notify]
+verify_jwt = false
+
 [functions.catalog-sync]
 verify_jwt = false

@@ -234,7 +234,9 @@ async function signedIn(sb, user) {
     ? `
     <div class="app-view" data-view="list">${orders}</div>
     <div class="app-view" data-view="following">${following}</div>
-    <div class="app-view" data-view="me">${who}${profile}${terms}</div>`
+    <div class="app-view" data-view="me">${who}
+      <section class="panel" aria-labelledby="push-h"><h2 id="push-h">Notifications</h2><div data-push><p class="empty loading">Loading…</p></div></section>
+      ${profile}${terms}</div>`
     : `
     ${who}
     <p class="notice account-app"><strong>Get the app:</strong> open <a href="app.html">our pull list app</a> on your phone and add it to your Home Screen.</p>
@@ -273,6 +275,12 @@ async function signedIn(sb, user) {
   // When they last looked, so titles their follows added since then are badged "New" (and the nav count resets).
   const seenBefore = await pull.markSeen().catch(() => null);
   loadOrders(sb, customer.id, seenBefore);
+  if (APP) {
+    openTitleDetails(sb, customer.id, seenBefore);
+    import('../app-notifications.js')
+      .then((m) => m.setupNotifications($('[data-push]', root), sb, customer))
+      .catch((err) => console.error('Notification settings failed to load', err));
+  }
   setupFollowing(sb, customer.id, seenBefore);
 }
 
@@ -414,7 +422,8 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
     ? `<p class="notice account-new"><span class="new-badge">New</span> ${fresh.length} ${fresh.length === 1 ? 'title was' : 'titles were'} added from what you follow${seenBefore ? ' since your last visit' : ''}. Remove any you don’t want.</p>`
     : '';
 
-  const row = (r) => {
+  const row = (r) => (APP ? appRow : pageRow)(r);
+  const pageRow = (r) => {
     const editable = canEdit(r);
     const note = SOURCE_NOTE[r.source];
     const added = isNew(r);
@@ -436,6 +445,34 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
               <button class="list-line__remove" type="button" data-remove="${r.id}">Remove<span class="visually-hidden"> ${esc(itemFullTitle(r.item))}</span></button>
             </div>`
           : `<span class="account-line__qty">${r.quantity > 1 ? `${r.quantity} copies` : '1 copy'}</span>`}
+      </li>`;
+  };
+  // The app's line: a bigger cover on the left; title, details, then copies and a remove icon stacked beside it.
+  // Cover and title open the title's details, as on the website's cards.
+  const appRow = (r) => {
+    const editable = canEdit(r);
+    const note = SOURCE_NOTE[r.source];
+    const added = isNew(r);
+    const id = r.item.id;
+    const name = esc(itemFullTitle(r.item));
+    return `
+      <li class="account-line account-line--app${added ? ' account-line--new' : ''}">
+        ${id ? `<button class="account-line__open" type="button" data-title-open="${id}" tabindex="-1" aria-hidden="true">${cover(r.item)}</button>` : cover(r.item)}
+        <div class="account-line__info">
+          ${added ? '<span class="new-badge" title="Added automatically from something you follow">New · added for you</span>' : ''}
+          <strong class="account-line__title">${id ? `<button class="card__title-open" type="button" data-title-open="${id}">${esc(itemTitle(r.item))}<span class="visually-hidden"> (details)</span></button>` : esc(itemTitle(r.item))}</strong>
+          ${r.item.variant ? `<span class="card__variant">${esc(r.item.variant)}</span>` : ''}
+          <span class="card__meta">${esc([r.item.publisher, price(r.item.price), note].filter(Boolean).join(' · '))}</span>
+          ${r.updated_via === 'staff' ? `<span class="card__meta">Updated by the shop · ${esc(whenLabel(r.updated_at, settings.timezone))}</span>` : ''}
+          <span class="account-line__status account-line__status--${esc(r.status)}">${esc(LINE_STATUS[r.status] ?? r.status)}${r.status === 'open' && !editable ? ' — order is in, call the shop to change' : ''}${r.status === 'not_ordered' ? ' — call the shop if you have questions' : ''}</span>
+          ${editable
+            ? `<div class="account-line__controls">
+                <label class="account-line__qty-label" for="pq-${r.id}">Qty<span class="visually-hidden"> of ${name}</span></label>
+                <input class="list-line__qty" id="pq-${r.id}" type="number" inputmode="numeric" min="1" max="${settings.max_copies_per_title}" value="${r.quantity}" data-qty="${r.id}">
+                <button class="account-line__remove" type="button" data-remove="${r.id}" aria-label="Remove ${name}" title="Remove from my pull list"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 13h12l1-13M9 7V4h6v3"/></svg></button>
+              </div>`
+            : `<span class="account-line__qty">${r.quantity > 1 ? `${r.quantity} copies` : '1 copy'}</span>`}
+        </div>
       </li>`;
   };
   const section = (title, rows) => (rows.length ? `<h3 class="account-group">${esc(title)}</h3><ul class="account-lines">${rows.map(row).join('')}</ul>` : '');
@@ -504,6 +541,23 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
       showError(err);
     }
   };
+}
+
+/**
+ * The app's cover and title buttons open the title's details (js/title-modal.js), as on the website. Its buttons can
+ * take the title off the list or add other covers, so the list is drawn again when it closes.
+ */
+let detailsReady = false;
+function openTitleDetails(sb, customerId, seenBefore) {
+  if (detailsReady) return;
+  detailsReady = true;
+  import('../title-modal.js').then((m) => m.init()).catch((err) => console.error('Title details failed to load', err));
+  // `close` doesn't bubble: listen on the way down.
+  document.addEventListener('close', (e) => {
+    if (!e.target.classList?.contains('title-modal')) return;
+    const opener = e.target.returnFocusTo?.dataset?.titleOpen;
+    loadOrders(sb, customerId, seenBefore, { focus: opener ? [`.card__title-open[data-title-open="${opener}"]`] : [] });
+  }, true);
 }
 
 /** Add each title from the guest pull list; the ones that fail are kept and reported. Resolves how many moved. */

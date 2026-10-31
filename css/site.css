@@ -1197,3 +1197,18 @@ body:has([aria-busy="true"], .loading)::after {
 .app-shop__links { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); }
 .app-shop__links a { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: var(--sp-8); background: var(--surface); border: var(--border); border-radius: var(--radius); font-weight: 700; text-decoration: none; }
 .app-shop__links a:hover { background: var(--raised); }
+/* My List in the app: a bigger cover, the title across the rest of the line, copies and a remove icon under the details. */
+.account-line--app { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: start; gap: var(--sp-14); padding: var(--sp-14) 0; }
+.account-line--app .cover { width: 88px; }
+.account-line__open { display: block; padding: 0; border: 0; background: none; cursor: pointer; }
+.account-line__open:hover .cover { filter: brightness(1.08); }
+.account-line__title { font-size: var(--fs-compact); line-height: 1.25; }
+.account-line--app .account-line__status { text-align: left; }
+.account-line__controls { display: flex; align-items: center; gap: var(--sp-8); margin-top: var(--sp-6); }
+.account-line__qty-label { margin: 0; font-size: var(--fs-sm); font-weight: 700; color: var(--muted); }
+.account-line__remove { display: grid; place-items: center; width: 44px; height: 44px; margin-left: var(--sp-4); padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--muted); cursor: pointer; }
+.account-line__remove:hover { color: var(--error); background: var(--raised); }
+.account-line__remove svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* App → Account → Notifications */
+.push-on { margin: 0 0 var(--sp-8); color: var(--ok); font-weight: 700; }
+.push-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-16); margin-top: var(--sp-12); }
