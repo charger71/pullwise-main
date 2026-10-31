@@ -61,3 +61,35 @@ assert.deepEqual(badgesOf('MARVEL MINI FIGURE BLIND BOX'), []);
 assert.deepEqual(badgesOf('BATMAN #150 CVR A'), []);
 assert.deepEqual(badgesOf('ONE PIECE SHOTS #3'), []);
 console.log('auto badges ok');
+
+// A Lunar or PRH column renamed is read under its new name; one that's gone leaves that field undefined (so a
+// re-import keeps what titles have) and is listed for the preview. Only the code and title columns are required.
+const lunarRow = ['0926DC002', 'SUPERMAN #3 CVR A', '$4.99', 'DC Comics', '<p>Up &amp; away</p>', '2026-10-20', '2026-11-18', '761941', '', 'Joe Writer', 'Ann Artist', 'Ann Artist', 'FALSE', 'FALSE'];
+const renamed = parseSheet([lunarHead.map((h) => (h === 'RetailCost' ? 'SRP' : h)), lunarRow]);
+assert.equal(renamed.distributor, 'lunar');
+assert.equal(renamed.items[0].price, 4.99);
+assert.deepEqual(renamed.columnsRenamed, [{ label: 'RetailCost', header: 'SRP' }]);
+assert.deepEqual(renamed.columnsMissing, []);
+const gone = ['RetailCost', 'Description', 'Writer', 'Mature', 'Adult'];
+const keep = lunarHead.map((h, i) => (gone.includes(h) ? -1 : i)).filter((i) => i >= 0);
+const missingCols = parseSheet([keep.map((i) => lunarHead[i]), keep.map((i) => lunarRow[i])]);
+const m = missingCols.items[0];
+assert.equal(missingCols.distributor, 'lunar');
+assert.deepEqual(missingCols.columnsMissing, gone);
+for (const f of ['price', 'description', 'mature']) assert.equal(m[f], undefined, f);
+assert.equal(m.creators, 'Ann Artist');
+assert.equal(m.release_date, '2026-11-18');
+assert.equal(parseSheet([lunarHead, lunarRow]).items[0].mature, false);
+// Still Lunar with FinalOrderCutoff renamed (it has InstoreDate and RetailCost), and the cutoff is read as "FOC Date".
+const focRenamed = parseSheet([lunarHead.map((h) => (h === 'FinalOrderCutoff' ? 'FOC Date' : h)), lunarRow]);
+assert.equal(focRenamed.distributor, 'lunar');
+assert.equal(focRenamed.items[0].foc_date, '2026-10-20');
+// No title column at all still stops the import.
+assert.throws(() => parseSheet([lunarHead.map((h) => (h === 'Title' ? 'Blurb' : h)), lunarRow]), /Missing column "Title"/);
+const prhHead = ['ISBN/UPC', 'Title', 'Subtitle', 'Creators', 'Imprint', 'Retail Price (US)', 'Format', 'FOC Date', 'On-Sale Date'];
+const prh = parseSheet([prhHead.filter((h) => h !== 'Retail Price (US)'), ['9781779500001', 'SANDMAN VOL 1', '', 'Neil Gaiman', 'DC Comics', 'TR', '2026-10-20', '2026-11-18']]);
+assert.equal(prh.distributor, 'prh');
+assert.equal(prh.items[0].price, undefined);
+assert.equal(prh.items[0].title, 'SANDMAN VOL 1 (Paperback)');
+assert.deepEqual(prh.columnsMissing, ['Retail Price (US)']);
+console.log('renamed and missing columns ok');

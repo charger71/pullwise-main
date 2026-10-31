@@ -83,6 +83,10 @@ SKU, Publisher, Release date or FOC date. Columns are matched by name (e.g. "SRP
 price); rows with a quantity of 0 are skipped, titles are matched on SKU, then UPC, then ISBN, and a new row whose
 UPC is already on another title is left out rather than duplicated.
 
+If Lunar or PRH rename a column, the importer finds it under the usual other names (RetailCost → SRP is still the
+price) and says so in the preview. A column that's gone only blanks that detail: titles already imported keep what
+they have, and the preview shows a notice. Only a missing product code or Title column stops the import.
+
 Incentive/ratio covers and retailer bundles are skipped; everything else is added as Pre-Order (or straight to New
 This Wednesday / Just Arrived / Available if it releases this week or is already out) with its cover copied into
 Supabase Storage. Re-importing a sheet updates distributor fields (price, dates, description) but never overwrites

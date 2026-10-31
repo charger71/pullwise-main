@@ -191,6 +191,19 @@ async function addFiles(el, fileList) {
   }
 }
 
+// A Lunar or PRH sheet whose headers changed: columns read under another name, and ones it doesn't have.
+function columnNotes({ columnsRenamed = [], columnsMissing = [] }) {
+  const quoted = (list) => list.map((h) => `“${esc(h)}”`);
+  const or = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} or ${list.at(-1)}` : list[0]);
+  const missing = columnsMissing.length
+    ? `<p class="notice">This sheet has no ${or(quoted(columnsMissing))} ${columnsMissing.length === 1 ? 'column' : 'columns'}. Titles already imported keep what they have for ${columnsMissing.length === 1 ? 'it' : 'them'}; new titles come in without.</p>`
+    : '';
+  const renamed = columnsRenamed.length
+    ? `<p class="admin-hint">Read ${columnsRenamed.map((r) => `“${esc(r.header)}” as ${esc(r.label)}`).join(', ')}.</p>`
+    : '';
+  return missing + renamed;
+}
+
 async function preview(el, card, name, parsed, book) {
   const today = shopToday();
   const render = async (onSale) => {
@@ -221,6 +234,7 @@ async function preview(el, card, name, parsed, book) {
   card.innerHTML = `
     <div class="admin-title-row"><h2>${esc(name)}</h2><span class="pill">${SOURCE[parsed.source ?? parsed.distributor] ?? parsed.distributor}</span></div>
     <div data-summary><p class="admin-hint">Checking what's already imported…</p></div>
+    ${columnNotes(parsed)}
     ${parsed.columnsUsed ? `<details><summary>Columns used</summary><ul class="skipped">${Object.entries(parsed.columnsUsed).map(([f, h]) => `<li><strong>${esc(FIELD_LABEL[f] ?? f)}</strong> ← “${esc(h)}”</li>`).join('')}${parsed.ignored.length ? `<li class="card__meta">Not used: ${parsed.ignored.map((h) => `“${esc(h)}”`).join(', ')}</li>` : ''}</ul></details>` : ''}
     ${parsed.skipped.length ? `<details><summary>${parsed.skipped.length} skipped ${parsed.skipped.length === 1 ? 'title' : 'titles'}</summary><div><ul class="skipped">${parsed.skipped.map((s) => `<li>${esc(s.title)} <span class="card__meta">— ${esc(s.reason)}</span></li>`).join('')}</ul></div></details>` : ''}
     <div class="form-grid form-grid--pairs import-options">
