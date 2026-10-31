@@ -9,8 +9,9 @@
 //          --super (make the owner Super Admin)  --catalog (this is the master catalog the other shops sync from)
 //          --hide-passwords (print no passwords: the owner uses "Forgot your password?" on the admin sign-in;
 //          the "Add a shop" GitHub Action uses this so nothing secret lands in its log)
-// Optional env: RESEND_API_KEY, RESEND_FROM, STAFF_CC (set as the shop's function secrets; with RESEND_API_KEY and
-// RESEND_FROM, sign-in and password emails are sent through Resend too).
+// Optional env: RESEND_API_KEY, RESEND_FROM, STAFF_CC, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (set as the
+// shop's function secrets; with RESEND_API_KEY and RESEND_FROM, sign-in and password emails are sent through Resend too;
+// the VAPID ones turn on app notifications).
 //
 // What it does, each step skipped when already done, so it's safe to run again after a failure:
 //   1. Creates the Supabase project "pullwise-<id>" (or uses --project-ref) and waits for it to come up.
@@ -184,7 +185,8 @@ export async function addShop(o, deps) {
   const secrets = [
     { name: 'SITE_URL', value: `https://${o.domains[0]}` },
     { name: 'CRON_SECRET', value: cronSecret },
-    ...['RESEND_API_KEY', 'RESEND_FROM', 'STAFF_CC'].filter((k) => deps.env[k]).map((k) => ({ name: k, value: deps.env[k] })),
+    // App notifications: one VAPID pair (tools/vapid-keys.mjs) serves every shop.
+    ...['RESEND_API_KEY', 'RESEND_FROM', 'STAFF_CC', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'].filter((k) => deps.env[k]).map((k) => ({ name: k, value: deps.env[k] })),
   ];
   // Every shop except the catalog itself copies titles in from the master catalog (catalog-sync).
   const catalog = shops.shops.find((s) => s.catalog && s.id !== o.id);

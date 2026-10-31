@@ -1209,3 +1209,6 @@ body:has([aria-busy="true"], .loading)::after {
 .account-line__remove { display: grid; place-items: center; width: 44px; height: 44px; margin-left: var(--sp-4); padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--muted); cursor: pointer; }
 .account-line__remove:hover { color: var(--error); background: var(--raised); }
 .account-line__remove svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* App → Account → Notifications */
+.push-on { margin: 0 0 var(--sp-8); color: var(--ok); font-weight: 700; }
+.push-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-16); margin-top: var(--sp-12); }

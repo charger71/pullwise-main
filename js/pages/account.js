@@ -234,7 +234,9 @@ async function signedIn(sb, user) {
     ? `
     <div class="app-view" data-view="list">${orders}</div>
     <div class="app-view" data-view="following">${following}</div>
-    <div class="app-view" data-view="me">${who}${profile}${terms}</div>`
+    <div class="app-view" data-view="me">${who}
+      <section class="panel" aria-labelledby="push-h"><h2 id="push-h">Notifications</h2><div data-push><p class="empty loading">Loading…</p></div></section>
+      ${profile}${terms}</div>`
     : `
     ${who}
     <p class="notice account-app"><strong>Get the app:</strong> open <a href="app.html">our pull list app</a> on your phone and add it to your Home Screen.</p>
@@ -273,7 +275,12 @@ async function signedIn(sb, user) {
   // When they last looked, so titles their follows added since then are badged "New" (and the nav count resets).
   const seenBefore = await pull.markSeen().catch(() => null);
   loadOrders(sb, customer.id, seenBefore);
-  if (APP) openTitleDetails(sb, customer.id, seenBefore);
+  if (APP) {
+    openTitleDetails(sb, customer.id, seenBefore);
+    import('../app-notifications.js')
+      .then((m) => m.setupNotifications($('[data-push]', root), sb, customer))
+      .catch((err) => console.error('Notification settings failed to load', err));
+  }
   setupFollowing(sb, customer.id, seenBefore);
 }
 

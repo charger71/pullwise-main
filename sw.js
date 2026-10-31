@@ -34,7 +34,8 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Notifications from the shop (a push carries { title, body, url }); tapping one opens the app at its url.
+// Notifications from the shop (a push carries { title, body, url, tag, icon }: supabase/functions/push-notify);
+// tapping one opens the app at its url.
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -42,7 +43,8 @@ self.addEventListener('push', (event) => {
   } catch {
     data = { body: event.data?.text() ?? '' };
   }
-  event.waitUntil(self.registration.showNotification(data.title || 'Your pull list', { body: data.body || '', tag: data.tag, data: { url: data.url || '/app' } }));
+  const icon = /^https:\/\//.test(data.icon ?? '') ? data.icon : undefined; // the shop's icon (push-notify messages.js)
+  event.waitUntil(self.registration.showNotification(data.title || 'Your pull list', { body: data.body || '', tag: data.tag, icon, data: { url: data.url || '/app' } }));
 });
 
 self.addEventListener('notificationclick', (event) => {
