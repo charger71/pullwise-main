@@ -4,7 +4,7 @@
 // from the shop settings so nothing shop-specific is hardcoded in HTML.
 
 import { getSettings, getCustomPages, DEMO } from './data.js';
-import { GA_MEASUREMENT_ID, SITE_URL, SUPABASE_URL, FALLBACK_SETTINGS } from './config.js';
+import { GA_MEASUREMENT_ID, SITE_URL, SUPABASE_URL, FALLBACK_SETTINGS, APP_ENABLED } from './config.js';
 import { themeCss } from './theme-vars.js';
 import { SOCIAL_ICONS, LINK_ICON } from './social-icons.js';
 import { fillContent } from './content.js';
@@ -26,8 +26,12 @@ const NAV = [
   { page: 'account', href: 'account.html', label: 'My Pull List' },
 ];
 
+/** The one mention of Pullwise a shop's customers see: the footer's last line, and the foot of the app's Account tab
+ * (app.html). Everything else carries the shop's own name. */
+const POWERED_BY = 'Powered by Pullwise';
+
 const FOOTER_LINKS = [
-  { href: 'app.html', label: 'Get the App' },
+  ...(APP_ENABLED ? [{ href: 'app.html', label: 'Get the App' }] : []), // only shops with the app (shops.json)
   { href: 'about.html', label: 'About' },
   { href: 'gift-cards.html', label: 'Gift Cards' },
   { href: 'how-to.html', label: 'How To' },
@@ -391,7 +395,7 @@ function renderFooter(s, extraLinks = []) {
         <ul class="footer__links">${[...FOOTER_LINKS, ...extraLinks].map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('')}</ul>
       </section>
     </div>
-    <p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)}</p>`;
+    <p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)} · ${POWERED_BY}</p>`;
 }
 
 let pageTitle;

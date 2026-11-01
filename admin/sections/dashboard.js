@@ -9,6 +9,7 @@ import { lastReserveDay } from '../../js/site.js';
 import { lastBackup } from '../backup.js';
 import { LINE_STATUS_SHORT } from '../../js/labels.js';
 import { addDays, todayIn, dayIn } from '../../js/dates.js';
+import { APP_ENABLED } from '../../js/config.js';
 
 const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
 const DAYS = 30;
@@ -91,11 +92,11 @@ export async function mount(el, ctx) {
         <p class="admin-hint">Copies on open, ordered or arrived reservations.</p>
         <div data-top aria-busy="true"></div>
       </section>
-      <section class="dash-card" aria-labelledby="dash-app">
+      ${APP_ENABLED ? `<section class="dash-card" aria-labelledby="dash-app">
         <h2 id="dash-app">Pull List App</h2>
         <p class="admin-hint">Customers signed in to the shop’s app (your website address + /app) on their phones.</p>
         <div data-app aria-busy="true"></div>
-      </section>
+      </section>` : ''}
       <section class="dash-card" aria-labelledby="dash-status">
         <div class="admin-title-row"><h2 id="dash-status">Titles by Status</h2><a class="btn btn--small btn--green" href="#titles">Titles →</a></div>
         <div data-status aria-busy="true"></div>
@@ -183,7 +184,7 @@ export async function mount(el, ctx) {
     shown === null ? loadToday('') : null,
     panel('[data-trend]', async (box) => renderTrend(box, await recent, since)),
     panel('[data-status]', renderStatus),
-    panel('[data-app]', renderApp),
+    APP_ENABLED ? panel('[data-app]', renderApp) : null, // only shops with the app (shops.json)
     panel('[data-top]', async (box) => renderTop(box, await lines)),
     panel('[data-health]', renderHealth),
   ]);

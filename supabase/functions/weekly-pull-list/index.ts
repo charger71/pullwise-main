@@ -24,6 +24,21 @@ import { build, sections, buildArrival, arrivalSections, buildMessage, asTest, s
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 
+/**
+ * Whether the shop's site offers the pull list app, for the weekly email's "Get the app" line. Only shops marked
+ * "app": true in shops.json serve an install manifest (worker/index.js), so that answers it without a setting of
+ * its own here. No site address, or no answer: leave the line out.
+ */
+async function siteHasApp(siteUrl: string) {
+  if (!siteUrl) return false;
+  try {
+    const res = await fetch(`${siteUrl}/manifest.webmanifest`, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** The shop's settings row with its default location's address, phone and hours laid over it (same { data, error } shape as a query). */
 async function loadShop() {
   const { data: shop, error } = await admin.from('settings').select('*').eq('id', 1).single();
@@ -206,6 +221,7 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
   const shopBase = shop; // each customer's email overlays their own location on this
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: shop.timezone || undefined }).format(new Date());
   const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
+  const app = await siteHasApp(siteUrl);
   const from = shop.pull_list_email_from || Deno.env.get('RESEND_FROM');
   const replyTo = shop.email || undefined;
 
@@ -237,7 +253,7 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
     const sec = sections((lines.get(c.id) ?? []) as never[], { today, holdDays: shop.hold_days ?? 30, follows: follows.get(c.id) });
     if (!sec) return null;
     const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}`;
-    return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl }) };
+    return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, app }) };
   };
 
   if (mode === 'preview' || mode === 'test') {
@@ -315,6 +331,7 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
   if (error) throw error;
   const shopBase = shop; // each customer's email overlays their own location on this
   const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
+  const app = await siteHasApp(siteUrl);
   const from = shop.pull_list_email_from || Deno.env.get('RESEND_FROM');
   const replyTo = shop.email || undefined;
   const holdDays = shop.hold_days ?? 30;

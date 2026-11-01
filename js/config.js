@@ -13,6 +13,10 @@ export const SUPABASE_ANON_KEY = '';
 // Worker). Empty = pictures go to the shop's own Supabase storage.
 export const MEDIA_UPLOAD_URL = '';
 
+// Whether this shop has the pull list app (app.html): the Worker sets it from "app": true in shops.json. Locally
+// and in demo mode it's on, so the app can be tried; false hides every "Get the app" link and the admin's app numbers.
+export const APP_ENABLED = true;
+
 // Google Analytics 4 measurement ID, e.g. 'G-XXXXXXXXXX'. Empty = no analytics.
 export const GA_MEASUREMENT_ID = '';
 

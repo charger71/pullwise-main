@@ -10,7 +10,8 @@
       "projectRef": "txnwzmkimphenittcicm",
       "gaMeasurementId": "",
       "catalog": true,
-      "media": "r2"
+      "media": "r2",
+      "app": false
     },
     {
       "id": "demo",
@@ -22,7 +23,8 @@
       "projectRef": "ltjkhteibtuiywhoaqic",
       "gaMeasurementId": "",
       "canary": true,
-      "media": "r2"
+      "media": "r2",
+      "app": true
     },
     {
       "id": "demo2",
@@ -32,7 +34,8 @@
       "supabaseUrl": "https://ufszxnsfjfozpijghvhw.supabase.co",
       "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmc3p4bnNmamZvenBpamdodmh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTY0MTksImV4cCI6MjEwODA5MjQxOX0.RKTliQIXgbRAiPrV8DSN_QGiXpFu9F0nxcyg6TevIGk",
       "projectRef": "ufszxnsfjfozpijghvhw",
-      "gaMeasurementId": ""
+      "gaMeasurementId": "",
+      "app": false
     }
   ]
 }

@@ -16,16 +16,24 @@ export const siteUrl = (shop) => `https://${shop.domains[0]}`;
 /** Where the pull list app lives on every shop's own domain (app.html; installed from there, see appManifest). */
 export const APP_PATH = '/app';
 
+/** Whether the shop has the pull list app: only shops marked "app": true in shops.json. The rest send /app to the
+ * account page (the same pull list in the browser), have no install manifest, and hide every "Get the app" link. */
+export const hasApp = (shop) => shop?.app === true;
+
 /**
- * The address "app.<shop domain>" forwards to (the shop's app on its main domain), or null. The app stays on the
- * shop's own domain so a customer signed in on the website is signed in in the app too; app.… is just the easy
- * address to print on a flyer. Each one must be attached to the Worker as a custom domain, like the shop's own.
+ * The address "app.<shop domain>" forwards to (the shop's app on its main domain, or its account page if the shop
+ * has no app), or null. The app stays on the shop's own domain so a customer signed in on the website is signed in
+ * in the app too; app.… is just the easy address to print on a flyer. Each one must be attached to the Worker as a
+ * custom domain, like the shop's own.
  */
 export function appRedirect(shops, hostname) {
   const host = String(hostname ?? '').toLowerCase().replace(/\.$/, '');
   const shop = host.startsWith('app.') ? findShop(shops, host.slice(4)) : null;
-  return shop ? `${siteUrl(shop)}${APP_PATH}` : null;
+  return shop ? `${siteUrl(shop)}${hasApp(shop) ? APP_PATH : NO_APP_PATH}` : null;
 }
+
+/** Where /app goes for a shop without the app: the account page, so old links and installs still reach the list. */
+export const NO_APP_PATH = '/account.html';
 
 const DEFAULT_PAPER = '#121212'; // css/site.css's --brand-paper
 const hexColor = (v) => (/^#[0-9a-f]{6}$/i.test(v ?? '') ? v : null);
@@ -106,6 +114,7 @@ export function configJs(shop, settings = {}) {
     line('SITE_URL', siteUrl(shop)),
     // Covers and series images go to the shared R2 bucket through the Worker for shops marked "media": "r2".
     line('MEDIA_UPLOAD_URL', shop.media === 'r2' ? MEDIA_UPLOAD_PATH : ''),
+    `export const APP_ENABLED = ${hasApp(shop)};`,
     `export const FALLBACK_SETTINGS = ${JSON.stringify(fallback).replace(/</g, '\\u003c')};`,
     '',
   ].join('\n');

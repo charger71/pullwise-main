@@ -43,6 +43,8 @@ with the `SUPABASE_ACCESS_TOKEN` secret (about 5 minutes) and opens a pull reque
 merging it deploys the site. Nothing secret is printed: once the site is live, the owner opens `https://<domain>/admin/`,
 types their email and clicks **Forgot your password?**.
 
+- For a shop that gets the pull list app, change its entry's `"app": false` to `true` in that pull request before
+  merging (the form has no room for another option: GitHub allows 10).
 - Run one shop at a time and merge its pull request before the next (each one edits `shops.json`).
 - If a run fails, fix the cause and run it again with the same id; finished steps are skipped.
 - With the optional `RESEND_API_KEY` and `RESEND_FROM` repo secrets, new shops send email through Resend, including
@@ -68,7 +70,7 @@ the Magic Link code), sets the function and vault secrets (add `RESEND_API_KEY=â
 email), fills in the shop's name and contact details, creates the owner's login (printed once: send it privately) and
 adds the shop to `shops.json`. Other options: `--org <slug>` if you're in several Supabase organizations,
 `--region`, `--project-ref` to use a project you already made, `--canary` for a demo shop, `--super` to make the
-owner Super Admin. Every step is skipped when already done, so after a failure just run it again.
+owner Super Admin, `--app` to give the shop the pull list app. Every step is skipped when already done, so after a failure just run it again.
 
 Then commit `shops.json` in a pull request; merging deploys the site (step 7), and the owner continues at step 8.
 The numbered steps below are the same thing by hand.
@@ -200,7 +202,8 @@ public: row-level security protects the data). `npm test` checks the file.
       "anonKey": "<anon public key>",
       "projectRef": "<project ref>",
       "gaMeasurementId": "",
-      "canary": false
+      "canary": false,
+      "app": true
     }
   ]
 }
@@ -209,6 +212,12 @@ public: row-level security protects the data). `npm test` checks the file.
 The first domain is the shop's main address (used for links in emails, the calendar feed and canonical URLs). Don't put
 the keys in `js/config.js`: that file is the local / demo version. `"canary": true` deploys the shop first, on its own
 Worker; use it for a demo or test shop, not a real one.
+
+`"app": true` gives the shop the installable pull list app at `/app` (and `app.<domain>`). Without it the shop has no
+install manifest, `/app` forwards to the account page (the same pull list in the browser), and the "Get the App" link,
+the account page's app note, the weekly email's app line and the admin Dashboard's app numbers are hidden. Turn it on
+later by changing `false` to `true` in a pull request: it's live once the deploy finishes. Turning it off again leaves
+installed copies opening the account page.
 
 
 Enable the version-stamping pre-commit hook once per clone: `git config core.hooksPath .githooks`. (The Deploy

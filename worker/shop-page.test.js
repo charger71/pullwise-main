@@ -1,9 +1,9 @@
 // node worker/shop-page.test.js
 import assert from 'node:assert/strict';
-import { findShop, siteUrl, appRedirect, appManifest, appSplash, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { findShop, siteUrl, hasApp, appRedirect, appManifest, appSplash, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 
 const shops = [
-  { id: 'a', domains: ['a-comics.com', 'www.a-comics.com'], supabaseUrl: 'https://aaa.supabase.co', anonKey: 'key-a', gaMeasurementId: 'G-1' },
+  { id: 'a', domains: ['a-comics.com', 'www.a-comics.com'], supabaseUrl: 'https://aaa.supabase.co', anonKey: 'key-a', gaMeasurementId: 'G-1', app: true },
   { id: 'b', domains: ['B-Comics.com'], supabaseUrl: 'https://bbb.supabase.co', anonKey: 'key-b' },
 ];
 
@@ -94,6 +94,13 @@ assert.equal(appRedirect(shops, 'app.a-comics.com'), 'https://a-comics.com/app')
 assert.equal(appRedirect(shops, 'APP.www.a-comics.com.'), 'https://a-comics.com/app', 'any of its domains, to the main one');
 assert.equal(appRedirect(shops, 'app.evil.com'), null);
 assert.equal(appRedirect(shops, 'a-comics.com'), null);
+// Only shops marked "app": true have the app; app.<domain> of any other goes to its account page.
+assert.equal(hasApp(shops[0]), true);
+assert.equal(hasApp(shops[1]), false);
+assert.equal(hasApp({ ...shops[1], app: 'yes' }), false, 'only true turns it on');
+assert.equal(appRedirect(shops, 'app.b-comics.com'), 'https://B-Comics.com/account.html');
+assert.match(configJs(shops[0]), /^export const APP_ENABLED = true;$/m);
+assert.match(configJs(shops[1]), /^export const APP_ENABLED = false;$/m);
 assert.equal(fileOf('/app'), 'app.html');
 const app = appManifest({ shop_name: ' A Comics ', colors: { paper: '#f5f0e6' }, logo_url: `${MEDIA}/logo.png` });
 assert.equal(app.name, 'A Comics');
