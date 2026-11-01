@@ -14,9 +14,10 @@ let topIds = new Set(); // ids of the ten most-reserved titles (for the badge)
 let shopName = ''; // for the calendar links
 let alertOn = null; // the shown title: true/false once known whether the customer asked to hear when it's in
 
-// "Tell me when it's in": in the app, signed in, for a title that can't be reserved and isn't on the shelf now.
+// "Tell me when it's in": in the app, signed in, for a title that can't be reserved and isn't on the shelf now (and
+// that the customer can't simply order a copy of instead).
 const APP = document.body.dataset.page === 'app';
-const canAlert = (item) => APP && pull.isSignedIn() && (['sold_out', 'backorder'].includes(item.status) || item.status === 'coming_soon');
+const canAlert = (item) => APP && pull.isSignedIn() && ['sold_out', 'backorder', 'coming_soon'].includes(item.status) && !canReorder(item);
 const pushOff = () => !('Notification' in window) || Notification.permission !== 'granted';
 const alertHtml = (item) => {
   if (!canAlert(item) || alertOn == null) return '';
@@ -25,13 +26,16 @@ const alertHtml = (item) => {
       <p class="card__meta" role="status" data-stock-alert-msg>${alertOn && pushOff() ? 'Turn on notifications on the Account tab to get it.' : ''}</p>
     </div>`;
 };
-// Trades and omnibuses stay in print: once out, a signed-in customer can ask the shop to order a copy (a re-order).
-const REORDER_SLUGS = ['trades', 'omnibuses'];
-let reorderCats = null; // their category ids, once loaded
+// A signed-in customer can ask the shop to order a copy (a re-order): of a trade or omnibus once it's out (they stay in
+// print), or of a comic, trade or omnibus that's Coming Soon (past the pre-order cutoff, when most re-orders happen).
+const REORDER_SLUGS = ['comics', 'trades', 'omnibuses'];
+let reorderCats = null; // category id → slug for those, once loaded
 const UPCOMING = ['pre_order', 'coming_soon']; // not out yet
-// Out, or Coming Soon (past the pre-order cutoff: when most re-orders happen).
-const canReorder = (item) =>
-  !!reorderCats?.has(item.category_id) && item.status !== 'pre_order' && (item.status === 'coming_soon' || !(item.release_date > shopToday()));
+const canReorder = (item) => {
+  const slug = reorderCats?.get(item.category_id);
+  if (!slug || item.status === 'pre_order') return false;
+  return item.status === 'coming_soon' || (slug !== 'comics' && !(item.release_date > shopToday()));
+};
 const reorderHtml = (item) => {
   const action = !pull.isSignedIn()
     ? `<a class="btn btn--primary" href="account.html">Sign in to order a copy</a>`
@@ -236,7 +240,7 @@ async function open(id, { push = true, opener = null } = {}) {
   }
   topIds = await getTopReserved();
   shopName = (await getSettings().catch(() => ({}))).shop_name ?? '';
-  reorderCats ??= await getCategories().then((cats) => new Set(cats.filter((c) => REORDER_SLUGS.includes(c.slug)).map((c) => c.id)), () => null);
+  reorderCats ??= await getCategories().then((cats) => new Map(cats.filter((c) => REORDER_SLUGS.includes(c.slug)).map((c) => [c.id, c.slug])), () => null);
   dialog ??= create();
   current = item;
   alertOn = null;
