@@ -7,7 +7,7 @@
 // Options: --owner-name "Pat Smith"  --shop-email hello@…  --phone "(555) 555-0100"  --timezone America/Chicago
 //          --region us-east-1  --org <organization slug>  --project-ref <use an existing project>  --canary
 //          --super (make the owner Super Admin)  --catalog (this is the master catalog the other shops sync from)
-//          --app (the shop gets the pull list app at /app; without it, add "app": true to its shops.json entry later)
+//          --app (the shop gets the pull list app at /app; without it the entry says "app": false, to flip later)
 //          --hide-passwords (print no passwords: the owner uses "Forgot your password?" on the admin sign-in;
 //          the "Add a shop" GitHub Action uses this so nothing secret lands in its log)
 // Optional env: RESEND_API_KEY, RESEND_FROM, STAFF_CC, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (set as the
@@ -125,7 +125,7 @@ update public.staff set is_super = true, is_owner = true where user_id = ${lit(u
 }
 
 export function shopEntry(o, ref, anonKey) {
-  return { id: o.id, domains: o.domains, supabaseUrl: `https://${ref}.supabase.co`, anonKey, projectRef: ref, gaMeasurementId: '', ...(o.canary ? { canary: true } : {}), ...(o.catalog ? { catalog: true } : {}), ...(o.app ? { app: true } : {}) };
+  return { id: o.id, domains: o.domains, supabaseUrl: `https://${ref}.supabase.co`, anonKey, projectRef: ref, gaMeasurementId: '', ...(o.canary ? { canary: true } : {}), ...(o.catalog ? { catalog: true } : {}), app: o.app }; // always written, so turning the app on is one word
 }
 
 /**
