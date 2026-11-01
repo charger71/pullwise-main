@@ -1195,7 +1195,10 @@ body:has([aria-busy="true"], .loading)::after {
 .app-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: var(--app-bar-h); }
 .app-bar .brand__logo { max-height: 40px; }
 .app-bar .brand__name { font-size: calc(1.25rem * var(--display-scale)); }
-.app-bar__site { flex: none; display: inline-flex; align-items: center; min-height: 44px; font-size: var(--fs-ui); font-weight: 700; }
+/* The search button: a magnifier that opens the search under the header; pressed while it's open. */
+.app-bar__search { flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin-right: calc(-1 * var(--sp-10)); padding: 0; border: 0; border-radius: 50%; background: none; color: var(--ink); cursor: pointer; }
+.app-bar__search[aria-expanded="true"] { background: var(--surface); color: var(--gold-text); }
+.app-bar__search svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
 .app-main { padding: var(--sp-16) 0 calc(var(--tab-bar-h) + var(--sp-24) + env(safe-area-inset-bottom)); }
 .app-view > * + *, [data-shop] > * + * { margin-top: var(--sp-16); }
 [data-shop] > .app-shop__links { margin-top: var(--sp-24); }
@@ -1218,9 +1221,12 @@ body:has([aria-busy="true"], .loading)::after {
   .app-shelf__row::-webkit-scrollbar { display: none; }
 }
 .app-shelf__row > * { scroll-snap-align: start; display: grid; }
-/* Search at the top of Hot: its results stand in for the rows while the box has words in it. */
-.app-search { margin: 0 0 var(--sp-20); }
+/* Search, dropped down from the header's button over any tab: its results stand in for the tab while the box has
+   words in it. */
+@keyframes search-drop { from { opacity: 0; transform: translateY(calc(-1 * var(--sp-12))); } }
+.app-search { margin: 0 0 var(--sp-20); animation: search-drop var(--dur) ease-out; }
 .app-search input { width: 100%; }
+@media (prefers-reduced-motion: reduce) { .app-search { animation: none; } }
 .app-search__follow { margin-top: var(--sp-16); }
 /* My List's pickup code (js/pages/account.js): a QR code staff scan, and the number to type into Customers. The code
    stays dark on white in every theme, as scanners need. */

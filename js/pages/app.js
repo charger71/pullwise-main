@@ -46,9 +46,11 @@ const account = $('#account');
 function showView({ focus = false } = {}) {
   const want = location.hash.slice(1);
   const view = VIEWS.includes(want) ? want : 'list';
-  // Signed out (or still loading) there are no account views: the sign-in form stands in for all but Shop.
-  for (const el of document.querySelectorAll('[data-view]')) el.hidden = el.dataset.view !== view;
-  account.hidden = OWN_VIEWS.includes(view);
+  // Signed out (or still loading) there are no account views: the sign-in form stands in for all but Shop. Search
+  // results, while there are any, stand in for every view.
+  const searching = !$('[data-search-results]').hidden;
+  for (const el of document.querySelectorAll('[data-view]')) el.hidden = searching || el.dataset.view !== view;
+  account.hidden = searching || OWN_VIEWS.includes(view);
   if (view === 'hot' && !hotShown) renderHot();
   for (const a of document.querySelectorAll('.tab-bar [data-tab]')) {
     if (a.dataset.tab === view) a.setAttribute('aria-current', 'page');
@@ -65,7 +67,10 @@ function showView({ focus = false } = {}) {
 }
 
 let hotShown = false; // the Hot view loads the first time it's opened
-addEventListener('hashchange', () => showView({ focus: true }));
+addEventListener('hashchange', () => {
+  closeSearch();
+  showView({ focus: true });
+});
 // The account page draws its views after sign-in (and again after signing out and in): show the right one.
 new MutationObserver(() => showView()).observe(account, { childList: true });
 showView();
@@ -135,15 +140,16 @@ async function renderHot() {
 if ($('[data-hot]')) enableReservations($('[data-hot]'), (id) => hotItems.get(id));
 
 // ---------------------------------------------------------------------------
-// Search, at the top of Hot: the shop's titles, as on the website's search (titles that can still be ordered
-// first). The rows come back when the box is cleared. Series and artists to follow are on the Following tab.
+// Search, from the button in the header: a box drops down under it, over whichever tab is showing. The shop's titles,
+// as on the website's search (titles that can still be ordered first), stand in for the tab while the box has words
+// in it; closing the search or picking a tab brings the tab back. Series and artists to follow are on Following.
 // ---------------------------------------------------------------------------
 
 const FOUND_PAGE = 24;
 const found = { q: '', items: [], total: 0, req: 0 };
 
 async function search(q, { more = false } = {}) {
-  const box = $('[data-hot-results]');
+  const box = $('[data-search-results]');
   const mine = ++found.req;
   if (!more) Object.assign(found, { q, items: [], total: 0 });
   if (!more) box.innerHTML = '<p class="empty loading">Searching…</p>';
@@ -179,20 +185,47 @@ async function search(q, { more = false } = {}) {
   moreBtn.textContent = `Show more (${left} left)`;
 }
 
+const searchBox = $('[data-search]');
+
+/** Put the search away and show the tab again (the header's button, Escape, or picking a tab). */
+function closeSearch({ focus = false } = {}) {
+  if (searchBox.hidden) return;
+  searchBox.hidden = true;
+  $('[data-search-form]').reset();
+  found.req++; // drop any answer still on its way
+  Object.assign(found, { q: '', items: [], total: 0 });
+  const box = $('[data-search-results]');
+  box.hidden = true;
+  box.innerHTML = '';
+  const toggle = $('[data-search-toggle]');
+  toggle?.setAttribute('aria-expanded', 'false');
+  showView();
+  if (focus) toggle?.focus();
+}
+
+function openSearch() {
+  searchBox.hidden = false;
+  $('[data-search-toggle]')?.setAttribute('aria-expanded', 'true');
+  scrollTo(0, 0);
+  $('[data-search-form]').elements.q.focus();
+}
+
 function setupSearch() {
-  const form = $('[data-hot-search]');
-  if (!form) return;
-  const box = $('[data-hot-results]');
+  const form = $('[data-search-form]');
+  const box = $('[data-search-results]');
   const input = form.elements.q;
   let timer;
   const run = () => {
     clearTimeout(timer);
     const q = input.value.trim();
     const searching = q.length > 0;
-    box.hidden = !searching;
-    $('[data-hot]').hidden = searching;
+    if (box.hidden === searching) {
+      box.hidden = !searching;
+      showView();
+    }
     if (!searching) {
       found.req++; // drop any answer still on its way
+      found.q = '';
       box.innerHTML = '';
       return;
     }
@@ -206,6 +239,15 @@ function setupSearch() {
     e.preventDefault();
     input.blur(); // put the phone's keyboard away to show the results
     run();
+  });
+  // The header is drawn once the shop's settings arrive, so its button is found when it's pressed.
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-search-toggle]')) return;
+    if (searchBox.hidden) openSearch();
+    else closeSearch();
+  });
+  searchBox.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeSearch({ focus: true });
   });
   box.addEventListener('click', (e) => {
     if (!e.target.closest('[data-found-more]')) return;

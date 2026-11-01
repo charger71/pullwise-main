@@ -258,13 +258,14 @@ function brandHtml(s) {
       : `<img src="${esc(sizedImage(s.logo_url, LOGO_WIDTH))}" alt="${esc(s.shop_name)}" class="brand__logo" fetchpriority="high">`;
 }
 
-/** The pull list app's header (app.html): the shop's brand and a way out to its website, nothing else. */
+/** The pull list app's header (app.html): the shop's brand and a search button that opens the search under it
+ * (js/pages/app.js setupSearch). The website is a link on the Shop tab. */
 function renderAppHeader(s) {
   $('#site-header').innerHTML = `
     <a class="skip-link" href="#main">Skip to content</a>
     <div class="app-bar container">
       <a class="brand" href="#list">${brandHtml(s)}</a>
-      <a class="app-bar__site" href="index.html" target="_blank" rel="noopener">Website<span class="visually-hidden"> (opens in your browser)</span></a>
+      <button class="app-bar__search" type="button" aria-label="Search titles" title="Search titles" aria-expanded="false" aria-controls="app-search" data-search-toggle><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button>
     </div>`;
 }
 

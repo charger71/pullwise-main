@@ -53,14 +53,17 @@
   <main id="main" class="app-main">
     <div class="container">
       <h1 class="visually-hidden">My Pull List</h1>
+      <!-- Search: the header's search button opens it over whichever tab is showing (js/pages/app.js setupSearch). -->
+      <section class="app-search" id="app-search" aria-label="Search" data-search hidden>
+        <form role="search" data-search-form>
+          <label class="visually-hidden" for="app-q">Search the shop’s titles</label>
+          <input id="app-q" name="q" type="search" placeholder="Search titles, series or creators" autocomplete="off" enterkeyhint="search" maxlength="100">
+        </form>
+        <div data-search-results hidden></div>
+      </section>
       <div id="account"><p class="empty loading">Loading…</p></div>
       <section class="app-view" data-view="hot" aria-labelledby="hot-h" hidden>
         <h2 id="hot-h" class="app-view__title" tabindex="-1">What’s Hot</h2>
-        <form class="app-search" role="search" data-hot-search>
-          <label class="visually-hidden" for="hot-q">Search the shop’s titles</label>
-          <input id="hot-q" name="q" type="search" placeholder="Search titles, series or creators" autocomplete="off" enterkeyhint="search" maxlength="100">
-        </form>
-        <div data-hot-results hidden></div>
         <div data-hot></div>
       </section>
       <section class="app-view" data-view="shop" aria-labelledby="shop-h" hidden>
