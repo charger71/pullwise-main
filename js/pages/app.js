@@ -48,11 +48,17 @@ const account = $('#account');
 function showView({ focus = false } = {}) {
   const want = location.hash.slice(1);
   const view = VIEWS.includes(want) ? want : 'list';
-  // Signed out (or still loading) there are no account views: the sign-in form stands in for all but Shop. Search
-  // results, while there are any, stand in for every view.
-  const searching = !$('[data-search-results]').hidden;
-  for (const el of document.querySelectorAll('[data-view]')) el.hidden = searching || el.dataset.view !== view;
-  account.hidden = searching || OWN_VIEWS.includes(view);
+  // Until the customer is signed in (and has finished a first sign-in) the app is only the account page's sign-in or
+  // setup form, with "Powered by Pullwise" under it: no tab bar, search, Hot, Shop or Appearance (css/site.css
+  // .app-locked). The account page draws its views once they're signed in, and the tab the address names shows then.
+  const locked = !account.querySelector('[data-view]');
+  document.body.classList.toggle('app-locked', locked);
+  if (locked && !$('[data-search]').hidden) return closeSearch();
+  // Search results, while there are any, stand in for every view.
+  const searching = !locked && !$('[data-search-results]').hidden;
+  for (const el of document.querySelectorAll('[data-view]')) el.hidden = locked ? !el.matches('.app-powered') : searching || el.dataset.view !== view;
+  account.hidden = !locked && (searching || OWN_VIEWS.includes(view));
+  if (locked) return;
   if (view === 'hot' && !hotShown) renderHot();
   for (const a of document.querySelectorAll('.tab-bar [data-tab]')) {
     if (a.dataset.tab === view) a.setAttribute('aria-current', 'page');

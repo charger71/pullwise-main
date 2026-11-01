@@ -1300,6 +1300,9 @@ body:has([aria-busy="true"], .loading)::after {
 .account-saved-list .account-line__controls, .account-saved-list .account-move, .account-saved-list .form-error { display: none; }
 .app-install__close { flex: none; width: var(--tap); height: var(--tap); border: 0; background: none; color: var(--muted); font-size: var(--fs-lede); cursor: pointer; }
 .app-install__close:hover { color: var(--ink); }
+/* Signed out, or finishing a first sign-in, the app is just the sign-in form: no tab bar or search (js/pages/app.js). */
+.app-locked .tab-bar, .app-locked .app-bar__search { display: none; }
+.app-locked .app-main { padding-bottom: calc(var(--sp-24) + env(safe-area-inset-bottom)); }
 .tab-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-bar); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
 .tab-bar ul { display: grid; grid-template-columns: repeat(4, 1fr); max-width: var(--max); margin: 0 auto; padding: 0; list-style: none; }
 .tab-bar a { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); min-height: var(--tab-bar-h); padding: var(--sp-6) var(--sp-4); color: var(--muted); font-size: var(--fs-2xs); font-weight: 700; text-decoration: none; }
