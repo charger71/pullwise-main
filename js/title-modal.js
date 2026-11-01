@@ -5,7 +5,7 @@
 import { getItem, getVariants, getTopReserved, getSettings, getCategories } from './data.js';
 import { SITE_URL } from './config.js';
 import { titleUrl, releaseIcs, releaseGoogleLink } from './ics.js';
-import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shownStatus, shopToday } from './site.js';
+import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shopToday } from './site.js';
 import * as pull from './customer.js';
 import { enableReservations, seenItems, focLabel, reserveButton, variantsButton, followButton, creatorNames, collectorBadges, topBadge } from './components.js';
 
@@ -16,7 +16,7 @@ let alertOn = null; // the shown title: true/false once known whether the custom
 
 // "Tell me when it's in": in the app, signed in, for a title that can't be reserved and isn't on the shelf now.
 const APP = document.body.dataset.page === 'app';
-const canAlert = (item) => APP && pull.isSignedIn() && (['sold_out', 'backorder'].includes(item.status) || shownStatus(item) === 'coming_soon');
+const canAlert = (item) => APP && pull.isSignedIn() && (['sold_out', 'backorder'].includes(item.status) || item.status === 'coming_soon');
 const pushOff = () => !('Notification' in window) || Notification.permission !== 'granted';
 const alertHtml = (item) => {
   if (!canAlert(item) || alertOn == null) return '';
@@ -28,7 +28,10 @@ const alertHtml = (item) => {
 // Trades and omnibuses stay in print: once out, a signed-in customer can ask the shop to order a copy (a re-order).
 const REORDER_SLUGS = ['trades', 'omnibuses'];
 let reorderCats = null; // their category ids, once loaded
-const canReorder = (item) => !!reorderCats?.has(item.category_id) && item.status !== 'pre_order' && !(item.release_date > shopToday());
+const UPCOMING = ['pre_order', 'coming_soon']; // not out yet
+// Out, or Coming Soon (past the pre-order cutoff: when most re-orders happen).
+const canReorder = (item) =>
+  !!reorderCats?.has(item.category_id) && item.status !== 'pre_order' && (item.status === 'coming_soon' || !(item.release_date > shopToday()));
 const reorderHtml = (item) => {
   const action = !pull.isSignedIn()
     ? `<a class="btn btn--primary" href="account.html">Sign in to order a copy</a>`
@@ -36,7 +39,7 @@ const reorderHtml = (item) => {
       ? `<span class="btn btn--ghost" aria-disabled="true"><span aria-hidden="true">✓</span> On your pull list</span>`
       : `<button class="btn btn--primary" type="button" data-reorder>Order a copy<span class="visually-hidden"> of ${esc(itemTitle(item))}</span></button>`;
   return `<div class="title-modal__alert">
-      <p class="notice">Not on the shelf, or want one kept for you? We can order a copy: it goes on your pull list and we’ll let you know when it’s in.</p>
+      <p class="notice">${item.status === 'coming_soon' ? 'Missed the pre-order? We can still order a copy' : 'Not on the shelf, or want one kept for you? We can order a copy'}: it goes on your pull list and we’ll let you know when it’s in.</p>
       <div class="card__foot">${action}</div>
       <p class="card__meta" role="status" data-reorder-msg></p>
     </div>`;
@@ -70,17 +73,17 @@ function details(item) {
   const meta = [item.publisher, price(item.price), item.mature && 'Mature readers'].filter(Boolean);
   const when = item.release_date ? fmtDate(item.release_date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '';
   return `
-    <div>${badge(shownStatus(item))}</div>
+    <div>${badge(item.status)}</div>
     ${collectorBadges(item)}
     <h2 id="tm-title" class="title-modal__title">${esc(itemTitle(item))}</h2>
     ${item.variant ? `<p class="card__variant">${esc(item.variant)}</p>` : ''}
     <p class="card__meta">${meta.map(esc).join(' · ')}</p>
     ${when ? `<p class="title-modal__when"><strong>${item.release_date > shopToday() ? 'Out' : 'Released'}</strong> ${esc(when)}</p>` : ''}
     ${item.release_date > shopToday() ? `<p class="title-modal__cal"><span>Add to calendar:</span> <a href="#" data-title-ics>Apple / .ics</a> <a href="${esc(releaseGoogleLink(item, shopName))}" target="_blank" rel="noopener">Google</a></p>` : ''}
-    ${item.status === 'pre_order' ? focLabel(item) : ''}
+    ${UPCOMING.includes(item.status) ? focLabel(item) : ''}
     ${open ? `<div class="card__foot">${reserveButton(item)}${variantsButton(item)}</div>${followButton(item)}` : ''}
     ${alertHtml(item)}
-    ${canReorder(item) ? reorderHtml(item) : item.status !== 'pre_order' ? '<p class="notice">In-store titles can’t be held or reserved: first to pay gets it. Want a guaranteed copy of something upcoming? <a href="pre-orders.html">Pre-order it</a>.</p>' : ''}
+    ${canReorder(item) ? reorderHtml(item) : !UPCOMING.includes(item.status) ? '<p class="notice">In-store titles can’t be held or reserved: first to pay gets it. Want a guaranteed copy of something upcoming? <a href="pre-orders.html">Pre-order it</a>.</p>' : ''}
     ${item.description ? `<div class="title-modal__desc">${paragraphs(item.description)}</div>` : ''}
     ${people.length ? `<ul class="chips" aria-label="Creators">${people.map((p) => `<li>${esc(p.name)}</li>`).join('')}</ul>` : ''}
     ${item.isbn ? `<p class="card__meta">ISBN ${esc(item.isbn)}</p>` : ''}

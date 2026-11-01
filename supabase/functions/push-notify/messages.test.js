@@ -80,7 +80,7 @@ assert.equal(inOne.tag, 'in-stock');
 const inTwo = inStockMessage([{ id: 9, title: 'Saga', issue_number: '1' }, { id: 10, title: 'Bone Omnibus' }]);
 assert.equal(inTwo.title, '2 titles you asked about are in');
 assert.equal(inTwo.url, '/app#hot');
-assert.ok(!IN_STOCK.includes('sold_out') && !IN_STOCK.includes('backorder') && !IN_STOCK.includes('pre_order'));
+assert.ok(!IN_STOCK.includes('sold_out') && !IN_STOCK.includes('backorder') && !IN_STOCK.includes('pre_order') && !IN_STOCK.includes('coming_soon'));
 
 assert.equal(testMessage('Area71').title, 'Area71');
 assert.equal(testMessage().title, 'Notifications are on');

@@ -1217,7 +1217,7 @@ const reorderRows = (rows, dist) =>
 async function renderReorders(body) {
   const keepDist = $('#ro-dist', body)?.value ?? 'all';
   const keepQ = $('#ro-q', body)?.value ?? '';
-  body.innerHTML = `${hintFold(`Order any title from the distributor after its order cutoff: trades and omnibuses stay in print, so they can be ordered any time after release. Search the catalog, pick the copies and who they're for (the shelf, or a customer: the copy goes on their pull list), and add it to the re-order list. Signed-in customers can also order released trades and omnibuses themselves from the title's details on the site. Export the list for the distributor, then mark it ordered. When the copies come in, mark customers' copies Ready on Received and shelf copies received here.`)}
+  body.innerHTML = `${hintFold(`Order any title from the distributor after its order cutoff: trades and omnibuses stay in print, so they can be ordered any time after release. Coming Soon titles (past their cutoff, not out yet) are where most re-orders happen. Search the catalog (pre-orders aren't listed: they go through Place Order), pick the copies and who they're for (the shelf, or a customer: the copy goes on their pull list), and add it to the re-order list. Signed-in customers can also order released trades and omnibuses themselves from the title's details on the site. Export the list for the distributor, then mark it ordered. When the copies come in, mark customers' copies Ready on Received and shelf copies received here.`)}
     <section class="fold fold--compact fold--static">
       <div class="fold__head"><h2 id="ro-find">Find a Title</h2></div>
       <div class="fold__body">
@@ -1244,7 +1244,8 @@ async function renderReorders(body) {
   const searchTitles = async (text) => {
     const match = titleFilter(text, { codes: true });
     if (text.trim().length < 2 || !match) return void (results.innerHTML = '');
-    const { data, error } = await sb.from('items').select(REORDER_ITEM).or(match).order('title').order('issue_number').order('variant').limit(30);
+    // Pre-orders go through Place Order (customers reserve them before the cutoff), so they're left out here.
+    const { data, error } = await sb.from('items').select(REORDER_ITEM).neq('status', 'pre_order').or(match).order('title').order('issue_number').order('variant').limit(30);
     if (error) return void (results.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
     results.innerHTML = data.length
       ? `<ul class="cust-results">${data
@@ -1255,7 +1256,7 @@ async function renderReorders(body) {
             <button class="btn btn--add btn--small" type="button" data-ro-add="${i.id}" aria-label="Re-order ${esc(itemName(i))}">${solidIcon('add', 16)} Re-order</button>
           </span></li>`)
           .join('')}</ul>`
-      : '<p class="empty">No titles match.</p>';
+      : '<p class="empty">No titles match (pre-orders aren’t listed here).</p>';
   };
   const searchCustomers = async (text) => {
     const match = customerFilter(text, { words: true });

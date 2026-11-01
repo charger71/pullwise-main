@@ -218,7 +218,7 @@ function sorter(order) {
   if (order === 'newest') return (a, b) => b.id - a.id;
   if (order === 'released') return (a, b) => (b.release_date ?? '').localeCompare(a.release_date ?? '') || byTitle(a, b);
   if (order === 'arrivals') {
-    const rank = (i) => ({ new_this_wednesday: 0, just_arrived: 1, backorder: 3, sold_out: 3, pre_order: 4 })[i.status] ?? 2;
+    const rank = (i) => ({ new_this_wednesday: 0, just_arrived: 1, backorder: 3, sold_out: 3, coming_soon: 4, pre_order: 4 })[i.status] ?? 2;
     return (a, b) => rank(a) - rank(b) || byTitle(a, b);
   }
   return byTitle;

@@ -1,6 +1,8 @@
 // Sample data used when no Supabase project is configured (see config.js).
 // Dates are relative to today so countdowns and "upcoming" filters stay live.
 
+import { lastReserveDay } from './dates.js';
+
 const day = (offset) => {
   const d = new Date();
   d.setDate(d.getDate() + offset);
@@ -78,6 +80,9 @@ export const items = [
   item({ title: 'Funko Pop! Venom #1234', publisher: 'Funko', category_id: 6, status: 'clearance', price: 7.99 }),
   item({ title: 'Funko Pop! Harley Quinn', publisher: 'Funko', category_id: 6, status: 'sold_out', price: 12.99 }),
 ];
+
+// As the database does (items_coming_soon trigger and the hourly status job): a pre-order past its cutoff is Coming Soon.
+for (const i of items) if (i.status === 'pre_order' && i.foc_date && lastReserveDay(i.foc_date) < day(0)) i.status = 'coming_soon';
 
 export const events = [
   { id: 1, title: 'New Comic Book Day Release Party', event_type: 'release_party', starts_at: at(3, 11), ends_at: at(3, 19), location: 'In store', description: '<p>Doors at 11. Free pizza while it lasts, and 10% off every new release.</p>', image_url: null },

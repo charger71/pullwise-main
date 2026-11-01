@@ -42,10 +42,6 @@ const FOOTER_LINKS = [
 
 export const STATUS = ITEM_STATUS;
 
-// Not a status in the database: a pre-order whose order cutoff has passed, on its way to the shop. It shows on
-// New Arrivals (and its badge on every card) so it isn't missing from both pages until release week.
-export const COMING_SOON = { label: 'Coming Soon', icon: '◷' };
-
 export const EVENT_TYPES = { release_party: 'Release party', signing: 'Signing', tournament: 'Tournament', livestream: 'Livestream', comic_con: 'Comic Con', sale: 'Sale', other: 'Event' };
 
 const DAY_NAMES = { Mo: 'Mon', Tu: 'Tue', We: 'Wed', Th: 'Thu', Fr: 'Fri', Sa: 'Sat', Su: 'Sun' };
@@ -114,9 +110,6 @@ export const daysUntil = (iso) => Math.round((localDate(iso) - localDate(shopTod
 // database enforces the same rule in create_reservation_order().
 export const cutoffPassed = (item) => !!item?.foc_date && daysUntil(lastReserveDay(item.foc_date)) < 0;
 
-/** The status a title's badge shows: a pre-order past its cutoff is Coming Soon. */
-export const shownStatus = (item) => (item.status === 'pre_order' && cutoffPassed(item) ? 'coming_soon' : item.status);
-
 // Collector badges staff tick on a title (an import ticks some itself: js/import/distributors.js autoBadges).
 // Order here is display order. The database allows only these (items_badges_chk).
 export const ITEM_BADGES = {
@@ -132,7 +125,7 @@ export const ITEM_BADGES = {
 };
 
 export const badge = (status) => {
-  const s = (status === 'coming_soon' ? COMING_SOON : STATUS[status]) ?? { label: status, icon: '' };
+  const s = STATUS[status] ?? { label: status, icon: '' };
   return `<span class="badge badge--${esc(status)}"><span aria-hidden="true">${s.icon}</span> ${esc(s.label)}</span>`;
 };
 

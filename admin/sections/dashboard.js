@@ -343,16 +343,19 @@ async function renderStatus(box) {
       .join('')}</ul>`;
 }
 
+// Titles not out yet: pre-orders, and Coming Soon once customers can no longer add them (the shop orders until FOC).
+const UPCOMING = ['pre_order', 'coming_soon'];
+
 async function renderCutoff(box, lines, stale = () => false) {
   const t = today();
-  const next = await must(sb.from('items').select('foc_date').eq('status', 'pre_order').gte('foc_date', t).order('foc_date').limit(1));
+  const next = await must(sb.from('items').select('foc_date').in('status', UPCOMING).gte('foc_date', t).order('foc_date').limit(1));
   if (stale()) return;
   if (!next.length) {
     box.innerHTML = '<p class="empty">No upcoming order cutoffs.</p>';
     return;
   }
   const foc = next[0].foc_date;
-  const titles = await count(items().eq('status', 'pre_order').eq('foc_date', foc).eq('hidden', false));
+  const titles = await count(items().in('status', UPCOMING).eq('foc_date', foc).eq('hidden', false));
   if (stale()) return;
   const onFoc = lines.filter((l) => l.status === 'open' && l.item?.foc_date === foc);
   const copies = onFoc.reduce((n, l) => n + l.quantity, 0);

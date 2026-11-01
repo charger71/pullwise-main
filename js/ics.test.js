@@ -63,6 +63,7 @@ console.log('ics tests passed');
   assert.match(r, /URL:https:\/\/shop\.example\.com\/pre-orders\.html\?title=5\r\n/);
   assert.match(r, /UID:release-5@shop\.example\.com\r\n/);
   assert.equal(titleUrl({ ...item, status: 'new_this_wednesday' }), 'https://shop.example.com/new-arrivals.html?title=5');
+  assert.equal(titleUrl({ ...item, status: 'coming_soon' }), 'https://shop.example.com/new-arrivals.html?title=5'); // listed on New Arrivals
   assert.equal(new URL(releaseGoogleLink(item, 'Main Street Comics')).searchParams.get('dates'), '20261125/20261126');
   assert.equal(releaseIcs({ ...item, release_date: '2026-12-31' }, 'S', 'h').match(/DTEND;VALUE=DATE:(\d+)/)[1], '20270101', 'across the new year');
 }
