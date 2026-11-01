@@ -1295,7 +1295,9 @@ body:has([aria-busy="true"], .loading)::after {
 .account-line--app .cover { width: 116px; }
 .account-line__open { display: block; padding: 0; border: 0; background: none; cursor: pointer; }
 .account-line__open:hover .cover { filter: brightness(1.08); }
-.account-line__title { font-size: var(--fs-compact); line-height: 1.25; }
+/* Holds the title button's stretched tap area (.card__title-open::after), as .card__title does on a card: without it
+   the area grows to the page and covers the estimated total. */
+.account-line__title { display: block; position: relative; font-size: var(--fs-compact); line-height: 1.25; }
 .account-line--app .account-line__status { text-align: left; }
 .account-line__controls { display: flex; align-items: center; gap: var(--sp-8); margin-top: var(--sp-6); }
 .account-line__qty-label { margin: 0; font-size: var(--fs-sm); font-weight: 700; color: var(--muted); }
