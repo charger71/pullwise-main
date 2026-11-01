@@ -9,7 +9,7 @@ import { DEMO, supabase, getSettings, searchSeries, searchArtists } from '../dat
 import { SITE_URL } from '../config.js';
 import { LINE_STATUS_CUSTOMER as LINE_STATUS } from '../labels.js';
 import { whenIn as whenLabel } from '../dates.js';
-import { thumbOf, thumbFallback, artistMeta } from '../util.js';
+import { thumbOf, thumbFallback, artistMeta, btnIcon } from '../util.js';
 import * as pull from '../customer.js';
 import * as guest from '../reservation-list.js';
 import { followedSeries, discountFor, totals, tiersFrom } from '../discount.js';
@@ -858,17 +858,17 @@ async function setupFollowing(sb, customerId, seenBefore) {
   });
 
   // One box for both: series and artists are searched together and listed under their own headings.
-  const following = (label) => `<span class="btn btn--ghost btn--small is-on" aria-disabled="true">✓ ${esc(label)}</span>`;
+  const following = (label) => `<span class="btn btn--ghost btn--small is-on" aria-disabled="true">${btnIcon('on')}${esc(label)}</span>`;
   const seriesRow = (r) => `<li><span class="follow-item">${r.cover_url ? `<img class="follow-thumb" src="${esc(thumbOf(r.cover_url))}" ${thumbFallback(r.cover_url)} alt="Cover of ${esc(r.label)}" loading="lazy">` : ''}<span><strong>${esc(r.label)}</strong><br><span class="card__meta">${r.issues ? `${r.issues} ${r.issues === 1 ? 'issue' : 'issues'}` : 'Ongoing series · new issues are added as they’re announced'}</span></span></span>
       <span class="follow-results__act">${pull.findSubscription('series', r.key)
         ? following(pull.findSubscription('series', r.key).all_covers ? 'Following all covers' : 'Following')
-        : `<button class="btn btn--primary btn--small" type="button" data-fs="${esc(r.key)}">Follow<span class="visually-hidden"> ${esc(r.label)}</span></button>
-           <button class="btn btn--primary btn--small" type="button" data-fs="${esc(r.key)}" data-covers="all">Follow all covers<span class="visually-hidden"> of ${esc(r.label)}</span></button>`}</span></li>`;
+        : `<button class="btn btn--primary btn--small" type="button" data-fs="${esc(r.key)}">${btnIcon('follow')}Follow<span class="visually-hidden"> ${esc(r.label)}</span></button>
+           <button class="btn btn--ghost btn--small" type="button" data-fs="${esc(r.key)}" data-covers="all">${btnIcon('covers')}<span class="visually-hidden">Follow </span>All covers<span class="visually-hidden"> of ${esc(r.label)}</span></button>`}</span></li>`;
   // issues = 0: named only in cover text (a variant cover artist), so there are no books to follow.
   const artistBtn = (r, role) =>
     pull.findSubscription('artist', pull.personKey(r.name), role)
       ? following(`Following their ${role === 'cover' ? 'covers' : 'books'}`)
-      : `<button class="btn ${role === 'cover' ? 'btn--primary' : 'btn--ghost'} btn--small" type="button" data-fa="${esc(r.name)}" data-role="${role}">Follow their ${role === 'cover' ? 'covers' : 'books'}<span class="visually-hidden"> by ${esc(r.name)}</span></button>`;
+      : `<button class="btn ${role === 'cover' ? 'btn--primary' : 'btn--ghost'} btn--small" type="button" data-fa="${esc(r.name)}" data-role="${role}">${btnIcon(role === 'cover' ? 'covers' : 'books')}Follow their ${role === 'cover' ? 'covers' : 'books'}<span class="visually-hidden"> by ${esc(r.name)}</span></button>`;
   const artistRow = (r) => `<li><span><strong>${esc(r.name)}</strong><br><span class="card__meta">${artistMeta(r)}</span></span>
       <span class="follow-results__act">
         ${artistBtn(r, 'cover')}
@@ -916,7 +916,7 @@ async function setupFollowing(sb, customerId, seenBefore) {
     try {
       const { added } = btn.dataset.fs ? await pull.followSeries(btn.dataset.fs, 1, btn.dataset.covers === 'all') : await pull.followArtist(btn.dataset.fa, btn.dataset.role);
       // The results redraw with "✓ Following" (pull.onChange); focus stays in the search.
-      if (btn.isConnected) btn.textContent = 'Following ✓';
+      if (btn.isConnected) btn.innerHTML = `${btnIcon('on')}Following`;
       if (!results.contains(document.activeElement)) input.focus();
       note(`Following. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added automatically.'}`);
       loadOrders(sb, customerId, seenBefore);

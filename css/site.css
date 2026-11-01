@@ -297,6 +297,10 @@ iframe.ql-video { display: block; width: 100%; max-width: 640px; aspect-ratio: 1
 .btn--primary:hover { background: var(--red-btn-hover); color: var(--on-primary); }
 .btn--ghost { background: transparent; color: var(--gold-text); border-color: var(--gold-text); box-shadow: none; }
 .btn--ghost:hover { background: var(--raised); color: var(--gold-text); box-shadow: none; }
+/* Compact, for a row of actions beside each result in a list (search's Series and Artists). */
+.btn--small { min-height: 36px; padding: var(--sp-6) var(--sp-12); font-size: var(--fs-xs); letter-spacing: .03em; }
+/* An icon leading the label (btnIcon in js/util.js), in the label's color. */
+.btn__icon { flex: none; width: 16px; height: 16px; margin-left: calc(-1 * var(--sp-2)); fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
 .btn[disabled] {
   cursor: not-allowed;
   transform: none;
@@ -1109,6 +1113,10 @@ a.follow-open { box-sizing: border-box; line-height: 24px; }
 .follow-results__head { margin: var(--sp-14) 0 var(--sp-2); font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .follow-results li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); flex-wrap: wrap; padding: var(--sp-8) 0; border-bottom: 1px solid var(--line); }
 .follow-results__act { display: flex; gap: var(--sp-6); flex-wrap: wrap; }
+/* On a phone the actions always sit on their own line under the name, so every row lines up the same. */
+@media (max-width: 599px) {
+  .follow-results li { flex-direction: column; align-items: flex-start; gap: var(--sp-6); }
+}
 .follow-results .is-on { cursor: default; opacity: .8; }
 #artists { margin-bottom: var(--sp-24); }
 .follow-subs { list-style: none; margin: 0 0 var(--sp-12); padding: 0; }
