@@ -175,7 +175,7 @@ Form fields on the storefront: a visible label above every control, a hint under
 </form>`),
   },
   {
-    name: 'ShopMultiSelect', group: G('Forms'), height: 466,
+    name: 'ShopMultiSelect', group: G('Forms'), height: 486,
     readme: `# ShopMultiSelect
 
 A checkbox dropdown for catalog filters (publisher, format): a button that looks like a select, opening a panel of tick boxes.
@@ -265,7 +265,7 @@ A title's stock status: an icon and an upper-case word on a colored chip, never 
 </div>`),
   },
   {
-    name: 'ShopTitleModal', group: G('Catalog'), height: 609, width: 960,
+    name: 'ShopTitleModal', group: G('Catalog'), height: 617, width: 960,
     readme: `# ShopTitleModal
 
 The title details dialog that opens from a cover or title: the cover (and other covers) on the left, details and the pull-list button on the right.
@@ -375,7 +375,7 @@ Show-and-hide boxes on the storefront: FAQ answers and the "How it works" note o
 <details><summary>Can I cancel a pre-order?</summary><div><p>Until the cutoff date, from My Pull List.</p></div></details>`),
   },
   {
-    name: 'ShopDialog', group: G('Overlays'), height: 279,
+    name: 'ShopDialog', group: G('Overlays'), height: 287,
     readme: `# ShopDialog
 
 The storefront's modal dialog: a native \`<dialog>\` with a title, a round close button and a padded body.
