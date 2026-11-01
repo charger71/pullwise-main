@@ -267,6 +267,7 @@ The title details dialog that opens from a cover or title: the cover (and other 
 - Title in the display face, upper case, clamp(1.5rem, 4vw, 2.1rem). Then the release line, status, the description, creators as chips, and the card's own footer (Add to pull list, Add all covers, Follow).
 - Other covers are 52px thumbnails (\`.title-modal__thumb\`); the one showing has a \`shop-gold-text\` edge.
 - The close button is a 36px circle; with the keyboard it fills \`shop-teal\` instead of drawing an outline (an outline clips at the dialog edge).
+- Under an upcoming release date, **Add to calendar:** Apple / .ics (an all-day event on the release day, linking to the title) and Google (\`.title-modal__cal\` row of 44px links).
 - Last comes a ghost **Share** button (\`.title-modal__share\`): a phone opens its share sheet with a link to the title on the website (Pre-Orders while it can be ordered, else New Arrivals); elsewhere it copies the link and says "Link copied." beside it.
 - Consumer provides: the title record. Built by js/title-modal.js.`,
     html: page('ShopTitleModal', `

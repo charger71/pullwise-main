@@ -2,13 +2,15 @@
 // same buttons the card has. The address gets ?title=<id> while it is open, so a title can be linked
 // to, and the browser's back button closes it.
 
-import { getItem, getVariants, getTopReserved } from './data.js';
+import { getItem, getVariants, getTopReserved, getSettings } from './data.js';
 import { SITE_URL } from './config.js';
+import { titleUrl, releaseIcs, releaseGoogleLink } from './ics.js';
 import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shownStatus, shopToday } from './site.js';
 import { enableReservations, seenItems, focLabel, reserveButton, variantsButton, followButton, creatorNames, collectorBadges, topBadge } from './components.js';
 
 let dialog;
 let topIds = new Set(); // ids of the ten most-reserved titles (for the badge)
+let shopName = ''; // for the calendar links
 let current = null; // the title being shown
 let covers = []; // every cover of that issue
 let pushed = false; // did opening the dialog add a history entry (so closing should go back)?
@@ -21,8 +23,6 @@ const urlWith = (id) => {
   return url;
 };
 
-/** The title on the shop's website: pre-orders while it can be ordered, else new arrivals (both open its details). */
-const shareUrl = (item) => `${SITE_URL.replace(/\/$/, '')}/${item.status === 'pre_order' ? 'pre-orders' : 'new-arrivals'}.html?title=${item.id}`;
 // Phones open their share sheet; elsewhere the link is copied.
 const canShare = () => typeof navigator.share === 'function' || !!navigator.clipboard?.writeText;
 
@@ -46,6 +46,7 @@ function details(item) {
     ${item.variant ? `<p class="card__variant">${esc(item.variant)}</p>` : ''}
     <p class="card__meta">${meta.map(esc).join(' · ')}</p>
     ${when ? `<p class="title-modal__when"><strong>${item.release_date > shopToday() ? 'Out' : 'Released'}</strong> ${esc(when)}</p>` : ''}
+    ${item.release_date > shopToday() ? `<p class="title-modal__cal"><span>Add to calendar:</span> <a href="#" data-title-ics>Apple / .ics</a> <a href="${esc(releaseGoogleLink(item, shopName))}" target="_blank" rel="noopener">Google</a></p>` : ''}
     ${item.status === 'pre_order' ? focLabel(item) : ''}
     ${open ? `<div class="card__foot">${reserveButton(item)}${variantsButton(item)}</div>${followButton(item)}` : ''}
     ${item.status !== 'pre_order' ? '<p class="notice">In-store titles can’t be held or reserved: first to pay gets it. Want a guaranteed copy of something upcoming? <a href="pre-orders.html">Pre-order it</a>.</p>' : ''}
@@ -55,9 +56,17 @@ function details(item) {
     ${canShare() ? `<p class="title-modal__share"><button class="btn btn--ghost" type="button" data-title-share>Share</button><span class="title-modal__shared" role="status"></span></p>` : ''}`;
 }
 
+/** The release day as a calendar file (the phone offers to add it to its calendar). */
+function addToCalendar(item) {
+  const blob = new Blob([releaseIcs(item, shopName, new URL(SITE_URL).host)], { type: 'text/calendar' });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${itemTitle(item).replace(/[^\w]+/g, '-')}.ics` });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 async function share(btn) {
   const item = current;
-  const url = shareUrl(item);
+  const url = titleUrl(item);
   const said = $('.title-modal__shared', dialog);
   said.textContent = '';
   if (typeof navigator.share === 'function') {
@@ -108,6 +117,10 @@ function create() {
     if (e.target === d || e.target.closest('.dialog__close')) return d.close();
     const shareBtn = e.target.closest('[data-title-share]');
     if (shareBtn) return share(shareBtn);
+    if (e.target.closest('[data-title-ics]')) {
+      e.preventDefault();
+      return addToCalendar(current);
+    }
     const thumb = e.target.closest('[data-title-switch]');
     if (thumb) {
       const next = covers.find((v) => v.id === Number(thumb.dataset.titleSwitch));
@@ -139,6 +152,7 @@ async function open(id, { push = true, opener = null } = {}) {
     return;
   }
   topIds = await getTopReserved();
+  shopName = (await getSettings().catch(() => ({}))).shop_name ?? '';
   dialog ??= create();
   current = item;
   covers = [item];

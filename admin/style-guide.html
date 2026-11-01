@@ -698,6 +698,20 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
             </div>
           </div>
           <div class="sg-item" data-code>
+            <h3>Camera: Scan Pickup Code</h3>
+            <p>Customers → <strong>Scan pickup code</strong> (shown only where the browser has a camera) opens this dialog. The camera fills the width (<code>.scan-video</code>, 4:3) between a hint and an <code>admin-status</code> line that says what it’s doing, what it found, or why the camera can’t start (blocked, none found: type the #number into the search box instead). A pickup code opens that customer and closes the dialog; closing it any other way turns the camera off.</p>
+            <div class="sg-demo">
+              <div class="sg-dialog">
+                <div class="dialog__head"><h2>Scan Pickup Code</h2><button class="dialog__close" type="button" aria-label="Close">×</button></div>
+                <div class="dialog__body">
+                  <p class="admin-hint">Hold the customer’s pickup code (My List in the shop’s app) up to the camera.</p>
+                  <video class="scan-video" playsinline muted aria-label="Camera"></video>
+                  <p class="admin-status" role="status">Looking for a pickup code…</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
             <h3>Read-only details: Title Info and <code>.info-list</code></h3>
             <p>Titles → click a name opens <strong>Title Info</strong>, laid out like the shop’s own title details: the cover (<code>.thumb--lg</code>) beside the title (above it below 700px), then pills for status, flags and badges, the big uppercase title, variant, publisher and prices, the dates and orders, the description and creators. Codes and bookkeeping go in a <strong>More</strong> section underneath. A <code>&lt;dl class="info-list"&gt;</code> shows read-only label / value pairs: labels beside values. Below 600px the cover is smaller so the title starts on the first screen. Leave out empty rows. The actions (Edit first) sit in <code>sticky-actions</code> at the end.</p>
             <div class="sg-demo">
