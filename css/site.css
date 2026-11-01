@@ -1208,7 +1208,7 @@ body:has([aria-busy="true"], .loading)::after {
 .app-shelf__head h3 { margin: 0; font-size: var(--fs-sub); }
 .app-shelf__head a { flex: none; display: inline-flex; align-items: center; min-height: 44px; font-size: var(--fs-sm); font-weight: 700; }
 .app-shelf__lede { margin: 0 0 var(--sp-12); color: var(--muted); font-size: var(--fs-sm); }
-.app-shelf__row { display: grid; grid-auto-flow: column; grid-auto-columns: min(62%, 280px); gap: var(--sp-12); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); margin-inline: calc(-1 * var(--gutter)); padding: 0 var(--gutter) var(--sp-8); }
+.app-shelf__row { display: grid; grid-auto-flow: column; grid-auto-columns: min(calc((100% - 2 * var(--sp-12)) / 2.5), 200px); gap: var(--sp-12); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); margin-inline: calc(-1 * var(--gutter)); padding: 0 var(--gutter) var(--sp-8); }
 /* The row holds the cards' hidden screen-reader text (position: absolute), so it must be their containing block:
    otherwise that text sits outside the row and the whole page scrolls sideways. */
 .app-shelf__row { position: relative; }
