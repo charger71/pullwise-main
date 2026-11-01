@@ -1,7 +1,7 @@
 // node js/theme-vars.test.js
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { colorVars, themeCss, resolveFonts, fontPreloads, unusedDefaultPreloads, isFontUpload, FONT_LIBRARY, FONT_SLOTS, linkColor, contrast, accentText, letterSpacing, sizeScale, fontScale } from './theme-vars.js';
+import { colorVars, themeCss, resolveFonts, fontPreloads, unusedDefaultPreloads, isFontUpload, FONT_LIBRARY, FONT_SLOTS, linkColor, contrast, accentText, letterSpacing, sizeScale, fontScale, schemeCss, pageIs, LIGHT_PAGE, DARK_PAGE } from './theme-vars.js';
 
 const SB = 'https://abc.supabase.co';
 const upload = (name) => `${SB}/storage/v1/object/public/media/fonts/${name}`;
@@ -112,5 +112,29 @@ for (const s of FONT_SLOTS) for (const f of FONT_LIBRARY.filter((x) => x.slots.i
 assert.match(themeCss({ fonts: { display: { font: 'bebas-neue', size: 'large' } } }), /--display-scale:1\.56[;}]/, 'own size times Large');
 assert.match(themeCss({ fonts: { body: { font: 'inter' } } }), /--body-scale:0\.89[;}]/);
 assert.doesNotMatch(themeCss({ fonts: { body: { upload: upload('a.woff2') } } }, { storageOrigin: SB }), /--body-scale/, 'an uploaded font keeps the default size');
+
+// The app's Light and Dark appearance: the shop's colors on the other kind of page
+const scheme = (colors, s) => Object.fromEntries(schemeCss(colors, s).replace(/^:root:root\{|\}$/g, '').split(';').filter(Boolean).map((d) => [d.slice(0, d.indexOf(':')), d.slice(d.indexOf(':') + 1)]));
+assert.equal(schemeCss({}, 'dark'), '', 'the stylesheet’s page is already dark');
+assert.equal(schemeCss({ paper: '#f5f0e6' }, 'light'), '', 'a light shop page is already light');
+assert.equal(schemeCss({}, 'shop'), '', 'only light or dark');
+assert.ok(pageIs({ paper: '#ffffff' }, 'light') && pageIs(undefined, 'dark'));
+assert.match(schemeCss({}, 'light'), /^:root:root\{/, 'outranks the shop’s :root wherever it sits');
+const toLight = scheme({ primary: '#982c21', accent: '#e7b84b', ink: '#e9e1d3', paper: '#101010', link: '#91bbdd', footer: '#000000' }, 'light');
+assert.equal(toLight['--brand-paper'], LIGHT_PAGE.paper);
+assert.equal(toLight['--brand-ink'], LIGHT_PAGE.ink);
+assert.equal(toLight['--brand-primary'], '#982c21', 'the shop’s main color stays');
+assert.equal(toLight['color-scheme'], 'light');
+assert.ok(!('--brand-footer' in toLight), 'the app has no footer');
+assert.ok(contrast(toLight['--teal'], LIGHT_PAGE.paper) >= 4.5, 'the dark page’s link color is swapped for a readable one');
+assert.ok(contrast(toLight['--gold-text'], LIGHT_PAGE.paper) >= 4.5, 'gold text reads on the light page');
+for (const k of ['--error', '--ok', '--warn', '--clearance', '--violet']) assert.ok(contrast(toLight[k], LIGHT_PAGE.paper) >= 4.5, `${k} on the light page`);
+assert.ok(contrast(LIGHT_PAGE.ink, LIGHT_PAGE.paper) >= 7 && contrast(DARK_PAGE.ink, DARK_PAGE.paper) >= 7, 'text on each page');
+const toDark = scheme({ primary: '#1d4ed8', accent: '#b45309', ink: '#222222', paper: '#ffffff', link: '#0b4f8a' }, 'dark');
+assert.equal(toDark['--brand-paper'], DARK_PAGE.paper);
+assert.equal(toDark['color-scheme'], 'dark');
+assert.equal(toDark['--cream'], '#e9e1d3', 'the light page’s colors go back to the stylesheet’s dark-page ones');
+assert.ok(contrast(toDark['--teal'], DARK_PAGE.paper) >= 4.5 && contrast(toDark['--gold-text'], DARK_PAGE.paper) >= 4.5);
+assert.equal(scheme({ accent: '#e7b84b', paper: '#ffffff' }, 'dark')['--gold-text'], 'var(--gold)', 'the shop page’s darkened gold is undone');
 
 console.log('theme-vars tests passed');

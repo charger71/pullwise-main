@@ -8,6 +8,7 @@ import { getSettings, getItems, rankByPulls } from '../data.js';
 import { todayIn } from '../dates.js';
 import { itemCard, enableReservations } from '../components.js';
 import { formatPhone, LOGO_WIDTH } from '../util.js';
+import { setShopColors, setupAppearance } from '../app-theme.js';
 
 const VIEWS = ['list', 'hot', 'shop', 'me'];
 
@@ -74,6 +75,7 @@ addEventListener('hashchange', () => {
 // The account page draws its views after sign-in (and again after signing out and in): show the right one.
 new MutationObserver(() => showView()).observe(account, { childList: true });
 showView();
+setupAppearance($('[data-look]'));
 
 // ---------------------------------------------------------------------------
 // Hot: the ten most pulled titles with an order cutoff coming up, and the ten most pulled of the newest books, as rows
@@ -505,4 +507,4 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { sc
 // The account page signs in and draws the views; it runs initPage, which paints the shop's brand.
 await import('./account.js').catch((err) => console.error(err)); // an outage message is already on the page
 renderShop();
-getSettings().then((s) => offerInstall(s.shop_name, installPrompt), () => {});
+getSettings().then((s) => (setShopColors(s.colors), offerInstall(s.shop_name, installPrompt)), () => {});
