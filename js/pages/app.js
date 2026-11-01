@@ -9,7 +9,7 @@ import { todayIn } from '../dates.js';
 import { itemCard, enableReservations } from '../components.js';
 import { formatPhone, LOGO_WIDTH } from '../util.js';
 
-const VIEWS = ['list', 'hot', 'following', 'shop', 'me'];
+const VIEWS = ['list', 'hot', 'shop', 'me'];
 
 // The loading screen (app.html) goes once the view on screen has something in it, or after 3 seconds at most.
 const splash = $('[data-splash]');
@@ -142,7 +142,8 @@ if ($('[data-hot]')) enableReservations($('[data-hot]'), (id) => hotItems.get(id
 // ---------------------------------------------------------------------------
 // Search, from the button in the header: a box drops down under it, over whichever tab is showing. The shop's titles,
 // as on the website's search (titles that can still be ordered first), stand in for the tab while the box has words
-// in it; closing the search or picking a tab brings the tab back. Series and artists to follow are on Following.
+// in it; closing the search or picking a tab brings the tab back. Signed in, series and artists to follow are listed
+// above the titles (js/pages/account.js setupFollowing).
 // ---------------------------------------------------------------------------
 
 const FOUND_PAGE = 24;
@@ -174,8 +175,7 @@ async function search(q, { more = false } = {}) {
     box.innerHTML = `
       <p class="results-count" role="status">${found.total ? `${found.total} ${found.total === 1 ? 'title' : 'titles'} for “${esc(q)}”` : `No titles match “${esc(q)}”.`}</p>
       <div class="grid" data-found>${cards}</div>
-      <button class="btn btn--ghost show-more" type="button" data-found-more hidden></button>
-      <p class="field__hint app-search__follow">Looking for a series or artist to follow? <a href="#following">Search on the Following tab</a>.</p>`;
+      <button class="btn btn--ghost show-more" type="button" data-found-more hidden></button>`;
   } else {
     $('[data-found]', box).insertAdjacentHTML('beforeend', cards);
     $('[data-found]', box).children[first]?.querySelector('button, a')?.focus();
@@ -242,6 +242,7 @@ function setupSearch() {
   });
   // The header is drawn once the shop's settings arrive, so its button is found when it's pressed.
   document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-search-open]')) return void openSearch(); // the welcome card's "Follow a series"
     if (!e.target.closest('[data-search-toggle]')) return;
     if (searchBox.hidden) openSearch();
     else closeSearch();
