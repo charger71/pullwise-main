@@ -7,6 +7,7 @@ import { $, esc, sizedImage, addressLines, hoursList, mapsHref, telHref, socialI
 import { getSettings, getItems, rankByPulls } from '../data.js';
 import { todayIn } from '../dates.js';
 import { itemCard, enableReservations } from '../components.js';
+import { loadFilters, filterControl, setupMulti, publisherFilter, categoryOptions, focFilter } from '../catalog.js';
 import { formatPhone, LOGO_WIDTH } from '../util.js';
 import { setShopColors, setupAppearance } from '../app-theme.js';
 
@@ -113,10 +114,24 @@ const SHELVES = [
   { key: 'fresh', title: 'Top 10 New Arrivals', lede: 'The most pulled of the newest books at the shop.', empty: 'New books land every Wednesday — check back soon.', more: 'All new arrivals' },
 ];
 
-/** What each row's See all lists in the search results (showList): getItems arguments for the shop's time zone. */
+/**
+ * What each row's See all lists in the search results (showList): its filters (as on the website's Pre-Orders and
+ * New Arrivals, js/catalog.js), and getItems arguments for the shop's time zone and the filters' values.
+ */
+const category = () => ({ name: 'category', label: 'Category', options: categoryOptions(), multiple: true });
 const LISTS = {
-  foc: { query: (tz) => ({ statuses: ['pre_order'], focFrom: openFocFrom(tz), order: 'foc' }), describe: (n) => (n ? `${n} ${n === 1 ? 'pre-order' : 'pre-orders'}, soonest order cutoff first` : 'No pre-orders open right now.') },
-  fresh: { query: () => ({ statuses: IN_STORE, order: 'arrivals' }), describe: (n) => (n ? `${n} ${n === 1 ? 'title' : 'titles'} in the shop, new arrivals first` : 'No titles in the shop right now.') },
+  foc: {
+    label: 'Filter pre-orders',
+    filters: (tz) => [focFilter(openFocFrom(tz)), publisherFilter(['pre_order']), category()],
+    query: (tz, v) => ({ statuses: ['pre_order'], order: 'foc', focFrom: v.foc || openFocFrom(tz), focBefore: v.foc || undefined, publishers: v.publisher, categoryIds: v.category.map(Number) }),
+    describe: (n, filtered) => (n ? `${n} ${n === 1 ? 'pre-order' : 'pre-orders'}, soonest order cutoff first` : filtered ? 'No pre-orders match those filters.' : 'No pre-orders open right now.'),
+  },
+  fresh: {
+    label: 'Filter titles in the shop',
+    filters: () => [publisherFilter(IN_STORE), category()],
+    query: (tz, v) => ({ statuses: IN_STORE, order: 'arrivals', publishers: v.publisher, categoryIds: v.category.map(Number) }),
+    describe: (n, filtered) => (n ? `${n} ${n === 1 ? 'title' : 'titles'} in the shop, new arrivals first` : filtered ? 'No titles match those filters.' : 'No titles in the shop right now.'),
+  },
 };
 
 async function renderHot() {
@@ -168,13 +183,19 @@ const FOUND_PAGE = 24;
 // q: the words searched ('' for a See all list); query(tz): its getItems arguments; describe(count): the count line.
 const found = { q: '', query: null, describe: null, items: [], total: 0, req: 0 };
 
-/** The titles the search box's words find. */
-const search = (q) =>
-  showFound(q, (tz) => ({ q, openFirst: openFocFrom(tz) }), (n) => (n ? `${n} ${n === 1 ? 'title' : 'titles'} for “${esc(q)}”` : `No titles match “${esc(q)}”.`));
+/** The titles the search box's words find, in place of everything in the results (a See all list's filters too). */
+function search(q) {
+  $('[data-search-results]').innerHTML = '';
+  return showFound(q, (tz) => ({ q, openFirst: openFocFrom(tz) }), (n) => (n ? `${n} ${n === 1 ? 'title' : 'titles'} for “${esc(q)}”` : `No titles match “${esc(q)}”.`));
+}
 
-/** Fill the results with `query`'s titles, or the next page of them (`more`). */
+/**
+ * Fill the results with `query`'s titles, or the next page of them (`more`). They go in [data-found-area] when the
+ * results have one (under a See all list's filters), else replace everything in the results.
+ */
 async function showFound(q, query, describe, { more = false } = {}) {
-  const box = $('[data-search-results]');
+  const results = $('[data-search-results]');
+  const box = $('[data-found-area]', results) ?? results;
   const mine = ++found.req;
   if (!more) Object.assign(found, { q, query, describe, items: [], total: 0 });
   if (!more) box.innerHTML = `<p class="empty loading">${q ? 'Searching…' : 'Loading…'}</p>`;
@@ -239,7 +260,10 @@ function openSearch({ focus = true } = {}) {
   if (focus) $('[data-search-form]').elements.q.focus({ preventScroll: true });
 }
 
-/** Hot's See all: every title of that row's kind (LISTS) in the search results, with the search box above them. */
+/**
+ * Hot's See all: every title of that row's kind (LISTS) in the search results, with the search box above them and
+ * the list's filters over the titles. A filter's change lists them again; typing a search replaces the lot.
+ */
 async function showList(key) {
   const list = LISTS[key];
   if (!list) return;
@@ -247,9 +271,28 @@ async function showList(key) {
   $('[data-search-form]').elements.q.value = '';
   const box = $('[data-search-results]');
   box.hidden = false;
+  box.innerHTML = `<form class="filters" aria-label="${esc(list.label)}" data-list-filters></form><div data-found-area></div>`;
   showView();
   scrollTo({ top: 0, behavior: 'instant' });
-  await showFound('', list.query, list.describe);
+  const tz = (await getSettings().catch(() => ({}))).timezone;
+  const form = $('[data-list-filters]', box);
+  const values = () => {
+    const fd = new FormData(form);
+    return { foc: fd.get('foc') ?? '', publisher: fd.getAll('publisher'), category: fd.getAll('category') };
+  };
+  const filtered = () => [...new FormData(form).values()].some(Boolean);
+  const listed = () => showFound('', (zone) => list.query(zone, values()), (n) => list.describe(n, filtered()));
+  // The titles load while the filters' options do; a filter with nothing to pick from is left out.
+  const first = listed();
+  loadFilters(list.filters(tz)).then((filters) => {
+    if (!form.isConnected) return; // the list was put away meanwhile
+    if (!filters.length) return void form.remove();
+    form.innerHTML = filters.map(filterControl).join('');
+    form.querySelectorAll('.multi').forEach(setupMulti);
+  });
+  form.addEventListener('input', (e) => !e.target.closest('.multi__search') && listed()); // that box only narrows the options
+  form.addEventListener('submit', (e) => e.preventDefault());
+  await first;
   if (!found.q) $('.results-count', box)?.focus({ preventScroll: true }); // the See all button is gone: start reading here
 }
 
@@ -292,7 +335,7 @@ function setupSearch() {
     else closeSearch();
   });
   searchBox.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeSearch({ focus: true });
+    if (e.key === 'Escape' && !e.defaultPrevented) closeSearch({ focus: true }); // an open filter closes first
   });
   box.addEventListener('click', (e) => {
     if (!e.target.closest('[data-found-more]')) return;

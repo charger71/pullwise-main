@@ -122,16 +122,16 @@ The home page opener: the shop's headline over a faint halftone dot screen, an i
 </div></section>`, 'pw-shop'),
   },
   {
-    name: 'ShopButton', group: G('Actions'), height: 175,
+    name: 'ShopButton', group: G('Actions'), height: 161,
     readme: `# ShopButton
 
-Storefront buttons: upper-case labels on square-cornered (3px) blocks, 46px tall.
+Storefront buttons: upper-case labels on square-cornered (3px) blocks, \`shop-field-h\` (46px) tall, like the fields beside them.
 
 - **Default** (\`.btn\`): \`shop-teal\` with \`shop-paper\` text; hover \`shop-teal-hover\`. Secondary actions such as Search or Done.
 - **Primary** (\`.btn--primary\`): \`shop-red-btn\` with \`shop-on-primary\` text; hover a 15% darker red. The one action that matters on a card or form: Add to pull list, Reserve, Save.
 - **Ghost** (\`.btn--ghost\`): transparent with a \`shop-gold-text\` edge and label. Also the "on" state of a toggle (✓ On your pull list, with \`aria-pressed="true"\`).
 - **Disabled** (\`[disabled]\`): \`raised\` fill, muted text, \`line\` edge, not faded.
-- **Small** (\`.btn--small\`): 36px tall, smaller label. For a row of actions beside each result in a list (search's Series and Artists); on a phone the actions sit on their own line under the name.
+- **Small** (\`.btn--small\`): \`shop-btn-h-sm\` (36px) tall with a \`fs-xs\` label; on phones \`shop-tap\` (44px), so it's never under the touch minimum. For a row of actions beside each result in a list (search's Series and Artists); on a phone the actions sit on their own line under the name.
 - **Icon** (\`.btn__icon\`, from \`btnIcon()\` in \`js/util.js\`): a 16px stroke icon in the label's color, before the label: \`follow\` (+), \`covers\`, \`books\`, \`on\` (✓, the "Following" state). Decorative (\`aria-hidden\`): the label says what the button does.
 - **Link button** (\`.link-button\`): an action that reads as a link, in \`shop-teal\`, underlined.
 - No hover lift or shadow on the storefront. Labels are verbs ("Add to pull list", not "Submit").
@@ -182,7 +182,7 @@ A checkbox dropdown for catalog filters (publisher, format): a button that looks
 
 - The button (\`.multi__button\`) matches a select: same height, corners and chevron; its summary reads "All", one name, or "3 selected".
 - The panel (\`.multi__panel\`) is \`raised\` with a \`line\` edge and \`shop-shadow-lg\`, at least the button's width and up to 300px. More than ten options adds a search box; pinned favourites sit above a divider.
-- Options are 40px rows; footer actions are Clear (underlined) and Done (\`shop-gold\` with \`shop-on-accent\` text).
+- Options are \`shop-tap\` (44px) rows; footer actions are Clear (underlined) and Done (\`shop-gold\` with \`shop-on-accent\` text).
 - \`aria-expanded\` on the button, \`aria-controls\` to the panel. Escape and Done close it.
 - Consumer provides: the label, options and the field name. Built by js/catalog.js.`,
     html: page('ShopMultiSelect', `
@@ -273,7 +273,7 @@ The title details dialog that opens from a cover or title: the cover (and other 
 - A \`<dialog class="title-modal">\` up to 900px wide; two columns (260px cover, details) from 700px, full screen below 600px.
 - Title in the display face, upper case, clamp(1.5rem, 4vw, 2.1rem). Then the release line, status, the description, creators as chips, and the card's own footer (Add to pull list, Add all covers, Follow).
 - Other covers are 52px thumbnails (\`.title-modal__thumb\`); the one showing has a \`shop-gold-text\` edge.
-- The close button is a 36px circle; with the keyboard it fills \`shop-teal\` instead of drawing an outline (an outline clips at the dialog edge).
+- The close button is a \`shop-tap\` (44px) circle; with the keyboard it fills \`shop-teal\` instead of drawing an outline (an outline clips at the dialog edge).
 - In the app, signed in, a title that can't be reserved (Sold Out, Backorder, or Coming Soon past its cutoff) gets **Notify me when it's in** (primary; \`.title-modal__alert\`). Pressed, it turns ghost with "✓ We'll tell you when it's in" (\`aria-pressed\`) and a status line, which also says to turn on notifications if they're off. One notification is sent when the title is back on the shelf.
 - Under an upcoming release date, **Add to calendar:** Apple / .ics (an all-day event on the release day, linking to the title) and Google (\`.title-modal__cal\` row of 44px links).
 - Last comes a ghost **Share** button (\`.title-modal__share\`): a phone opens its share sheet with a link to the title on the website (Pre-Orders while it can be ordered, else New Arrivals); elsewhere it copies the link and says "Link copied." beside it.
@@ -381,7 +381,7 @@ Show-and-hide boxes on the storefront: FAQ answers and the "How it works" note o
 The storefront's modal dialog: a native \`<dialog>\` with a title, a round close button and a padded body.
 
 - \`surface\` with a \`line\` edge, 8px corners, \`shop-shadow-lg\`, up to 520px wide (wider variants: list 600px, follow 560px, title 900px); the backdrop is 80% black.
-- Head (\`.dialog__head\`): title in \`shop-type-title\` and a 36px round close button; keyboard focus fills it \`shop-teal\`.
+- Head (\`.dialog__head\`): title in \`shop-type-title\` and a \`shop-tap\` (44px) round close button; keyboard focus fills it \`shop-teal\`.
 - A finished action shows \`.confirm\`: a big \`shop-gold-text\` line in the display face and what happens next.
 - Consumer provides: the title, body and the element focus returns to.`,
     html: page('ShopDialog', `
@@ -413,18 +413,18 @@ The customer's pull list on My Pull List: grouped lines with a cover, title, qua
 <div class="account-summary" style="margin-top:16px"><dl class="account-summary__totals"><div><dt>Ready now</dt><dd>$3.99</dd></div><div class="account-summary__total"><dt>Total</dt><dd>$13.97</dd></div></dl></div>`),
   },
   {
-    name: 'ShopApp', group: G('Account'), height: 420, width: 375,
+    name: 'ShopApp', group: G('Account'), height: 424, width: 375,
     readme: `# ShopApp
 
 The shop's installable pull list app (app.html, at /app; app.<shop domain> forwards there): the account page as one view at a time, under the shop's own brand.
 
-- \`.app-bar\`: the shop's logo and/or name (the header's \`.brand\`, logo up to 40px) and, on the right, a 44px round search button (\`.app-bar__search\`, a 24px line magnifier in \`ink\`; \`surface\` with a \`gold-text\` icon while the search is open). No menu; the website is linked from the Shop tab. The header clears the phone's notch.
+- \`.app-bar\`: the shop's logo and/or name (the header's \`.brand\`, logo up to 40px) and, on the right, a \`shop-tap\` (44px) round search button (\`.app-bar__search\`, a 24px line magnifier in \`ink\`; \`surface\` with a \`gold-text\` icon while the search is open). No menu; the website is linked from the Shop tab. The header clears the phone's notch.
 - \`.tab-bar\`: fixed to the foot, \`surface\` with a \`line\` top edge, four equal tabs (My List, Hot with a flame, Shop, Account): a 24px line icon over a \`fs-2xs\` bold label in \`muted\`. The current tab (\`aria-current="page"\`) is \`ink\` with a 3px \`gold\` edge on top and a \`gold-text\` icon. \`.tab-bar__count\` is a gold pill with the number ready for pickup.
 - \`.app-pull\`: pull down to refresh. Pulling from the top drops a 40px round \`surface\` badge from under the header, its circular arrow turning with the pull and going \`gold-text\` once letting go will refresh; it spins (slower under reduced motion) while the signed-in views are drawn again in place. The Shop tab, or a signed-out app, reloads instead. A screen reader hears "Refreshing…" then "Updated."
 - View titles sit above their panels (\`.app-view__title\`, \`fs-title\`), never inside: \`.app-section\` is a title then a \`.panel\`, 32px apart when a view has several (Account: Notifications, My Profile, then Appearance).
 - Loading screen (\`.app-splash\`): while the first view loads, the shop's logo and name sit centred on the page colour (the Worker fills both from Settings); it fades out once nothing is loading, after 3 seconds at most, and is then removed. Hidden from screen readers.
 - Search (\`.app-search\`): the header's search button slides a full-width search box down from behind the header (\`dur-slide\`, none under reduced motion) over the page wherever it's scrolled, and puts the cursor in it; the page doesn't move. The box is a \`paper\` band fixed under the header, with a \`line\` edge and \`shadow-menu\` below. Results start at the top, under the box; closing the search goes back to where the tab was scrolled. While it has words in it, signed-in customers first see matching series and artists to follow (the Series and Artists & writers lists with their Follow buttons, as on the website's account page), then the website's title search (titles that can still be ordered first) stands in for the tab as a two-across \`.grid\` of cards with a count and Show more. The button again, Escape or any tab puts it away and brings the tab back.
-- Hot (\`.app-shelf\`): **Top 10 Order Cutoff Soon** (the ten most pulled titles whose order cutoff is in the next two weeks) and **Top 10 New Arrivals** (the ten most pulled of the newest books), ranked by \`rank_by_pulls\`; titles nobody has pulled fill in by date. Each row is an \`fs-sub\` heading with a See all link-button, a \`muted\` lede, then \`.app-shelf__row\`: the website's cards in one row that swipes sideways, snapping card by card, about two and a half cards wide (each up to 200px) and running to the screen's edges. The cards are shorter than the website's: an 8px body, the title in \`fs-ui\` and at most two lines, meta in \`fs-xs\`, the cutoff without its date in brackets, and the button label in \`fs-2xs\` on one line. See all opens the search's results (search box empty above them) with every open pre-order, soonest order cutoff first, or every title in the shop, new arrivals first, with Show more; typing a search replaces them, and closing goes back to Hot.
+- Hot (\`.app-shelf\`): **Top 10 Order Cutoff Soon** (the ten most pulled titles whose order cutoff is in the next two weeks) and **Top 10 New Arrivals** (the ten most pulled of the newest books), ranked by \`rank_by_pulls\`; titles nobody has pulled fill in by date. Each row is an \`fs-sub\` heading with a See all link-button, a \`muted\` lede, then \`.app-shelf__row\`: the website's cards in one row that swipes sideways, snapping card by card, about two and a half cards wide (each up to 200px) and running to the screen's edges. The cards are shorter than the website's: an 8px body, the title in \`fs-ui\` and at most two lines, meta in \`fs-xs\`, the cutoff without its date in brackets, and the button label in \`fs-2xs\` on one line. See all opens the search's results (search box empty above them) with every open pre-order, soonest order cutoff first, or every title in the shop, new arrivals first, with Show more. Above the titles, the website's \`.filters\` box (ShopFilters): Order cutoff, Publisher and Category for pre-orders; Publisher and Category for the shop. Typing a search replaces the list and its filters, and closing goes back to Hot.
 - \`.app-note\`: a \`surface\` strip under the header, like \`.app-install\`: "You’re offline. Showing your list from Sat 4:09 PM." (the last copy of the list, read-only with its controls left out, \`.account-saved-list\`), or "A new version of the app is ready" with a primary Update button.
 - The app's icon shows the number of books ready for pickup (set when the list loads and by the ready-for-pickup notification); long-pressing it on Android offers My List, Hot and Shop. A notification about one title opens its details.
 - \`.app-install\`: a \`surface\` strip under the header offering Add to Home Screen (an Install button, or Share directions on an iPhone) with a ✕ to dismiss.

@@ -246,7 +246,9 @@ export function shopTokens() {
     else if (/^z-/.test(name)) other.zIndex.push({ name: t, value: /var\(/.test(v) ? v : String(Number(v)), usage: `${note(name)}.` });
     else if (/^dur(-|$)/.test(name)) other.duration.push({ name: t, value: v, usage: `${note(name)}.` });
     else if (name === 'space-block') other.spacing.push({ name: t, value: v, usage: 'Gap under a page title block (section head, How it works).' });
-    else if (name === 'field-h') other.size.push({ name: t, value: v, usage: 'Height of every input, select and multi-select button.' });
+    else if (name === 'field-h') other.size.push({ name: t, value: v, usage: 'Height of every input, select, multi-select button and button (.btn).' });
+    else if (name === 'tap') other.size.push({ name: t, value: v, usage: 'The smallest touch target: a link or toggle on its own, an icon button, and a small button on phones. Never a control smaller than this on a phone.' + used });
+    else if (name === 'btn-h-sm') other.size.push({ name: t, value: v, usage: 'A small button (.btn--small) from 600px up; shop-tap on phones.' });
     else if (name === 'gutter') other.size.push({ name: t, value: v, usage: 'Side padding of the page container.' });
     else if (name === 'max') other.size.push({ name: t, value: v, usage: 'Widest the page content gets.' });
   }

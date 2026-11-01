@@ -110,8 +110,9 @@ export function colorVars(colors) {
 /** The page and text colors the app swaps in when someone picks the other appearance from the shop's own. */
 export const LIGHT_PAGE = { paper: '#f6f3ee', ink: '#1c1915' };
 export const DARK_PAGE = { paper: DEFAULT_PAPER, ink: '#f4f0ea' };
-// css/site.css's own colors for a dark page, which colorVars leaves out (they're already there unless the shop's page is light).
-const DARK_PAGE_VARS = [['color-scheme', 'dark'], ['--cream', '#e9e1d3'], ['--error', '#ff9585'], ['--ok', '#9bd7ae'], ['--warn', '#f0a35a'], ['--clearance', '#f4b6be'], ['--violet', '#cdb6ee']];
+// css/site.css's own colors for a dark page, which colorVars leaves out (they're already there unless the shop's page is
+// light). js/theme-vars.test.js checks they match the stylesheet.
+export const DARK_PAGE_VARS = [['color-scheme', 'dark'], ['--cream', '#e9e1d3'], ['--error', '#ff9585'], ['--ok', '#9bd7ae'], ['--warn', '#f0a35a'], ['--clearance', '#f4b6be'], ['--violet', '#cdb6ee']];
 
 /** True when the shop's page (or the stylesheet's, if it sets none) is already `scheme`. */
 export const pageIs = (colors, scheme) => isLight(isHex6(colors?.paper) ? colors.paper : DEFAULT_PAPER) === (scheme === 'light');

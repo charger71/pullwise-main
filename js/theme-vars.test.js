@@ -1,7 +1,7 @@
 // node js/theme-vars.test.js
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { colorVars, themeCss, resolveFonts, fontPreloads, unusedDefaultPreloads, isFontUpload, FONT_LIBRARY, FONT_SLOTS, linkColor, contrast, accentText, letterSpacing, sizeScale, fontScale, schemeCss, pageIs, LIGHT_PAGE, DARK_PAGE } from './theme-vars.js';
+import { colorVars, themeCss, resolveFonts, fontPreloads, unusedDefaultPreloads, isFontUpload, FONT_LIBRARY, FONT_SLOTS, linkColor, contrast, accentText, letterSpacing, sizeScale, fontScale, schemeCss, pageIs, LIGHT_PAGE, DARK_PAGE, DARK_PAGE_VARS } from './theme-vars.js';
 
 const SB = 'https://abc.supabase.co';
 const upload = (name) => `${SB}/storage/v1/object/public/media/fonts/${name}`;
@@ -136,5 +136,11 @@ assert.equal(toDark['color-scheme'], 'dark');
 assert.equal(toDark['--cream'], '#e9e1d3', 'the light page’s colors go back to the stylesheet’s dark-page ones');
 assert.ok(contrast(toDark['--teal'], DARK_PAGE.paper) >= 4.5 && contrast(toDark['--gold-text'], DARK_PAGE.paper) >= 4.5);
 assert.equal(scheme({ accent: '#e7b84b', paper: '#ffffff' }, 'dark')['--gold-text'], 'var(--gold)', 'the shop page’s darkened gold is undone');
+// Dark puts back css/site.css's own dark-page colors, so they must be the stylesheet's.
+const rootCss = fs.readFileSync(new URL('../css/site.css', import.meta.url), 'utf8').match(/:root\s*\{([\s\S]*?)\n\}/)[1];
+const rootVar = (name) => rootCss.match(new RegExp(`(?:^|[\\s;])${name}:\\s*([^;]+);`))?.[1].trim();
+for (const [name, value] of DARK_PAGE_VARS) assert.equal(rootVar(name), value, `${name} matches css/site.css`);
+assert.equal(rootVar('--brand-paper'), DARK_PAGE.paper, 'Dark’s page is the stylesheet’s');
+assert.equal(rootVar('--brand-ink'), DARK_PAGE.ink, 'Dark’s text is the stylesheet’s');
 
 console.log('theme-vars tests passed');
