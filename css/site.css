@@ -133,6 +133,7 @@
   /* Motion. Every transition stops and the skeleton stops pulsing under prefers-reduced-motion; the spinner slows. */
   --dur-press: .08s;     /* a button's press */
   --dur: .15s;           /* hovers, the menu icon, a fold's arrow */
+  --dur-slide: .22s;     /* the app's search sliding down from under the header */
   --dur-spin: .7s;       /* one turn of the loading spinner */
   --dur-spin-calm: 2s;   /* the spinner under prefers-reduced-motion */
   --dur-pulse: 1.2s;     /* the loading skeleton's pulse */
@@ -1237,12 +1238,14 @@ body:has([aria-busy="true"], .loading)::after {
 .app-shelf__row .foc .card__meta { display: none; }
 .app-shelf__row .card__foot { padding-top: var(--sp-4); }
 .app-shelf__row .card .btn { padding-inline: var(--sp-4); font-size: var(--fs-2xs); }
-/* Search, dropped down from the header's button over any tab: its results stand in for the tab while the box has
-   words in it. */
-@keyframes search-drop { from { opacity: 0; transform: translateY(calc(-1 * var(--sp-12))); } }
-.app-search { margin: 0 0 var(--sp-20); animation: search-drop var(--dur) ease-out; }
+/* Search, from the header's button over any tab: the box slides down from behind the header and stays pinned under
+   it while the results scroll; the results stand in for the tab while the box has words in it. It sits under the
+   header (z-index), so it comes out from behind it. */
+@keyframes search-slide { from { transform: translateY(-100%); } }
+.app-search { margin: calc(-1 * var(--sp-16)) 0 var(--sp-20); }
+.app-search form { position: sticky; top: calc(var(--app-bar-h) + env(safe-area-inset-top) + 1px); z-index: var(--z-popover); margin: 0 calc(-1 * var(--gutter)) var(--sp-16); padding: var(--sp-10) var(--gutter); background: var(--paper); border-bottom: var(--border); animation: search-slide var(--dur-slide) ease-out; }
 .app-search input { width: 100%; }
-@media (prefers-reduced-motion: reduce) { .app-search { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .app-search form { animation: none; } }
 /* My List's pickup code (js/pages/account.js): a QR code staff scan, and the number to type into Customers. The code
    stays dark on white in every theme, as scanners need. */
 .app-pickup { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-12) var(--sp-16); margin: 0 0 var(--sp-12); padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
