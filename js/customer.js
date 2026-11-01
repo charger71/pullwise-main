@@ -248,6 +248,25 @@ export async function followArtist(name, role = 'cover', quantity = 1) {
   return data;
 }
 
+/** Whether the customer asked to hear when this title is in (stock_alerts; the app's title details). */
+export async function hasStockAlert(itemId) {
+  if (!customer?.id) return false;
+  const sb = await supabase();
+  const { data, error } = await sb.from('stock_alerts').select('id').eq('customer_id', customer.id).eq('item_id', itemId).maybeSingle();
+  if (error) fail(error);
+  return !!data;
+}
+
+/** Ask (or stop asking) to hear when a title that can't be reserved is in the shop. push-notify sends it once. */
+export async function setStockAlert(itemId, on) {
+  if (!customer?.id) throw Object.assign(new Error('Please sign in first.'), { signIn: true });
+  const sb = await supabase();
+  const { error } = on
+    ? await sb.from('stock_alerts').upsert({ customer_id: customer.id, item_id: itemId }, { onConflict: 'customer_id,item_id', ignoreDuplicates: true })
+    : await sb.from('stock_alerts').delete().eq('customer_id', customer.id).eq('item_id', itemId);
+  if (error) fail(error);
+}
+
 /** Unfollows, removing the titles it added that haven't been ordered. Resolves how many came off the list. */
 export async function unfollow(id) {
   const sb = await supabase();

@@ -34,6 +34,8 @@ const mail = build({ customer: { first_name: 'Jane', last_name: 'Smith', ship_ar
 assert.match(mail.subject, /1 ready for pickup, 1 coming this week/);
 assert.match(mail.html, /Hi Jane,/);
 assert.match(mail.html, /Log in to edit your pull list/);
+assert.match(mail.html, /href="https:\/\/example\.com\/app"[^>]*>Get [^<]*’s app<\/a>/, 'the weekly email points to the app');
+assert.match(mail.text, /: https:\/\/example\.com\/app\n/);
 assert.match(mail.html, /Unsubscribe/);
 assert.ok(!mail.html.includes('<script>'), 'titles are escaped');
 assert.match(mail.html, /X &lt;script&gt; #1/);

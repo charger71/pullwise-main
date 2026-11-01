@@ -6,11 +6,25 @@ import { getItem, getVariants, getTopReserved, getSettings } from './data.js';
 import { SITE_URL } from './config.js';
 import { titleUrl, releaseIcs, releaseGoogleLink } from './ics.js';
 import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shownStatus, shopToday } from './site.js';
+import * as pull from './customer.js';
 import { enableReservations, seenItems, focLabel, reserveButton, variantsButton, followButton, creatorNames, collectorBadges, topBadge } from './components.js';
 
 let dialog;
 let topIds = new Set(); // ids of the ten most-reserved titles (for the badge)
 let shopName = ''; // for the calendar links
+let alertOn = null; // the shown title: true/false once known whether the customer asked to hear when it's in
+
+// "Tell me when it's in": in the app, signed in, for a title that can't be reserved and isn't on the shelf now.
+const APP = document.body.dataset.page === 'app';
+const canAlert = (item) => APP && pull.isSignedIn() && (['sold_out', 'backorder'].includes(item.status) || shownStatus(item) === 'coming_soon');
+const pushOff = () => !('Notification' in window) || Notification.permission !== 'granted';
+const alertHtml = (item) => {
+  if (!canAlert(item) || alertOn == null) return '';
+  return `<div class="title-modal__alert">
+      <button class="btn ${alertOn ? 'btn--ghost' : 'btn--primary'}" type="button" data-stock-alert aria-pressed="${alertOn}">${alertOn ? '✓ We’ll tell you when it’s in' : 'Notify me when it’s in'}</button>
+      <p class="card__meta" role="status" data-stock-alert-msg>${alertOn && pushOff() ? 'Turn on notifications on the Account tab to get it.' : ''}</p>
+    </div>`;
+};
 let current = null; // the title being shown
 let covers = []; // every cover of that issue
 let pushed = false; // did opening the dialog add a history entry (so closing should go back)?
@@ -49,11 +63,41 @@ function details(item) {
     ${item.release_date > shopToday() ? `<p class="title-modal__cal"><span>Add to calendar:</span> <a href="#" data-title-ics>Apple / .ics</a> <a href="${esc(releaseGoogleLink(item, shopName))}" target="_blank" rel="noopener">Google</a></p>` : ''}
     ${item.status === 'pre_order' ? focLabel(item) : ''}
     ${open ? `<div class="card__foot">${reserveButton(item)}${variantsButton(item)}</div>${followButton(item)}` : ''}
+    ${alertHtml(item)}
     ${item.status !== 'pre_order' ? '<p class="notice">In-store titles can’t be held or reserved: first to pay gets it. Want a guaranteed copy of something upcoming? <a href="pre-orders.html">Pre-order it</a>.</p>' : ''}
     ${item.description ? `<div class="title-modal__desc">${paragraphs(item.description)}</div>` : ''}
     ${people.length ? `<ul class="chips" aria-label="Creators">${people.map((p) => `<li>${esc(p.name)}</li>`).join('')}</ul>` : ''}
     ${item.isbn ? `<p class="card__meta">ISBN ${esc(item.isbn)}</p>` : ''}
     ${canShare() ? `<p class="title-modal__share"><button class="btn btn--ghost" type="button" data-title-share>Share</button><span class="title-modal__shared" role="status"></span></p>` : ''}`;
+}
+
+async function toggleAlert(btn) {
+  const item = current;
+  const want = !alertOn;
+  btn.disabled = true;
+  try {
+    await pull.setStockAlert(item.id, want);
+    if (current !== item) return;
+    alertOn = want;
+    render();
+    const msg = $('[data-stock-alert-msg]', dialog);
+    msg.textContent = want
+      ? `We’ll send a notification when ${itemTitle(item)} is in.${pushOff() ? ' Turn on notifications on the Account tab to get it.' : ''}`
+      : 'You won’t get a notification about this one.';
+    $('[data-stock-alert]', dialog)?.focus();
+  } catch (err) {
+    btn.disabled = false;
+    $('[data-stock-alert-msg]', dialog).textContent = err.message;
+  }
+}
+
+/** Whether the customer asked about this title; shows the button once known. */
+async function loadAlert(item) {
+  if (!canAlert(item)) return;
+  const on = await pull.hasStockAlert(item.id).catch(() => null);
+  if (current !== item || on == null) return;
+  alertOn = on;
+  if (dialog.open) render();
 }
 
 /** The release day as a calendar file (the phone offers to add it to its calendar). */
@@ -117,6 +161,8 @@ function create() {
     if (e.target === d || e.target.closest('.dialog__close')) return d.close();
     const shareBtn = e.target.closest('[data-title-share]');
     if (shareBtn) return share(shareBtn);
+    const alertBtn = e.target.closest('[data-stock-alert]');
+    if (alertBtn) return toggleAlert(alertBtn);
     if (e.target.closest('[data-title-ics]')) {
       e.preventDefault();
       return addToCalendar(current);
@@ -126,8 +172,10 @@ function create() {
       const next = covers.find((v) => v.id === Number(thumb.dataset.titleSwitch));
       if (!next) return;
       current = next;
+      alertOn = null; // another cover: ask again
       history.replaceState(history.state, '', urlWith(next.id));
       render();
+      loadAlert(next);
       $(`[data-title-switch="${next.id}"]`, d)?.focus();
     }
   });
@@ -155,10 +203,12 @@ async function open(id, { push = true, opener = null } = {}) {
   shopName = (await getSettings().catch(() => ({}))).shop_name ?? '';
   dialog ??= create();
   current = item;
+  alertOn = null;
   covers = [item];
   dialog.returnFocusTo = opener;
   render();
   if (!dialog.open) dialog.showModal();
+  loadAlert(item);
   if (push) {
     history.pushState({ titleModal: id }, '', urlWith(id));
     pushed = true;

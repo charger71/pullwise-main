@@ -154,6 +154,7 @@ export function build({ customer, sections: sec, shop, today, manageUrl, unsubsc
   const hello = customer.first_name ? `Hi ${customer.first_name},` : 'Hi,';
   const addr = [shop.street, [shop.city, shop.region].filter(Boolean).join(', ') + (shop.postal_code ? ` ${shop.postal_code}` : '')].filter((l) => l && l.trim());
   const tier = tierNote(sec.series ?? 0, tiersFrom(shop));
+  const appUrl = manageUrl.replace(/\/account\.html$/, '/app'); // the shop's pull list app, next to the account page
   const shipNote = customer.ship_arrivals ? 'We’ll ship your ready books to the address on your profile.' : null;
 
   const block = (key) => {
@@ -181,6 +182,7 @@ export function build({ customer, sections: sec, shop, today, manageUrl, unsubsc
         ${tier.line ? `<p style="margin:20px 0 0;font:14px/1.4 Arial,Helvetica,sans-serif;color:#161616"><strong>${esc(tier.line)}</strong></p>` : ''}
         <p style="margin:28px 0 0;text-align:center"><a href="${esc(manageUrl)}" style="display:inline-block;background:${look.button};color:${look.buttonText};text-decoration:none;font:bold 16px Arial,Helvetica,sans-serif;padding:12px 22px;border-radius:4px">Log in to edit your pull list</a></p>
         <p style="margin:12px 0 0;text-align:center;font:13px/1.4 Arial,Helvetica,sans-serif;color:#5b5b5b">Change quantities, remove titles, or follow a series or artist. Changes close at midnight the Saturday before each order cutoff.</p>
+        <p style="margin:16px 0 0;text-align:center;font:14px/1.4 Arial,Helvetica,sans-serif;color:#161616">On your phone? <a href="${esc(appUrl)}" style="color:#161616;font-weight:bold">Get ${esc(shop.shop_name)}’s app</a>: your list in one tap, and a notification when your books are in.</p>
       </td></tr>
       <tr><td style="padding:16px 24px;border-top:1px solid #eee;font:12px/1.5 Arial,Helvetica,sans-serif;color:#5b5b5b">
         ${esc(shop.shop_name)}${addr.length ? ` · ${esc(addr.join(', '))}` : ''}${shop.phone ? ` · ${esc(shop.phone)}` : ''}<br>
@@ -193,7 +195,7 @@ export function build({ customer, sections: sec, shop, today, manageUrl, unsubsc
     sec[key].length
       ? `${SECTION_TITLES[key].toUpperCase()} (${sec[key].length})\n${sec[key].map((e) => { const l = line(e, key); return `- ${l.head}${l.bits ? `\n  ${l.bits}` : ''}`; }).join('\n')}\n\n`
       : '';
-  const text = `${hello}\n\nHere’s your pull list for the week of ${dayLabel(today, { month: 'long', day: 'numeric' })}.${shipNote ? ` ${shipNote}` : ''}\n\n${textBlock('ready')}${textBlock('soon')}${textBlock('later')}${tier.line ? `${tier.line}\n\n` : ''}Log in to edit your pull list: ${manageUrl}\n\n--\n${shop.shop_name}${addr.length ? `, ${addr.join(', ')}` : ''}${shop.phone ? `, ${shop.phone}` : ''}\nUnsubscribe: ${unsubscribeUrl}\n`;
+  const text = `${hello}\n\nHere’s your pull list for the week of ${dayLabel(today, { month: 'long', day: 'numeric' })}.${shipNote ? ` ${shipNote}` : ''}\n\n${textBlock('ready')}${textBlock('soon')}${textBlock('later')}${tier.line ? `${tier.line}\n\n` : ''}Log in to edit your pull list: ${manageUrl}\n\nOn your phone? Get ${shop.shop_name}’s app (your list in one tap, and a notification when your books are in): ${appUrl}\n\n--\n${shop.shop_name}${addr.length ? `, ${addr.join(', ')}` : ''}${shop.phone ? `, ${shop.phone}` : ''}\nUnsubscribe: ${unsubscribeUrl}\n`;
 
   return { subject: subj, html, text };
 }

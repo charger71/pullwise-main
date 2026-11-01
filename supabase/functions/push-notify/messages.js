@@ -113,6 +113,22 @@ export function cutoffMessage(lines, day) {
   };
 }
 
+/** Statuses that mean a title is on the shop's shelf (what a "tell me when it's in" alert waits for). */
+export const IN_STOCK = ['new_this_wednesday', 'just_arrived', 'available', 'low_stock', 'sale', 'clearance'];
+
+/** Titles the customer asked about that are in the shop now. In-store titles can't be held, so it says so. */
+export function inStockMessage(items, shopName = '') {
+  const names = titles(items.map((item) => ({ item })));
+  const at = shopName.trim() ? ` at ${shopName.trim()}` : '';
+  const id = Number(items[0]?.id);
+  return {
+    title: names.length === 1 ? 'It’s in' : `${names.length} titles you asked about are in`,
+    body: `${nameList(names)} ${names.length === 1 ? 'is' : 'are'} in${at}. In-store titles aren’t held, so come in soon.`,
+    url: names.length === 1 && id > 0 ? `/app?title=${id}#hot` : '/app#hot',
+    tag: 'in-stock',
+  };
+}
+
 /** The first notification after turning them on, so the customer sees it works. */
 export const testMessage = (shopName = '') => ({
   title: shopName.trim() || 'Notifications are on',
