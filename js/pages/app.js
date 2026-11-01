@@ -109,9 +109,15 @@ async function loadHot() {
 }
 
 const SHELVES = [
-  { key: 'foc', title: 'Top 10 Order Cutoff Soon', lede: 'The most pulled titles the shop orders in the next two weeks. Get them on your list in time.', empty: 'No order cutoffs in the next two weeks.', more: { href: 'pre-orders.html', label: 'All pre-orders' } },
-  { key: 'fresh', title: 'Top 10 New Arrivals', lede: 'The most pulled of the newest books at the shop.', empty: 'New books land every Wednesday — check back soon.', more: { href: 'new-arrivals.html', label: 'All new arrivals' } },
+  { key: 'foc', title: 'Top 10 Order Cutoff Soon', lede: 'The most pulled titles the shop orders in the next two weeks. Get them on your list in time.', empty: 'No order cutoffs in the next two weeks.', more: 'All pre-orders' },
+  { key: 'fresh', title: 'Top 10 New Arrivals', lede: 'The most pulled of the newest books at the shop.', empty: 'New books land every Wednesday — check back soon.', more: 'All new arrivals' },
 ];
+
+/** What each row's See all lists in the search results (showList): getItems arguments for the shop's time zone. */
+const LISTS = {
+  foc: { query: (tz) => ({ statuses: ['pre_order'], focFrom: openFocFrom(tz), order: 'foc' }), describe: (n) => (n ? `${n} ${n === 1 ? 'pre-order' : 'pre-orders'}, soonest order cutoff first` : 'No pre-orders open right now.') },
+  fresh: { query: () => ({ statuses: IN_STORE, order: 'arrivals' }), describe: (n) => (n ? `${n} ${n === 1 ? 'title' : 'titles'} in the shop, new arrivals first` : 'No titles in the shop right now.') },
+};
 
 async function renderHot() {
   hotShown = true;
@@ -133,7 +139,7 @@ async function renderHot() {
     <section class="app-shelf" aria-labelledby="hot-${key}-h">
       <div class="app-shelf__head">
         <h3 id="hot-${key}-h">${esc(title)}</h3>
-        ${more ? `<a href="${esc(more.href)}" target="_blank" rel="noopener">See all<span class="visually-hidden"> — ${esc(more.label)} (opens in your browser)</span></a>` : ''}
+        ${more ? `<button class="link-button" type="button" data-see-all="${key}">See all<span class="visually-hidden"> — ${esc(more)}</span></button>` : ''}
       </div>
       <p class="app-shelf__lede">${esc(lede)}</p>
       ${data[key].length
@@ -142,28 +148,41 @@ async function renderHot() {
     </section>`).join('');
 }
 
-if ($('[data-hot]')) enableReservations($('[data-hot]'), (id) => hotItems.get(id));
+if ($('[data-hot]')) {
+  enableReservations($('[data-hot]'), (id) => hotItems.get(id));
+  $('[data-hot]').addEventListener('click', (e) => {
+    const see = e.target.closest('[data-see-all]');
+    if (see) showList(see.dataset.seeAll);
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Search, from the button in the header: a box drops down under it, over whichever tab is showing. The shop's titles,
 // as on the website's search (titles that can still be ordered first), stand in for the tab while the box has words
-// in it; closing the search or picking a tab brings the tab back. Signed in, series and artists to follow are listed
+// in it; closing the search or picking a tab brings the tab back. Hot's See all opens the same results with every
+// open pre-order or every title in the shop, until a search is typed. Signed in, series and artists to follow are listed
 // above the titles (js/pages/account.js setupFollowing).
 // ---------------------------------------------------------------------------
 
 const FOUND_PAGE = 24;
-const found = { q: '', items: [], total: 0, req: 0 };
+// q: the words searched ('' for a See all list); query(tz): its getItems arguments; describe(count): the count line.
+const found = { q: '', query: null, describe: null, items: [], total: 0, req: 0 };
 
-async function search(q, { more = false } = {}) {
+/** The titles the search box's words find. */
+const search = (q) =>
+  showFound(q, (tz) => ({ q, openFirst: openFocFrom(tz) }), (n) => (n ? `${n} ${n === 1 ? 'title' : 'titles'} for “${esc(q)}”` : `No titles match “${esc(q)}”.`));
+
+/** Fill the results with `query`'s titles, or the next page of them (`more`). */
+async function showFound(q, query, describe, { more = false } = {}) {
   const box = $('[data-search-results]');
   const mine = ++found.req;
-  if (!more) Object.assign(found, { q, items: [], total: 0 });
-  if (!more) box.innerHTML = '<p class="empty loading">Searching…</p>';
+  if (!more) Object.assign(found, { q, query, describe, items: [], total: 0 });
+  if (!more) box.innerHTML = `<p class="empty loading">${q ? 'Searching…' : 'Loading…'}</p>`;
   let rows;
   let count;
   try {
     const tz = (await getSettings()).timezone;
-    ({ rows, count } = await getItems({ q, openFirst: openFocFrom(tz), limit: FOUND_PAGE, offset: found.items.length, withCount: true }));
+    ({ rows, count } = await getItems({ ...found.query(tz), limit: FOUND_PAGE, offset: found.items.length, withCount: true }));
   } catch (err) {
     console.error(err);
     if (mine === found.req) box.innerHTML = '<p class="empty">Couldn’t search right now. Please try again shortly.</p>';
@@ -178,7 +197,7 @@ async function search(q, { more = false } = {}) {
   const cards = rows.map((i) => itemCard(i, { reservable: true })).join('');
   if (!more) {
     box.innerHTML = `
-      <p class="results-count" role="status">${found.total ? `${found.total} ${found.total === 1 ? 'title' : 'titles'} for “${esc(q)}”` : `No titles match “${esc(q)}”.`}</p>
+      <p class="results-count" role="status" tabindex="-1">${found.describe(found.total)}</p>
       <div class="grid" data-found>${cards}</div>
       <button class="btn btn--ghost show-more" type="button" data-found-more hidden></button>`;
   } else {
@@ -213,11 +232,25 @@ function closeSearch({ focus = false } = {}) {
 let scrolledTo = 0; // where the tab was scrolled when the search opened, to go back to when it closes
 
 /** The box slides down over the page where it is; the page only moves once results stand in for the tab. */
-function openSearch() {
+function openSearch({ focus = true } = {}) {
   scrolledTo = scrollY;
   searchBox.hidden = false;
   $('[data-search-toggle]')?.setAttribute('aria-expanded', 'true');
-  $('[data-search-form]').elements.q.focus({ preventScroll: true });
+  if (focus) $('[data-search-form]').elements.q.focus({ preventScroll: true });
+}
+
+/** Hot's See all: every title of that row's kind (LISTS) in the search results, with the search box above them. */
+async function showList(key) {
+  const list = LISTS[key];
+  if (!list) return;
+  if (searchBox.hidden) openSearch({ focus: false });
+  $('[data-search-form]').elements.q.value = '';
+  const box = $('[data-search-results]');
+  box.hidden = false;
+  showView();
+  scrollTo({ top: 0, behavior: 'instant' });
+  await showFound('', list.query, list.describe);
+  if (!found.q) $('.results-count', box)?.focus({ preventScroll: true }); // the See all button is gone: start reading here
 }
 
 function setupSearch() {
@@ -264,7 +297,7 @@ function setupSearch() {
   box.addEventListener('click', (e) => {
     if (!e.target.closest('[data-found-more]')) return;
     e.target.disabled = true;
-    search(found.q, { more: true }).finally(() => (e.target.disabled = false));
+    showFound(found.q, found.query, found.describe, { more: true }).finally(() => (e.target.disabled = false));
   });
   enableReservations(box, (id) => hotItems.get(id));
 }
