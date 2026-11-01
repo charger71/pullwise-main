@@ -1,6 +1,5 @@
-import { initPage, openFocFrom, lastReserveDay, fmtDate } from '../site.js';
-import { getFocDates } from '../data.js';
-import { initCatalog, categoryOptions, publisherFilter, badgeFilter } from '../catalog.js';
+import { initPage, openFocFrom } from '../site.js';
+import { initCatalog, categoryOptions, publisherFilter, badgeFilter, focFilter } from '../catalog.js';
 
 await initPage();
 
@@ -13,14 +12,6 @@ if (how) {
 }
 
 const firstOpenFoc = openFocFrom();
-// One option per upcoming order cutoff, with the last day to add titles for it. The filter options load
-// alongside the first page of titles (initCatalog waits for them).
-const focOptions = getFocDates(['pre_order'], firstOpenFoc).then((dates) =>
-  dates.map((d) => [
-    d,
-    `${fmtDate(d, { weekday: 'short', month: 'short', day: 'numeric' })} — add by ${fmtDate(lastReserveDay(d), { weekday: 'short', month: 'short', day: 'numeric' })}`,
-  ]),
-);
 
 await initCatalog({
   statuses: ['pre_order'],
@@ -30,7 +21,7 @@ await initCatalog({
     publisherFilter(['pre_order']),
     { name: 'category', label: 'Category', options: categoryOptions(), multiple: true },
     badgeFilter(),
-    { name: 'foc', label: 'Order cutoff', options: focOptions },
+    focFilter(firstOpenFoc), // the options load alongside the first page of titles (initCatalog waits for them)
   ],
   toQuery: (v) => ({
     focFrom: v.foc || firstOpenFoc, // reservations close the Saturday before FOC, so the title drops off on Sunday

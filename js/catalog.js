@@ -1,8 +1,8 @@
 // Filterable, searchable item listing shared by Pre-Orders and New Arrivals.
 // Filter state is mirrored in the URL so filtered views can be shared/bookmarked.
 
-import { getItems, getCategories, getPublishers, getSettings, searchSeries } from './data.js';
-import { $, esc, STATUS, ITEM_BADGES } from './site.js';
+import { getItems, getCategories, getPublishers, getSettings, searchSeries, getFocDates } from './data.js';
+import { $, esc, STATUS, ITEM_BADGES, fmtDate, lastReserveDay } from './site.js';
 import { renderGrid, itemCard, enableReservations, seriesCards, enableSeriesFollow } from './components.js';
 
 /**
@@ -38,25 +38,11 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
   firstPage.catch(() => {}); // reported where it's used
   grid.setAttribute('aria-busy', 'true');
 
-  // A filter whose options can't load is left out, like one with nothing to choose from (e.g. no publishers yet);
-  // its value then reads as none.
-  filters = (
-    await Promise.all(
-      filters.map(async (f) => {
-        try {
-          const [options, pinned] = await Promise.all([f.options, f.pinned]);
-          return { ...f, options, pinned };
-        } catch (err) {
-          console.error(err);
-          return { ...f, options: [] };
-        }
-      }),
-    )
-  ).filter((f) => f.options.length);
+  filters = await loadFilters(filters);
 
   form.innerHTML =
     `<div class="field field--search"><label for="f-q">Search titles</label><input id="f-q" name="q" type="search" placeholder="e.g. Batman"></div>` +
-    filters.map((f) => (f.multiple ? multiSelect(f) : singleSelect(f))).join('');
+    filters.map(filterControl).join('');
 
   // Restore from URL
   for (const el of form.elements) {
@@ -169,6 +155,13 @@ export function publisherFilter(statuses) {
   return { name: 'publisher', label: 'Publisher', options: ready.then((r) => r.options), pinned: ready.then((r) => r.pinned), multiple: true };
 }
 
+/** Order cutoff filter: one option per upcoming cutoff from `firstOpenFoc` on, with the last day to add titles for it. */
+export function focFilter(firstOpenFoc) {
+  const day = (d) => fmtDate(d, { weekday: 'short', month: 'short', day: 'numeric' });
+  const options = getFocDates(['pre_order'], firstOpenFoc).then((dates) => dates.map((d) => [d, `${day(d)} — add by ${day(lastReserveDay(d))}`]));
+  return { name: 'foc', label: 'Order cutoff', options };
+}
+
 /** Category options (a promise, for a filter's `options`). */
 export async function categoryOptions() {
   return (await getCategories()).map((c) => [String(c.id), c.name]);
@@ -180,8 +173,30 @@ export const badgeFilter = () => ({ name: 'badge', label: 'Badge', options: Obje
 export const statusOptions = (keys) => keys.map((k) => [k, STATUS[k].label]);
 
 // ---------------------------------------------------------------------------
-// Filter controls
+// Filter controls (also the pull list app's See all lists, js/pages/app.js)
 // ---------------------------------------------------------------------------
+
+/**
+ * The filters with their options loaded. A filter whose options can't load is left out, like one with nothing to
+ * choose from (e.g. no publishers yet); its value then reads as none.
+ */
+export async function loadFilters(filters) {
+  const loaded = await Promise.all(
+    filters.map(async (f) => {
+      try {
+        const [options, pinned] = await Promise.all([f.options, f.pinned]);
+        return { ...f, options, pinned };
+      } catch (err) {
+        console.error(err);
+        return { ...f, options: [] };
+      }
+    }),
+  );
+  return loaded.filter((f) => f.options.length);
+}
+
+/** A filter's control: a checkbox dropdown for `multiple` filters (run setupMulti on it), else a select. */
+export const filterControl = (f) => (f.multiple ? multiSelect(f) : singleSelect(f));
 
 function singleSelect(f) {
   return `<div class="field"><label for="f-${f.name}">${esc(f.label)}</label><select id="f-${f.name}" name="${f.name}">
@@ -210,7 +225,7 @@ function multiSelect(f) {
   </div>`;
 }
 
-function setupMulti(root) {
+export function setupMulti(root) {
   const button = $('.multi__button', root);
   const panel = $('.multi__panel', root);
   const summary = $('.multi__summary', root);

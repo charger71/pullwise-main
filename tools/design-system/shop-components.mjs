@@ -122,7 +122,7 @@ The home page opener: the shop's headline over a faint halftone dot screen, an i
 </div></section>`, 'pw-shop'),
   },
   {
-    name: 'ShopButton', group: G('Actions'), height: 175,
+    name: 'ShopButton', group: G('Actions'), height: 161,
     readme: `# ShopButton
 
 Storefront buttons: upper-case labels on square-cornered (3px) blocks, 46px tall.
@@ -413,7 +413,7 @@ The customer's pull list on My Pull List: grouped lines with a cover, title, qua
 <div class="account-summary" style="margin-top:16px"><dl class="account-summary__totals"><div><dt>Ready now</dt><dd>$3.99</dd></div><div class="account-summary__total"><dt>Total</dt><dd>$13.97</dd></div></dl></div>`),
   },
   {
-    name: 'ShopApp', group: G('Account'), height: 420, width: 375,
+    name: 'ShopApp', group: G('Account'), height: 424, width: 375,
     readme: `# ShopApp
 
 The shop's installable pull list app (app.html, at /app; app.<shop domain> forwards there): the account page as one view at a time, under the shop's own brand.
@@ -424,7 +424,7 @@ The shop's installable pull list app (app.html, at /app; app.<shop domain> forwa
 - View titles sit above their panels (\`.app-view__title\`, \`fs-title\`), never inside: \`.app-section\` is a title then a \`.panel\`, 32px apart when a view has several (Account: Notifications, My Profile, then Appearance).
 - Loading screen (\`.app-splash\`): while the first view loads, the shop's logo and name sit centred on the page colour (the Worker fills both from Settings); it fades out once nothing is loading, after 3 seconds at most, and is then removed. Hidden from screen readers.
 - Search (\`.app-search\`): the header's search button slides a full-width search box down from behind the header (\`dur-slide\`, none under reduced motion) over the page wherever it's scrolled, and puts the cursor in it; the page doesn't move. The box is a \`paper\` band fixed under the header, with a \`line\` edge and \`shadow-menu\` below. Results start at the top, under the box; closing the search goes back to where the tab was scrolled. While it has words in it, signed-in customers first see matching series and artists to follow (the Series and Artists & writers lists with their Follow buttons, as on the website's account page), then the website's title search (titles that can still be ordered first) stands in for the tab as a two-across \`.grid\` of cards with a count and Show more. The button again, Escape or any tab puts it away and brings the tab back.
-- Hot (\`.app-shelf\`): **Top 10 Order Cutoff Soon** (the ten most pulled titles whose order cutoff is in the next two weeks) and **Top 10 New Arrivals** (the ten most pulled of the newest books), ranked by \`rank_by_pulls\`; titles nobody has pulled fill in by date. Each row is an \`fs-sub\` heading with a See all link-button, a \`muted\` lede, then \`.app-shelf__row\`: the website's cards in one row that swipes sideways, snapping card by card, about two and a half cards wide (each up to 200px) and running to the screen's edges. The cards are shorter than the website's: an 8px body, the title in \`fs-ui\` and at most two lines, meta in \`fs-xs\`, the cutoff without its date in brackets, and the button label in \`fs-2xs\` on one line. See all opens the search's results (search box empty above them) with every open pre-order, soonest order cutoff first, or every title in the shop, new arrivals first, with Show more; typing a search replaces them, and closing goes back to Hot.
+- Hot (\`.app-shelf\`): **Top 10 Order Cutoff Soon** (the ten most pulled titles whose order cutoff is in the next two weeks) and **Top 10 New Arrivals** (the ten most pulled of the newest books), ranked by \`rank_by_pulls\`; titles nobody has pulled fill in by date. Each row is an \`fs-sub\` heading with a See all link-button, a \`muted\` lede, then \`.app-shelf__row\`: the website's cards in one row that swipes sideways, snapping card by card, about two and a half cards wide (each up to 200px) and running to the screen's edges. The cards are shorter than the website's: an 8px body, the title in \`fs-ui\` and at most two lines, meta in \`fs-xs\`, the cutoff without its date in brackets, and the button label in \`fs-2xs\` on one line. See all opens the search's results (search box empty above them) with every open pre-order, soonest order cutoff first, or every title in the shop, new arrivals first, with Show more. Above the titles, the website's \`.filters\` box (ShopFilters): Order cutoff, Publisher and Category for pre-orders; Publisher and Category for the shop. Typing a search replaces the list and its filters, and closing goes back to Hot.
 - \`.app-note\`: a \`surface\` strip under the header, like \`.app-install\`: "You’re offline. Showing your list from Sat 4:09 PM." (the last copy of the list, read-only with its controls left out, \`.account-saved-list\`), or "A new version of the app is ready" with a primary Update button.
 - The app's icon shows the number of books ready for pickup (set when the list loads and by the ready-for-pickup notification); long-pressing it on Android offers My List, Hot and Shop. A notification about one title opens its details.
 - \`.app-install\`: a \`surface\` strip under the header offering Add to Home Screen (an Install button, or Share directions on an iPhone) with a ✕ to dismiss.
