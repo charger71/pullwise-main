@@ -1,6 +1,6 @@
 // node supabase/functions/push-notify/messages.test.js
 import assert from 'node:assert/strict';
-import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone, addDays, shopToday, dayLabel, lastChangeDay, focsChangingOn, pickupDue, pickupReminderMessage, cutoffMessage } from './messages.js';
+import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone, addDays, shopToday, dayLabel, lastChangeDay, focsChangingOn, pickupDue, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK } from './messages.js';
 
 const line = (title, issue, id) => ({ item: { id, title, issue_number: issue } });
 
@@ -70,6 +70,17 @@ assert.equal(cut.title, 'Last chance to change your pull list');
 assert.equal(cut.body, 'Saga #72, Spawn #401 and 1 more: change or remove them by tomorrow (Sat, Nov 7), before the shop places its order.');
 assert.equal(cut.url, '/app#list');
 assert.equal('badge' in cut, false);
+
+// In stock again
+const inOne = inStockMessage([{ id: 9, title: 'Saga', issue_number: '1' }], 'Area71');
+assert.equal(inOne.title, 'It’s in');
+assert.equal(inOne.body, 'Saga #1 is in at Area71. In-store titles aren’t held, so come in soon.');
+assert.equal(inOne.url, '/app?title=9#hot');
+assert.equal(inOne.tag, 'in-stock');
+const inTwo = inStockMessage([{ id: 9, title: 'Saga', issue_number: '1' }, { id: 10, title: 'Bone Omnibus' }]);
+assert.equal(inTwo.title, '2 titles you asked about are in');
+assert.equal(inTwo.url, '/app#hot');
+assert.ok(!IN_STOCK.includes('sold_out') && !IN_STOCK.includes('backorder') && !IN_STOCK.includes('pre_order'));
 
 assert.equal(testMessage('Area71').title, 'Area71');
 assert.equal(testMessage().title, 'Notifications are on');

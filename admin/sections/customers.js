@@ -4,7 +4,7 @@
 // adding titles goes through staff_pull_list_add(), which can also add past the cutoff.
 // Every change is recorded in pull_list_log and shown under "Recent changes".
 
-import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript } from '../lib.js';
 import { cutoffPassed } from '../../js/site.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { todayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
@@ -121,6 +121,78 @@ export async function mount(el, ctx) {
   state.customerId ? renderCustomer(el) : renderList(el);
 }
 
+// ---------------------------------------------------------------------------
+// Scan pickup code: the QR code a customer shows in the app (js/pages/account.js) is a link to #customers/<id>.
+// The browser's own QR reader where it has one (Chrome, Android), else jsQR (Safari, iPad).
+// ---------------------------------------------------------------------------
+
+const JSQR = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+const canScan = () => !!navigator.mediaDevices?.getUserMedia;
+
+/** The customer a scanned code names: an app pickup link, or a bare "#1042". */
+export const customerFromCode = (text) => {
+  const m = String(text ?? '').trim().match(/(?:#customers\/|^#?)(\d{1,9})$/);
+  return m ? Number(m[1]) : null;
+};
+
+async function qrReader() {
+  if ('BarcodeDetector' in window && (await BarcodeDetector.getSupportedFormats?.())?.includes('qr_code')) {
+    const detector = new BarcodeDetector({ formats: ['qr_code'] });
+    return async (video) => (await detector.detect(video))[0]?.rawValue ?? null;
+  }
+  if (!window.jsQR) await loadScript(JSQR, 'The QR code reader couldn’t be loaded. Check the connection and try again.');
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  return async (video) => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    if (!canvas.width) return null;
+    ctx.drawImage(video, 0, 0);
+    return window.jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, { inversionAttempts: 'dontInvert' })?.data ?? null;
+  };
+}
+
+async function scanPickupCode(el) {
+  const d = openDialog('Scan Pickup Code', `
+    <p class="admin-hint">Hold the customer’s pickup code (My List in the shop’s app) up to the camera.</p>
+    <video class="scan-video" playsinline muted aria-label="Camera"></video>
+    <p class="admin-status" role="status" data-scan-status>Starting the camera…</p>`);
+  const status = $('[data-scan-status]', d);
+  const video = $('video', d);
+  let stream = null;
+  let timer = null;
+  const stop = () => {
+    clearTimeout(timer);
+    stream?.getTracks().forEach((t) => t.stop());
+  };
+  d.addEventListener('close', stop);
+  try {
+    const read = await qrReader();
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    if (!d.open) return stop();
+    video.srcObject = stream;
+    await video.play();
+    status.textContent = 'Looking for a pickup code…';
+    const look = async () => {
+      if (!d.open) return;
+      const text = await read(video).catch(() => null);
+      const id = text && customerFromCode(text);
+      if (text && !id) status.textContent = 'That QR code isn’t a pickup code. Try the one on the customer’s My List.';
+      if (!id) return void (timer = setTimeout(look, 250));
+      d.close();
+      state.customerId = id;
+      renderCustomer(el);
+    };
+    look();
+  } catch (err) {
+    stop();
+    status.classList.add('admin-status--error');
+    status.textContent = err?.name === 'NotAllowedError'
+      ? 'The camera is blocked for this site. Allow it in the browser’s settings, or type the number into the search box (for example #1042).'
+      : err?.name === 'NotFoundError' ? 'No camera was found. Type the number into the search box instead (for example #1042).' : friendlyError(err);
+  }
+}
+
 /** "Smith, Jane" for the list (sorted by last name); just the first name when there's no last name. */
 const listName = (c) => [c.last_name, c.first_name].filter(Boolean).join(', ') || c.email || '(no name)';
 
@@ -140,6 +212,7 @@ function renderList(el) {
       <h1>Customers</h1>
       <div class="admin-actions cust-head-actions">
         ${phone ? `<details class="cust-more"><summary>Export &amp; print</summary><div class="cust-more__body">${exportControls}</div></details>` : exportControls}
+        ${canScan() ? '<button class="btn btn--ghost" type="button" data-scan>Scan pickup code</button>' : ''}
         <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New customer</button>
       </div>
     </div>
@@ -199,6 +272,7 @@ function renderList(el) {
   $('[data-next]', el).addEventListener('click', () => ((state.offset += PAGE), loadList(el)));
   $('[data-export-all]', el).addEventListener('click', (e) => exportAll(e.currentTarget, $('[data-export-history]', el).checked));
   $('[data-export-customers]', el).addEventListener('click', (e) => exportCustomersPdf(e.currentTarget));
+  $('[data-scan]', el)?.addEventListener('click', () => scanPickupCode(el));
   $('[data-new]', el).addEventListener('click', () => {
     state.customerId = 'new';
     renderCustomer(el);

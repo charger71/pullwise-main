@@ -3,8 +3,8 @@
 //   GET                                          { publicKey }: the VAPID public key the app subscribes with ('' = not set up)
 //   POST  x-cron-secret: <CRON_SECRET>  { "mode": "send" }   the hourly tick (public.push_notify_tick): one notice per
 //           customer for books newly ready for pickup, one for titles their follows added since the last, a reminder
-//           for books still waiting (after a week, and near the end of the hold), and one the day before the last
-//           day to change the list
+//           for books still waiting (after a week, and near the end of the hold), one the day before the last
+//           day to change the list, and one when titles they asked about ("tell me when it's in") are in the shop
 //   POST  Authorization: Bearer <customer>  { "mode": "test" }   a test notice to the signed-in customer's own devices
 //
 // Secrets (supabase secrets set …): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (`node tools/vapid-keys.mjs` makes a pair; the
@@ -15,7 +15,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
-import { arrivalMessage, newTitlesMessage, pickupReminderMessage, cutoffMessage, testMessage, notificationIcon, subscriptionGone, shopToday, addDays, focsChangingOn, pickupDue } from './messages.js';
+import { arrivalMessage, newTitlesMessage, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, testMessage, notificationIcon, subscriptionGone, shopToday, addDays, focsChangingOn, pickupDue } from './messages.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
@@ -127,7 +127,7 @@ async function sendAll() {
   const byCustomer = new Map<number, Device[]>();
   for (const d of devices) byCustomer.set(d.customer_id, [...(byCustomer.get(d.customer_id) ?? []), d]);
   const ids = [...byCustomer.keys()];
-  const out = { customers: ids.length, arrivals: 0, newTitles: 0, pickupReminders: 0, cutoffReminders: 0, sent: 0, failed: 0, errors: [] as string[] };
+  const out = { customers: ids.length, arrivals: 0, newTitles: 0, pickupReminders: 0, cutoffReminders: 0, inStock: 0, sent: 0, failed: 0, errors: [] as string[] };
   const today = shopToday(shop.timezone || 'America/New_York');
   const holdDays = shop.hold_days ?? 30;
   const changeDay = addDays(today, 1); // remind the day before the last day to change
@@ -144,11 +144,19 @@ async function sendAll() {
         .in('order.customer_id', chunk)
         .order('created_at');
     const since = new Date(Date.now() - 7 * 864e5).toISOString(); // a week back is plenty for an hourly job
-    const [arrived, added, closing] = await Promise.all([
+    const alerts = admin
+      .from('stock_alerts')
+      .select('id,customer_id,item:items!inner(id,title,issue_number,status)')
+      .in('customer_id', chunk)
+      .in('item.status', IN_STOCK)
+      .order('id');
+    const [arrived, added, closing, inNow] = await Promise.all([
       lineQuery().eq('status', 'arrived'), // all of them: the new ones are announced, and the count goes on the icon
       lineQuery().eq('status', 'open').in('source', NEW_SOURCES).gt('created_at', since),
       lineQuery().eq('status', 'open').in('item.foc_date', cutoffFocs), // changes close tomorrow
+      alerts,
     ]);
+    if (inNow.error) throw inNow.error;
     if (arrived.error) throw arrived.error;
     if (added.error) throw added.error;
     if (closing.error) throw closing.error;
@@ -181,6 +189,18 @@ async function sendAll() {
         if (r.sent || !r.retry) {
           const { error } = await admin.from('customers').update({ new_titles_pushed_at: fresh.at(-1).created_at }).eq('id', c.id);
           if (error) out.errors.push(`customer ${c.id} new titles: ${error.message}`);
+        }
+      }
+      // In the shop now: titles they asked about. Asked for, so sent whatever their other switches say; then forgotten.
+      const asked = inNow.data.filter((a: any) => a.customer_id === c.id);
+      if (asked.length) {
+        const r = await sendTo(mine, { ...inStockMessage(asked.map((a: any) => a.item), shop.shop_name), icon });
+        out.inStock++;
+        out.sent += r.sent;
+        out.failed += r.failed;
+        if (r.sent || !r.retry) {
+          const { error } = await admin.from('stock_alerts').delete().in('id', asked.map((a: any) => a.id));
+          if (error) out.errors.push(`customer ${c.id} in stock: ${error.message}`);
         }
       }
       if (!c.push_reminders) continue;

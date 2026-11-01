@@ -2,6 +2,7 @@
 // Each carries a link back to the event's page on the site.
 
 import { SITE_URL } from './config.js';
+import { itemTitle } from './util.js';
 
 // The text helpers below are the same as supabase/functions/calendar-feed/ical.js (the Edge Function deploys on
 // its own, so it has its own copy); ics.test.js checks that they agree.
@@ -100,4 +101,47 @@ export function outlookLink(e, location) {
     location,
   });
   return `https://outlook.live.com/calendar/0/deeplink/compose?${p}`;
+}
+
+// ---------------------------------------------------------------------------
+// A title's release day (title details → Add to calendar): an all-day event, linking to the title on the site.
+// ---------------------------------------------------------------------------
+
+/** The title on the shop's website: Pre-Orders while it can be ordered, else New Arrivals (both open its details). */
+export const titleUrl = (item) => `${SITE_URL.replace(/\/$/, '')}/${item.status === 'pre_order' ? 'pre-orders' : 'new-arrivals'}.html?title=${item.id}`;
+
+const day = (iso) => iso.replace(/-/g, '');
+const nextDay = (iso) => new Date(Date.parse(`${iso}T00:00:00Z`) + 864e5).toISOString().slice(0, 10);
+const releaseName = (item) => `${itemTitle(item)}${item.variant ? ` (${item.variant})` : ''} is out`;
+const releaseDetails = (item, shopName) => `New at ${shopName} today.\n\nDetails: ${titleUrl(item)}`;
+
+export function releaseIcs(item, shopName, host) {
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    `PRODID:-//${text(shopName)}//Releases//EN`,
+    'BEGIN:VEVENT',
+    `UID:release-${item.id}@${host}`,
+    `DTSTAMP:${stamp(new Date().toISOString())}`,
+    `DTSTART;VALUE=DATE:${day(item.release_date)}`,
+    `DTEND;VALUE=DATE:${day(nextDay(item.release_date))}`,
+    `SUMMARY:${text(releaseName(item))}`,
+    `DESCRIPTION:${text(releaseDetails(item, shopName))}`,
+    `URL:${titleUrl(item)}`,
+    `LOCATION:${text(shopName)}`,
+    'TRANSP:TRANSPARENT',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].map(icsFold).join('\r\n') + '\r\n';
+}
+
+export function releaseGoogleLink(item, shopName) {
+  const p = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: releaseName(item),
+    dates: `${day(item.release_date)}/${day(nextDay(item.release_date))}`,
+    details: releaseDetails(item, shopName),
+    location: shopName,
+  });
+  return `https://calendar.google.com/calendar/render?${p}`;
 }
