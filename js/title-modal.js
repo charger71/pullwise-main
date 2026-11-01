@@ -2,7 +2,7 @@
 // same buttons the card has. The address gets ?title=<id> while it is open, so a title can be linked
 // to, and the browser's back button closes it.
 
-import { getItem, getVariants, getTopReserved, getSettings } from './data.js';
+import { getItem, getVariants, getTopReserved, getSettings, getCategories } from './data.js';
 import { SITE_URL } from './config.js';
 import { titleUrl, releaseIcs, releaseGoogleLink } from './ics.js';
 import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shownStatus, shopToday } from './site.js';
@@ -23,6 +23,22 @@ const alertHtml = (item) => {
   return `<div class="title-modal__alert">
       <button class="btn ${alertOn ? 'btn--ghost' : 'btn--primary'}" type="button" data-stock-alert aria-pressed="${alertOn}">${alertOn ? '✓ We’ll tell you when it’s in' : 'Notify me when it’s in'}</button>
       <p class="card__meta" role="status" data-stock-alert-msg>${alertOn && pushOff() ? 'Turn on notifications on the Account tab to get it.' : ''}</p>
+    </div>`;
+};
+// Trades and omnibuses stay in print: once out, a signed-in customer can ask the shop to order a copy (a re-order).
+const REORDER_SLUGS = ['trades', 'omnibuses'];
+let reorderCats = null; // their category ids, once loaded
+const canReorder = (item) => !!reorderCats?.has(item.category_id) && item.status !== 'pre_order' && !(item.release_date > shopToday());
+const reorderHtml = (item) => {
+  const action = !pull.isSignedIn()
+    ? `<a class="btn btn--primary" href="account.html">Sign in to order a copy</a>`
+    : pull.has(item.id)
+      ? `<span class="btn btn--ghost" aria-disabled="true"><span aria-hidden="true">✓</span> On your pull list</span>`
+      : `<button class="btn btn--primary" type="button" data-reorder>Order a copy<span class="visually-hidden"> of ${esc(itemTitle(item))}</span></button>`;
+  return `<div class="title-modal__alert">
+      <p class="notice">Not on the shelf, or want one kept for you? We can order a copy: it goes on your pull list and we’ll let you know when it’s in.</p>
+      <div class="card__foot">${action}</div>
+      <p class="card__meta" role="status" data-reorder-msg></p>
     </div>`;
 };
 let current = null; // the title being shown
@@ -64,11 +80,25 @@ function details(item) {
     ${item.status === 'pre_order' ? focLabel(item) : ''}
     ${open ? `<div class="card__foot">${reserveButton(item)}${variantsButton(item)}</div>${followButton(item)}` : ''}
     ${alertHtml(item)}
-    ${item.status !== 'pre_order' ? '<p class="notice">In-store titles can’t be held or reserved: first to pay gets it. Want a guaranteed copy of something upcoming? <a href="pre-orders.html">Pre-order it</a>.</p>' : ''}
+    ${canReorder(item) ? reorderHtml(item) : item.status !== 'pre_order' ? '<p class="notice">In-store titles can’t be held or reserved: first to pay gets it. Want a guaranteed copy of something upcoming? <a href="pre-orders.html">Pre-order it</a>.</p>' : ''}
     ${item.description ? `<div class="title-modal__desc">${paragraphs(item.description)}</div>` : ''}
     ${people.length ? `<ul class="chips" aria-label="Creators">${people.map((p) => `<li>${esc(p.name)}</li>`).join('')}</ul>` : ''}
     ${item.isbn ? `<p class="card__meta">ISBN ${esc(item.isbn)}</p>` : ''}
     ${canShare() ? `<p class="title-modal__share"><button class="btn btn--ghost" type="button" data-title-share>Share</button><span class="title-modal__shared" role="status"></span></p>` : ''}`;
+}
+
+async function orderCopy(btn) {
+  const item = current;
+  btn.disabled = true;
+  try {
+    await pull.reorder(item.id);
+    if (current !== item) return;
+    render();
+    $('[data-reorder-msg]', dialog).textContent = `We’ll order ${itemTitle(item)} for you. It’s on your pull list, and we’ll let you know when it’s in.`;
+  } catch (err) {
+    btn.disabled = false;
+    $('[data-reorder-msg]', dialog).textContent = err.message;
+  }
 }
 
 async function toggleAlert(btn) {
@@ -163,6 +193,8 @@ function create() {
     if (shareBtn) return share(shareBtn);
     const alertBtn = e.target.closest('[data-stock-alert]');
     if (alertBtn) return toggleAlert(alertBtn);
+    const reorderBtn = e.target.closest('[data-reorder]');
+    if (reorderBtn) return orderCopy(reorderBtn);
     if (e.target.closest('[data-title-ics]')) {
       e.preventDefault();
       return addToCalendar(current);
@@ -201,6 +233,7 @@ async function open(id, { push = true, opener = null } = {}) {
   }
   topIds = await getTopReserved();
   shopName = (await getSettings().catch(() => ({}))).shop_name ?? '';
+  reorderCats ??= await getCategories().then((cats) => new Set(cats.filter((c) => REORDER_SLUGS.includes(c.slug)).map((c) => c.id)), () => null);
   dialog ??= create();
   current = item;
   alertOn = null;

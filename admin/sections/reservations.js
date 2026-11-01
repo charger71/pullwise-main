@@ -2,11 +2,13 @@
 // status, lookup by name/phone/email, CSV export — plus a "To order" view that
 // totals reserved copies per title for each order cutoff.
 
-import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime, fetchAll, debounce, titleFilter, STATUS_LABELS } from '../lib.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, todayIn, dayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
 
 const PAGE = 25;
+/** An order's kind as a pill: a customer's pull list, a re-order (ordered after the cutoff), or a guest order. */
+const kindPill = (kind) => (kind === 'pull_list' ? '<span class="pill pill--pull">Pull list</span>' : kind === 'reorder' ? '<span class="pill pill--info">Re-order</span>' : '<span class="pill pill--off">Guest order</span>');
 const ITEM_FIELDS = 'id,title,issue_number,variant,publisher,price,foc_date,release_date';
 let sb;
 let settings;
@@ -43,10 +45,11 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-view="toorder">Place Order</button>
       <button type="button" class="admin-tab" role="tab" data-view="past">Past Orders</button>
       <button type="button" class="admin-tab" role="tab" data-view="ready">Received</button>
+      <button type="button" class="admin-tab" role="tab" data-view="reorder">Re-order</button>
     </div>
     <form class="filters admin-filters" data-location-bar hidden></form>
     <div data-body></div>`;
-  // A shop with 2+ locations picks which one to work on; it applies to all three tabs (orders are placed and received per location).
+  // A shop with 2+ locations picks which one to work on; it applies to every tab (orders are placed and received per location).
   listLocations(sb).then((locations) => {
     if (!locations.length) return void (state.location = '');
     locationNames = new Map(locations.map((l) => [l.id, l.name]));
@@ -76,7 +79,7 @@ export async function mount(el, ctx) {
   // A refresh stays on the tab you were on.
   try {
     const view = sessionStorage.getItem('admin-reservations-view');
-    if (['orders', 'toorder', 'past', 'ready'].includes(view)) state.view = view;
+    if (['orders', 'toorder', 'past', 'ready', 'reorder'].includes(view)) state.view = view;
   } catch {
     /* start on Orders */
   }
@@ -111,6 +114,7 @@ function render(el) {
   if (state.view === 'orders') renderOrders(body);
   else if (state.view === 'ready') renderReady(body);
   else if (state.view === 'past') renderPastOrders(body);
+  else if (state.view === 'reorder') renderReorders(body);
   else renderToOrder(body);
 }
 
@@ -260,7 +264,7 @@ function orderPanelHtml(o) {
   const arrivedIds = lines.filter((l) => l.status === 'arrived').map((l) => l.id);
   return `<div class="order order--inline" data-order="${o.id}">
         <div class="order__toolbar">
-          <p class="card__meta order__meta"><span class="order__id">Order #${o.id}</span> <span class="pill pill--${o.kind === 'pull_list' ? 'pull' : 'guest'}">${o.kind === 'pull_list' ? 'Pull list' : 'Guest order'}</span> <span>${lines.length} ${lines.length === 1 ? 'title' : 'titles'}</span> <span>${fmtDateTime(o.created_at)}</span></p>
+          <p class="card__meta order__meta"><span class="order__id">Order #${o.id}</span> ${kindPill(o.kind)} <span>${lines.length} ${lines.length === 1 ? 'title' : 'titles'}</span> <span>${fmtDateTime(o.created_at)}</span></p>
           <div class="order__actions">
             ${o.unlinked_match ? `<a class="btn btn--primary btn--small" href="#customers" data-customer="${o.customer_id}" title="This guest order matches ${esc(o.name)}: open the customer to link it" aria-label="Fix: link guest order ${o.id} to ${esc(o.name)}">${solidIcon('fix', 16)} Fix</a>` : ''}
             ${arrivedIds.length > 1 ? `<button class="btn btn--small btn--green" type="button" data-all="picked_up" data-lines="${arrivedIds.join(',')}">Mark all ${arrivedIds.length} arrived titles picked up</button>` : ''}
@@ -417,7 +421,7 @@ async function loadOrders(body) {
         <td class="card-title"><a href="#reservations" data-open="${o.id}"><strong>${esc(o.name)}</strong></a><br><span class="card__meta">Order #${o.id}</span></td>
         <td class="center card-label">${lines.length}</td>
         <td class="nowrap card__meta">${fmtDateTime(o.created_at)}</td>
-        <td><span class="pill pill--${o.kind === 'pull_list' ? 'pull' : 'guest'}">${o.kind === 'pull_list' ? 'Pull list' : 'Guest order'}</span></td>
+        <td>${kindPill(o.kind)}</td>
         <td class="card-wide"><span>${esc(summary)}${overdue ? ' · <strong>past pickup</strong>' : ''}</span></td>
         <td class="nowrap card-action">${o.unlinked_match ? `<a class="btn btn--primary btn--small" href="#customers" data-customer="${o.customer_id}" title="This guest order matches ${esc(o.name)}: open the customer to link it" aria-label="Fix: link guest order ${o.id} to ${esc(o.name)}">${solidIcon('fix', 16)} Fix</a> ` : ''}<button class="btn btn--ghost btn--small" type="button" data-open="${o.id}" aria-expanded="false">View<span class="visually-hidden"> order ${o.id}</span></button>
           </td>
@@ -499,7 +503,7 @@ async function renderReady(body) {
     try {
       const lines = [];
       for (let from = 0; ; from += 1000) {
-        const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,status,item:items(${ITEM_FIELDS})`).in('status', ['open', 'ordered', 'reordered'])).order('id').range(from, from + 999);
+        const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,status,item:items(${ITEM_FIELDS})`).in('status', WAITING_STATUSES)).order('id').range(from, from + 999);
         if (error) throw fromError(error);
         lines.push(...data);
         if (data.length < 1000) break;
@@ -559,6 +563,8 @@ async function renderReady(body) {
   };
 
   function draw() {
+    // Titles whose customer list is open, so the redraw (a tick, a sort, a filter) can open them again.
+    const openPeople = $$('[data-customers][aria-expanded="true"]', box).map((b) => b.dataset.customers);
     const list = visible();
     if (!seeded) {
       rows.filter(startTicked).forEach((r) => picked.add(r.item.id));
@@ -587,12 +593,13 @@ async function renderReady(body) {
         <td>${esc(r.item.publisher ?? '')}</td>
         <td class="nowrap card-label">${r.item.release_date ? fmtDate(r.item.release_date, { month: 'short', day: 'numeric' }) : ''}</td>
         <td class="center card-key card-label">${r.copies ? `<strong>${r.copies}</strong>` : '—'}</td>
-        <td class="center card-key card-label">${r.orders.size || '—'}</td>
+        <td class="center card-key card-label">${r.orders.size ? `<button type="button" class="link-button" data-customers="${r.item.id}" data-waiting title="See who reserved this title">${r.orders.size}</button>` : '—'}</td>
         </tr>`).join('')}</tbody>
         </table>
         </div>
       </section>`;
     sortableTable($('table', box), { sort: sort.key, dir: sort.dir, onSort: (key, dir) => ((sort = { key, dir }), draw()) });
+    openPeople.forEach((id) => { const b = $(`[data-customers="${id}"]`, box); if (b) toggleCustomers(b); });
   }
 
   $('form', body).addEventListener('input', draw);
@@ -618,6 +625,8 @@ async function renderReady(body) {
       }
       return;
     }
+    const cust = e.target.closest('[data-customers]');
+    if (cust) return void toggleCustomers(cust);
     const pick = e.target.closest('[data-pick]');
     if (pick) {
       visible().filter((r) => r.lineIds.length).forEach((r) => (pick.dataset.pick === 'all' ? picked.add(r.item.id) : picked.delete(r.item.id)));
@@ -633,7 +642,7 @@ async function renderReady(body) {
     go.disabled = true;
     try {
       // Only lines still open, ordered or reordered change, so a line staff changed meanwhile is left alone.
-      const done = await updateLines(ids, 'arrived', ['open', 'ordered', 'reordered']);
+      const done = await updateLines(ids, 'arrived', WAITING_STATUSES);
       toast(`${done} ${done === 1 ? 'reservation' : 'reservations'} marked ready`);
       picked.clear();
       seeded = true;
@@ -657,7 +666,7 @@ async function renderReady(body) {
 async function loadToOrderData() {
   const lines = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items(${ITEM_FIELDS})`).eq('status', 'open')).order('id').range(from, from + 999);
+    const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items(${ITEM_FIELDS})`).eq('status', 'open').eq('reorder', false)).order('id').range(from, from + 999);
     if (error) throw fromError(error);
     lines.push(...data);
     if (data.length < 1000) break;
@@ -683,6 +692,13 @@ async function loadToOrderData() {
   return { lines, groups, focs: [...groups.keys()].sort(), meta };
 }
 
+/**
+ * Only one distributor's titles ('all' keeps every title, 'none' the unassigned ones), dropping cutoffs left empty:
+ * cutoff → item id → row. distOf reads a row's distributor.
+ */
+const forDistributor = (groups, dist, distOf) =>
+  dist === 'all' ? groups : new Map([...groups].map(([foc, items]) => [foc, new Map([...items].filter(([, r]) => (distOf(r) || 'none') === dist))]).filter(([, items]) => items.size));
+
 /** A cutoff that hasn't passed yet (the shop's today counts as not passed). */
 const upcoming = (foc) => foc !== 'No cutoff' && foc >= today();
 
@@ -697,7 +713,7 @@ async function loadOrderedEarly() {
   // so this stays small however much order history builds up.
   const since = today();
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items!inner(${ITEM_FIELDS},upc,isbn,sku,distributor)`).in('status', PAST_STATUSES).gte('item.foc_date', since)).order('id').range(from, from + 999);
+    const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items!inner(${ITEM_FIELDS},upc,isbn,sku,distributor)`).in('status', PAST_STATUSES).eq('reorder', false).gte('item.foc_date', since)).order('id').range(from, from + 999);
     if (error) throw fromError(error);
     lines.push(...data);
     if (data.length < 1000) break;
@@ -724,7 +740,7 @@ async function renderToOrder(body) {
   // Titles whose customer list is open, so a refresh can open them again.
   const openPeople = $$('[data-customers][aria-expanded="true"]', body).map((b) => b.dataset.customers);
   // The instructions are folded away on phones, where they would push the cutoffs off the first screen.
-  body.innerHTML = `${hintFold(`Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one), then mark the cutoff as ordered once you've placed it. A cutoff ordered before its date stays here marked Ordered until the date passes, then moves to Past Orders. The list groups titles by distributor with the product code, and counts customer reservations (including pull lists) only.`)}<div data-order-tools>
+  body.innerHTML = `${hintFold(`Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one; picking a distributor also narrows the list to its titles), then mark the cutoff as ordered once you've placed it. A cutoff ordered before its date stays here marked Ordered until the date passes, then moves to Past Orders. The list groups titles by distributor with the product code, and counts customer reservations (including pull lists) only.`)}<div data-order-tools>
     </div>
     <div data-groups aria-busy="true">
     </div>`;
@@ -741,25 +757,37 @@ async function renderToOrder(body) {
     box.innerHTML = '<p class="empty">Nothing waiting to be ordered.</p>';
     return;
   }
-  const groups = loaded?.groups ?? new Map();
-  // Cutoffs with something to order (exports and "mark ordered" use only these), and every cutoff shown.
-  const focs = [...groups.keys()].sort();
-  const shown = [...new Set([...focs, ...early.keys()])].sort();
-  // Cutoffs are collapsed except the first. A refresh keeps the ones you had open; if none of them is still
-  // listed (a new week's cutoffs), the first opens again.
-  const keepOpen = toOrderOpen && shown.some((f) => toOrderOpen.has(f)) ? toOrderOpen : new Set((focs.length ? focs : shown).slice(0, 1));
-  box.addEventListener('toggle', () => (toOrderOpen = new Set($$('.fold--compact[open]', box).map((d) => d.dataset.foc))), true);
+  const allGroups = loaded?.groups ?? new Map();
+  const meta = loaded?.meta ?? new Map();
+  // Cutoffs with something to order, for the tools' cutoff list.
+  const allFocs = [...allGroups.keys()].sort();
+  toOrderLoadedAt = Date.now();
+  if (allFocs.length) setupOrderTools($('[data-order-tools]', body), allGroups, allFocs, meta, keep);
+  hookToOrderRefresh();
   const ordinal = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-  box.innerHTML = (focs.length ? '' : '<p class="empty">Nothing waiting to be ordered.</p>') + shown
-    .map((foc) => {
-      const rows = [...(groups.get(foc)?.values() ?? [])].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
-      const done = [...(early.get(foc)?.values() ?? [])].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
-      const copies = rows.reduce((n, r) => n + r.copies, 0);
-      const doneCopies = done.reduce((n, r) => n + r.copies, 0);
-      const note = rows.length
-        ? `${ordinal(rows.length, 'title', 'titles')} · ${ordinal(copies, 'copy', 'copies')}${done.length ? ` · ${doneCopies} already ordered` : ''}`
-        : `${ordinal(done.length, 'title', 'titles')} · ${ordinal(doneCopies, 'copy', 'copies')} ordered`;
-      return `<details class="fold fold--compact" data-foc="${esc(foc)}"${keepOpen.has(foc) ? ' open' : ''}>
+  // The cutoffs drawn for the distributor picked in the tools: "mark ordered" then covers only that distributor.
+  let groups = allGroups;
+  const draw = () => {
+    const dist = $('#ot-dist', body)?.value ?? 'all';
+    groups = forDistributor(allGroups, dist, (r) => meta.get(r.item.id)?.distributor);
+    const done = forDistributor(early, dist, (r) => r.item.distributor);
+    // Cutoffs with something to order (exports and "mark ordered" use only these), and every cutoff shown.
+    const focs = [...groups.keys()].sort();
+    const shown = [...new Set([...focs, ...done.keys()])].sort();
+    // Cutoffs are collapsed except the first. A refresh keeps the ones you had open; if none of them is still
+    // listed (a new week's cutoffs), the first opens again.
+    const keepOpen = toOrderOpen && shown.some((f) => toOrderOpen.has(f)) ? toOrderOpen : new Set((focs.length ? focs : shown).slice(0, 1));
+    const from = dist === 'all' ? '' : ` from ${distributorName(dist === 'none' ? null : dist)}`;
+    box.innerHTML = (focs.length ? '' : `<p class="empty">Nothing waiting to be ordered${esc(from)}.</p>`) + shown
+      .map((foc) => {
+        const rows = [...(groups.get(foc)?.values() ?? [])].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
+        const ordered = [...(done.get(foc)?.values() ?? [])].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
+        const copies = rows.reduce((n, r) => n + r.copies, 0);
+        const doneCopies = ordered.reduce((n, r) => n + r.copies, 0);
+        const note = rows.length
+          ? `${ordinal(rows.length, 'title', 'titles')} · ${ordinal(copies, 'copy', 'copies')}${ordered.length ? ` · ${doneCopies} already ordered` : ''}`
+          : `${ordinal(ordered.length, 'title', 'titles')} · ${ordinal(doneCopies, 'copy', 'copies')} ordered`;
+        return `<details class="fold fold--compact" data-foc="${esc(foc)}"${keepOpen.has(foc) ? ' open' : ''}>
         <summary class="fold__head">
           <h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}${rows.length ? '' : ' <span class="pill pill--ordered">Ordered</span>'}<span class="fold__note">${note}</span></h2>
         </summary>
@@ -767,23 +795,22 @@ async function renderToOrder(body) {
 ${rows.length ? `        <div class="admin-actions toorder__actions"><button class="btn btn--green" type="button" data-ordered title="After you place this cutoff's order with the distributor">Mark ${copies} ${copies === 1 ? 'copy' : 'copies'} ordered</button></div>
         <table class="admin-table cards cards--slim" data-to-order>
           <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col" data-sort="text">Publisher</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col"><span class="visually-hidden">Not ordering</span></th></tr></thead>
-          <tbody>${rows.map((r) => `<tr>
+          <tbody>${rows.map((r) => { const m = meta.get(r.item.id) ?? {}; return `<tr>
             <td class="card-title">${esc(itemName(r.item))}</td>
-            <td>${esc(distributorName(loaded.meta.get(r.item.id)?.distributor ?? null))}</td>
+            <td>${esc(distributorName(m.distributor ?? null))}</td>
             <td>${esc(r.item.publisher ?? '')}</td>
-            <td class="nowrap">
-            </td>
+            <td class="nowrap">${esc(m.upc || m.isbn || m.sku || '')}</td>
             <td class="center card-key card-label"><strong>${r.copies}</strong>
             </td>
             <td class="center card-key card-label"><button type="button" class="link-button" data-customers="${r.item.id}" title="See who reserved this title">${r.orders.size}</button>
             </td>
             <td class="center card-action"><button type="button" class="icon-btn icon-btn--remove" data-notordering="${r.item.id}" aria-label="Not ordering ${esc(itemName(r.item))}" title="We are not ordering this title">${solidIcon('skip')}</button>
             </td>
-            </tr>`).join('')}</tbody>
+            </tr>`; }).join('')}</tbody>
         </table>
-` : ''}        ${done.length ? `${rows.length ? '<h3 class="mt-16 mb-8">Already ordered</h3>' : ''}<table class="admin-table cards cards--slim">
+` : ''}        ${ordered.length ? `${rows.length ? '<h3 class="mt-16 mb-8">Already ordered</h3>' : ''}<table class="admin-table cards cards--slim">
           <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col" data-sort="text">Publisher</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th></tr></thead>
-          <tbody>${done.map((r) => `<tr>
+          <tbody>${ordered.map((r) => `<tr>
             <td class="card-title">${esc(itemName(r.item))}</td>
             <td>${esc(distributorName(r.item.distributor ?? null))}</td>
             <td>${esc(r.item.publisher ?? '')}</td>
@@ -794,21 +821,14 @@ ${rows.length ? `        <div class="admin-actions toorder__actions"><button cla
         </table>` : ''}
         </div>
       </details>`;
-    })
-    .join('');
-
-  // Fill UPC/SKU (not in the embedded select above to keep it light).
-  const meta = loaded?.meta ?? new Map();
-  const codes = new Map([...meta].map(([id, i]) => [id, i.upc || i.isbn || i.sku || '']));
-  toOrderLoadedAt = Date.now();
-  if (focs.length) setupOrderTools($('[data-order-tools]', body), groups, focs, meta, keep);
-  hookToOrderRefresh();
-  focs.forEach((foc) => {
-    const rows = [...groups.get(foc).values()].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
-    $$(`[data-foc="${CSS.escape(foc)}"] [data-to-order] tbody tr`, box).forEach((tr, i) => (tr.children[3].textContent = codes.get(rows[i].item.id) ?? ''));
-  });
-  $$('.fold--compact table', box).forEach((t) => sortableTable(t));
+      })
+      .join('');
+    $$('.fold--compact table', box).forEach((t) => sortableTable(t));
+  };
+  draw();
   openPeople.forEach((id) => { const b = $(`[data-customers="${id}"]`, box); if (b) toggleCustomers(b); });
+  $('#ot-dist', body)?.addEventListener('change', draw);
+  box.addEventListener('toggle', () => (toOrderOpen = new Set($$('.fold--compact[open]', box).map((d) => d.dataset.foc))), true);
   // Sorting reorders rows, which would strand an open customer row: close them first.
   box.addEventListener('click', (e) => { if (e.target.closest('th[data-sort]')) $$('tr.toorder__people', box).forEach((r) => { r.previousElementSibling?.querySelector('[data-customers]')?.setAttribute('aria-expanded', 'false'); r.remove(); }); }, true);
 
@@ -833,7 +853,8 @@ ${rows.length ? `        <div class="admin-actions toorder__actions"><button cla
       return void toast(`Couldn’t load the latest quantities: ${friendlyError(err)}`, 'error');
     }
     btn.disabled = false;
-    const freshRows = fresh?.groups.get(foc);
+    const dist = $('#ot-dist', body)?.value ?? 'all';
+    const freshRows = fresh && forDistributor(fresh.groups, dist, (r) => fresh.meta.get(r.item.id)?.distributor).get(foc);
     if (!freshRows) {
       renderToOrder(body);
       return void toast('Nothing is waiting to be ordered for that cutoff any more.', 'error');
@@ -844,7 +865,7 @@ ${rows.length ? `        <div class="admin-actions toorder__actions"><button cla
       const lineIds = rows.flatMap((r) => r.lineIds);
       const copies = rows.reduce((n, r) => n + r.copies, 0);
       const note = changed ? 'Reservations changed since this page loaded.\n\n' : '';
-      if (!confirm(`${note}Mark ${lineIds.length} reserved ${lineIds.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) for this cutoff as ordered from the distributor?`)) {
+      if (!confirm(`${note}Mark ${lineIds.length} reserved ${lineIds.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) for this cutoff as ordered from ${dist === 'all' ? 'the distributor' : distributorName(dist === 'none' ? null : dist)}?`)) {
         if (changed) renderToOrder(body);
         return;
       }
@@ -861,7 +882,7 @@ ${rows.length ? `        <div class="admin-actions toorder__actions"><button cla
 async function markNotOrdered(body, itemId, btn) {
   btn.disabled = true;
   try {
-    const lines = await must(atLocation(sb.from('reservations').select('id,quantity,item:items(title,issue_number,variant)').eq('status', 'open').eq('item_id', itemId)));
+    const lines = await must(atLocation(sb.from('reservations').select('id,quantity,item:items(title,issue_number,variant)').eq('status', 'open').eq('reorder', false).eq('item_id', itemId)));
     if (!lines.length) {
       toast('Nothing is waiting to be ordered for that title any more.', 'error');
       return void renderToOrder(body);
@@ -881,10 +902,15 @@ async function markNotOrdered(body, itemId, btn) {
 
 /**
  * Expand or collapse a hidden row under a title listing who reserved it, laid out in columns. Place Order lists open
- * lines; a button with data-past lists the lines already ordered (PAST_STATUSES), each with where it stands now.
+ * lines; a button with data-past lists the lines already ordered (PAST_STATUSES), and one with data-waiting the lines
+ * Received can mark ready (WAITING_STATUSES), each with where it stands now. Re-order lines are listed only by Received
+ * and by a button with data-reorder (the Re-order tab's open lines).
  */
 async function toggleCustomers(btn) {
   const past = 'past' in btn.dataset;
+  const waiting = 'waiting' in btn.dataset;
+  const reorder = 'reorder' in btn.dataset;
+  const statuses = past ? PAST_STATUSES : waiting ? WAITING_STATUSES : ['open'];
   const tr = btn.closest('tr');
   const next = tr.nextElementSibling;
   if (next?.classList.contains('toorder__people')) {
@@ -898,7 +924,9 @@ async function toggleCustomers(btn) {
   tr.after(row);
   const cell = row.firstElementChild;
   try {
-    const lines = await must(atLocation(sb.from('reservations').select('quantity,status,order:reservation_orders(id,name,customer:customers(name,first_name,last_name))').in('status', past ? PAST_STATUSES : ['open']).eq('item_id', Number(btn.dataset.customers))));
+    let q = sb.from('reservations').select('quantity,status,order:reservation_orders(id,name,customer:customers(name,first_name,last_name))').in('status', statuses).eq('item_id', Number(btn.dataset.customers));
+    if (!waiting) q = q.eq('reorder', reorder);
+    const lines = await must(atLocation(q));
     // Sorted by last name and shown as "Last, First". Guest orders only have one name field: the last word is the surname.
     const people = lines.map((l) => {
       const c = l.order?.customer;
@@ -910,8 +938,8 @@ async function toggleCustomers(btn) {
       .sort((a, b) => a.last.localeCompare(b.last, undefined, { sensitivity: 'base' }) || a.first.localeCompare(b.first, undefined, { sensitivity: 'base' }));
     cell.removeAttribute('aria-busy');
     cell.innerHTML = people.length
-      ? `<ul class="toorder__list">${people.map((p) => `<li>${esc(p.name)}${p.qty > 1 ? ` <strong>×${p.qty}</strong>` : ''}${past ? ` <span class="card__meta">· ${esc(LINE_STATUS[p.status] ?? p.status)}</span>` : ''}</li>`).join('')}</ul>`
-      : `<span class="empty">${past ? 'No ordered reservations for this title any more.' : 'No open reservations for this title any more.'}</span>`;
+      ? `<ul class="toorder__list">${people.map((p) => `<li>${esc(p.name)}${p.qty > 1 ? ` <strong>×${p.qty}</strong>` : ''}${past || waiting ? ` <span class="card__meta">· ${esc(LINE_STATUS[p.status] ?? p.status)}</span>` : ''}</li>`).join('')}</ul>`
+      : `<span class="empty">${past ? 'No ordered reservations for this title any more.' : waiting ? 'No reservations waiting for this title any more.' : 'No open reservations for this title any more.'}</span>`;
   } catch (err) {
     cell.removeAttribute('aria-busy');
     cell.innerHTML = `<span class="form-error">${esc(friendlyError(err))}</span>`;
@@ -923,6 +951,8 @@ async function toggleCustomers(btn) {
 // ---------------------------------------------------------------------------
 
 const PAST_STATUSES = ['ordered', 'reordered', 'arrived', 'picked_up'];
+// Lines Received lists and can mark ready.
+const WAITING_STATUSES = ['open', 'ordered', 'reordered'];
 
 async function renderPastOrders(body) {
   // The instructions are folded away on phones, where they would push the cutoffs down the screen.
@@ -931,7 +961,7 @@ async function renderPastOrders(body) {
   try {
     const lines = [];
     for (let from = 0; ; from += 1000) {
-      const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,status,item:items(${ITEM_FIELDS})`).in('status', PAST_STATUSES)).order('id').range(from, from + 999);
+      const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,status,item:items(${ITEM_FIELDS})`).in('status', PAST_STATUSES).eq('reorder', false)).order('id').range(from, from + 999);
       if (error) throw fromError(error);
       lines.push(...data);
       if (data.length < 1000) break;
@@ -1143,4 +1173,313 @@ function hookToOrderRefresh() {
   };
   document.addEventListener('visibilitychange', maybeRefresh);
   window.addEventListener('focus', maybeRefresh);
+}
+
+// ---------------------------------------------------------------------------
+// Re-order: any title ordered after its cutoff (trades and omnibuses stay in print), for the shelf or for a customer.
+// Customer lines are reservations with reorder = true; shelf copies are stock_reorders rows.
+// ---------------------------------------------------------------------------
+
+const REORDER_ITEM = `${ITEM_FIELDS},upc,isbn,sku,distributor,status`;
+// Who the next re-order is for: null is the shelf, else { id, name } (kept while staff switch tabs).
+let reorderFor = null;
+
+/**
+ * Re-order lines and shelf re-orders with this status, totalled per title:
+ * item id → { item, copies, shelf, orders (customer orders), lineIds, stockIds }.
+ */
+async function loadReorders(status) {
+  const [lines, stock] = await Promise.all([
+    fetchAll(() => atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items(${REORDER_ITEM})`).eq('reorder', true).eq('status', status)).order('id')),
+    fetchAll(() => atLocation(sb.from('stock_reorders').select(`id,quantity,item:items(${REORDER_ITEM})`).eq('status', status)).order('id')),
+  ]);
+  const rows = new Map();
+  const row = (item) => rows.get(item.id) ?? rows.set(item.id, { item, copies: 0, shelf: 0, orders: new Set(), lineIds: [], stockIds: [] }).get(item.id);
+  for (const l of lines) {
+    const r = row(l.item);
+    r.copies += l.quantity;
+    r.orders.add(l.order_id);
+    r.lineIds.push(l.id);
+  }
+  for (const s of stock) {
+    const r = row(s.item);
+    r.copies += s.quantity;
+    r.shelf += s.quantity;
+    r.stockIds.push(s.id);
+  }
+  return rows;
+}
+
+/** Only one distributor's titles ('all' keeps every title, 'none' the unassigned ones), A-Z. */
+const reorderRows = (rows, dist) =>
+  [...rows.values()].filter((r) => dist === 'all' || (r.item.distributor || 'none') === dist).sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
+
+async function renderReorders(body) {
+  const keepDist = $('#ro-dist', body)?.value ?? 'all';
+  const keepQ = $('#ro-q', body)?.value ?? '';
+  body.innerHTML = `${hintFold(`Order any title from the distributor after its order cutoff: trades and omnibuses stay in print, so they can be ordered any time after release. Search the catalog, pick the copies and who they're for (the shelf, or a customer: the copy goes on their pull list), and add it to the re-order list. Signed-in customers can also order released trades and omnibuses themselves from the title's details on the site. Export the list for the distributor, then mark it ordered. When the copies come in, mark customers' copies Ready on Received and shelf copies received here.`)}
+    <section class="fold fold--compact fold--static">
+      <div class="fold__head"><h2 id="ro-find">Find a Title</h2></div>
+      <div class="fold__body">
+        <div class="field"><label for="ro-cust">For a customer</label>
+          <input id="ro-cust" type="search" placeholder="Name, phone or email (leave empty for the shelf)" autocomplete="off"></div>
+        <div data-ro-custs></div>
+        <p class="card__meta" data-ro-for></p>
+        <form class="cust-search" data-ro-search role="search"><label class="visually-hidden" for="ro-q">Find any title</label>
+          <input id="ro-q" type="search" placeholder="${isPhone(599) ? 'Search any title' : 'Search any title, cover, creator, UPC or ISBN'}" autocomplete="off"></form>
+        <div data-ro-results></div>
+      </div>
+    </section>
+    <div data-ro-tools></div>
+    <div data-ro-list aria-busy="true"></div>`;
+  const results = $('[data-ro-results]', body);
+  const custs = $('[data-ro-custs]', body);
+  const showFor = () => {
+    $('[data-ro-for]', body).innerHTML = reorderFor
+      ? `Re-ordering for <strong>${esc(reorderFor.name)}</strong> (on their pull list). <button class="admin-link-button" type="button" data-ro-shelf>Order for the shelf instead</button>`
+      : 'Re-ordering for the shelf.';
+  };
+  showFor();
+
+  const searchTitles = async (text) => {
+    const match = titleFilter(text, { codes: true });
+    if (text.trim().length < 2 || !match) return void (results.innerHTML = '');
+    const { data, error } = await sb.from('items').select(REORDER_ITEM).or(match).order('title').order('issue_number').order('variant').limit(30);
+    if (error) return void (results.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
+    results.innerHTML = data.length
+      ? `<ul class="cust-results">${data
+          .map((i) => `<li>
+          <span><strong>${esc(itemName(i))}</strong><br><span class="card__meta">${esc([i.publisher, i.release_date && `${i.release_date > today() ? 'Out' : 'Released'} ${fmtDate(i.release_date, { month: 'short', day: 'numeric', year: 'numeric' })}`, STATUS_LABELS[i.status], distributorName(i.distributor ?? null), i.upc || i.isbn || i.sku].filter(Boolean).join(' · '))}</span></span>
+          <span class="cust-results__act">
+            <label class="visually-hidden" for="rq-${i.id}">Copies</label><input id="rq-${i.id}" class="cust-qty" type="number" min="1" max="100" value="1">
+            <button class="btn btn--add btn--small" type="button" data-ro-add="${i.id}" aria-label="Re-order ${esc(itemName(i))}">${solidIcon('add', 16)} Re-order</button>
+          </span></li>`)
+          .join('')}</ul>`
+      : '<p class="empty">No titles match.</p>';
+  };
+  const searchCustomers = async (text) => {
+    const match = customerFilter(text, { words: true });
+    if (text.trim().length < 2 || !match) return void (custs.innerHTML = '');
+    const { data, error } = await sb.from('customers').select('id,name,first_name,last_name,phone,email').or(match).order('last_name').order('name').limit(8);
+    if (error) return void (custs.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
+    custs.innerHTML = data.length
+      ? `<ul class="cust-results">${data
+          .map((c) => `<li><span><strong>${esc(c.last_name ? [c.last_name, c.first_name].filter(Boolean).join(', ') : c.name || c.email)}</strong><br><span class="card__meta">${esc([c.phone && formatPhone(c.phone), c.email].filter(Boolean).join(' · '))}</span></span>
+          <span class="cust-results__act"><button class="btn btn--ghost btn--small" type="button" data-ro-pick="${c.id}" data-name="${esc(c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email)}">Pick</button></span></li>`)
+          .join('')}</ul>`
+      : '<p class="empty">No customers match.</p>';
+  };
+  $('#ro-cust', body).addEventListener('input', debounce((e) => searchCustomers(e.target.value), 300));
+  $('[data-ro-search]', body).addEventListener('input', debounce((e) => searchTitles(e.target.value), 300));
+  $('[data-ro-search]', body).addEventListener('submit', (e) => e.preventDefault());
+  custs.addEventListener('click', (e) => {
+    const pick = e.target.closest('[data-ro-pick]');
+    if (!pick) return;
+    reorderFor = { id: Number(pick.dataset.roPick), name: pick.dataset.name };
+    custs.innerHTML = '';
+    $('#ro-cust', body).value = '';
+    showFor();
+  });
+  $('[data-ro-for]', body).addEventListener('click', (e) => {
+    if (!e.target.closest('[data-ro-shelf]')) return;
+    reorderFor = null;
+    showFor();
+  });
+  results.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-ro-add]');
+    if (!btn) return;
+    const id = Number(btn.dataset.roAdd);
+    const qty = Math.min(Math.max(Math.round(Number($(`#rq-${id}`, results).value)) || 1, 1), 100);
+    btn.disabled = true;
+    const { error } = await sb.rpc('staff_reorder', { p_item_id: id, p_quantity: qty, p_customer: reorderFor?.id ?? null, p_location: state.location ? Number(state.location) : null });
+    btn.disabled = false;
+    if (error) return void toast(friendlyError(error), 'error');
+    toast(`${btn.closest('li').querySelector('strong').textContent} × ${qty} added to the re-order list${reorderFor ? ` for ${reorderFor.name}` : ' for the shelf'}`);
+    drawList();
+  });
+  if (keepQ) {
+    $('#ro-q', body).value = keepQ;
+    searchTitles(keepQ);
+  }
+
+  const box = $('[data-ro-list]', body);
+  const tools = $('[data-ro-tools]', body);
+  let open = new Map();
+  let ordered = new Map();
+  const dist = () => $('#ro-dist', body)?.value ?? keepDist;
+  const ordinal = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+  const table = (rows, { action }) => `<table class="admin-table cards cards--slim">
+      <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col" data-sort="text">Publisher</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Shelf</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col"><span class="visually-hidden">${action === 'remove' ? 'Not re-ordering' : 'Shelf copies in'}</span></th></tr></thead>
+      <tbody>${rows.map((r) => `<tr>
+        <td class="card-title">${esc(itemName(r.item))}</td>
+        <td>${esc(distributorName(r.item.distributor ?? null))}</td>
+        <td>${esc(r.item.publisher ?? '')}</td>
+        <td class="nowrap">${esc(r.item.upc || r.item.isbn || r.item.sku || '')}</td>
+        <td class="center card-key card-label"><strong>${r.copies}</strong></td>
+        <td class="center card-key card-label">${r.shelf || '—'}</td>
+        <td class="center card-key card-label">${r.orders.size ? `<button type="button" class="link-button" data-customers="${r.item.id}" data-reorder${action === 'remove' ? '' : ' data-past'} title="See who this title is re-ordered for">${r.orders.size}</button>` : '—'}</td>
+        <td class="center card-action">${action === 'remove'
+          ? `<button type="button" class="icon-btn icon-btn--remove" data-ro-remove="${r.item.id}" aria-label="Not re-ordering ${esc(itemName(r.item))}" title="We are not re-ordering this title">${solidIcon('skip')}</button>`
+          : r.shelf ? `<button type="button" class="btn btn--green btn--small" data-ro-received="${r.item.id}" title="The shelf copies are in the shop">Shelf copies in</button>` : ''}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+
+  const draw = () => {
+    const d = dist();
+    const rows = reorderRows(open, d);
+    const done = reorderRows(ordered, d);
+    const copies = rows.reduce((n, r) => n + r.copies, 0);
+    const from = d === 'all' ? '' : ` from ${distributorName(d === 'none' ? null : d)}`;
+    $('[data-ro-summary]', tools).textContent = rows.length ? `${ordinal(rows.length, 'title', 'titles')}, ${ordinal(copies, 'copy', 'copies')} to re-order${from}.` : `Nothing to re-order${from}.`;
+    box.innerHTML = `<details class="fold fold--compact" open>
+        <summary class="fold__head"><h2>To Re-order<span class="fold__note">${rows.length ? `${ordinal(rows.length, 'title', 'titles')} · ${ordinal(copies, 'copy', 'copies')}` : 'Nothing yet'}</span></h2></summary>
+        <div class="fold__body">${rows.length
+          ? `<div class="admin-actions toorder__actions"><button class="btn btn--green" type="button" data-ro-ordered title="After you place the re-order with the distributor">Mark ${ordinal(copies, 'copy', 'copies')} ordered</button></div>${table(rows, { action: 'remove' })}`
+          : `<p class="empty">Nothing waiting to be re-ordered${esc(from)}. Search for a title above to add one.</p>`}</div>
+      </details>
+      <details class="fold fold--compact"${done.length ? ' open' : ''}>
+        <summary class="fold__head"><h2>On Order<span class="fold__note">${done.length ? `${ordinal(done.length, 'title', 'titles')} · ${ordinal(done.reduce((n, r) => n + r.copies, 0), 'copy', 'copies')}` : 'Nothing on order'}</span></h2></summary>
+        <div class="fold__body">${done.length
+          ? `<p class="admin-hint">Re-ordered and waiting to come in. Customers' copies: mark them Ready on Received.</p>${table(done, { action: 'received' })}`
+          : '<p class="empty">No re-orders on order.</p>'}</div>
+      </details>`;
+    $$('table', box).forEach((t) => sortableTable(t));
+  };
+
+  const drawList = async () => {
+    box.setAttribute('aria-busy', 'true');
+    try {
+      [open, ordered] = await Promise.all([loadReorders('open'), loadReorders('ordered')]);
+    } catch (err) {
+      box.removeAttribute('aria-busy');
+      return void (box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`);
+    }
+    box.removeAttribute('aria-busy');
+    const present = [...new Set([...open.values(), ...ordered.values()].map((r) => r.item.distributor ?? ''))].sort((a, b) => distributorName(a || null).localeCompare(distributorName(b || null)));
+    const was = dist();
+    tools.innerHTML = `<section class="panel order-tools" aria-labelledby="ro-tools-h">
+        <h2 id="ro-tools-h">Distributor Re-order List</h2>
+        <div class="order-tools__row">
+          <div class="field"><label for="ro-dist">Distributor</label><select id="ro-dist">
+            <option value="all">All distributors</option>
+            ${present.map((d) => `<option value="${esc(d || 'none')}">${esc(distributorName(d || null))}</option>`).join('')}
+          </select></div>
+          <div class="field order-tools__btns">
+            <span><button class="btn btn--primary" type="button" data-ro-export="csv">Export CSV</button>
+            <button class="btn btn--ghost" type="button" data-ro-export="pdf">Export PDF</button></span></div>
+        </div>
+        <p class="card__meta" data-ro-summary></p>
+      </section>`;
+    if ([...$('#ro-dist', tools).options].some((o) => o.value === was)) $('#ro-dist', tools).value = was;
+    draw();
+  };
+
+  tools.addEventListener('change', draw);
+  tools.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-ro-export]');
+    if (!btn) return;
+    // Always export what is in the database right now.
+    btn.disabled = true;
+    let rows;
+    try {
+      open = await loadReorders('open');
+      rows = reorderRows(open, dist());
+    } catch (err) {
+      btn.disabled = false;
+      return void toast(`Couldn’t load the latest re-orders: ${friendlyError(err)}`, 'error');
+    }
+    draw();
+    btn.disabled = false;
+    if (!rows.length) return void toast('Nothing to re-order for that selection right now.', 'error');
+    const order = ['lunar', 'prh', 'other', ''];
+    const groups = [...new Set(rows.map((r) => r.item.distributor ?? ''))]
+      .sort((a, b) => order.indexOf(a) - order.indexOf(b))
+      .map((key) => ({
+        key,
+        name: distributorName(key || null),
+        rows: rows.filter((r) => (r.item.distributor ?? '') === key).map((r) => ({
+          code: r.item.sku || r.item.isbn || r.item.upc || '',
+          upc: r.item.upc || r.item.isbn || '',
+          title: [r.item.title, r.item.issue_number && `#${r.item.issue_number}`].filter(Boolean).join(' '),
+          issue: r.item.issue_number,
+          baseTitle: r.item.title,
+          variant: r.item.variant ?? '',
+          publisher: r.item.publisher ?? '',
+          price: r.item.price,
+          release: r.item.release_date,
+          copies: r.copies,
+          shelf: r.shelf,
+          customers: r.orders.size,
+        })),
+      }));
+    const d = dist();
+    const slug = `${d}${locationSlug()}-${stamp()}`;
+    if (btn.dataset.roExport === 'csv') {
+      const csv = groups.flatMap((g) => g.rows.map((r) => [g.name, r.code, r.upc, r.baseTitle, r.issue, r.variant, r.publisher, r.price, r.release, r.copies, r.shelf, r.customers]));
+      downloadCsv(`distributor-reorder-${slug}.csv`, ['Distributor', 'Product code', 'UPC/ISBN', 'Title', 'Issue', 'Variant', 'Publisher', 'Price', 'Release', 'Copies to order', 'For the shelf', 'Customers'], csv);
+      return void toast(`Exported ${csv.length} ${csv.length === 1 ? 'title' : 'titles'}`);
+    }
+    btn.disabled = true;
+    try {
+      const { buildOrderSheetPdf } = await import('../order-sheet-pdf.js');
+      const shop = await must(sb.from('settings').select('shop_name,colors').eq('id', 1).single());
+      const subtitle = ['Re-order', d === 'all' ? null : distributorName(d === 'none' ? null : d), state.location ? locationNames.get(Number(state.location)) : null].filter(Boolean).join(' · ');
+      const pdf = await buildOrderSheetPdf({ shop, subtitle, today: today(), groups });
+      pdf.save(`distributor-reorder-${slug}.pdf`);
+      toast(`PDF saved: ${pdf.titles} ${pdf.titles === 1 ? 'title' : 'titles'}, ${pdf.copies} ${pdf.copies === 1 ? 'copy' : 'copies'}`);
+    } catch (err) {
+      toast(`PDF failed: ${friendlyError(err)}`, 'error');
+    }
+    btn.disabled = false;
+  });
+
+  // Sorting reorders rows, which would strand an open customer row: close them first.
+  box.addEventListener('click', (e) => { if (e.target.closest('th[data-sort]')) $$('tr.toorder__people', box).forEach((r) => { r.previousElementSibling?.querySelector('[data-customers]')?.setAttribute('aria-expanded', 'false'); r.remove(); }); }, true);
+  box.addEventListener('click', async (e) => {
+    const cust = e.target.closest('[data-customers]');
+    if (cust) return void toggleCustomers(cust);
+    const btn = e.target.closest('[data-ro-ordered], [data-ro-remove], [data-ro-received]');
+    if (!btn) return;
+    btn.disabled = true;
+    try {
+      if (btn.matches('[data-ro-received]')) {
+        const r = ordered.get(Number(btn.dataset.roReceived));
+        if (!confirm(`Mark ${ordinal(r.shelf, 'shelf copy', 'shelf copies')} of ${itemName(r.item)} as in the shop?`)) return;
+        await must(sb.from('stock_reorders').update({ status: 'received', received_at: new Date().toISOString() }).in('id', r.stockIds).eq('status', 'ordered'));
+        toast(`${itemName(r.item)}: shelf copies in`);
+        return void drawList();
+      }
+      // Read the database again so the change covers the latest re-orders, not what this page loaded earlier.
+      open = await loadReorders('open');
+      const rows = btn.matches('[data-ro-remove]') ? [open.get(Number(btn.dataset.roRemove))].filter(Boolean) : reorderRows(open, dist());
+      if (!rows.length) {
+        toast('Nothing is waiting to be re-ordered there any more.', 'error');
+        return void drawList();
+      }
+      const lineIds = rows.flatMap((r) => r.lineIds);
+      const stockIds = rows.flatMap((r) => r.stockIds);
+      const copies = rows.reduce((n, r) => n + r.copies, 0);
+      if (btn.matches('[data-ro-remove]')) {
+        const r = rows[0];
+        if (!confirm(`Take ${itemName(r.item)} off the re-order list?${r.shelf ? `\n\n${ordinal(r.shelf, 'shelf copy is', 'shelf copies are')} cancelled.` : ''}${lineIds.length ? `\n\n${ordinal(lineIds.length, 'customer re-order', 'customer re-orders')} will show "Not ordered" on their pull lists.` : ''}`)) return;
+        if (stockIds.length) await must(sb.from('stock_reorders').update({ status: 'cancelled' }).in('id', stockIds).eq('status', 'open'));
+        if (lineIds.length) await updateLines(lineIds, 'not_ordered', ['open']);
+        toast(`${itemName(r.item)}: not re-ordering`);
+      } else {
+        const d = dist();
+        if (!confirm(`Mark ${ordinal(rows.length, 'title', 'titles')} (${ordinal(copies, 'copy', 'copies')}) as re-ordered from ${d === 'all' ? 'the distributor' : distributorName(d === 'none' ? null : d)}?`)) return;
+        if (stockIds.length) await must(sb.from('stock_reorders').update({ status: 'ordered', ordered_at: new Date().toISOString() }).in('id', stockIds).eq('status', 'open'));
+        if (lineIds.length) await updateLines(lineIds, 'ordered', ['open']);
+        toast(`${ordinal(copies, 'copy', 'copies')} marked ordered`);
+      }
+      drawList();
+    } catch (err) {
+      toast(`Not saved: ${friendlyError(err)}`, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  drawList();
 }
