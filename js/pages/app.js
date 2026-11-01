@@ -4,7 +4,7 @@
 // button and links from outside (a notification) can open one. sw.js keeps the app opening without a connection.
 
 import { $, esc, sizedImage, addressLines, hoursList, mapsHref, telHref, socialIcons, linkify, locationAs, openFocFrom, addDays } from '../site.js';
-import { getSettings, getItems, getTopReserved } from '../data.js';
+import { getSettings, getItems, rankByPulls } from '../data.js';
 import { todayIn } from '../dates.js';
 import { itemCard, enableReservations } from '../components.js';
 import { formatPhone, LOGO_WIDTH } from '../util.js';
@@ -76,36 +76,39 @@ new MutationObserver(() => showView()).observe(account, { childList: true });
 showView();
 
 // ---------------------------------------------------------------------------
-// Hot: the shop's Top 10, cutoffs coming up and this week's new books, as rows of the website's cards to swipe
-// through. The cards' buttons add to the pull list as on the website; js/pages/account.js redraws My List.
+// Hot: the ten most pulled titles with an order cutoff coming up, and the ten most pulled of the newest books, as rows
+// of the website's cards to swipe through. The cards' buttons add to the pull list as on the website;
+// js/pages/account.js redraws My List.
 // ---------------------------------------------------------------------------
 
-const ROW = 12;
+const POOL = 60; // titles ranked for each row (rank_by_pulls reads at most 60)
 const IN_STORE = ['new_this_wednesday', 'just_arrived', 'available', 'low_stock', 'sale', 'clearance', 'backorder'];
 const hotItems = new Map(); // id → item, for the cards' buttons
 
+/** The ten of `items` customers pulled most, most first. */
+async function topTen(items) {
+  const order = await rankByPulls(items.map((i) => i.id));
+  const byId = new Map(items.map((i) => [i.id, i]));
+  return order.map((id) => byId.get(id)).filter(Boolean);
+}
+
 async function loadHot() {
   const tz = (await getSettings()).timezone;
-  const ids = [...(await getTopReserved())]; // most pulled first
-  const [top, foc, fresh, recent] = await Promise.all([
-    ids.length ? getItems({ ids }) : [],
-    getItems({ statuses: ['pre_order'], focFrom: openFocFrom(tz), focBefore: addDays(todayIn(tz), 14), order: 'foc', limit: ROW }),
-    getItems({ statuses: ['new_this_wednesday', 'just_arrived'], order: 'released', limit: ROW }),
+  const [foc, fresh, recent] = await Promise.all([
+    getItems({ statuses: ['pre_order'], focFrom: openFocFrom(tz), focBefore: addDays(todayIn(tz), 14), order: 'foc', limit: POOL }),
+    getItems({ statuses: ['new_this_wednesday', 'just_arrived'], order: 'released', limit: POOL }),
     // The latest releases top up the row when this week's books are few or not in yet (as on the home page).
-    getItems({ statuses: IN_STORE, order: 'released', limit: ROW }),
+    getItems({ statuses: IN_STORE, order: 'released', limit: 20 }),
   ]);
   const seen = new Set(fresh.map((i) => i.id));
-  return {
-    top: top.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)),
-    foc,
-    fresh: [...fresh, ...recent.filter((i) => !seen.has(i.id))].slice(0, ROW),
-  };
+  const arrivals = fresh.length >= 10 ? fresh : [...fresh, ...recent.filter((i) => !seen.has(i.id))];
+  const [focTop, freshTop] = await Promise.all([topTen(foc), topTen(arrivals)]);
+  return { foc: focTop, fresh: freshTop };
 }
 
 const SHELVES = [
-  { key: 'top', title: 'Top 10', lede: 'The most pulled titles at the shop right now.', empty: 'The Top 10 shows once customers start their pull lists.' },
-  { key: 'foc', title: 'Order Cutoff Soon', lede: 'Get these on your list before the shop places its order.', empty: 'No order cutoffs in the next two weeks.', more: { href: 'pre-orders.html', label: 'All pre-orders' } },
-  { key: 'fresh', title: 'New This Week', lede: 'Just in at the shop.', empty: 'New books land every Wednesday — check back soon.', more: { href: 'new-arrivals.html', label: 'All new arrivals' } },
+  { key: 'foc', title: 'Top 10 Order Cutoff Soon', lede: 'The most pulled titles the shop orders in the next two weeks. Get them on your list in time.', empty: 'No order cutoffs in the next two weeks.', more: { href: 'pre-orders.html', label: 'All pre-orders' } },
+  { key: 'fresh', title: 'Top 10 New Arrivals', lede: 'The most pulled of the newest books at the shop.', empty: 'New books land every Wednesday — check back soon.', more: { href: 'new-arrivals.html', label: 'All new arrivals' } },
 ];
 
 async function renderHot() {
@@ -123,7 +126,7 @@ async function renderHot() {
     return;
   }
   hotItems.clear();
-  for (const i of [...data.top, ...data.foc, ...data.fresh]) hotItems.set(i.id, i);
+  for (const i of [...data.foc, ...data.fresh]) hotItems.set(i.id, i);
   host.innerHTML = SHELVES.map(({ key, title, lede, empty, more }) => `
     <section class="app-shelf" aria-labelledby="hot-${key}-h">
       <div class="app-shelf__head">
