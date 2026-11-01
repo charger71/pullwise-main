@@ -1230,6 +1230,7 @@ body:has([aria-busy="true"], .loading)::after {
 /* Every view's sections: the title above, the panel under it (js/pages/account.js titled()). */
 .app-view > .app-section + .app-section { margin-top: var(--sp-32); }
 .app-look { margin-top: var(--sp-32); }   /* Appearance, under the Account view */
+.app-powered { margin: var(--sp-32) 0 0; text-align: center; font-size: var(--fs-xs); color: var(--muted); }   /* last on the Account view */
 /* Hot: rows of cards to swipe through, running to the screen's edges. */
 .app-shelf + .app-shelf { margin-top: var(--sp-32); }
 .app-shelf__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
