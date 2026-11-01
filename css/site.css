@@ -545,7 +545,7 @@ address { font-style: normal; margin-bottom: 1em; }
   .grid .card__body { padding: var(--sp-10); gap: var(--sp-4); }
   .grid .card__title { font-size: var(--fs-ui); }
   .grid .card__variant, .grid .card__meta, .grid .foc { font-size: var(--fs-2xs); }
-  .grid .card .btn { font-size: var(--fs-sm); padding: var(--sp-8) var(--sp-10); min-height: 40px; }
+  .grid .card .btn { font-size: var(--fs-sm); padding: var(--sp-8) var(--sp-10); min-height: var(--tap); }
 }
 .card {
   display: flex;
@@ -703,7 +703,7 @@ address { font-style: normal; margin-bottom: 1em; }
 .multi__search { margin-bottom: var(--sp-6); }
 .multi__options { border: 0; margin: 0; padding: 0; max-height: 280px; overflow-y: auto; }
 .multi__option {
-  display: flex; align-items: center; gap: var(--sp-10); min-height: 40px; padding: var(--sp-6) var(--sp-8);
+  display: flex; align-items: center; gap: var(--sp-10); min-height: var(--tap); padding: var(--sp-6) var(--sp-8);
   font-weight: 400; margin: 0; border-radius: var(--radius-sm); cursor: pointer;
 }
 .multi__option:hover { background: var(--surface); }
@@ -713,7 +713,7 @@ address { font-style: normal; margin-bottom: 1em; }
 .multi__actions button {
   font: inherit;
   font-weight: 700;
-  min-height: 40px;
+  min-height: var(--tap);
   padding: 0 var(--sp-14);
   border: 0;
   border-radius: var(--radius);
@@ -764,8 +764,8 @@ dialog::backdrop { background: #000c; }
   font-size: var(--fs-lede);
   line-height: 1;
   cursor: pointer;
-  width: 36px;
-  height: 36px;
+  width: var(--tap);
+  height: var(--tap);
   margin: 0;
   color: var(--ink);
 }
@@ -862,7 +862,7 @@ body.has-list-bar { padding-bottom: var(--list-bar-h); }
 .list-line__info .foc { margin: var(--sp-2) 0 0; }
 .list-line__controls { display: flex; align-items: center; gap: var(--sp-12); }
 .list-line__qty { width: 72px; }
-.list-line__remove { background: none; border: 0; padding: var(--sp-8) var(--sp-4); min-height: 40px; font: inherit; font-size: var(--fs-ui); text-decoration: underline; text-underline-offset: 3px; color: var(--muted); cursor: pointer; }
+.list-line__remove { background: none; border: 0; padding: var(--sp-8) var(--sp-4); min-height: var(--tap); font: inherit; font-size: var(--fs-ui); text-decoration: underline; text-underline-offset: 3px; color: var(--muted); cursor: pointer; }
 .list-line__remove:hover { color: var(--gold-text); }
 @media (min-width: 600px) {
   .list-line { grid-template-columns: 52px 1fr auto; align-items: center; }
@@ -1052,7 +1052,7 @@ details > div { padding: 0 var(--sp-16) var(--sp-14); }
 .app-follows > div { padding: 0 var(--sp-16) var(--sp-12); }
 .account-move { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); flex-wrap: wrap; }
 /* ---------- Follow (signed-in cards): a link on the card, choices in a dialog ---------- */
-.follow-open { display: block; width: 100%; margin-top: var(--sp-6); padding: var(--sp-8) 0; min-height: 40px; background: none; border: 0; font: inherit; font-size: var(--fs-ui); font-weight: 700; text-align: left; color: var(--teal); cursor: pointer; }
+.follow-open { display: block; width: 100%; margin-top: var(--sp-6); padding: var(--sp-8) 0; min-height: var(--tap); background: none; border: 0; font: inherit; font-size: var(--fs-ui); font-weight: 700; text-align: left; color: var(--teal); cursor: pointer; }
 .follow-open:hover { text-decoration: underline; }
 .follow-open--on { color: var(--muted); }
 .follow-open--on:hover { text-decoration: none; }

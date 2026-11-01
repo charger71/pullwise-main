@@ -182,7 +182,7 @@ A checkbox dropdown for catalog filters (publisher, format): a button that looks
 
 - The button (\`.multi__button\`) matches a select: same height, corners and chevron; its summary reads "All", one name, or "3 selected".
 - The panel (\`.multi__panel\`) is \`raised\` with a \`line\` edge and \`shop-shadow-lg\`, at least the button's width and up to 300px. More than ten options adds a search box; pinned favourites sit above a divider.
-- Options are 40px rows; footer actions are Clear (underlined) and Done (\`shop-gold\` with \`shop-on-accent\` text).
+- Options are \`shop-tap\` (44px) rows; footer actions are Clear (underlined) and Done (\`shop-gold\` with \`shop-on-accent\` text).
 - \`aria-expanded\` on the button, \`aria-controls\` to the panel. Escape and Done close it.
 - Consumer provides: the label, options and the field name. Built by js/catalog.js.`,
     html: page('ShopMultiSelect', `
@@ -273,7 +273,7 @@ The title details dialog that opens from a cover or title: the cover (and other 
 - A \`<dialog class="title-modal">\` up to 900px wide; two columns (260px cover, details) from 700px, full screen below 600px.
 - Title in the display face, upper case, clamp(1.5rem, 4vw, 2.1rem). Then the release line, status, the description, creators as chips, and the card's own footer (Add to pull list, Add all covers, Follow).
 - Other covers are 52px thumbnails (\`.title-modal__thumb\`); the one showing has a \`shop-gold-text\` edge.
-- The close button is a 36px circle; with the keyboard it fills \`shop-teal\` instead of drawing an outline (an outline clips at the dialog edge).
+- The close button is a \`shop-tap\` (44px) circle; with the keyboard it fills \`shop-teal\` instead of drawing an outline (an outline clips at the dialog edge).
 - In the app, signed in, a title that can't be reserved (Sold Out, Backorder, or Coming Soon past its cutoff) gets **Notify me when it's in** (primary; \`.title-modal__alert\`). Pressed, it turns ghost with "✓ We'll tell you when it's in" (\`aria-pressed\`) and a status line, which also says to turn on notifications if they're off. One notification is sent when the title is back on the shelf.
 - Under an upcoming release date, **Add to calendar:** Apple / .ics (an all-day event on the release day, linking to the title) and Google (\`.title-modal__cal\` row of 44px links).
 - Last comes a ghost **Share** button (\`.title-modal__share\`): a phone opens its share sheet with a link to the title on the website (Pre-Orders while it can be ordered, else New Arrivals); elsewhere it copies the link and says "Link copied." beside it.
@@ -381,7 +381,7 @@ Show-and-hide boxes on the storefront: FAQ answers and the "How it works" note o
 The storefront's modal dialog: a native \`<dialog>\` with a title, a round close button and a padded body.
 
 - \`surface\` with a \`line\` edge, 8px corners, \`shop-shadow-lg\`, up to 520px wide (wider variants: list 600px, follow 560px, title 900px); the backdrop is 80% black.
-- Head (\`.dialog__head\`): title in \`shop-type-title\` and a 36px round close button; keyboard focus fills it \`shop-teal\`.
+- Head (\`.dialog__head\`): title in \`shop-type-title\` and a \`shop-tap\` (44px) round close button; keyboard focus fills it \`shop-teal\`.
 - A finished action shows \`.confirm\`: a big \`shop-gold-text\` line in the display face and what happens next.
 - Consumer provides: the title, body and the element focus returns to.`,
     html: page('ShopDialog', `
@@ -418,7 +418,7 @@ The customer's pull list on My Pull List: grouped lines with a cover, title, qua
 
 The shop's installable pull list app (app.html, at /app; app.<shop domain> forwards there): the account page as one view at a time, under the shop's own brand.
 
-- \`.app-bar\`: the shop's logo and/or name (the header's \`.brand\`, logo up to 40px) and, on the right, a 44px round search button (\`.app-bar__search\`, a 24px line magnifier in \`ink\`; \`surface\` with a \`gold-text\` icon while the search is open). No menu; the website is linked from the Shop tab. The header clears the phone's notch.
+- \`.app-bar\`: the shop's logo and/or name (the header's \`.brand\`, logo up to 40px) and, on the right, a \`shop-tap\` (44px) round search button (\`.app-bar__search\`, a 24px line magnifier in \`ink\`; \`surface\` with a \`gold-text\` icon while the search is open). No menu; the website is linked from the Shop tab. The header clears the phone's notch.
 - \`.tab-bar\`: fixed to the foot, \`surface\` with a \`line\` top edge, four equal tabs (My List, Hot with a flame, Shop, Account): a 24px line icon over a \`fs-2xs\` bold label in \`muted\`. The current tab (\`aria-current="page"\`) is \`ink\` with a 3px \`gold\` edge on top and a \`gold-text\` icon. \`.tab-bar__count\` is a gold pill with the number ready for pickup.
 - \`.app-pull\`: pull down to refresh. Pulling from the top drops a 40px round \`surface\` badge from under the header, its circular arrow turning with the pull and going \`gold-text\` once letting go will refresh; it spins (slower under reduced motion) while the signed-in views are drawn again in place. The Shop tab, or a signed-out app, reloads instead. A screen reader hears "Refreshing…" then "Updated."
 - View titles sit above their panels (\`.app-view__title\`, \`fs-title\`), never inside: \`.app-section\` is a title then a \`.panel\`, 32px apart when a view has several (Account: Notifications, My Profile, then Appearance).
