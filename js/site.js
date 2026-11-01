@@ -4,7 +4,7 @@
 // from the shop settings so nothing shop-specific is hardcoded in HTML.
 
 import { getSettings, getCustomPages, DEMO } from './data.js';
-import { GA_MEASUREMENT_ID, SITE_URL, SUPABASE_URL, FALLBACK_SETTINGS } from './config.js';
+import { GA_MEASUREMENT_ID, SITE_URL, SUPABASE_URL, FALLBACK_SETTINGS, APP_ENABLED } from './config.js';
 import { themeCss } from './theme-vars.js';
 import { SOCIAL_ICONS, LINK_ICON } from './social-icons.js';
 import { fillContent } from './content.js';
@@ -27,7 +27,7 @@ const NAV = [
 ];
 
 const FOOTER_LINKS = [
-  { href: 'app.html', label: 'Get the App' },
+  ...(APP_ENABLED ? [{ href: 'app.html', label: 'Get the App' }] : []), // only shops with the app (shops.json)
   { href: 'about.html', label: 'About' },
   { href: 'gift-cards.html', label: 'Gift Cards' },
   { href: 'how-to.html', label: 'How To' },

@@ -6,7 +6,7 @@
 
 import { initPage, $, esc, fmtDate, itemFullTitle, itemTitle, cover, price, cutoffPassed } from '../site.js';
 import { DEMO, supabase, getSettings, searchSeries, searchArtists } from '../data.js';
-import { SITE_URL } from '../config.js';
+import { SITE_URL, APP_ENABLED } from '../config.js';
 import { LINE_STATUS_CUSTOMER as LINE_STATUS } from '../labels.js';
 import { whenIn as whenLabel } from '../dates.js';
 import { thumbOf, thumbFallback, artistMeta, btnIcon } from '../util.js';
@@ -287,7 +287,7 @@ async function signedIn(sb, user) {
       ${profile}${terms}</div>`
     : `
     ${who}
-    <p class="notice account-app"><strong>Get the app:</strong> open <a href="app.html">our pull list app</a> on your phone and add it to your Home Screen.</p>
+    ${APP_ENABLED ? '<p class="notice account-app"><strong>Get the app:</strong> open <a href="app.html">our pull list app</a> on your phone and add it to your Home Screen.</p>' : ''}
     <div class="account-grid">
       <div class="account-col">${orders}${following}
       </div>

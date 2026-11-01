@@ -9,13 +9,14 @@
 //  * An address with no file gets 404.html (wrangler.jsonc's not_found_handling), branded like the other pages.
 //  * PUT /__media stores covers and series images in R2 for shops using it (worker/media.js).
 //  * /manifest.webmanifest is the shop's installable pull list app (app.html), under its name, icon and colors;
-//    app.<shop domain> forwards to that app on the shop's main domain.
+//    app.<shop domain> forwards to that app on the shop's main domain. Only shops marked "app": true in shops.json
+//    have it: for the rest /app forwards to the account page and the manifest is a 404.
 //  * Everything else is the static file as is. A domain that isn't in shops.json gets the plain files, which
 //    run in demo mode.
 
 import SHOPS from '../shops.json';
 import { mediaUpload } from './media.js';
-import { MEDIA_UPLOAD_PATH, findShop, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { MEDIA_UPLOAD_PATH, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
 const CACHE_SECONDS = 60;
@@ -28,10 +29,13 @@ export default {
     const shop = findShop(SHOPS.shops, url.hostname);
     if (!shop) {
       const app = appRedirect(SHOPS.shops, url.hostname);
-      return app ? Response.redirect(app, 301) : env.ASSETS.fetch(request);
+      // Temporary for a shop without the app, so turning it on later isn't stuck behind a browser's cached redirect.
+      return app ? Response.redirect(app, app.endsWith(NO_APP_PATH) ? 302 : 301) : env.ASSETS.fetch(request);
     }
     if (url.pathname === MEDIA_UPLOAD_PATH) return mediaUpload(request, shop, env);
     if (url.pathname === '/js/config.js') return config(shop, request, await cachedShopData(shop));
+    if (!hasApp(shop) && url.pathname === '/manifest.webmanifest') return new Response('Not found', { status: 404 }); // nothing to install
+    if (!hasApp(shop) && (url.pathname === '/app' || url.pathname === '/app.html')) return Response.redirect(new URL(NO_APP_PATH, url).href, 302);
     if (url.pathname === '/manifest.webmanifest') return text(JSON.stringify(appManifest((await shopData(shop, ctx))?.settings)), 'application/manifest+json', request);
     if (url.pathname === '/sitemap.xml') return text(sitemapXml(shop), 'application/xml', request);
     if (url.pathname === '/robots.txt') {

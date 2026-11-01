@@ -22,7 +22,8 @@
       "projectRef": "ltjkhteibtuiywhoaqic",
       "gaMeasurementId": "",
       "canary": true,
-      "media": "r2"
+      "media": "r2",
+      "app": true
     },
     {
       "id": "demo2",

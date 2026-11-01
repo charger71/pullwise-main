@@ -45,6 +45,9 @@ assert.match(auth.mailer_templates_magic_link_content, /\{\{ \.ConfirmationURL \
 // shops.json entry
 assert.deepEqual(shopEntry({ ...o, canary: true }, REF, 'anon'), { id: 'main-street', domains: o.domains, supabaseUrl: `https://${REF}.supabase.co`, anonKey: 'anon', projectRef: REF, gaMeasurementId: '', canary: true });
 assert.equal('canary' in shopEntry(o, REF, 'anon'), false);
+assert.equal(parseArgs(['--id', 'x', '--name', 'X', '--domain', 'x.com', '--owner-email', 'a@b.co', '--app']).app, true);
+assert.equal(shopEntry({ ...o, app: true }, REF, 'anon').app, true);
+assert.equal('app' in shopEntry(o, REF, 'anon'), false, 'no app unless asked for');
 
 // The flow, against fakes
 function fakes({ shops = { shops: [] }, orgs = [{ id: 'org' }], projects = [], userExists = false } = {}) {
