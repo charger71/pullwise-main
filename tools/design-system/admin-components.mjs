@@ -250,7 +250,7 @@ A state as a word in a rounded, upper-case pill: one component, a tone named for
 
 - \`.pill\`: \`admin-type-pill\`, \`admin-radius-pill\`, \`admin-neutral-bg\` by default (Guest order).
 - Line status: \`--open\` (\`admin-pill-open\`), \`--ordered\` (\`admin-pill-ordered\`), \`--arrived\` (\`admin-brand-accent\`), \`--picked_up\` (\`admin-pill-done\`), \`--not_ordered\` (\`admin-pill-warn\`), \`--released\` / \`--cancelled\` (\`admin-pill-off\`).
-- Titles and roles: \`--pre_order\`, \`--available\`, \`--low_stock\`, \`--sold_out\`, \`--sale\` (\`admin-brand-primary\`), \`--clearance\` (\`admin-pill-pink\`), \`--pull\`, \`--owner\` (crown), \`--staff\` (person), \`--super\` (shield, dark with gold text), \`--failed\` (\`admin-danger\`).
+- Titles and roles: \`--pre_order\` and \`--coming_soon\` (\`--pill-open\`), \`--available\`, \`--low_stock\`, \`--sold_out\`, \`--sale\` (\`admin-brand-primary\`), \`--clearance\` (\`admin-pill-pink\`), \`--pull\`, \`--owner\` (crown), \`--staff\` (person), \`--super\` (shield, dark with gold text), \`--failed\` (\`admin-danger\`).
 - Role pills carry a 14px **Admin action icons** glyph before the word.
 - A new state reuses a tone; a pill class with no style fails consistency.test.js.`,
     html: page('AdminPill', `

@@ -3,6 +3,7 @@
 /** Title (item) statuses: label and the icon shown on badges. */
 export const ITEM_STATUS = {
   pre_order: { label: 'Pre-Order', icon: '◷' },
+  coming_soon: { label: 'Coming Soon', icon: '◷' }, // a pre-order past its order cutoff, not out yet
   new_this_wednesday: { label: 'New This Wednesday', icon: '★' },
   just_arrived: { label: 'Just Arrived', icon: '★' },
   available: { label: 'Available', icon: '✓' },

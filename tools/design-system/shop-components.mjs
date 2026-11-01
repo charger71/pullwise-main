@@ -249,13 +249,13 @@ ${card({ status: 'just_arrived', icon: '★', label: 'Just Arrived', title: 'Mon
 
 A title's stock status: an icon and an upper-case word on a colored chip, never color alone.
 
-- \`.badge.badge--<status>\`, \`shop-type-badge\`, 2px corners. Statuses and their icons come from \`ITEM_STATUS\` in js/labels.js: Pre-Order ◷ and Coming Soon ◷ (\`shop-teal\`; Coming Soon is a pre-order past its cutoff, from \`shownStatus\` in js/site.js), New This Wednesday ★ and Just Arrived ★ (\`shop-gold\`), Available ✓ (\`shop-ok\`), Low Stock ! (orange), Sale % (\`shop-red-btn\`, \`shop-on-primary\` text), Clearance ↓ (pink), Backorder ↻ (\`shop-cream\`), Sold Out ✕ (dark with light text).
+- \`.badge.badge--<status>\`, \`shop-type-badge\`, 2px corners. Statuses and their icons come from \`ITEM_STATUS\` in js/labels.js: Pre-Order ◷ and Coming Soon ◷ (\`shop-teal\`; Coming Soon is a status of its own: a pre-order past its order cutoff, not out yet), New This Wednesday ★ and Just Arrived ★ (\`shop-gold\`), Available ✓ (\`shop-ok\`), Low Stock ! (orange), Sale % (\`shop-red-btn\`, \`shop-on-primary\` text), Clearance ↓ (pink), Backorder ↻ (\`shop-cream\`), Sold Out ✕ (dark with light text).
 - The icon is \`aria-hidden\`; the word carries the meaning.
 - Related labels: \`.foc\` (the order cutoff, \`shop-error\` when close), \`.new-badge\` (a gold pill on titles a follow added), \`.chips\` (collector notes).
 - Text is \`shop-paper\` on the blue, green, orange, pink and cream chips (these switch to dark fills on a light page), \`shop-on-accent\` on the gold ones, \`shop-on-primary\` on Sale and \`shop-on-sold-out\` on Sold Out.`,
     html: page('ShopStatusBadge', `
 <div class="pw-row">
-  ${badge('pre_order', '◷', 'Pre-Order')}${badge('new_this_wednesday', '★', 'New This Wednesday')}${badge('just_arrived', '★', 'Just Arrived')}${badge('available', '✓', 'Available')}${badge('low_stock', '!', 'Low Stock')}
+  ${badge('pre_order', '◷', 'Pre-Order')}${badge('coming_soon', '◷', 'Coming Soon')}${badge('new_this_wednesday', '★', 'New This Wednesday')}${badge('just_arrived', '★', 'Just Arrived')}${badge('available', '✓', 'Available')}${badge('low_stock', '!', 'Low Stock')}
   ${badge('sale', '%', 'Sale')}${badge('clearance', '↓', 'Clearance')}${badge('backorder', '↻', 'Backorder')}${badge('sold_out', '✕', 'Sold Out')}
 </div>
 <div class="pw-row" style="margin-top:16px">

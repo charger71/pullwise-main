@@ -731,7 +731,7 @@ async function searchTitles(el, c, text) {
   const { data, error } = await sb
     .from('items')
     .select(ITEM_FIELDS)
-    .eq('status', 'pre_order').eq('hidden', false)
+    .in('status', ['pre_order', 'coming_soon']).eq('hidden', false) // past the cutoff too (flagged below)
     .or(match)
     .order('title').order('issue_number').order('variant')
     .limit(30);
