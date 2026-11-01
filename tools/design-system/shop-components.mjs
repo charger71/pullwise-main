@@ -125,13 +125,13 @@ The home page opener: the shop's headline over a faint halftone dot screen, an i
     name: 'ShopButton', group: G('Actions'), height: 161,
     readme: `# ShopButton
 
-Storefront buttons: upper-case labels on square-cornered (3px) blocks, 46px tall.
+Storefront buttons: upper-case labels on square-cornered (3px) blocks, \`shop-field-h\` (46px) tall, like the fields beside them.
 
 - **Default** (\`.btn\`): \`shop-teal\` with \`shop-paper\` text; hover \`shop-teal-hover\`. Secondary actions such as Search or Done.
 - **Primary** (\`.btn--primary\`): \`shop-red-btn\` with \`shop-on-primary\` text; hover a 15% darker red. The one action that matters on a card or form: Add to pull list, Reserve, Save.
 - **Ghost** (\`.btn--ghost\`): transparent with a \`shop-gold-text\` edge and label. Also the "on" state of a toggle (✓ On your pull list, with \`aria-pressed="true"\`).
 - **Disabled** (\`[disabled]\`): \`raised\` fill, muted text, \`line\` edge, not faded.
-- **Small** (\`.btn--small\`): 36px tall, smaller label. For a row of actions beside each result in a list (search's Series and Artists); on a phone the actions sit on their own line under the name.
+- **Small** (\`.btn--small\`): \`shop-btn-h-sm\` (36px) tall with a \`fs-xs\` label; on phones \`shop-tap\` (44px), so it's never under the touch minimum. For a row of actions beside each result in a list (search's Series and Artists); on a phone the actions sit on their own line under the name.
 - **Icon** (\`.btn__icon\`, from \`btnIcon()\` in \`js/util.js\`): a 16px stroke icon in the label's color, before the label: \`follow\` (+), \`covers\`, \`books\`, \`on\` (✓, the "Following" state). Decorative (\`aria-hidden\`): the label says what the button does.
 - **Link button** (\`.link-button\`): an action that reads as a link, in \`shop-teal\`, underlined.
 - No hover lift or shadow on the storefront. Labels are verbs ("Add to pull list", not "Submit").

@@ -77,7 +77,9 @@
   --border: 1px solid var(--line);
   --shadow: none;
   --shadow-lg: 0 10px 40px rgb(0 0 0 / .6);
-  --field-h: 46px;
+  --field-h: 46px;      /* every input, select and search box, and a button */
+  --tap: 44px;          /* the smallest touch target: links and toggles on their own, icon buttons, small buttons on phones */
+  --btn-h-sm: 36px;     /* a small button (.btn--small) on wider screens; --tap on phones */
   --gutter: 16px;
   --max: 1180px;
 
@@ -158,7 +160,9 @@ body {
 }
 main { flex: 1; }
 img { max-width: 100%; height: auto; display: block; }
-a { text-decoration-thickness: 2px; color: var(--teal); text-underline-offset: 5px; }
+a { color: var(--teal); }
+/* A link-button reads as a link, so it's underlined the same way. */
+a, .link-button { text-decoration-thickness: 2px; text-underline-offset: 5px; }
 a:hover { color: var(--teal-hover); }
 :focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
 /* A heading that a script focuses (tabindex="-1": the app's view titles when a tab opens, Coming Up after a redraw,
@@ -281,7 +285,7 @@ iframe.ql-video { display: block; width: 100%; max-width: 640px; aspect-ratio: 1
   text-decoration: none;
   cursor: pointer;
   transition: transform var(--dur-press), box-shadow var(--dur-press), filter var(--dur-press);
-  min-height: 46px;
+  min-height: var(--field-h);
   padding: var(--sp-10) var(--sp-20);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -298,8 +302,12 @@ iframe.ql-video { display: block; width: 100%; max-width: 640px; aspect-ratio: 1
 .btn--primary:hover { background: var(--red-btn-hover); color: var(--on-primary); }
 .btn--ghost { background: transparent; color: var(--gold-text); border-color: var(--gold-text); box-shadow: none; }
 .btn--ghost:hover { background: var(--raised); color: var(--gold-text); box-shadow: none; }
-/* Compact, for a row of actions beside each result in a list (search's Series and Artists). */
-.btn--small { min-height: 36px; padding: var(--sp-6) var(--sp-12); font-size: var(--fs-xs); letter-spacing: .03em; }
+/* Compact, for a row of actions beside each result in a list (search's Series and Artists). On a phone it's still
+   a full touch target tall; it stays narrower and quieter than a .btn. */
+.btn--small { min-height: var(--btn-h-sm); padding: var(--sp-6) var(--sp-12); font-size: var(--fs-xs); }
+@media (max-width: 599px) {
+  .btn--small { min-height: var(--tap); }
+}
 /* An icon leading the label (btnIcon in js/util.js), in the label's color. */
 .btn__icon { flex: none; width: 16px; height: 16px; margin-left: calc(-1 * var(--sp-2)); fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
 .btn[disabled] {
@@ -363,8 +371,8 @@ input[type='checkbox'], input[type='radio'] {
 .brand__name { font-family: var(--font-display); font-weight: var(--display-weight); line-height: 1.1; font-size: calc(1.5rem * var(--display-scale)); letter-spacing: var(--display-tracking); color: var(--cream); }
 .brand__logo { max-height: 48px; width: auto; }
 .nav-toggle {
-  width: 44px;
-  height: 44px;
+  width: var(--tap);
+  height: var(--tap);
   border: 0;
   cursor: pointer;
   display: grid;
@@ -439,7 +447,7 @@ input[type='checkbox'], input[type='radio'] {
   #site-header { box-shadow: none; }
   .nav { display: block; position: static; background: none; box-shadow: none; border: 0; }
   .nav ul { display: flex; gap: var(--sp-4); padding: 0; }
-  .nav a { padding: var(--sp-8) var(--sp-10); border: 0; min-height: 44px; display: inline-flex; align-items: center; border-radius: 0; }
+  .nav a { padding: var(--sp-8) var(--sp-10); border: 0; min-height: var(--tap); display: inline-flex; align-items: center; border-radius: 0; }
   .nav a[aria-current='page'] { background: none; color: var(--gold-text); }
 }
 /* ---------- Footer ---------- */
@@ -459,8 +467,8 @@ address { font-style: normal; margin-bottom: 1em; }
 .socials a {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: var(--tap);
+  height: var(--tap);
   border-radius: 50%;
   color: inherit;
   transition: background var(--dur), color var(--dur);
@@ -780,7 +788,7 @@ dialog::backdrop { background: #000c; }
 }
 .lightbox { width: auto; max-width: calc(100vw - 32px); background: #000; }
 .lightbox img { max-height: calc(100vh - 64px); width: auto; }
-.lightbox__close { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; border-radius: 50%; border: 2px solid #fff; background: #000; color: #fff; font-size: var(--fs-lede); cursor: pointer; }
+.lightbox__close { position: absolute; top: 8px; right: 8px; width: var(--tap); height: var(--tap); border-radius: 50%; border: 2px solid #fff; background: #000; color: #fff; font-size: var(--fs-lede); cursor: pointer; }
 /* ---------- Title details dialog (click a cover) ---------- */
 .card__open { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 .card__open:hover .cover { filter: brightness(1.08); }
@@ -809,7 +817,7 @@ dialog::backdrop { background: #000c; }
 .title-modal__alert .card__meta:empty { display: none; }
 .title-modal__cal { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--sp-12); margin: 0 0 var(--sp-8); font-size: var(--fs-sm); }
 .title-modal__cal span { color: var(--muted); }
-.title-modal__cal a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; }
+.title-modal__cal a { display: inline-flex; align-items: center; min-height: var(--tap); font-weight: 700; }
 .title-modal__share { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-12); margin: var(--sp-16) 0 0; }
 .title-modal__shared:empty { display: none; }
 .title-modal__desc { margin: var(--sp-16) 0 var(--sp-12); font-size: var(--fs-base); line-height: 1.55; }
@@ -934,7 +942,7 @@ body.has-list-bar { padding-bottom: var(--list-bar-h); }
   .signup input { flex: 1; }
 }
 details { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: var(--sp-10); }
-summary { cursor: pointer; font-weight: 700; padding: var(--sp-14) var(--sp-16); min-height: 44px; list-style: none; display: flex; align-items: center; gap: var(--sp-10); }
+summary { cursor: pointer; font-weight: 700; padding: var(--sp-14) var(--sp-16); min-height: var(--tap); list-style: none; display: flex; align-items: center; gap: var(--sp-10); }
 summary::-webkit-details-marker { display: none; }
 /* One indicator for every show/hide box: a chevron that points down when the box is closed and flips to ^ when it's open. */
 summary::after {
@@ -987,7 +995,7 @@ details > div { padding: 0 var(--sp-16) var(--sp-14); }
 /* ---------- Customer account ---------- */
 .account-panel { max-width: 460px; }
 .account-who { margin: 0 0 var(--sp-16); }
-.link-button { background: none; border: 0; padding: 0; font: inherit; color: var(--teal); text-decoration: underline; cursor: pointer; }
+.link-button { background: none; border: 0; padding: 0; font: inherit; color: var(--teal); text-decoration-line: underline; cursor: pointer; }
 .account-grid { display: grid; gap: var(--sp-20); }
 @media (min-width: 800px) {
   .account-grid { grid-template-columns: 3fr 2fr; align-items: start; }
@@ -995,7 +1003,7 @@ details > div { padding: 0 var(--sp-16) var(--sp-14); }
 .account-fieldset { border: 0; padding: 0; margin: 0 0 var(--sp-14); }
 .account-fieldset legend { font-weight: 700; padding: 0; }
 .account-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12); }
-.field--check { display: flex; align-items: center; gap: var(--sp-10); min-height: 44px; }
+.field--check { display: flex; align-items: center; gap: var(--sp-10); min-height: var(--tap); }
 .field--check label { margin: 0; font-weight: 400; }
 /* Survey: a question with more than 6 choices lists them in two columns once there is room. */
 .survey-choice-other, .survey-choices--cols .field--check { break-inside: avoid; }
@@ -1116,7 +1124,7 @@ a.follow-open { box-sizing: border-box; line-height: 24px; }
 .follow-results__act { display: flex; gap: var(--sp-6); flex-wrap: wrap; }
 /* On a phone the actions always sit on their own line under the name, so every row lines up the same. */
 @media (max-width: 599px) {
-  .follow-results li { flex-direction: column; align-items: flex-start; gap: var(--sp-6); }
+  .follow-results li { flex-direction: column; align-items: flex-start; }
 }
 .follow-results .is-on { cursor: default; opacity: .8; }
 #artists { margin-bottom: var(--sp-24); }
@@ -1126,7 +1134,7 @@ a.follow-open { box-sizing: border-box; line-height: 24px; }
 .account-lastupdate { margin: -4px 0 var(--sp-10); }
 /* ---------- Pre-orders: collapsible "How it works" ---------- */
 .how-it-works { box-shadow: none; margin: 0 0 var(--space-block); background: none; border: 0; }
-.how-it-works summary { display: inline-flex; padding: var(--sp-8) 0; min-height: 44px; color: var(--teal); font-weight: 700; }
+.how-it-works summary { display: inline-flex; padding: var(--sp-8) 0; min-height: var(--tap); color: var(--teal); font-weight: 700; }
 .how-it-works summary::after { margin-left: var(--sp-2); }
 .how-it-works > div { padding: 0; }
 .how-it-works .page-body { margin-bottom: 0; }
@@ -1212,7 +1220,7 @@ body:has([aria-busy="true"], .loading)::after {
 .app-bar .brand__logo { max-height: 40px; }
 .app-bar .brand__name { font-size: calc(1.25rem * var(--display-scale)); }
 /* The search button: a magnifier that opens the search under the header; pressed while it's open. */
-.app-bar__search { flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin-right: calc(-1 * var(--sp-10)); padding: 0; border: 0; border-radius: 50%; background: none; color: var(--ink); cursor: pointer; }
+.app-bar__search { flex: none; display: grid; place-items: center; width: var(--tap); height: var(--tap); margin-right: calc(-1 * var(--sp-10)); padding: 0; border: 0; border-radius: 50%; background: none; color: var(--ink); cursor: pointer; }
 .app-bar__search[aria-expanded="true"] { background: var(--surface); color: var(--gold-text); }
 .app-bar__search svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
 .app-main { padding: var(--sp-16) 0 calc(var(--tab-bar-h) + var(--sp-24) + env(safe-area-inset-bottom)); }
@@ -1226,7 +1234,7 @@ body:has([aria-busy="true"], .loading)::after {
 .app-shelf + .app-shelf { margin-top: var(--sp-32); }
 .app-shelf__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
 .app-shelf__head h3 { margin: 0; font-size: var(--fs-sub); }
-.app-shelf__head .link-button { flex: none; display: inline-flex; align-items: center; min-height: 44px; font-size: var(--fs-sm); font-weight: 700; text-decoration-thickness: 2px; text-underline-offset: 5px; }
+.app-shelf__head .link-button { flex: none; display: inline-flex; align-items: center; min-height: var(--tap); font-size: var(--fs-sm); font-weight: 700; }
 .app-shelf__lede { margin: 0 0 var(--sp-12); color: var(--muted); font-size: var(--fs-sm); }
 .app-shelf__row { display: grid; grid-auto-flow: column; grid-auto-columns: min(calc((100% - 2 * var(--sp-12)) / 2.5), 200px); gap: var(--sp-12); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); margin-inline: calc(-1 * var(--gutter)); padding: 0 var(--gutter) var(--sp-8); }
 /* The row holds the cards' hidden screen-reader text (position: absolute), so it must be their containing block:
@@ -1289,7 +1297,7 @@ body:has([aria-busy="true"], .loading)::after {
 .app-note .btn, .app-install .btn { flex: none; }
 /* The list as last drawn, shown offline: read-only, so its controls are left out. */
 .account-saved-list .account-line__controls, .account-saved-list .account-move, .account-saved-list .form-error { display: none; }
-.app-install__close { flex: none; width: 44px; height: 44px; border: 0; background: none; color: var(--muted); font-size: var(--fs-lede); cursor: pointer; }
+.app-install__close { flex: none; width: var(--tap); height: var(--tap); border: 0; background: none; color: var(--muted); font-size: var(--fs-lede); cursor: pointer; }
 .app-install__close:hover { color: var(--ink); }
 .tab-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-bar); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
 .tab-bar ul { display: grid; grid-template-columns: repeat(4, 1fr); max-width: var(--max); margin: 0 auto; padding: 0; list-style: none; }
@@ -1310,7 +1318,7 @@ body:has([aria-busy="true"], .loading)::after {
 .app-shop__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-12); margin: var(--sp-16) 0 var(--sp-20); }
 .app-shop__place-name + .app-shop__actions { margin-top: var(--sp-12); }
 .app-shop__email { margin: var(--sp-24) 0 var(--sp-16); padding-top: var(--sp-16); border-top: var(--border); }
-.app-shop__email a { display: inline-flex; align-items: center; min-height: 44px; }
+.app-shop__email a { display: inline-flex; align-items: center; min-height: var(--tap); }
 .app-shop__address { font-style: normal; margin: 0 0 var(--sp-16); }
 .app-shop__sub { font-size: var(--fs-compact); margin: var(--sp-16) 0 var(--sp-6); }
 .app-shop .hours div { margin-inline: auto; }
@@ -1329,7 +1337,7 @@ body:has([aria-busy="true"], .loading)::after {
 .account-line--app .account-line__status { text-align: left; }
 .account-line__controls { display: flex; align-items: center; gap: var(--sp-8); margin-top: var(--sp-6); }
 .account-line__qty-label { margin: 0; font-size: var(--fs-sm); font-weight: 700; color: var(--muted); }
-.account-line__remove { display: grid; place-items: center; width: 44px; height: 44px; margin-left: var(--sp-4); padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--muted); cursor: pointer; }
+.account-line__remove { display: grid; place-items: center; width: var(--tap); height: var(--tap); margin-left: var(--sp-4); padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--muted); cursor: pointer; }
 .account-line__remove:hover { color: var(--error); background: var(--raised); }
 .account-line__remove svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 /* Pull down to refresh: a round badge drops from under the header, its arrow turning as it's pulled, gold once letting
