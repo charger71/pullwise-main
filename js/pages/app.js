@@ -198,19 +198,24 @@ function closeSearch({ focus = false } = {}) {
   found.req++; // drop any answer still on its way
   Object.assign(found, { q: '', items: [], total: 0 });
   const box = $('[data-search-results]');
+  const had = !box.hidden; // results stood in for the tab: go back to where it was
   box.hidden = true;
   box.innerHTML = '';
   const toggle = $('[data-search-toggle]');
   toggle?.setAttribute('aria-expanded', 'false');
   showView();
+  if (had) scrollTo({ top: scrolledTo, behavior: 'instant' });
   if (focus) toggle?.focus();
 }
 
+let scrolledTo = 0; // where the tab was scrolled when the search opened, to go back to when it closes
+
+/** The box slides down over the page where it is; the page only moves once results stand in for the tab. */
 function openSearch() {
+  scrolledTo = scrollY;
   searchBox.hidden = false;
   $('[data-search-toggle]')?.setAttribute('aria-expanded', 'true');
-  scrollTo(0, 0);
-  $('[data-search-form]').elements.q.focus();
+  $('[data-search-form]').elements.q.focus({ preventScroll: true });
 }
 
 function setupSearch() {
@@ -225,6 +230,7 @@ function setupSearch() {
     if (box.hidden === searching) {
       box.hidden = !searching;
       showView();
+      scrollTo({ top: searching ? 0 : scrolledTo, behavior: 'instant' }); // results start at the top; clearing goes back to the tab's place
     }
     if (!searching) {
       found.req++; // drop any answer still on its way

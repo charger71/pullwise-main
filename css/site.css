@@ -1238,13 +1238,13 @@ body:has([aria-busy="true"], .loading)::after {
 .app-shelf__row .foc .card__meta { display: none; }
 .app-shelf__row .card__foot { padding-top: var(--sp-4); }
 .app-shelf__row .card .btn { padding-inline: var(--sp-4); font-size: var(--fs-2xs); }
-/* Search, from the header's button over any tab: the box slides down from behind the header and stays pinned under
-   it while the results scroll; the results stand in for the tab while the box has words in it. It sits under the
-   header (z-index), so it comes out from behind it. */
+/* Search, from the header's button over any tab: the box slides down from behind the header over the page, wherever
+   it is scrolled, and stays fixed under the header. It sits under the header (z-index), so it comes out from behind
+   it. Results stand in for the tab while the box has words in it, starting below the box. */
 @keyframes search-slide { from { transform: translateY(-100%); } }
-.app-search { margin: calc(-1 * var(--sp-16)) 0 var(--sp-20); }
-.app-search form { position: sticky; top: calc(var(--app-bar-h) + env(safe-area-inset-top) + 1px); z-index: var(--z-popover); margin: 0 calc(-1 * var(--gutter)) var(--sp-16); padding: var(--sp-10) var(--gutter); background: var(--paper); border-bottom: var(--border); animation: search-slide var(--dur-slide) ease-out; }
+.app-search form { position: fixed; top: calc(var(--app-bar-h) + env(safe-area-inset-top) + 1px); left: 0; right: 0; z-index: var(--z-popover); padding: var(--sp-10) max(var(--gutter), calc((100% - var(--max)) / 2 + var(--gutter))); background: var(--paper); border-bottom: var(--border); box-shadow: var(--shadow-menu); animation: search-slide var(--dur-slide) ease-out; }
 .app-search input { width: 100%; }
+.app-search:has([data-search-results]:not([hidden])) { padding-top: calc(var(--field-h) + 2 * var(--sp-10)); }
 @media (prefers-reduced-motion: reduce) { .app-search form { animation: none; } }
 /* My List's pickup code (js/pages/account.js): a QR code staff scan, and the number to type into Customers. The code
    stays dark on white in every theme, as scanners need. */
