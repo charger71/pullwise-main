@@ -18,6 +18,7 @@ Pullwise ships three things that look different on purpose. Tokens, components a
 
 - The sections below this one (Brand idea through Avoid) are the Pullwise brand and the marketing site. **Storefront** and **Staff admin** each have their own section.
 - The storefront wears the shop's brand, not Pullwise's: no \`cyan\` / \`magenta\` / \`yellow\`, no Pullwise logo. Its colors and fonts are the shop's settings.
+- **Powered by Pullwise is the limit.** The one mention of Pullwise a shop's customers see is a small, plain-text "Powered by Pullwise": after the copyright line in the storefront footer and at the foot of the app's Account tab. Nothing more: no Pullwise logo, link or banner, no Pullwise-named app, and no plan or tier with less of the shop's own branding (plans differ by features, never by whose brand shows).
 - The admin is a calm work tool: one slate hue in light and dark, the shop's red and yellow as its only accents.
 - \`bundle.css\` holds each app's real stylesheet under its wrapper class, so storefront and admin markup renders exactly as in the apps: wrap it in \`<div class="pw-shop">\` or \`<div class="pw-admin">\`. The **Light** theme exists for the admin; marketing and storefront tokens keep their values in it.
 
@@ -36,7 +37,7 @@ Pullwise ships three things that look different on purpose. Tokens, components a
 
 export const STOREFRONT = `# Storefront
 
-Each shop's public site: pull lists, pre-orders, new arrivals, events and the shop's own pages. One codebase serves every shop; the shop's colors and fonts come from Shop Settings → Logo, Colors & Fonts, so the design is a frame the shop's brand fills. Default look: "Bronze Age Modern + Dusty Blue", a dark page with brick-red actions, gold accents and dusty-blue links.
+Each shop's public site: pull lists, pre-orders, new arrivals, events and the shop's own pages. One codebase serves every shop; the shop's colors and fonts come from Shop Settings → Logo, Colors & Fonts, so the design is a frame the shop's brand fills. Customers see the shop's name everywhere and Pullwise only in a small "Powered by Pullwise" line (footer and the app's Account tab). Default look: "Bronze Age Modern + Dusty Blue", a dark page with brick-red actions, gold accents and dusty-blue links.
 
 ## Color
 

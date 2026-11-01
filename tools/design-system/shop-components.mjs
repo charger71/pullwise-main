@@ -78,6 +78,7 @@ The storefront footer: the newsletter band, then three columns (address and cont
 - **Hours** (\`.hours\`): a definition list, day bold on the left, time on the right, at most 280px wide.
 - **Social** (\`.socials\`): the **Social icons** asset group at 20px in 44px tap areas, plain in the footer (no circles), pulled left so the first glyph lines up with the text.
 - Links in "More" run in two columns and wrap long page titles instead of widening the page.
+- **Copyright line** (\`.footer__legal\`, \`shop-fs-xs\`, centred): the shop's copyright text (or "© year shop name"), then " · Powered by Pullwise" in the same small text. It's plain text, not a link, and the only place Pullwise appears on the site. The "Get the App" link shows only for shops with the app.
 - Consumer provides: shop settings (address, phone, email, hours, socials, copyright). Rendered by \`renderFooter()\` in js/site.js.`,
     html: page('ShopFooter', `
 <section class="newsletter"><div class="container"><h2>Get the Weekly New&#8209;Release Email</h2><div class="lede"><p>Every Tuesday: what's out Wednesday and what's at FOC.</p></div></div></section>
@@ -100,7 +101,7 @@ The storefront footer: the newsletter band, then three columns (address and cont
       <ul class="footer__links"><li><a href="#">About</a></li><li><a href="#">Gift Cards</a></li><li><a href="#">How To</a></li><li><a href="#">FAQ</a></li><li><a href="#">Privacy</a></li><li><a href="#">Terms</a></li></ul>
     </section>
   </div>
-  <p class="container footer__legal">© 2026 Galaxy Comics &amp; Games</p>
+  <p class="container footer__legal">© 2026 Galaxy Comics &amp; Games · Powered by Pullwise</p>
 </footer>`, 'pw-shop'),
   },
   {
@@ -435,6 +436,7 @@ The shop's installable pull list app (app.html, at /app; app.<shop domain> forwa
 - \`.account-summary--fold\`: the app's totals fold away under one "Estimated total  $x" line (a show/hide box); open, it shows the discount tier, Subtotal and Discount.
 - Account → Notifications: one primary "Turn on notifications" button; once on, \`.push-on\` ("✓ Notifications are on for this device", \`shop-ok\`), a tick box for each kind (books ready, new titles from follows), then \`.push-actions\`: a ghost "Send a test" and a link-style "Turn off on this device". On an iPhone outside the Home Screen app it says how to add it instead.
 - Account → Appearance (\`.app-look\`, under the Account view whether signed in or not): radio choices **Match my phone**, **Light** and **Dark**. Light and Dark keep the shop's main and accent colors on a light (\`#f6f3ee\`) or dark (\`#121212\`) page, with links, gold text and feedback colors worked out to read on it (\`schemeCss\` in js/theme-vars.js). Until someone picks, the app keeps the shop's own page, and the choice shown is whichever that page is. The pick is kept on the phone and painted before the first draw; the status bar follows it.
+- \`.app-powered\`: the last line of the Account view, under Appearance (signed in or not): "Powered by Pullwise", centred, \`shop-fs-xs\` in muted, 32px above. Plain text, not a link; the app's one mention of Pullwise, which never shows on the other tabs.
 - \`.app-shop\`: the Shop view, centred: logo, name in the headline font, tagline, then each location as an \`.app-shop__place\` set off by a \`line\` rule (name, Call and Directions buttons, address, hours), the email and socials below another rule, then \`.app-shop__links\` to the website two to a row.
 - Consumer provides: the shop's settings and the signed-in customer. Built by js/pages/app.js and js/pages/account.js (views in \`[data-view]\`).`,
     html: page('ShopApp', `
