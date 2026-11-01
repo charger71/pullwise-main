@@ -202,7 +202,7 @@ ${demo('Tick option in a filter row')}
 ${demo('<h3>Pager'.slice(4))}`),
   },
   {
-    name: 'AdminTable', group: G('Data'), height: 781, width: 960,
+    name: 'AdminTable', group: G('Data'), height: 788, width: 960,
     readme: `# AdminTable
 
 Every admin list: a striped table under the slate header band, with sortable columns and a small set of row states.
