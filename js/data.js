@@ -94,6 +94,21 @@ export function getTopReserved() {
 }
 
 /**
+ * The ten of these titles customers have pulled most, most first (the app's Hot rows); titles nobody has pulled keep
+ * their order after the rest. Never fails: the first ten as given if the ranking can't load.
+ */
+export async function rankByPulls(ids) {
+  if (DEMO || !ids.length) return ids.slice(0, 10);
+  try {
+    const { data, error } = await (await supabase()).rpc('rank_by_pulls', { p_ids: ids });
+    if (error) throw error;
+    return data.map((r) => r.item_id);
+  } catch {
+    return ids.slice(0, 10);
+  }
+}
+
+/**
  * f.openFirst (an ISO date, the first FOC still open, from openFocFrom()): titles that can still go on a pull list
  * (pre-order, order cutoff not passed) come first, then everything else, each part in the usual order. Paging
  * (offset/limit) runs across both parts as one list.

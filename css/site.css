@@ -1227,6 +1227,16 @@ body:has([aria-busy="true"], .loading)::after {
   .app-shelf__row::-webkit-scrollbar { display: none; }
 }
 .app-shelf__row > * { scroll-snap-align: start; display: grid; }
+/* Hot's cards are shorter than the website's: tighter body, smaller lines, a title of at most two lines, and the
+   button label on one line. The cut-off date stays ("Add by tonight"); the day after it goes. The clamp sits on the
+   title's button, so its focus ring and stretched tap area (positioned on .card__title) aren't cut. */
+.app-shelf__row .card__body { padding: var(--sp-8); gap: var(--sp-4); }
+.app-shelf__row .card__title { font-size: var(--fs-ui); }
+.app-shelf__row .card__title-open { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.app-shelf__row .card__meta { font-size: var(--fs-xs); }
+.app-shelf__row .foc .card__meta { display: none; }
+.app-shelf__row .card__foot { padding-top: var(--sp-4); }
+.app-shelf__row .card .btn { padding-inline: var(--sp-4); font-size: var(--fs-2xs); }
 /* Search, dropped down from the header's button over any tab: its results stand in for the tab while the box has
    words in it. */
 @keyframes search-drop { from { opacity: 0; transform: translateY(calc(-1 * var(--sp-12))); } }
