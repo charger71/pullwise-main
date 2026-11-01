@@ -201,6 +201,15 @@ export async function add(itemId, quantity = 1) {
   await softRefresh(sb);
 }
 
+/** Order a copy of a released trade or omnibus (a re-order: the shop orders it from the distributor). */
+export async function reorder(itemId, quantity = 1) {
+  const sb = await supabase();
+  const { data: id, error } = await sb.rpc('pull_list_reorder', { p_item_id: itemId, p_quantity: quantity });
+  if (error) fail(error);
+  if (id) lines.set(itemId, { id, quantity, status: 'open', source: 'manual', created_at: new Date().toISOString() });
+  await softRefresh(sb);
+}
+
 /** Add every open, non-incentive cover of the same issue. Resolves { added, skipped }. */
 export async function addVariants(itemId, quantity = 1) {
   const sb = await supabase();
