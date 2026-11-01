@@ -1030,6 +1030,12 @@ details > div { padding: 0 var(--sp-16) var(--sp-14); }
 .account-summary__amount { margin-left: auto; }
 .account-summary--fold > summary::after { margin-left: 0; }
 .account-summary--fold > div { padding: 0 var(--sp-16) var(--sp-12); }
+/* The app's Following fold at the top of My List: what they follow, counted on one line until it's opened. */
+.app-follows { background: var(--raised); border: 0; border-radius: var(--radius); margin: 0 0 var(--sp-16); }
+.app-follows > summary { gap: var(--sp-12); padding: var(--sp-12) var(--sp-16); }
+.app-follows__count { margin-left: auto; color: var(--muted); font-size: var(--fs-ui); font-weight: 400; }
+.app-follows > summary::after { margin-left: 0; }
+.app-follows > div { padding: 0 var(--sp-16) var(--sp-12); }
 .account-move { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); flex-wrap: wrap; }
 /* ---------- Follow (signed-in cards): a link on the card, choices in a dialog ---------- */
 .follow-open { display: block; width: 100%; margin-top: var(--sp-6); padding: var(--sp-8) 0; min-height: 40px; background: none; border: 0; font: inherit; font-size: var(--fs-ui); font-weight: 700; text-align: left; color: var(--teal); cursor: pointer; }
@@ -1227,7 +1233,6 @@ body:has([aria-busy="true"], .loading)::after {
 .app-search { margin: 0 0 var(--sp-20); animation: search-drop var(--dur) ease-out; }
 .app-search input { width: 100%; }
 @media (prefers-reduced-motion: reduce) { .app-search { animation: none; } }
-.app-search__follow { margin-top: var(--sp-16); }
 /* My List's pickup code (js/pages/account.js): a QR code staff scan, and the number to type into Customers. The code
    stays dark on white in every theme, as scanners need. */
 .app-pickup { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-12) var(--sp-16); margin: 0 0 var(--sp-12); padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
@@ -1264,7 +1269,7 @@ body:has([aria-busy="true"], .loading)::after {
 .app-install__close { flex: none; width: 44px; height: 44px; border: 0; background: none; color: var(--muted); font-size: var(--fs-lede); cursor: pointer; }
 .app-install__close:hover { color: var(--ink); }
 .tab-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-bar); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
-.tab-bar ul { display: grid; grid-template-columns: repeat(5, 1fr); max-width: var(--max); margin: 0 auto; padding: 0; list-style: none; }
+.tab-bar ul { display: grid; grid-template-columns: repeat(4, 1fr); max-width: var(--max); margin: 0 auto; padding: 0; list-style: none; }
 .tab-bar a { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); min-height: var(--tab-bar-h); padding: var(--sp-6) var(--sp-4); color: var(--muted); font-size: var(--fs-2xs); font-weight: 700; text-decoration: none; }
 .tab-bar a:hover { color: var(--ink); }
 .tab-bar a[aria-current="page"] { color: var(--ink); box-shadow: inset 0 3px 0 var(--gold); }

@@ -18,10 +18,6 @@
       "url": "/app#hot"
     },
     {
-      "name": "Following",
-      "url": "/app#following"
-    },
-    {
       "name": "Shop",
       "url": "/app#shop"
     }

@@ -100,7 +100,6 @@ function showSaved() {
     <div class="app-view" data-view="list">
       ${titled('orders-h', 'Coming Up', `<div class="account-saved-list" inert>${saved.html}</div>`, { focusable: true })}
     </div>
-    <div class="app-view" data-view="following">${later('follows')}</div>
     <div class="app-view" data-view="me">${later('account')}</div>`;
   const tabCount = $('[data-tab-count="list"]');
   if (tabCount) {
@@ -223,11 +222,16 @@ async function signedIn(sb, user) {
   pickupName = [customer.last_name, customer.first_name].map((n) => n?.trim()).filter(Boolean).join(', ');
 
   const who = `<p class="account-who">Signed in as <strong>${esc(user.email)}</strong> · <button class="link-button" type="button" data-out>Sign out</button></p>`;
-  const orders = titled('orders-h', 'Coming Up', `${APP && !welcomed() ? WELCOME : ''}
-          <p class="visually-hidden" role="status" aria-live="polite" data-orders-status></p>
-          <div data-orders><p class="empty loading">Loading…</p></div>`, { focusable: true });
-  const following = titled('follow-h', 'Following', `
-          <p class="field__hint">New issues from anything you follow are added to your pull list automatically, until the order cutoff. A series adds its main cover; tick <strong>All covers</strong> to get every variant too (never incentive covers). Remove any you don’t want from Coming Up.</p>
+  // The app folds what they follow into My List, under one line with the counts; its search box is the header's
+  // (js/pages/app.js), which finds series and artists above the titles.
+  const followHint = `<p class="field__hint">New issues from anything you follow are added to your pull list automatically, until the order cutoff. A series adds its main cover; tick <strong>All covers</strong> to get every variant too (never incentive covers). Remove any you don’t want from Coming Up.${APP ? ' To follow more, tap the search button at the top and search for a series or artist.' : ''}</p>`;
+  const following = APP
+    ? `<details class="app-follows" data-follows-fold>
+          <summary><span>Following</span><span class="app-follows__count" data-follow-count></span></summary>
+          <div>${followHint}<div data-follows></div></div>
+        </details>`
+    : titled('follow-h', 'Following', `
+          ${followHint}
           <form class="follow-form" data-follow-search role="search">
             <div class="follow-form__row">
               <label class="visually-hidden" for="f-q">Search for a series or artist to follow</label>
@@ -236,6 +240,9 @@ async function signedIn(sb, user) {
           </form>
           <div data-follow-results></div>
           <div data-follows></div>`);
+  const orders = titled('orders-h', 'Coming Up', `${APP && !welcomed() ? WELCOME : ''}${APP ? following : ''}
+          <p class="visually-hidden" role="status" aria-live="polite" data-orders-status></p>
+          <div data-orders><p class="empty loading">Loading…</p></div>`, { focusable: true });
   const terms = `<p class="callout">We reserve the right to cancel any pre-order for any reason, and pre-orders over $100 may require a deposit. See our <a href="terms.html">terms</a>.</p>`;
   const profile = titled('profile-h', 'My Profile', `
         <form id="profile-form" novalidate>
@@ -275,7 +282,6 @@ async function signedIn(sb, user) {
   root.innerHTML = APP
     ? `
     <div class="app-view" data-view="list">${orders}</div>
-    <div class="app-view" data-view="following">${following}</div>
     <div class="app-view" data-view="me">${who}
       ${titled('push-h', 'Notifications', '<div data-push><p class="empty loading">Loading…</p></div>')}
       ${profile}${terms}</div>`
@@ -292,7 +298,7 @@ async function signedIn(sb, user) {
 
   $('[data-out]', root).addEventListener('click', () => sb.auth.signOut());
   $('[data-welcome]', root)?.addEventListener('click', (e) => {
-    if (!e.target.closest('[data-welcome-done], a')) return;
+    if (!e.target.closest('[data-welcome-done], [data-search-open]')) return;
     setWelcomed();
     const done = e.target.closest('[data-welcome-done]');
     $('[data-welcome]', root).remove();
@@ -355,12 +361,12 @@ const WELCOME = `
     <section class="app-welcome" aria-labelledby="welcome-h" data-welcome>
       <h3 id="welcome-h" class="app-welcome__title">Welcome! Here’s how it works</h3>
       <ol class="app-welcome__steps">
-        <li><strong>Follow what you read.</strong> Find a series or artist on the Following tab.</li>
+        <li><strong>Follow what you read.</strong> Tap the search button at the top, find a series or artist and tap Follow.</li>
         <li><strong>New issues land on your list by themselves,</strong> until the shop’s order cutoff. Take off any you don’t want.</li>
         <li><strong>Hear when they’re in.</strong> Turn on notifications on the Account tab.</li>
       </ol>
       <div class="app-welcome__actions">
-        <a class="btn btn--primary" href="#following">Follow a series</a>
+        <button class="btn btn--primary" type="button" data-search-open>Follow a series</button>
         <button class="btn btn--ghost" type="button" data-welcome-done>Got it</button>
       </div>
     </section>`;
@@ -741,11 +747,24 @@ async function moveGuestList() {
 // ---------------------------------------------------------------------------
 
 const ROLE_LABEL = { cover: 'Cover artist', creator: 'Writer / artist' };
+let followAbort = null; // the listeners on the app's header search, from the last sign-in
+
+/** "3 series · 1 artist", for the app's Following fold. */
+const followCount = (subs) => {
+  const n = (kind) => subs.filter((f) => f.kind === kind).length;
+  const parts = [[n('series'), 'series', 'series'], [n('artist'), 'artist', 'artists']].filter(([c]) => c).map(([c, one, many]) => `${c} ${c === 1 ? one : many}`);
+  return parts.length ? parts.join(' · ') : 'Nothing yet';
+};
 
 async function setupFollowing(sb, customerId, seenBefore) {
   const list = $('[data-follows]', root);
-  const results = $('[data-follow-results]', root);
-  const form = $('[data-follow-search]', root);
+  // The app searches from the header (app.html), which outlives this page's redraws: drop the last sign-in's listeners.
+  const results = APP ? $('[data-follow-results]') : $('[data-follow-results]', root);
+  const form = APP ? $('[data-search-form]') : $('[data-follow-search]', root);
+  const input = APP ? $('#app-q') : $('#f-q', form);
+  followAbort?.abort();
+  followAbort = new AbortController();
+  const { signal } = followAbort;
   let lastQuery = '';
   // set_follow_quantity refuses more than the copy limit (every new issue would be over it).
   const maxCopies = (await getSettings().catch(() => null))?.max_copies_per_title ?? 100;
@@ -770,8 +789,10 @@ async function setupFollowing(sb, customerId, seenBefore) {
               </span></li>`,
           )
           .join('')}</ul>`
-      : '<p class="empty">You aren’t following anything yet.</p>';
-    if (li) (($(keep, list) ?? near.map((id) => $(`[data-unfollow="${id}"]`, list)).find(Boolean)) ?? $('#f-q', root))?.focus();
+      : `<p class="empty">You aren’t following anything yet.</p>`;
+    const count = $('[data-follow-count]', root);
+    if (count) count.textContent = followCount(subs);
+    if (li) (($(keep, list) ?? near.map((id) => $(`[data-unfollow="${id}"]`, list)).find(Boolean)) ?? input)?.focus();
   };
   renderFollows();
   pull.onChange(renderFollows);
@@ -780,6 +801,7 @@ async function setupFollowing(sb, customerId, seenBefore) {
   // Messages go above the results so the list of matches stays open while following several things.
   const status = Object.assign(document.createElement('div'), { className: 'follow-status' });
   results.before(status);
+  signal.addEventListener('abort', () => status.remove());
   const note = (text, bad) => (status.innerHTML = `<p class="${bad ? 'form-error' : 'account-saved'}" role="${bad ? 'alert' : 'status'}">${esc(text)}</p>`);
   const noteError = (err) => (status.innerHTML = `<p class="form-error" role="alert">${pull.errorHtml({ message: errText(err), signIn: err?.signIn })}</p>`);
 
@@ -864,11 +886,11 @@ async function setupFollowing(sb, customerId, seenBefore) {
            <p class="field__hint"><strong>Their covers</strong> = every cover they draw, on any series (variants included, not incentives). <strong>Their books</strong> = the main cover of each issue they write or draw.</p>` : ''}
          ${series.length ? '<p class="field__hint">Follow = the main cover of each new issue. All covers = every variant too (not incentives).</p>' : ''}`
       : '<p class="empty">No series or artists match.</p>';
-    if (keep) ($(keep, results) ?? $('#f-q', root)).focus();
+    if (keep) ($(keep, results) ?? input).focus();
   };
 
   const search = async () => {
-    const q = $('#f-q', form).value.trim();
+    const q = input.value.trim();
     lastQuery = q;
     status.innerHTML = '';
     if (q.length < 2) return void ((lastResults = null), (results.innerHTML = ''));
@@ -882,8 +904,10 @@ async function setupFollowing(sb, customerId, seenBefore) {
     }
   };
   let timer;
-  form.addEventListener('input', () => (clearTimeout(timer), (timer = setTimeout(search, 300))));
-  form.addEventListener('submit', (e) => (e.preventDefault(), search()));
+  form.addEventListener('input', () => (clearTimeout(timer), (timer = setTimeout(search, 300))), { signal });
+  form.addEventListener('submit', (e) => (e.preventDefault(), search()), { signal });
+  // The app's search was put away: clear its series and artists with it.
+  form.addEventListener('reset', () => (clearTimeout(timer), (lastQuery = ''), (lastResults = null), (results.innerHTML = ''), (status.innerHTML = '')), { signal });
 
   results.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-fs], [data-fa]');
@@ -893,12 +917,12 @@ async function setupFollowing(sb, customerId, seenBefore) {
       const { added } = btn.dataset.fs ? await pull.followSeries(btn.dataset.fs, 1, btn.dataset.covers === 'all') : await pull.followArtist(btn.dataset.fa, btn.dataset.role);
       // The results redraw with "✓ Following" (pull.onChange); focus stays in the search.
       if (btn.isConnected) btn.textContent = 'Following ✓';
-      if (!results.contains(document.activeElement)) $('#f-q', root).focus();
+      if (!results.contains(document.activeElement)) input.focus();
       note(`Following. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added automatically.'}`);
       loadOrders(sb, customerId, seenBefore);
     } catch (err) {
       btn.disabled = false;
       noteError(err);
     }
-  });
+  }, { signal });
 }
