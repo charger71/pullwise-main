@@ -122,7 +122,7 @@ The home page opener: the shop's headline over a faint halftone dot screen, an i
 </div></section>`, 'pw-shop'),
   },
   {
-    name: 'ShopButton', group: G('Actions'), height: 125,
+    name: 'ShopButton', group: G('Actions'), height: 175,
     readme: `# ShopButton
 
 Storefront buttons: upper-case labels on square-cornered (3px) blocks, 46px tall.
@@ -131,6 +131,8 @@ Storefront buttons: upper-case labels on square-cornered (3px) blocks, 46px tall
 - **Primary** (\`.btn--primary\`): \`shop-red-btn\` with \`shop-on-primary\` text; hover a 15% darker red. The one action that matters on a card or form: Add to pull list, Reserve, Save.
 - **Ghost** (\`.btn--ghost\`): transparent with a \`shop-gold-text\` edge and label. Also the "on" state of a toggle (✓ On your pull list, with \`aria-pressed="true"\`).
 - **Disabled** (\`[disabled]\`): \`raised\` fill, muted text, \`line\` edge, not faded.
+- **Small** (\`.btn--small\`): 36px tall, smaller label. For a row of actions beside each result in a list (search's Series and Artists); on a phone the actions sit on their own line under the name.
+- **Icon** (\`.btn__icon\`, from \`btnIcon()\` in \`js/util.js\`): a 16px stroke icon in the label's color, before the label: \`follow\` (+), \`covers\`, \`books\`, \`on\` (✓, the "Following" state). Decorative (\`aria-hidden\`): the label says what the button does.
 - **Link button** (\`.link-button\`): an action that reads as a link, in \`shop-teal\`, underlined.
 - No hover lift or shadow on the storefront. Labels are verbs ("Add to pull list", not "Submit").
 - Consumer provides: the label and \`type\`. Use \`<a class="btn">\` only for navigation.`,
@@ -141,6 +143,11 @@ Storefront buttons: upper-case labels on square-cornered (3px) blocks, 46px tall
   <button class="btn btn--ghost" type="button" aria-pressed="true"><span aria-hidden="true">✓</span> On your pull list</button>
   <button class="btn btn--primary" type="button" disabled>Cutoff passed</button>
   <button class="link-button" type="button">Sign out</button>
+</div>
+<div class="pw-row">
+  <button class="btn btn--primary btn--small" type="button"><svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Follow</button>
+  <button class="btn btn--ghost btn--small" type="button"><svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h11v15"/><path d="M5 6h11v15H5z"/></svg>All covers</button>
+  <span class="btn btn--ghost btn--small is-on" aria-disabled="true"><svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>Following</span>
 </div>`),
   },
   {

@@ -104,6 +104,35 @@ export function colorVars(colors) {
 }
 
 // ---------------------------------------------------------------------------
+// The pull list app's Light and Dark appearance (App → Account → Appearance)
+// ---------------------------------------------------------------------------
+
+/** The page and text colors the app swaps in when someone picks the other appearance from the shop's own. */
+export const LIGHT_PAGE = { paper: '#f6f3ee', ink: '#1c1915' };
+export const DARK_PAGE = { paper: DEFAULT_PAPER, ink: '#f4f0ea' };
+// css/site.css's own colors for a dark page, which colorVars leaves out (they're already there unless the shop's page is light).
+const DARK_PAGE_VARS = [['color-scheme', 'dark'], ['--cream', '#e9e1d3'], ['--error', '#ff9585'], ['--ok', '#9bd7ae'], ['--warn', '#f0a35a'], ['--clearance', '#f4b6be'], ['--violet', '#cdb6ee']];
+
+/** True when the shop's page (or the stylesheet's, if it sets none) is already `scheme`. */
+export const pageIs = (colors, scheme) => isLight(isHex6(colors?.paper) ? colors.paper : DEFAULT_PAPER) === (scheme === 'light');
+
+/**
+ * The app's CSS for showing the shop's colors on a light or a dark page ('' when the shop's page already is one, or
+ * for anything but 'light' / 'dark'). The shop's main and accent colors stay; the page, text, links and feedback
+ * colors are worked out for the new page as colorVars does. `:root:root` outranks the shop's <style id="shop-theme">
+ * wherever it sits in <head>.
+ */
+export function schemeCss(colors, scheme) {
+  colors ??= {};
+  if (!['light', 'dark'].includes(scheme) || pageIs(colors, scheme)) return '';
+  const { link, footer, ...shop } = colors; // the shop's link color was picked for its own page
+  const out = colorVars({ ...shop, ...(scheme === 'light' ? LIGHT_PAGE : DARK_PAGE) });
+  if (scheme === 'dark') out.push(...DARK_PAGE_VARS);
+  if (!out.some(([p]) => p === '--gold-text')) out.push(['--gold-text', 'var(--gold)']); // in case the shop's page needed it moved
+  return `:root:root{${out.map(([p, v]) => `${p}:${v}`).join(';')}}`;
+}
+
+// ---------------------------------------------------------------------------
 // Fonts
 // ---------------------------------------------------------------------------
 

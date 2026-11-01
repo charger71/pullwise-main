@@ -76,3 +76,13 @@ export function formatPhone(phone) {
 /** "Drew 12 covers · on 30 books" under an artist's name in the follow lists. */
 export const artistMeta = (r) =>
   [r.covers ? `Drew ${r.covers} ${r.covers === 1 ? 'cover' : 'covers'}` : '', r.issues ? `on ${r.issues} ${r.issues === 1 ? 'book' : 'books'}` : ''].filter(Boolean).join(' · ') || 'Named on a cover';
+
+// Icons that lead a button's label (.btn__icon in css/site.css): 24×24 strokes drawn in the label's color.
+const BTN_ICONS = {
+  follow: '<path d="M12 5v14M5 12h14"/>',
+  covers: '<path d="M8 3h11v15"/><path d="M5 6h11v15H5z"/>',
+  books: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/>',
+  on: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+};
+/** A button's leading icon: follow (+), covers, books or on (✓). Decorative: the label says what it does. */
+export const btnIcon = (name) => `<svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${BTN_ICONS[name]}</svg>`;

@@ -4,7 +4,7 @@
 
 import { reserve, getSettings, coverArtists } from './data.js';
 import { $, esc, badge, ITEM_BADGES, cover, price, fmtDate, daysUntil, lastReserveDay, cutoffPassed, shownStatus, itemTitle, itemFullTitle } from './site.js';
-import { thumbOf, thumbFallback, formatPhone, nameKey, artistMeta } from './util.js';
+import { thumbOf, thumbFallback, formatPhone, nameKey, artistMeta, btnIcon } from './util.js';
 import * as list from './reservation-list.js';
 import * as pull from './customer.js';
 
@@ -230,8 +230,8 @@ export function artistRows(rows) {
   const btn = (r, role, label) => {
     const on = pull.findSubscription('artist', pull.personKey(r.name), role);
     return on
-      ? `<span class="btn btn--ghost btn--small is-on" aria-disabled="true">✓ Following their ${role === 'cover' ? 'covers' : 'books'}</span>`
-      : `<button class="btn ${role === 'cover' ? 'btn--primary' : 'btn--ghost'} btn--small" type="button" data-follow-artist="${esc(r.name)}" data-role="${role}">${label}<span class="visually-hidden"> by ${esc(r.name)}</span></button>`;
+      ? `<span class="btn btn--ghost btn--small is-on" aria-disabled="true">${btnIcon('on')}Following their ${role === 'cover' ? 'covers' : 'books'}</span>`
+      : `<button class="btn ${role === 'cover' ? 'btn--primary' : 'btn--ghost'} btn--small" type="button" data-follow-artist="${esc(r.name)}" data-role="${role}">${btnIcon(role === 'cover' ? 'covers' : 'books')}${label}<span class="visually-hidden"> by ${esc(r.name)}</span></button>`;
   };
   return `${pull.isSignedIn() ? `<p class="field__hint follow-explain">Follow an artist or writer and their new titles are added to your pull list automatically.<br><strong>Their covers</strong> = every cover they draw, on any series (variants included, not incentives).<br><strong>Their books</strong> = the main cover of each issue they write or draw.</p>` : ''}
     <ul class="follow-results">${rows

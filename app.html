@@ -30,9 +30,12 @@
   <link rel="modulepreload" href="js/discount.js">
   <link rel="modulepreload" href="js/components.js">
   <link rel="modulepreload" href="js/app-device.js">
+  <link rel="modulepreload" href="js/app-theme.js">
   <link rel="preload" href="fonts/archivo-black-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/source-sans-3-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/site.css">
+  <!-- The Light or Dark appearance picked on this phone (js/app-theme.js keeps it), before the first paint. -->
+  <script>try{var t=JSON.parse(localStorage.getItem('pc-app-theme')||'{}'),k=t.pick==='device'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t.pick,c=t.css&&t.css[k];if(c){var s=document.createElement('style');s.id='app-theme';s.textContent=c;document.head.appendChild(s)}}catch(e){}</script>
   <script>try{var p=JSON.parse(localStorage.getItem('pc-preload')||'{}');[p.logo].forEach(function(u){if(u&&/^https:/.test(u)){var l=document.createElement('link');l.rel='preload';l.as='image';l.href=u;document.head.appendChild(l)}})}catch(e){}</script>
   <script type="module" src="js/pages/app.js"></script>
 </head>
@@ -70,6 +73,11 @@
       <section class="app-view" data-view="shop" aria-labelledby="shop-h" hidden>
         <h2 id="shop-h" class="app-view__title" tabindex="-1">The Shop</h2>
         <div data-shop><p class="empty loading">Loading…</p></div>
+      </section>
+      <!-- Under the Account view, signed in or not (js/app-theme.js setupAppearance). -->
+      <section class="app-view app-look" data-view="me" aria-labelledby="look-h" hidden>
+        <h2 id="look-h" class="app-view__title">Appearance</h2>
+        <div class="panel" data-look></div>
       </section>
     </div>
   </main>
