@@ -194,8 +194,14 @@ function create() {
     <div class="dialog__head title-modal__head"><button class="dialog__close" type="button" aria-label="Close">✕</button></div>
     <div class="dialog__body" data-tm-body></div>`;
   document.body.append(d);
+  // Escape slides the sheet away too (on a phone), rather than snapping shut.
+  d.addEventListener('cancel', (e) => {
+    e.preventDefault();
+    dismiss();
+  });
+  setupSwipe(d);
   d.addEventListener('click', async (e) => {
-    if (e.target === d || e.target.closest('.dialog__close')) return d.close();
+    if (e.target === d || e.target.closest('.dialog__close')) return dismiss();
     const shareBtn = e.target.closest('[data-title-share]');
     if (shareBtn) return share(shareBtn);
     const alertBtn = e.target.closest('[data-stock-alert]');
@@ -230,6 +236,63 @@ function create() {
   // Add-to-list and follow buttons inside the dialog behave exactly like the ones on the cards.
   enableReservations(d, (id) => known.get(id));
   return d;
+}
+
+// ---------------------------------------------------------------------------
+// Phones: the dialog is a sheet over the whole screen (css/site.css). It slides up when it opens, slides down when it
+// closes, and a swipe down from the top of its content (or its close bar) puts it away, as a native sheet does.
+// ---------------------------------------------------------------------------
+
+const SWIPE_CLOSE = 120; // px dragged down that closes it on release
+const SWIPE_FLICK = 0.6; // px per ms: a quick flick closes it even when shorter
+const asSheet = () => matchMedia('(max-width: 599px)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Close the dialog: on a phone it slides down first; elsewhere (or with reduced motion) it closes at once. */
+function dismiss() {
+  if (!dialog?.open || dialog.classList.contains('is-closing')) return;
+  if (!asSheet()) return dialog.close();
+  dialog.classList.remove('is-dragging');
+  dialog.classList.add('is-closing');
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    dialog.close();
+    dialog.classList.remove('is-closing');
+    dialog.style.removeProperty('--sheet-drag');
+  };
+  dialog.addEventListener('transitionend', finish, { once: true });
+  setTimeout(finish, 400); // in case no transition runs (the sheet was already off screen)
+}
+
+function setupSwipe(d) {
+  const body = () => $('[data-tm-body]', d);
+  let startY = null;
+  let startAt = 0;
+  let dy = 0;
+  d.addEventListener('touchstart', (e) => {
+    // Only with one finger, from the close bar or with the content scrolled to its top: otherwise it's a scroll.
+    const atTop = body().scrollTop <= 0 || e.target.closest('.title-modal__head');
+    startY = asSheet() && atTop && e.touches.length === 1 && !e.target.closest('.title-modal__covers') ? e.touches[0].clientY : null;
+    startAt = Date.now();
+    dy = 0;
+  }, { passive: true });
+  d.addEventListener('touchmove', (e) => {
+    if (startY === null) return;
+    dy = Math.max(0, e.touches[0].clientY - startY);
+    if (dy > 0 && body().scrollTop > 0) return void (startY = null); // the content scrolled after all
+    d.classList.add('is-dragging');
+    d.style.setProperty('--sheet-drag', `${dy}px`);
+  }, { passive: true });
+  const release = () => {
+    if (startY === null) return;
+    startY = null;
+    d.classList.remove('is-dragging');
+    if (dy > SWIPE_CLOSE || (dy > 40 && dy / Math.max(1, Date.now() - startAt) > SWIPE_FLICK)) return dismiss();
+    d.style.removeProperty('--sheet-drag'); // springs back (the sheet's transition)
+  };
+  d.addEventListener('touchend', release);
+  d.addEventListener('touchcancel', release);
 }
 
 async function open(id, { push = true, opener = null } = {}) {
@@ -280,7 +343,7 @@ export function init() {
     if (id) open(id, { push: false }).then(() => (pushed = true));
     else if (dialog?.open) {
       pushed = false;
-      dialog.close();
+      dismiss();
     }
   });
   const linked = Number(new URLSearchParams(location.search).get('title'));

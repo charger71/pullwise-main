@@ -3,7 +3,7 @@
 
 import { SOCIAL_ICONS } from '../../js/social-icons.js';
 import { tiersFrom } from '../../js/discount.js';
-import { SUPABASE_URL } from '../../js/config.js';
+import { SUPABASE_URL, APP_ENABLED } from '../../js/config.js';
 import { putMedia } from '../../js/media-store.js';
 import { contrast, colorVars, FONT_LIBRARY, FONT_SLOTS, SPACING, SIZES, letterSpacing, sizeScale, fontScale, isFontUpload } from '../../js/theme-vars.js';
 import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, uid, db, slugify } from '../lib.js';
@@ -84,6 +84,12 @@ export async function mount(el, { sb }) {
         <p class="field__hint">The site is designed for a dark page background with light text. Everything else (cards, borders, muted text) is worked out from these five colors. Use the page background and text colors together: a dark background needs light text.</p>
         <div class="contrast" data-contrast aria-live="polite"></div>
       </div></section>
+      ${APP_ENABLED ? `<section class="fold fold--compact fold--static"><div class="fold__head"><h2>Pull List App</h2></div><div class="fold__body">
+        <div data-app-icon></div>
+        <p class="field__hint">The app’s icon on Android and iPhone Home Screens, saved at 512 × 512. Fill the whole square with a solid background color and keep your logo inside the middle 60%: phones cut the icon to a circle or rounded square, so anything near the edges can be cut off. Blank uses the browser tab icon (or the logo), shown smaller on a plain background. It can take about a minute to reach the app, and a phone that already has the app picks up a new icon when it next updates it.</p>
+        <div class="form-grid form-grid--pairs">${[1, 2, 3, 4].map((n) => `<div class="field" data-app-shot="${n}"></div>`).join('')}</div>
+        <p class="field__hint">Up to four pictures of the app, shown when Android offers to install it. Take them on a phone with the app open (My List, Hot, a title’s details, the Shop tab). Each is cropped to a phone screen’s shape and saved at 1080 × 2340. Without any, Android shows a small install bar instead.</p>
+      </div></section>` : ''}
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Fonts</h2></div><div class="fold__body">
         <div class="form-grid form-grid--pairs">${FONT_SLOTS.map((slot) => fontPicker(slot, s.fonts?.[slot.slot])).join('')}</div>
         <p class="field__hint">The built-in fonts are free to use. For <strong>Your own font file</strong>, upload a .woff2 (or .woff) file of ${FONT_MAX_KB} KB or less, and only a font your shop is licensed to use on a website. Each built-in font is sized to look about as big as the default at Medium; an uploaded font is set at the default's size. Changes can take about a minute to appear on the site.</p>
@@ -150,6 +156,11 @@ export async function mount(el, { sb }) {
   favicon.set(s.favicon_url);
   const hero = imageField($('[data-hero]', el), { folder: 'brand', label: 'Home page banner photo', crop: 'wide', maxSize: 2000, library: true });
   hero.set(s.hero_image_url);
+  // The app's pictures are saved at an exact size (the manifest states it), so they're uploaded, not picked from Media.
+  const appIcon = APP_ENABLED ? imageField($('[data-app-icon]', el), { folder: 'brand', label: 'App icon', exact: [512, 512] }) : null;
+  appIcon?.set(s.app_icon_url);
+  const appShots = APP_ENABLED ? $$('[data-app-shot]', el).map((box, i) => imageField(box, { folder: 'brand', label: `Screenshot ${i + 1}`, exact: [1080, 2340] })) : [];
+  appShots.forEach((f, i) => f.set(s.app_screenshots?.[i]));
   setupTabs(el, 'admin-settings-tab', 'shop');
 
   $('[data-link-auto]', form).addEventListener('change', (e) => ($('#c-link', form).disabled = e.target.checked));
@@ -221,6 +232,8 @@ export async function mount(el, { sb }) {
       timezone: f.get('timezone'),
       discount_enabled: f.has('discount_enabled'), discount_tiers: tiers,
       pinned_publishers: (text('pinned_publishers') ?? '').split(',').map((p) => p.trim()).filter(Boolean),
+      // Without the app the fields aren't shown, so what's saved is left as it is.
+      ...(APP_ENABLED ? { app_icon_url: appIcon.get(), app_screenshots: appShots.map((f) => f.get()).filter(Boolean) } : {}),
     };
     setStatus(status, 'Saving…');
     try {

@@ -8,18 +8,45 @@
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#121212",
+  "launch_handler": {
+    "client_mode": [
+      "navigate-existing",
+      "auto"
+    ]
+  },
   "shortcuts": [
     {
       "name": "My List",
-      "url": "/app#list"
+      "url": "/app#list",
+      "icons": [
+        {
+          "src": "/icons/shortcut-list.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Hot",
-      "url": "/app#hot"
+      "url": "/app#hot",
+      "icons": [
+        {
+          "src": "/icons/shortcut-hot.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Shop",
-      "url": "/app#shop"
+      "url": "/app#shop",
+      "icons": [
+        {
+          "src": "/icons/shortcut-shop.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

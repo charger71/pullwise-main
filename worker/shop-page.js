@@ -38,6 +38,8 @@ export const NO_APP_PATH = '/account.html';
 const DEFAULT_PAPER = '#121212'; // css/site.css's --brand-paper
 const hexColor = (v) => (/^#[0-9a-f]{6}$/i.test(v ?? '') ? v : null);
 
+const https = (url) => (typeof url === 'string' && /^https:\/\//.test(url) ? url : null);
+
 /** The app's home-screen icon at one size: the shop's tab icon (or logo), squared by Supabase's image service. */
 const appIcon = (settings, size) => {
   const src = settings.favicon_url || settings.logo_url;
@@ -52,6 +54,12 @@ export function appManifest(settings = {}) {
   const name = (settings.shop_name ?? '').trim() || 'My Pull List';
   const paper = hexColor(settings.colors?.paper) ?? DEFAULT_PAPER;
   const icons = [192, 512].map((size) => appIcon(settings, size) && { src: appIcon(settings, size), sizes: `${size}x${size}`, purpose: 'any' }).filter(Boolean);
+  // Uploaded in Shop Settings at exactly these sizes (admin/sections/settings.js), with room around the logo for the
+  // phone to cut it to its own shape.
+  const maskable = https(settings.app_icon_url);
+  if (maskable) icons.push({ src: maskable, sizes: '512x512', purpose: 'maskable' });
+  const screenshots = (Array.isArray(settings.app_screenshots) ? settings.app_screenshots : []).map(https).filter(Boolean).slice(0, 4)
+    .map((src, i) => ({ src, sizes: '1080x2340', form_factor: 'narrow', label: `${name} app, screen ${i + 1}` }));
   return {
     id: APP_PATH,
     name,
@@ -63,16 +71,21 @@ export function appManifest(settings = {}) {
     background_color: paper,
     theme_color: paper,
     ...(icons.length ? { icons } : {}),
-    // Long-press the icon (Android): straight to a tab.
+    // With these, Android's install offer is a full sheet showing the app rather than a small bar.
+    ...(screenshots.length ? { screenshots } : {}),
+    // Tapping the icon, a shortcut or a link into the app while it's open brings that window forward (on the page the
+    // link names) instead of opening a second copy of the app.
+    launch_handler: { client_mode: ['navigate-existing', 'auto'] },
+    // Long-press the icon (Android): straight to a tab, each with the tab bar's icon.
     shortcuts: APP_SHORTCUTS,
   };
 }
 
 const APP_SHORTCUTS = [
-  { name: 'My List', url: `${APP_PATH}#list` },
-  { name: 'Hot', url: `${APP_PATH}#hot` },
-  { name: 'Shop', url: `${APP_PATH}#shop` },
-];
+  { name: 'My List', key: 'list' },
+  { name: 'Hot', key: 'hot' },
+  { name: 'Shop', key: 'shop' },
+].map(({ name, key }) => ({ name, url: `${APP_PATH}#${key}`, icons: [{ src: `/icons/shortcut-${key}.png`, sizes: '96x96', type: 'image/png' }] }));
 
 /** The app's loading screen: the shop's logo (at the header's width) and name. */
 export function appSplash(settings = {}) {
@@ -165,7 +178,8 @@ export function headTags(file, settings, supabaseUrl) {
     // The installed app's status bar color and its icon on an iPhone (which doesn't read the manifest's icons).
     tags.push(`<meta name="theme-color" content="${esc(hexColor(settings.colors?.paper) ?? DEFAULT_PAPER)}">`);
     if (settings.shop_name?.trim()) tags.push(`<meta name="apple-mobile-web-app-title" content="${esc(settings.shop_name.trim())}">`);
-    const touch = appIcon(settings, 180);
+    // The app icon made for Home Screens (a full square with room around the logo) suits an iPhone's too.
+    const touch = https(settings.app_icon_url) ? sizedImage(settings.app_icon_url, 180, { format: 'origin', square: true }) : appIcon(settings, 180);
     if (touch) tags.push(`<link rel="apple-touch-icon" href="${esc(touch)}">`);
   }
   if (settings.logo_url) tags.push(`<link rel="preload" as="image" fetchpriority="high" href="${esc(sizedImage(settings.logo_url, LOGO_WIDTH))}">`);

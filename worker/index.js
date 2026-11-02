@@ -120,7 +120,7 @@ async function shopData(shop, ctx) {
       return r.json();
     };
     const [settings, pages] = await Promise.all([
-      get('settings?select=shop_name,tagline,timezone,logo_url,favicon_url,hero_image_url,hero_headline,colors,fonts&id=eq.1'),
+      get('settings?select=shop_name,tagline,timezone,logo_url,favicon_url,app_icon_url,app_screenshots,hero_image_url,hero_headline,colors,fonts&id=eq.1'),
       get('pages?select=slug,meta_title,meta_description'),
     ]);
     const data = { settings: settings[0] ?? {}, pages: Object.fromEntries(pages.map((p) => [p.slug, p])) };

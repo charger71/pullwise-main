@@ -238,7 +238,8 @@ the Worker → Settings → Domains & Routes.
 Sign in at `https://<your site>/admin/` as the owner, then:
 
 1. **Shop Settings**: name, tagline, headline, contact details, address, hours, socials, map, logo, favicon, colors,
-   timezone, reservation rules, pull list discounts.
+   timezone, reservation rules, pull list discounts. With the pull list app, also its Home Screen icon and up to four
+   screenshots for Android's install sheet (Logo, Colors & Fonts → Pull List App).
 2. **Pages / FAQ**: rewrite the About text and anything else that doesn't fit your shop.
 3. **Emails**: set the From address, preview, send yourself a test, then turn on the weekly and "your books are in" emails.
 4. **Import**: drop in your first distributor FOC sheets.

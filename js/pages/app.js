@@ -64,8 +64,9 @@ function showView({ focus = false } = {}) {
     if (a.dataset.tab === view) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   }
+  current = view;
   if (focus) {
-    scrollTo(0, 0);
+    scrollTo({ top: scrolls.get(view) ?? 0, behavior: 'instant' }); // where this tab was left, as a native tab bar does
     const heading = $(`[data-view="${view}"] h2`);
     if (heading) {
       heading.tabIndex = -1;
@@ -75,9 +76,46 @@ function showView({ focus = false } = {}) {
 }
 
 let hotShown = false; // the Hot view loads the first time it's opened
-addEventListener('hashchange', () => {
-  closeSearch();
-  showView({ focus: true });
+
+// Each tab keeps its own scroll position, so going to Hot and back to My List finds your place again.
+let current = null; // the tab showing (showView)
+const scrolls = new Map(); // tab → scrollY when it was left
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+function leaveTab() {
+  if (!current) return;
+  // Search results stand in for the tab and start at the top: the tab's own place is where the search opened.
+  scrolls.set(current, $('[data-search-results]').hidden ? scrollY : scrolledTo);
+}
+
+/** Switch tabs: the views cross-fade (View Transitions, where the browser has them and motion is welcome). */
+function switchTab() {
+  leaveTab();
+  const swap = () => {
+    closeSearch();
+    showView({ focus: true });
+  };
+  if (document.startViewTransition && !reducedMotion()) document.startViewTransition(swap);
+  else swap();
+}
+
+// A link from outside (a notification, a Home Screen shortcut) or the browser's own back and forward.
+addEventListener('hashchange', switchTab);
+
+// The tab bar (and the shop's name in the header, which goes to My List). Tabs replace the address rather than add to
+// the history, so Android's back button leaves the app instead of stepping back through every tab tapped. Tapping the
+// tab that's already showing puts away the search and scrolls it back to the top.
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[href^="#"]');
+  const tab = a?.getAttribute('href').slice(1);
+  if (!VIEWS.includes(tab) || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  if (tab !== current) {
+    history.replaceState(history.state, '', `#${tab}`); // no hashchange: switchTab runs here
+    return switchTab();
+  }
+  if (!searchBox.hidden) closeSearch();
+  scrolls.delete(tab);
+  scrollTo({ top: 0, behavior: reducedMotion() ? 'instant' : 'smooth' });
 });
 // The account page draws its views after sign-in (and again after signing out and in): show the right one.
 new MutationObserver(() => showView()).observe(account, { childList: true });
@@ -479,6 +517,28 @@ async function refresh() {
 }
 
 setupPull();
+
+// ---------------------------------------------------------------------------
+// Back to the front: an installed app stays open in the background for days, so after a few minutes away it fetches
+// the list (and Hot, if it was opened) again by itself, keeping the "ready for pickup" counts current.
+// ---------------------------------------------------------------------------
+
+const STALE_AFTER = 5 * 60 * 1000; // ms away before the app fetches again on its return
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden) return void (hiddenAt = Date.now());
+  const away = hiddenAt ? Date.now() - hiddenAt : 0;
+  hiddenAt = 0;
+  // Not while something is in hand: a search, an open title, a half-typed field, the sign-in form, or offline.
+  if (away < STALE_AFTER || !navigator.onLine || document.body.classList.contains('app-locked')) return;
+  if (!searchBox.hidden || document.querySelector('dialog[open]') || document.activeElement?.matches('input, textarea, select')) return;
+  const y = scrollY;
+  const waits = [];
+  document.dispatchEvent(new CustomEvent('app:refresh', { detail: { wait: (p) => waits.push(p) } }));
+  if (hotShown) waits.push(renderHot());
+  await Promise.all(waits).catch((err) => console.error(err));
+  scrollTo({ top: y, behavior: 'instant' }); // the views were drawn again: stay where you were
+});
 
 // ---------------------------------------------------------------------------
 // Offline: say so, and when the list on screen is from (js/pages/account.js shows its last copy)
