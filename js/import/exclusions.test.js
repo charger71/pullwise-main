@@ -44,6 +44,25 @@ assert.equal(lunar.items.length, 1);
 assert.equal(lunar.skipped.at(-1).reason, 'Listed twice in this sheet');
 console.log('sku repeats ok');
 
+// Covers a shop can't promise a customer are never imported: ratio and unlock covers, store and convention
+// exclusives. Direct Market and distributor exclusives are the comic-shop editions, so they come in.
+{
+  const row = (title) => [title, title, '4.99', 'Dynamite', '', '2026-10-20', '2026-11-18', '', '', '', '', '', '', ''];
+  const r = parseSheet([lunarHead, ...[
+    'BATMAN #1 CVR B 1:25 JIM LEE VAR', 'MURDER HOBO #3 CVR C 10 COPY BAGGS BROTHERS UNLOCK VAR',
+    'BEN 10 #1 CVR ZM LUCAS LEE GARZA B&W TRADE DRESS DYNAMITE COM EXCLUSIVE VAR', 'DF BATMAN #50 DF EXCLUSIVE VARIANT SIGNED',
+    'BLACK STAR #1 SDCC EXCLUSIVE MARTIN SIMMONDS CARDSTOCK VAR', 'DF DNX #1 ARIEL DIAZ COMICXPOSURE EXCLUSIVE',
+    'NARCO TP DIRECT MARKET EXCLUSIVE DANIEL HILLYARD POSSUM CVR', 'MARVEL DIMENSIONS HC LUNAR EXCLUSIVE EDITION',
+    'BLUE LOCK ADVENT CALENDAR 24 DAYS OF EXCLUSIVE GIFTS', 'BEN 10 #1 CVR A LUCAS LEE GARZA',
+  ].map(row)], { today: '2026-10-17' });
+  assert.deepEqual(r.skipped.map((s) => s.reason), [
+    'Incentive / ratio variant', 'Incentive / ratio variant',
+    'Store / convention exclusive', 'Store / convention exclusive', 'Store / convention exclusive', 'Store / convention exclusive',
+  ]);
+  assert.equal(r.items.length, 4);
+}
+console.log('skipped covers ok');
+
 // Badges a new title starts with, read from its title, issue number and cover variant.
 const issue = (issue_number) => autoBadges({ title: 'X', issue_number }).includes('first_issue');
 assert.deepEqual(['1', '01', '1 (of 4)', '1 (one-shot)', '1A'].map(issue), [true, true, true, true, true]);
