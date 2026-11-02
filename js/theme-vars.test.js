@@ -30,6 +30,8 @@ assert.ok(contrast(light['--gold-text'], '#ffffff') >= 4.5, 'gold text is darken
 assert.equal(accentText('#7a3fb0', '#ffffff'), '#7a3fb0', 'an accent that already reads is kept');
 assert.ok(contrast(vars({ accent: '#2a2a40' })['--gold-text'], '#121212') >= 4.5, 'a dark accent is lightened on the dark page');
 assert.ok(contrast(accentText('#e7b84b', '#f6f1e7'), '#f6f1e7') >= 4.5);
+// …and on the raised tone it also sits on (chips): the app's light page #f6f3ee with its text #161616 mixed in at 9%
+assert.ok(contrast(accentText('#e7b84b', '#f6f3ee', '#161616'), '#e2dfda') >= 4.5, 'gold text reads on a light page\'s raised tone');
 assert.equal(light['--footer-text'], '#161616');
 assert.equal(vars({ paper: '#ffffff', link: '#123456' })['--teal'], '#123456', 'a picked link color wins');
 assert.equal(linkColor({}), null);

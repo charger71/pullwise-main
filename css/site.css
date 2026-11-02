@@ -1249,6 +1249,7 @@ body:has([aria-busy="true"], .loading)::after {
 [data-page="app"] :is(.tab-bar, .app-bar, .app-view__title, .app-shelf__head, .btn, .link-button, .dialog__close) { -webkit-user-select: none; user-select: none; }
 [data-page="app"] :is(img, .tab-bar a, .app-bar a) { -webkit-touch-callout: none; }
 [data-page="app"] .btn:active { transform: scale(var(--press-scale)); filter: var(--press-dim); }
+[data-page="app"] .link-button { display: inline-flex; align-items: center; min-height: var(--tap); } /* Sign out, See all, Turn off: touch targets on a phone */
 [data-page="app"] .link-button:active { opacity: var(--press-fade); }
 [data-page="app"] :is(.card__open, .account-line__open):active .cover { filter: var(--press-dim); }
 [data-page="app"] :is(.app-bar__search, .account-line__remove, .app-install__close, .dialog__close, .app-shop__links a):active { background: var(--raised); }
@@ -1270,6 +1271,7 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 [data-page="app"] .empty.loading { min-height: 240px; overflow: hidden; white-space: nowrap; text-indent: 100vw; }
 [data-page="app"] #site-header:empty { min-height: var(--app-bar-h); }
 .app-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: var(--app-bar-h); }
+.app-bar .brand { min-height: var(--tap); } /* the shop's name goes to My List: a full touch target, not a 22px line */
 .app-bar .brand__logo { max-height: 40px; }
 .app-bar .brand__name { font-size: calc(1.25rem * var(--display-scale)); }
 /* The search button: a magnifier that opens the search under the header; pressed while it's open. */
@@ -1288,7 +1290,7 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 .app-shelf + .app-shelf { margin-top: var(--sp-32); }
 .app-shelf__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
 .app-shelf__head h3 { margin: 0; font-size: var(--fs-sub); }
-.app-shelf__head .link-button { flex: none; display: inline-flex; align-items: center; min-height: var(--tap); font-size: var(--fs-sm); font-weight: 700; }
+.app-shelf__head .link-button { flex: none; font-size: var(--fs-sm); font-weight: 700; }
 .app-shelf__lede { margin: 0 0 var(--sp-12); color: var(--muted); font-size: var(--fs-sm); }
 .app-shelf__row { display: grid; grid-auto-flow: column; grid-auto-columns: min(calc((100% - 2 * var(--sp-12)) / 2.5), 200px); gap: var(--sp-12); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); margin-inline: calc(-1 * var(--gutter)); padding: 0 var(--gutter) var(--sp-8); }
 /* The row holds the cards' hidden screen-reader text (position: absolute), so it must be their containing block:
@@ -1347,6 +1349,7 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 /* My List's date headings stay pinned under the header while their titles scroll under them, as in a native
    grouped list; the next one slides over it. */
 [data-page="app"] .account-group { position: sticky; top: var(--app-header-bottom); z-index: calc(var(--z-raised) + 1); margin-bottom: 0; padding-top: var(--sp-12); background: var(--paper); }
+[data-page="app"] .panel .account-group { background: var(--surface); } /* My List sits in a panel: the band is the panel's color */
 /* The first-run welcome on My List, until "Got it". */
 .app-welcome { margin: 0 0 var(--sp-20); padding: 0 0 var(--sp-20); border-bottom: var(--border); }
 .app-welcome__title { margin: 0 0 var(--sp-8); font-size: var(--fs-sub); }

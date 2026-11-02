@@ -165,7 +165,7 @@ export const itemFullTitle = (i) => (i.variant ? `${itemTitle(i)} · ${i.variant
 export const cover = (i, { full = false } = {}) =>
   i.cover_url
     ? `<img class="cover" src="${esc((!full && i.cover_thumb_url) || i.cover_url)}" alt="Cover of ${esc(itemFullTitle(i))}" loading="lazy" decoding="async" width="300" height="450">`
-    : `<div class="cover cover--placeholder" aria-hidden="true">Image coming soon</div>`;
+    : `<span class="cover cover--placeholder" aria-hidden="true">Image coming soon</span>`; // a span: covers sit inside buttons
 
 const time12 = (hhmm) => {
   const [h, m] = hhmm.split(':').map(Number);
@@ -543,7 +543,7 @@ function loadAnalyticsWhenIdle(settings) {
 function setupLightbox() {
   const dialog = document.createElement('dialog');
   dialog.className = 'lightbox';
-  dialog.innerHTML = `<button class="lightbox__close" aria-label="Close">✕</button><img alt="">`;
+  dialog.innerHTML = `<button class="lightbox__close" type="button" aria-label="Close">✕</button><img alt="">`;
   document.body.append(dialog);
   const img = $('img', dialog);
   dialog.addEventListener('click', (e) => {

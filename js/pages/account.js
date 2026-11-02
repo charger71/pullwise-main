@@ -45,6 +45,10 @@ let linkError = (() => {
     : 'That sign-in link didn’t work — enter the code from the email, or request a new link below.';
 })();
 
+// Declared before the first show() below: opening the app offline draws the kept list (and sets this) right away,
+// before the rest of this module has run.
+let showing; // 'in' | 'out' | 'offline': avoids redrawing (and wiping a half-edited form) on token refresh
+
 await initPage();
 if (DEMO) {
   root.innerHTML = '<p class="empty">Customer accounts aren’t available in demo mode.</p>';
@@ -65,7 +69,6 @@ if (DEMO) {
   }
 }
 
-let showing; // 'in' | 'out' | 'offline': avoids redrawing (and wiping a half-edited form) on token refresh
 async function show(sb) {
   // The app without a connection shows the list it last drew rather than waiting on the network.
   if (APP && !navigator.onLine && showSaved()) return;
@@ -628,7 +631,7 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
         </div>
       </li>`;
   };
-  const section = (title, rows, lead = '') => (rows.length ? `<h3 class="account-group">${esc(title)}</h3>${lead}<ul class="account-lines">${rows.map(row).join('')}</ul>` : '');
+  const section = (title, rows, lead = '') => (rows.length ? `${title ? `<h3 class="account-group">${esc(title)}</h3>` : ''}${lead}<ul class="account-lines">${rows.map(row).join('')}</ul>` : ''); // Past has its fold's summary instead
 
   el.innerHTML = `
     ${last ? `<p class="card__meta account-lastupdate">Last updated ${esc(whenLabel(last.updated_at, settings.timezone))} ${esc(BY[last.updated_via] ?? '')}</p>` : ''}

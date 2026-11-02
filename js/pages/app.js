@@ -100,9 +100,9 @@ let current = null; // the tab showing (showView)
 const scrolls = new Map(); // tab → scrollY when it was left
 
 // Kept scroll positions come back once, when the first view is drawn (hideSplash), if they're recent.
-const fresh = leftAt && Date.now() - (leftAt.at ?? 0) < PLACE_FRESH;
-if (fresh) for (const [tab, y] of Object.entries(leftAt.scrolls ?? {})) if (VIEWS.includes(tab) && y > 0) scrolls.set(tab, y);
-let placed = !fresh;
+const placeIsRecent = leftAt && Date.now() - (leftAt.at ?? 0) < PLACE_FRESH;
+if (placeIsRecent) for (const [tab, y] of Object.entries(leftAt.scrolls ?? {})) if (VIEWS.includes(tab) && y > 0) scrolls.set(tab, y);
+let placed = !placeIsRecent;
 function backToPlace() {
   if (placed || !current) return; // not yet: still signing in (showView calls again once a tab shows)
   placed = true;
@@ -112,8 +112,9 @@ function backToPlace() {
   // give up at once if the customer touches the screen first.
   const tryIt = () => document.documentElement.scrollHeight - innerHeight >= want && (scrollTo({ top: want, behavior: 'instant' }), true);
   if (tryIt()) return;
-  const watch = new MutationObserver(() => tryIt() && stop());
+  let watch = null;
   const stop = () => watch.disconnect();
+  watch = new MutationObserver(() => tryIt() && stop());
   watch.observe($('main'), { childList: true, subtree: true });
   addEventListener('touchstart', stop, { once: true, passive: true });
   setTimeout(stop, 5000);
@@ -305,7 +306,9 @@ async function showFound(q, query, describe, { more = false } = {}) {
   const left = found.total - found.items.length;
   const cards = rows.map((i) => itemCard(i, { reservable: true })).join('');
   if (!more) {
-    box.innerHTML = `
+    // Search results stand in for the tab (and its heading): they get their own, for the page's outline. See all's
+    // list has one above its filters (showList).
+    box.innerHTML = `${box === results ? '<h2 class="visually-hidden">Search results</h2>' : ''}
       <p class="results-count" role="status" tabindex="-1">${found.describe(found.total)}</p>
       <div class="grid" data-found>${cards}</div>
       <button class="btn btn--ghost show-more" type="button" data-found-more hidden></button>`;
@@ -359,7 +362,8 @@ async function showList(key) {
   $('[data-search-form]').elements.q.value = '';
   const box = $('[data-search-results]');
   box.hidden = false;
-  box.innerHTML = `<form class="filters" aria-label="${esc(list.label)}" data-list-filters></form><div data-found-area></div>`;
+  const title = SHELVES.find((s) => s.key === key)?.more ?? 'Titles';
+  box.innerHTML = `<h2 class="visually-hidden">${esc(title)}</h2><form class="filters" aria-label="${esc(list.label)}" data-list-filters></form><div data-found-area></div>`;
   showView();
   scrollTo({ top: 0, behavior: 'instant' });
   const tz = (await getSettings().catch(() => ({}))).timezone;
