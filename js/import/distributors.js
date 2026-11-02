@@ -87,13 +87,14 @@ function readSheet(XLSX, sheet) {
 // ---------------------------------------------------------------------------
 
 // Ratio/incentive covers ("1:25", "3 COPY UNLOCK") depend on the shop's qualifying orders, so they can't
-// be promised to a customer. Store and convention exclusives (Dynamite.com, DF, ComicXposure, SDCC) are sold
-// by someone else; "Direct Market" and distributor exclusives are the comic-shop editions and stay.
+// be promised to a customer. Store and convention exclusives (Dynamite.com, SDCC) are sold by someone else;
+// "Direct Market" and distributor exclusives are the comic-shop editions, and Dynamic Forces ("DF …") titles are a
+// general release, so those stay.
 // Retailer bundles and pallets aren't retail items. (Titles already in a shop are hidden by the same rules:
 // public.is_skipped_cover in 20270216000000_skip_exclusive_covers.sql.)
 const INCENTIVE = /\b1:\d+\b|\bINCV?\b|\bRI\b|\bRATIO\b|\bINCENTIVE\b|\b\d+\s*COPY\b/i;
 const EXCLUSIVE = /\bEXCL(USIVE)?\b(?!\s+GIFTS)/i;
-const SHOP_EDITION = /\b(DIRECT\s+MARKET|DM|LUNAR|PRH|DIAMOND)\s+EXCL/i;
+const SHOP_EDITION = /\b(DIRECT\s+MARKET|DM|LUNAR|PRH|DIAMOND|DF)\s+EXCL|^DF\b/i;
 const BUNDLE = /\bBUNDLES?\b|\bPALLETS?\b|\(NET\)/i;
 
 const PUBLISHER_NAMES = {
