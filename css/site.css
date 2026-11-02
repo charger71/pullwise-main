@@ -1238,6 +1238,11 @@ body:has([aria-busy="true"], .loading)::after {
 [data-page="app"] :is(.card__open, .account-line__open):active .cover { filter: brightness(.8); }
 [data-page="app"] :is(.app-bar__search, .account-line__remove, .app-install__close, .dialog__close, .app-shop__links a):active { background: var(--raised); }
 /* Switching tabs cross-fades the views (js/pages/app.js, View Transitions); the header and tab bar stay still. */
+/* Covers fade in as they load (js/pages/app.js sets .fade-covers and .is-loaded), over a placeholder of their own
+   shape on the box around them, so nothing pops or jumps. */
+.fade-covers img.cover { opacity: 0; transition: opacity var(--dur-slide) ease-out; }
+.fade-covers img.cover.is-loaded { opacity: 1; }
+[data-page="app"] :is(.card__media, .account-line__open, .title-modal__cover) { background: var(--raised); border-radius: var(--radius-sm); }
 [data-page="app"] #site-header { view-transition-name: app-header; }
 [data-page="app"] .tab-bar { view-transition-name: app-tabs; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--dur); }
@@ -1302,7 +1307,21 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 .app-pickup { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-12) var(--sp-16); margin: 0 0 var(--sp-12); padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
 .app-pickup > div:last-child { flex: 1 1 140px; }
 .app-pickup__name { flex: 1 0 100%; margin: 0; font-family: var(--font-heading); font-size: var(--fs-title); font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
-.app-pickup__qr { flex: none; width: 112px; padding: var(--sp-4); background: white; border-radius: var(--radius-sm); }
+.app-pickup__qr { flex: none; width: 112px; padding: var(--sp-4); border: 0; background: white; border-radius: var(--radius-sm); cursor: zoom-in; }
+/* Tapped, the code fills the screen (js/app-pickup.js): dark on white whatever the page, the name and number under it,
+   big enough to scan from across the counter. The screen is kept awake meanwhile. */
+.pickup-full { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; padding: calc(var(--sp-24) + env(safe-area-inset-top)) var(--gutter) calc(var(--sp-24) + env(safe-area-inset-bottom)); border: 0; border-radius: 0; background: white; color: black; }
+.pickup-full[open] { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-12); text-align: center; }
+.pickup-full::backdrop { background: white; }
+.pickup-full__qr { width: min(80vw, 60dvh, 420px); }
+.pickup-full__qr svg { display: block; width: 100%; height: auto; fill: black; }
+.pickup-full__name { margin: var(--sp-8) 0 0; font-family: var(--font-heading); font-size: var(--fs-title); font-weight: 700; overflow-wrap: anywhere; }
+.pickup-full__code { margin: 0; font-family: var(--font-display); font-size: calc(2.4rem * var(--display-scale)); letter-spacing: var(--display-tracking); line-height: 1; }
+.pickup-full__hint { margin: 0; font-size: var(--fs-sm); }
+.pickup-full__close { position: absolute; top: calc(var(--sp-8) + env(safe-area-inset-top)); right: calc(var(--sp-8) + env(safe-area-inset-right)); width: var(--tap); height: var(--tap); border: 0; border-radius: 50%; background: none; color: black; font-size: var(--fs-lede); cursor: pointer; }
+/* My List's date headings stay pinned under the header while their titles scroll under them, as in a native
+   grouped list; the next one slides over it. */
+[data-page="app"] .account-group { position: sticky; top: calc(var(--app-bar-h) + env(safe-area-inset-top) + 1px); z-index: calc(var(--z-raised) + 1); margin-bottom: 0; padding-top: var(--sp-12); background: var(--paper); }
 .app-pickup__qr svg { display: block; width: 100%; height: auto; fill: black; }
 .app-pickup__label { margin: 0; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .app-pickup__code { margin: 0 0 var(--sp-4); font-family: var(--font-display); font-size: calc(1.6rem * var(--display-scale)); letter-spacing: var(--display-tracking); line-height: 1.1; }

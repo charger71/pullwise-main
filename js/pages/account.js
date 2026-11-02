@@ -15,6 +15,7 @@ import * as guest from '../reservation-list.js';
 import { followedSeries, discountFor, totals, tiersFrom } from '../discount.js';
 import { setBadge, saveList, savedList, forgetList } from '../app-device.js';
 import { enableSwipeRemove } from '../app-swipe.js';
+import { showPickupFull } from '../app-pickup.js';
 
 const root = $('#account');
 const APP = document.body.dataset.page === 'app';
@@ -387,11 +388,11 @@ let pickupName = ''; // "Smith, Jane": shops file held books by last name, so it
 const pickupCard = (customerId) => `
     <div class="app-pickup">
       ${pickupName ? `<p class="app-pickup__name">${esc(pickupName)}</p>` : ''}
-      <div class="app-pickup__qr" data-pickup-qr="${esc(`${SITE_URL.replace(/\/$/, '')}/admin/#customers/${customerId}`)}"></div>
+      <button class="app-pickup__qr" type="button" data-pickup-qr="${esc(`${SITE_URL.replace(/\/$/, '')}/admin/#customers/${customerId}`)}" aria-label="Show the pickup code full screen"></button>
       <div>
         <p class="app-pickup__label">Pickup code</p>
         <p class="app-pickup__code">#${customerId}</p>
-        <p class="card__meta">Show this at the counter and the shop will find your books.</p>
+        <p class="card__meta">Show this at the counter and the shop will find your books. Tap the code to fill the screen.</p>
       </div>
     </div>`;
 /** Draw the pickup QR code; without the library (offline, say) the number alone is shown. */
@@ -407,7 +408,7 @@ async function drawPickupQr(el) {
     let d = '';
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + QR_QUIET} ${r + QR_QUIET}h1v1h-1z`;
     const size = n + QR_QUIET * 2;
-    box.innerHTML = `<svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Pickup QR code" shape-rendering="crispEdges"><path d="${d}"/></svg>`;
+    box.innerHTML = `<svg viewBox="0 0 ${size} ${size}" aria-hidden="true" focusable="false" shape-rendering="crispEdges"><path d="${d}"/></svg>`;
   } catch {
     box.remove();
   }
@@ -679,6 +680,8 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
     }
   };
   el.onclick = async (e) => {
+    const full = e.target.closest('button[data-pickup-qr]');
+    if (full) return showPickupFull(full.closest('.app-pickup'), full);
     const rm = e.target.closest('[data-remove]');
     const move = e.target.closest('[data-move]');
     if (!rm && !move) return;
