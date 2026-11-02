@@ -279,11 +279,19 @@ function setupSwipe(d) {
     startY = asSheet() && atTop && e.touches.length === 1 && !e.target.closest('.title-modal__covers') ? e.touches[0].clientY : null;
     startAt = Date.now();
     dy = 0;
+    buzz(false);
   }, { passive: true });
   d.addEventListener('touchmove', (e) => {
     if (startY === null) return;
     dy = Math.max(0, e.touches[0].clientY - startY);
-    if (dy > 0 && body().scrollTop > 0) return void (startY = null); // the content scrolled after all
+    if (dy > 0 && body().scrollTop > 0) {
+      // The content scrolled after all: put the sheet back as it was and let the scroll be.
+      startY = null;
+      d.classList.remove('is-dragging');
+      d.style.removeProperty('--sheet-drag');
+      return;
+    }
+    if (!dy) return; // not moving down (yet): nothing to follow
     d.classList.add('is-dragging');
     d.style.setProperty('--sheet-drag', `${dy}px`);
     buzz(dy > SWIPE_CLOSE); // letting go now closes it

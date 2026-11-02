@@ -65,6 +65,7 @@ export function enableSwipeRemove(box) {
     px = from;
     sideways = null;
     armed = false;
+    buzz(false);
   }, { passive: true });
 
   box.addEventListener('touchmove', (e) => {
