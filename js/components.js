@@ -381,22 +381,29 @@ async function toggleFollow(btn, say) {
   }
 }
 
+// The button changes as soon as it's pressed (customer.js shows the change before the database answers, and puts it
+// back with an error if it says no). A title already on its way is left alone, so a second tap can't undo the first
+// before it lands; the button isn't disabled meanwhile, which would grey it out.
+const inFlight = new Set(); // item ids
 async function togglePullList(btn, item) {
-  btn.disabled = true;
+  const line = pull.lineFor(item.id);
+  if (inFlight.has(item.id) || line?.pending) return;
+  inFlight.add(item.id);
   try {
-    const line = pull.lineFor(item.id);
     if (line) {
-      await pull.remove(line.id);
+      const done = pull.remove(line.id);
       announce(`Removed ${itemFullTitle(item)} from your pull list.`);
+      await done;
     } else {
-      await pull.add(item.id);
+      const done = pull.add(item.id);
       haptic('done');
       announce(`Added ${itemFullTitle(item)}. ${pull.count()} ${pull.count() === 1 ? 'title' : 'titles'} on your pull list.`);
+      await done;
     }
   } catch (err) {
     alertError(err);
   } finally {
-    btn.disabled = false;
+    inFlight.delete(item.id);
     btn.focus();
   }
 }

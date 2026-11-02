@@ -193,12 +193,42 @@ export async function markSeen() {
   return kept || null;
 }
 
+// Adding and removing show at once (optimistic): the buttons, counts and My List change before the shop's database
+// answers, and change back, with the error, if it says no. A line added this way has no id until the answer comes
+// (`pending`), so callers don't act on it meanwhile.
+
 export async function add(itemId, quantity = 1) {
-  const sb = await supabase();
-  const { data: id, error } = await sb.rpc('pull_list_add', { p_item_id: itemId, p_quantity: quantity });
-  if (error) fail(error);
+  const before = lines.get(itemId);
+  lines.set(itemId, { id: before?.id ?? null, quantity, status: 'open', source: 'manual', created_at: new Date().toISOString(), pending: true });
+  notify();
+  const { sb, data: id } = await changeOrUndo('pull_list_add', { p_item_id: itemId, p_quantity: quantity }, () => undo(itemId, before));
   if (id) lines.set(itemId, { id, quantity, status: 'open', source: 'manual', created_at: new Date().toISOString() });
   await softRefresh(sb);
+}
+
+/** Run a pull list change; if it fails (refused, or no connection), undo what was shown and throw. */
+async function changeOrUndo(name, args, undoIt) {
+  let sb;
+  let res;
+  try {
+    sb = await supabase();
+    res = await sb.rpc(name, args);
+  } catch (err) {
+    undoIt();
+    throw err;
+  }
+  if (res.error) {
+    undoIt();
+    fail(res.error);
+  }
+  return { sb, data: res.data };
+}
+
+/** Put a line back as it was before a change the database refused (`before` undefined: it wasn't on the list). */
+function undo(itemId, before) {
+  if (before) lines.set(itemId, before);
+  else lines.delete(itemId);
+  notify();
 }
 
 /** Order a copy of a released trade or omnibus (a re-order: the shop orders it from the distributor). */
@@ -220,18 +250,22 @@ export async function addVariants(itemId, quantity = 1) {
 }
 
 export async function setQuantity(lineId, quantity) {
-  const sb = await supabase();
-  const { error } = await sb.rpc('pull_list_set_quantity', { p_line: lineId, p_quantity: quantity });
-  if (error) fail(error);
-  for (const l of lines.values()) if (l.id === lineId) l.quantity = quantity;
+  const entry = [...lines].find(([, l]) => l.id === lineId);
+  if (entry) {
+    lines.set(entry[0], { ...entry[1], quantity });
+    notify();
+  }
+  const { sb } = await changeOrUndo('pull_list_set_quantity', { p_line: lineId, p_quantity: quantity }, () => entry && undo(...entry));
   await softRefresh(sb);
 }
 
 export async function remove(lineId) {
-  const sb = await supabase();
-  const { error } = await sb.rpc('pull_list_remove', { p_line: lineId });
-  if (error) fail(error);
-  for (const [itemId, l] of lines) if (l.id === lineId) lines.delete(itemId);
+  const entry = [...lines].find(([, l]) => l.id === lineId);
+  if (entry) {
+    lines.delete(entry[0]);
+    notify();
+  }
+  const { sb } = await changeOrUndo('pull_list_remove', { p_line: lineId }, () => entry && undo(...entry));
   await softRefresh(sb);
 }
 
