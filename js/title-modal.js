@@ -7,6 +7,7 @@ import { SITE_URL } from './config.js';
 import { titleUrl, releaseIcs, releaseGoogleLink } from './ics.js';
 import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shopToday } from './site.js';
 import * as pull from './customer.js';
+import { haptic } from './app-device.js';
 import { enableReservations, seenItems, focLabel, reserveButton, variantsButton, followButton, creatorNames, collectorBadges, topBadge } from './components.js';
 
 let dialog;
@@ -283,11 +284,14 @@ function setupSwipe(d) {
     if (dy > 0 && body().scrollTop > 0) return void (startY = null); // the content scrolled after all
     d.classList.add('is-dragging');
     d.style.setProperty('--sheet-drag', `${dy}px`);
+    const past = dy > SWIPE_CLOSE;
+    if (past && !d.classList.contains('is-past')) haptic('tick'); // letting go now closes it
+    d.classList.toggle('is-past', past);
   }, { passive: true });
   const release = () => {
     if (startY === null) return;
     startY = null;
-    d.classList.remove('is-dragging');
+    d.classList.remove('is-dragging', 'is-past');
     if (dy > SWIPE_CLOSE || (dy > 40 && dy / Math.max(1, Date.now() - startAt) > SWIPE_FLICK)) return dismiss();
     d.style.removeProperty('--sheet-drag'); // springs back (the sheet's transition)
   };

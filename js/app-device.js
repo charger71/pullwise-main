@@ -36,3 +36,18 @@ export function forgetList() {
     /* nothing kept */
   }
 }
+
+/**
+ * A short buzz under the finger in the app, as native apps give: 'tick' when a pull or swipe reaches the point where
+ * letting go acts, 'done' when a title goes on the list. Only in the app (not the website), and only on phones that
+ * can (Android; an iPhone has no vibration for web apps and ignores it).
+ */
+const BUZZ = { tick: 8, done: 15 };
+export function haptic(kind = 'tick') {
+  if (document.body?.dataset.page !== 'app' || typeof navigator.vibrate !== 'function') return;
+  try {
+    navigator.vibrate(BUZZ[kind] ?? BUZZ.tick);
+  } catch {
+    /* not allowed before the first tap on some phones: nothing to do */
+  }
+}

@@ -59,6 +59,8 @@
   --violet: #cdb6ee;         /* staff purple text */
   --sold-out: #3a3632;       /* Sold Out badge, a dark chip on any page, with --on-sold-out text */
   --on-sold-out: #d6cdbf;
+  --swipe-remove: #b3261e;    /* the Remove a swipe uncovers in the app's My List: the same red on every page */
+  --on-swipe-remove: #fff;    /* its label (6.5:1) */
   --focus: var(--teal);
 
   --font-display: 'Archivo Black', 'Arial Black', sans-serif;
@@ -1327,6 +1329,7 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 .app-note__text, .app-install__text { flex: 1; margin: 0; font-size: var(--fs-sm); }
 .app-note .btn, .app-install .btn { flex: none; }
 /* The list as last drawn, shown offline: read-only, so its controls are left out. */
+.account-saved-list .account-line__swipe,
 .account-saved-list .account-line__controls, .account-saved-list .account-move, .account-saved-list .form-error { display: none; }
 .app-install__close { flex: none; width: var(--tap); height: var(--tap); border: 0; background: none; color: var(--muted); font-size: var(--fs-lede); cursor: pointer; }
 .app-install__close:hover { color: var(--ink); }
@@ -1374,6 +1377,16 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 .account-line__qty-label { margin: 0; font-size: var(--fs-sm); font-weight: 700; color: var(--muted); }
 .account-line__remove { display: grid; place-items: center; width: var(--tap); height: var(--tap); margin-left: var(--sp-4); padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--muted); cursor: pointer; }
 .account-line__remove:hover { color: var(--error); background: var(--raised); }
+/* Swipe a title left to remove it (js/app-swipe.js sets --swipe and the classes): the row slides left over a red
+   Remove that grows from its right edge; a short swipe leaves 88px of it to tap, a long one removes on release.
+   The row only takes sideways drags (pan-y), so the page still scrolls. */
+.account-line--app { position: relative; touch-action: pan-y; }
+.account-line--app > :not(.account-line__swipe) { transform: translateX(calc(-1 * var(--swipe, 0px))); }
+.account-line__swipe { position: absolute; top: 0; right: 0; bottom: 0; z-index: var(--z-raised); display: flex; align-items: center; justify-content: flex-end; width: var(--swipe, 0px); padding: 0; overflow: hidden; border: 0; border-radius: var(--radius-sm); background: var(--swipe-remove); color: var(--on-swipe-remove); font: 700 var(--fs-sm)/1 var(--font-body); white-space: nowrap; cursor: pointer; }
+.account-line__swipe > span { flex: none; width: 88px; text-align: center; }
+.account-line--app:not(.is-swiped) .account-line__swipe { visibility: hidden; }
+.account-line--app.is-armed .account-line__swipe { justify-content: center; }
+.account-line--app.is-settling > :not(.account-line__swipe), .account-line--app.is-settling .account-line__swipe { transition: transform var(--dur-sheet) ease-out, width var(--dur-sheet) ease-out; }
 .account-line__remove svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 /* Pull down to refresh: a round badge drops from under the header, its arrow turning as it's pulled, gold once letting
    go will refresh, then spinning until the views are drawn again. js/pages/app.js sets --pull, --pull-turn, --pull-top. */

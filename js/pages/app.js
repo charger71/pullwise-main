@@ -10,6 +10,7 @@ import { itemCard, enableReservations } from '../components.js';
 import { loadFilters, filterControl, setupMulti, publisherFilter, categoryOptions, focFilter } from '../catalog.js';
 import { formatPhone, LOGO_WIDTH } from '../util.js';
 import { setShopColors, setupAppearance } from '../app-theme.js';
+import { haptic } from '../app-device.js';
 
 const VIEWS = ['list', 'hot', 'shop', 'me'];
 
@@ -459,7 +460,9 @@ function setupPull() {
     pull = px;
     spot.style.setProperty('--pull', `${px}px`);
     spot.style.setProperty('--pull-turn', String(px / PULL_GO));
-    spot.classList.toggle('is-ready', px >= PULL_GO);
+    const ready = px >= PULL_GO;
+    if (ready && !spot.classList.contains('is-ready') && spot.classList.contains('is-pulling')) haptic('tick'); // letting go now refreshes
+    spot.classList.toggle('is-ready', ready);
   };
   const settle = () => {
     spot.classList.add('is-settling');

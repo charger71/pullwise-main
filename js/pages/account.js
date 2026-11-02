@@ -14,6 +14,7 @@ import * as pull from '../customer.js';
 import * as guest from '../reservation-list.js';
 import { followedSeries, discountFor, totals, tiersFrom } from '../discount.js';
 import { setBadge, saveList, savedList, forgetList } from '../app-device.js';
+import { enableSwipeRemove } from '../app-swipe.js';
 
 const root = $('#account');
 const APP = document.body.dataset.page === 'app';
@@ -612,6 +613,7 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
     const name = esc(itemFullTitle(r.item));
     return `
       <li class="account-line account-line--app${added ? ' account-line--new' : ''}">
+        ${editable ? '<button class="account-line__swipe" type="button" data-swipe-remove tabindex="-1" aria-hidden="true"><span>Remove</span></button>' : ''}
         ${id ? `<button class="account-line__open" type="button" data-title-open="${id}" tabindex="-1" aria-hidden="true">${cover(r.item)}</button>` : cover(r.item)}
         <div class="account-line__info">
           ${added ? '<span class="new-badge" title="Added automatically from something you follow">New · added for you</span>' : ''}
@@ -645,6 +647,7 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
     ${past.length ? `<details class="account-past"><summary>Past (${past.length})</summary>${section('', past)}</details>` : ''}`;
   // The copy kept for offline use includes the pickup code, once it's drawn.
   if (APP) drawPickupQr(el).finally(() => el.isConnected && saveList(el.innerHTML, ready.length));
+  if (APP) enableSwipeRemove(el); // swipe a title left to remove it (js/app-swipe.js)
 
   // Keyboard focus goes back where it was (or the next sensible place) after a redraw.
   for (const sel of focus ?? []) {

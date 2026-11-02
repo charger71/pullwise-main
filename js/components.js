@@ -7,6 +7,7 @@ import { $, esc, badge, ITEM_BADGES, cover, price, fmtDate, daysUntil, lastReser
 import { thumbOf, thumbFallback, formatPhone, nameKey, artistMeta, btnIcon } from './util.js';
 import * as list from './reservation-list.js';
 import * as pull from './customer.js';
+import { haptic } from './app-device.js';
 
 export function focLabel(item) {
   if (!item.foc_date) return '';
@@ -389,6 +390,7 @@ async function togglePullList(btn, item) {
       announce(`Removed ${itemFullTitle(item)} from your pull list.`);
     } else {
       await pull.add(item.id);
+      haptic('done');
       announce(`Added ${itemFullTitle(item)}. ${pull.count()} ${pull.count() === 1 ? 'title' : 'titles'} on your pull list.`);
     }
   } catch (err) {

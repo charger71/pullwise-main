@@ -192,6 +192,8 @@ const SHOP_NOTE = {
   violet: 'Purple for staff purple text. A dark violet on a light page.',
   'sold-out': 'The Sold Out badge: a dark chip on any page, with shop-on-sold-out text.',
   'on-sold-out': 'Text on shop-sold-out.',
+  'swipe-remove': 'The Remove a swipe uncovers on a My List row in the app: the same red on every page, with shop-on-swipe-remove text.',
+  'on-swipe-remove': 'Text on shop-swipe-remove.',
 };
 
 const DERIVED = {
@@ -211,7 +213,7 @@ const SHOP_PAIRS = {
   ink: ['paper', 'surface', 'raised'], cream: ['paper', 'surface'], teal: ['paper', 'surface'],
   error: ['paper', 'surface'], ok: ['paper', 'surface'], 'on-primary': ['brand-primary'],
   paper: ['teal', 'ok', 'warn', 'clearance'],
-  'on-accent': ['gold'], 'gold-text': ['paper', 'surface'], 'on-sold-out': ['sold-out'], violet: ['paper'],
+  'on-accent': ['gold'], 'gold-text': ['paper', 'surface'], 'on-sold-out': ['sold-out'], 'on-swipe-remove': ['swipe-remove'], violet: ['paper'],
 };
 
 export function shopTokens() {
