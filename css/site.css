@@ -1265,7 +1265,9 @@ body:has([aria-busy="true"], .loading)::after {
 /* Loading in the app: a pulsing block where the view will be, not the website's dimmer and spinner. Screen readers
    still hear its "Loading…"; the app's loading screen waits until none is showing (js/pages/app.js). */
 body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app"]:not(:has([aria-busy="true"]))::after { content: none; }
-[data-page="app"] .empty.loading { min-height: 240px; color: transparent; } /* the skeleton's look: Cards / grids */
+/* The skeleton's look: Cards / grids. Its "Loading…" is still read out but pushed out of the box, not made transparent
+   (transparent text fails the contrast check and shows again when a visitor overrides page colors). */
+[data-page="app"] .empty.loading { min-height: 240px; overflow: hidden; white-space: nowrap; text-indent: 100vw; }
 [data-page="app"] #site-header:empty { min-height: var(--app-bar-h); }
 .app-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: var(--app-bar-h); }
 .app-bar .brand__logo { max-height: 40px; }
@@ -1430,6 +1432,10 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 /* Pull down to refresh: a round badge drops from under the header, its arrow turning as it's pulled, gold once letting
    go will refresh, then spinning until the views are drawn again. js/pages/app.js sets --pull, --pull-turn, --pull-top. */
 html:has(body[data-page="app"]) { overscroll-behavior-y: none; }
+/* Keyboard focus never lands under the app's sticky header with a pinned date heading, or under the tab bar: the
+   browser keeps this much room when it scrolls a focused control into view (WCAG 2.4.11). The top room follows the
+   heading's own text size (Shop Settings → Fonts), with its padding and edge. */
+html:has(body[data-page="app"]) { scroll-padding-top: calc(var(--app-header-bottom) + 2 * var(--fs-sub) + var(--sp-24)); scroll-padding-bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom) + var(--sp-8)); }
 .app-pull { position: fixed; top: var(--pull-top, 0px); left: 50%; z-index: var(--z-popover); display: grid; place-items: center; width: 40px; height: 40px; margin-left: -20px; border: var(--border); border-radius: 50%; background: var(--surface); box-shadow: var(--shadow-menu); color: var(--muted); opacity: 0; pointer-events: none; transform: translateY(calc(var(--pull, 0px) - 48px)); }
 .app-pull.is-pulling, .app-pull.is-refreshing { opacity: 1; }
 .app-pull.is-settling { transition: transform var(--dur), opacity var(--dur); }
