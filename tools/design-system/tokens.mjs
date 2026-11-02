@@ -219,7 +219,7 @@ const SHOP_PAIRS = {
 export function shopTokens() {
   const color = [];
   const families = {};
-  const other = { spacing: [], radius: [], shadow: [], size: [], fontSize: [], zIndex: [], duration: [] };
+  const other = { spacing: [], radius: [], shadow: [], size: [], fontSize: [], zIndex: [], duration: [], easing: [], press: [] };
   // The comment after a variable in :root is its note ("--fs-sm: .85rem;  /* hints, notes */").
   const note = (n) => (site.match(new RegExp(`--${n}:[^;]*;\\s*/\\*\\s*([^*]+?)\\s*\\*/`))?.[1] ?? '').replace(/^./, (c) => c.toUpperCase());
   // A shadow token holds plain values: a color-mix of a color with transparent becomes that color at the same alpha.
@@ -247,6 +247,11 @@ export function shopTokens() {
     else if (/^shadow-/.test(name)) other.shadow.push({ name: t, value: plainShadow(v), usage: `${note(name)}.` + used });
     else if (/^z-/.test(name)) other.zIndex.push({ name: t, value: /var\(/.test(v) ? v : String(Number(v)), usage: `${note(name)}.` });
     else if (/^dur(-|$)/.test(name)) other.duration.push({ name: t, value: v, usage: `${note(name)}.` });
+    else if (/^ease-/.test(name)) other.easing.push({ name: t, value: v, usage: `${note(name)}.` + used });
+    else if (/^press-/.test(name)) other.press.push({ name: t, value: v, usage: `${note(name)}.` + used });
+    // The app's fixed sizes. --app-header-bottom is left out: it adds the phone's status bar (env()), which has no
+    // value outside a phone; shop-app-bar-h says how it's made.
+    else if (['app-bar-h', 'tab-bar-h', 'swipe-open'].includes(name)) other.size.push({ name: t, value: v, usage: `${note(name)}.` + (name === 'app-bar-h' ? ' What sits under the header starts at this plus the status bar and the header\'s 1px edge (--app-header-bottom).' : '') + used });
     else if (name === 'space-block') other.spacing.push({ name: t, value: v, usage: 'Gap under a page title block (section head, How it works).' });
     else if (name === 'field-h') other.size.push({ name: t, value: v, usage: 'Height of every input, select, multi-select button and button (.btn).' });
     else if (name === 'tap') other.size.push({ name: t, value: v, usage: 'The smallest touch target: a link or toggle on its own, an icon button, and a small button on phones. Never a control smaller than this on a phone.' + used });

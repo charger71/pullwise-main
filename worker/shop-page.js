@@ -38,12 +38,13 @@ export const NO_APP_PATH = '/account.html';
 const DEFAULT_PAPER = '#121212'; // css/site.css's --brand-paper
 const hexColor = (v) => (/^#[0-9a-f]{6}$/i.test(v ?? '') ? v : null);
 
+/** `url` if it's an https address (what the Worker will put in a page or the manifest), else null. */
 const https = (url) => (typeof url === 'string' && /^https:\/\//.test(url) ? url : null);
 
 /** The app's home-screen icon at one size: the shop's tab icon (or logo), squared by Supabase's image service. */
 const appIcon = (settings, size) => {
   const src = settings.favicon_url || settings.logo_url;
-  return /^https:\/\//.test(src ?? '') ? sizedImage(src, size, { format: 'origin', square: true }) : null;
+  return https(src) ? sizedImage(src, size, { format: 'origin', square: true }) : null;
 };
 
 /**
@@ -89,7 +90,7 @@ const APP_SHORTCUTS = [
 
 /** The app's loading screen: the shop's logo (at the header's width) and name. */
 export function appSplash(settings = {}) {
-  const logo = /^https:\/\//.test(settings.logo_url ?? '') ? sizedImage(settings.logo_url, LOGO_WIDTH) : '';
+  const logo = https(settings.logo_url) ? sizedImage(settings.logo_url, LOGO_WIDTH) : '';
   return { logo, name: (settings.shop_name ?? '').trim() };
 }
 
@@ -186,7 +187,7 @@ export function headTags(file, settings, supabaseUrl) {
   if (file === 'index.html' && settings.hero_image_url) {
     tags.push(`<link rel="preload" as="image" fetchpriority="high" href="${esc(sizedImage(settings.hero_image_url, HERO_WIDTH))}">`);
   }
-  if (PAGE_SLUGS[file] && file !== 'search.html' && /^https:\/\//.test(settings.hero_image_url ?? '')) {
+  if (PAGE_SLUGS[file] && file !== 'search.html' && https(settings.hero_image_url)) {
     tags.push(`<meta property="og:image" content="${esc(sizedImage(settings.hero_image_url, HERO_WIDTH))}">`);
   }
   const theme = { storageOrigin: supabaseUrl };
@@ -214,7 +215,7 @@ export const robotsTxt = (shop, staticText) => `${staticText.trimEnd()}\n\nSitem
 
 /** The home page banner, so it paints with the first frame (js/pages/home.js re-applies live settings on load). */
 export function hero(settings) {
-  const photo = /^https:\/\//.test(settings.hero_image_url ?? '');
+  const photo = Boolean(https(settings.hero_image_url));
   return {
     className: photo ? 'hero hero--photo' : 'hero',
     style: photo ? `--hero-image: url("${sizedImage(settings.hero_image_url, HERO_WIDTH)}")` : null,

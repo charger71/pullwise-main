@@ -4,7 +4,7 @@
 // claim_customer() links the record, and create_my_customer() creates it from the first-sign-in form.
 // The pull list app (app.html, js/pages/app.js) runs this same page, laid out as views for its tab bar.
 
-import { initPage, $, esc, fmtDate, itemFullTitle, itemTitle, cover, price, cutoffPassed } from '../site.js';
+import { initPage, $, esc, announceIn, fmtDate, itemFullTitle, itemTitle, cover, price, cutoffPassed } from '../site.js';
 import { DEMO, supabase, getSettings, searchSeries, searchArtists } from '../data.js';
 import { SITE_URL, APP_ENABLED } from '../config.js';
 import { LINE_STATUS_CUSTOMER as LINE_STATUS } from '../labels.js';
@@ -45,6 +45,10 @@ let linkError = (() => {
     : 'That sign-in link didn’t work — enter the code from the email, or request a new link below.';
 })();
 
+// Declared before the first show() below: opening the app offline draws the kept list (and sets this) right away,
+// before the rest of this module has run.
+let showing; // 'in' | 'out' | 'offline': avoids redrawing (and wiping a half-edited form) on token refresh
+
 await initPage();
 if (DEMO) {
   root.innerHTML = '<p class="empty">Customer accounts aren’t available in demo mode.</p>';
@@ -65,7 +69,6 @@ if (DEMO) {
   }
 }
 
-let showing; // 'in' | 'out' | 'offline': avoids redrawing (and wiping a half-edited form) on token refresh
 async function show(sb) {
   // The app without a connection shows the list it last drew rather than waiting on the network.
   if (APP && !navigator.onLine && showSaved()) return;
@@ -483,12 +486,7 @@ const PAST_SHOWN = 100; // picked up, released and so on: the most recent
 const canEdit = (r) => r.status === 'open' && !cutoffPassed(r.item);
 
 /** Say what just happened on the list (a polite live region that isn't redrawn with it). */
-const announce = (text) => {
-  const live = $('[data-orders-status]', root);
-  if (!live) return;
-  live.textContent = '';
-  setTimeout(() => (live.textContent = text), 50); // a change, even to the same words, is read out
-};
+const announce = (text) => announceIn($('[data-orders-status]', root), text);
 
 /** `focus`: selectors to try, in order, for where keyboard focus goes once the list is redrawn. */
 async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
@@ -633,7 +631,7 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
         </div>
       </li>`;
   };
-  const section = (title, rows, lead = '') => (rows.length ? `<h3 class="account-group">${esc(title)}</h3>${lead}<ul class="account-lines">${rows.map(row).join('')}</ul>` : '');
+  const section = (title, rows, lead = '') => (rows.length ? `${title ? `<h3 class="account-group">${esc(title)}</h3>` : ''}${lead}<ul class="account-lines">${rows.map(row).join('')}</ul>` : ''); // Past has its fold's summary instead
 
   el.innerHTML = `
     ${last ? `<p class="card__meta account-lastupdate">Last updated ${esc(whenLabel(last.updated_at, settings.timezone))} ${esc(BY[last.updated_via] ?? '')}</p>` : ''}

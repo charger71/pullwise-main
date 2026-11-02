@@ -3,6 +3,8 @@
 // awake while it shows (Screen Wake Lock), so the phone doesn't dim while staff find the scanner. A web app can't
 // turn the brightness up; the white page is the most it can do. Tap anywhere, Close, Escape or Back to put it away.
 
+import { focusBackOnClose } from './site.js';
+
 let dialog = null;
 let lock = null;
 
@@ -31,10 +33,8 @@ function create() {
   d.autofocus = true; // focus the code itself on opening, not the ✕ (whose focus ring would sit over it)
   document.body.append(d);
   d.addEventListener('click', () => d.close()); // anywhere: it's a full-screen card, not a form
-  d.addEventListener('close', () => {
-    letSleep();
-    d.returnFocusTo?.isConnected && d.returnFocusTo.focus();
-  });
+  d.addEventListener('close', letSleep);
+  focusBackOnClose(d);
   return d;
 }
 
@@ -51,7 +51,7 @@ export function showPickupFull(card, opener) {
     <p class="pickup-full__name"></p>
     <p class="pickup-full__code"></p>
     <p class="pickup-full__hint">Show this at the counter · tap to close</p>
-    <button class="pickup-full__close" type="button" aria-label="Close">✕</button>`;
+    <button class="dialog__close pickup-full__close" type="button" aria-label="Close">✕</button>`;
   dialog.querySelector('.pickup-full__qr').append(qr.cloneNode(true));
   dialog.querySelector('.pickup-full__name').textContent = name;
   dialog.querySelector('.pickup-full__code').textContent = code;

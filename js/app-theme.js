@@ -4,6 +4,7 @@
 // schemeCss works out the colors.
 
 import { schemeCss, pageIs } from './theme-vars.js';
+import { kept, keep } from './app-device.js';
 
 const KEY = 'pc-app-theme';
 export const APPEARANCES = [['device', 'Match my phone'], ['light', 'Light'], ['dark', 'Dark']];
@@ -11,20 +12,8 @@ const phoneDark = matchMedia('(prefers-color-scheme: dark)');
 
 let colors = null; // the shop's, once the settings arrive (until then, the CSS saved last time)
 
-function saved() {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) || '{}');
-  } catch {
-    return {}; // private mode, or not ours
-  }
-}
-function save(changes) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify({ ...saved(), ...changes }));
-  } catch {
-    /* private mode: the pick lasts until the app closes */
-  }
-}
+const saved = () => kept(KEY, {});
+const save = (changes) => keep(KEY, { ...saved(), ...changes });
 
 let pick = APPEARANCES.some(([k]) => k === saved().pick) ? saved().pick : null;
 /** 'light' or 'dark' as picked (the phone's setting worked out), or null for the shop's own page. */

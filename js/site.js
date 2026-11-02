@@ -10,7 +10,7 @@ import { SOCIAL_ICONS, LINK_ICON } from './social-icons.js';
 import { fillContent } from './content.js';
 import { initCustomer } from './customer.js';
 import { readCache, writeCache, sameData } from './cache.js';
-import { esc, itemTitle, heroHeadlineHtml, sizedImage, LOGO_WIDTH, HERO_WIDTH, formatPhone } from './util.js';
+import { esc, itemTitle, heroHeadlineHtml, sizedImage, LOGO_WIDTH, HERO_WIDTH, formatPhone, prefersReducedMotion } from './util.js';
 import { ITEM_STATUS } from './labels.js';
 import { localDate, addDays, todayIn, lastReserveDay } from './dates.js';
 
@@ -67,6 +67,32 @@ export function linkify(text) {
 }
 
 export const $ = (sel, root = document) => root.querySelector(sel);
+
+/** A phone: the one width scripts ask about, the same as css/site.css's (max-width: 599px). */
+export const isPhone = () => matchMedia('(max-width: 599px)').matches;
+
+/**
+ * Say `text` in the polite live region `el` (role="status"). It's emptied first and filled a moment later, so the same
+ * words twice in a row (two titles added, say) are read out twice.
+ */
+export function announceIn(el, text) {
+  if (!el) return;
+  el.textContent = '';
+  setTimeout(() => (el.textContent = text), 50);
+}
+
+/** When dialog `d` closes, focus goes back to `d.returnFocusTo` (what opened it), if that's still on the page. */
+export const focusBackOnClose = (d) => d.addEventListener('close', () => d.returnFocusTo?.isConnected && d.returnFocusTo.focus());
+
+/**
+ * How long a motion token from css/site.css (`--dur`, `--dur-sheet`…) lasts, in ms, for a script waiting for that
+ * motion to end. 0 under reduced motion, where it doesn't run.
+ */
+export function motionMs(token) {
+  if (prefersReducedMotion()) return 0;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+  return (/ms$/.test(v) ? parseFloat(v) : parseFloat(v) * 1000) || 0;
+}
 
 export const price = (n) => (n == null ? '' : `$${Number(n).toFixed(2)}`);
 
@@ -139,7 +165,7 @@ export const itemFullTitle = (i) => (i.variant ? `${itemTitle(i)} · ${i.variant
 export const cover = (i, { full = false } = {}) =>
   i.cover_url
     ? `<img class="cover" src="${esc((!full && i.cover_thumb_url) || i.cover_url)}" alt="Cover of ${esc(itemFullTitle(i))}" loading="lazy" decoding="async" width="300" height="450">`
-    : `<div class="cover cover--placeholder" aria-hidden="true">Image coming soon</div>`;
+    : `<span class="cover cover--placeholder" aria-hidden="true">Image coming soon</span>`; // a span: covers sit inside buttons
 
 const time12 = (hhmm) => {
   const [h, m] = hhmm.split(':').map(Number);
@@ -517,7 +543,7 @@ function loadAnalyticsWhenIdle(settings) {
 function setupLightbox() {
   const dialog = document.createElement('dialog');
   dialog.className = 'lightbox';
-  dialog.innerHTML = `<button class="lightbox__close" aria-label="Close">✕</button><img alt="">`;
+  dialog.innerHTML = `<button class="lightbox__close" type="button" aria-label="Close">✕</button><img alt="">`;
   document.body.append(dialog);
   const img = $('img', dialog);
   dialog.addEventListener('click', (e) => {

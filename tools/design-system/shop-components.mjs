@@ -384,6 +384,7 @@ The storefront's modal dialog: a native \`<dialog>\` with a title, a round close
 
 - \`surface\` with a \`line\` edge, 8px corners, \`shop-shadow-lg\`, up to 520px wide (wider variants: list 600px, follow 560px, title 900px); the backdrop is 80% black.
 - Head (\`.dialog__head\`): title in \`shop-type-title\` and a \`shop-tap\` (44px) round close button; keyboard focus fills it \`shop-teal\`.
+- Full-screen variants, in the app: the title details sheet on a phone (ShopTitleModal) and the pickup code (\`.pickup-full\`, ShopApp), always white whatever the page, so scanners can read it; its close button is the same round \`.dialog__close\` in black, and keyboard focus inside it is black, since \`shop-teal\` is set for the page, not for white.
 - A finished action shows \`.confirm\`: a big \`shop-gold-text\` line in the display face and what happens next.
 - Consumer provides: the title, body and the element focus returns to.`,
     html: page('ShopDialog', `
@@ -439,7 +440,7 @@ The shop's installable pull list app (app.html, at /app; app.<shop domain> forwa
 - Welcome (\`.app-welcome\`): at the top of Coming Up until **Got it** (remembered on the phone): three numbered steps (follow, titles land on the list by themselves, turn on notifications), then **Follow a series** (primary, opens the search) and **Got it** (ghost).
 - Following (\`.app-follows\`): a \`raised\` fold at the top of Coming Up (under the welcome), closed by default: **Following** with the counts on the right in \`muted\` ("3 series · 1 artist", or "Nothing yet"). Open, it holds the how-following-works hint and each follow with All covers, copies of each issue and Unfollow. There is no Following tab; following more starts from the search.
 - Full-screen pickup code (\`.pickup-full\`, js/app-pickup.js): tapping the QR code on My List fills the screen with it, dark on white whatever the page, up to 420px, with the name, **#number** in the display face and "Show this at the counter · tap to close". The screen is kept awake while it shows (Screen Wake Lock; taken again on return to the app). A tap anywhere, the ✕, Escape or Back closes it.
-- Sticky date headings: My List's group headings (\`.account-group\`) stay pinned under the header on a \`paper\` band while their titles scroll under them; the next slides over it.
+- Sticky date headings: My List's group headings (\`.account-group\`) stay pinned under the header on a band of their container's color (\`surface\` in My List's panel, else \`paper\`) while their titles scroll under them; the next slides over it. The app keeps scroll padding for the header, a pinned heading and the tab bar, so keyboard focus never lands under them.
 - Covers fade in (\`dur-slide\`) as they load, over a \`raised\` placeholder of their own shape, instead of popping in.
 - Opening the app again puts you back on the tab you left (unless a link, notification or shortcut names one) and, within the hour, where each tab was scrolled. Kept on the phone only.
 - Pickup code (\`.app-pickup\`): under the "Ready for pickup" heading, a \`surface\` box led by the customer's name, last name first ("Smith, Jane", as shops file held books), then a 112px QR code, always dark on white, and **#<customer number>** in the display face. Staff scan it with a phone (it opens the customer in the admin) or type "#1042" into Customers.

@@ -3,14 +3,14 @@
 // Account — with the shop's brand on top, so the installed app is the shop's own. Tabs are #hash links, so the back
 // button and links from outside (a notification) can open one. sw.js keeps the app opening without a connection.
 
-import { $, esc, sizedImage, addressLines, hoursList, mapsHref, telHref, socialIcons, linkify, locationAs, openFocFrom, addDays } from '../site.js';
+import { $, esc, announceIn, motionMs, sizedImage, addressLines, hoursList, mapsHref, telHref, socialIcons, linkify, locationAs, openFocFrom, addDays } from '../site.js';
 import { getSettings, getItems, rankByPulls } from '../data.js';
 import { todayIn } from '../dates.js';
 import { itemCard, enableReservations } from '../components.js';
 import { loadFilters, filterControl, setupMulti, publisherFilter, categoryOptions, focFilter } from '../catalog.js';
-import { formatPhone, LOGO_WIDTH } from '../util.js';
+import { formatPhone, LOGO_WIDTH, prefersReducedMotion as reducedMotion } from '../util.js';
 import { setShopColors, setupAppearance } from '../app-theme.js';
-import { haptic } from '../app-device.js';
+import { kept, keep, isInstalled as installed, isIPhone as iPhone, buzzOnCross } from '../app-device.js';
 
 const VIEWS = ['list', 'hot', 'shop', 'me'];
 
@@ -19,14 +19,7 @@ const VIEWS = ['list', 'hot', 'shop', 'me'];
 // link, a notification or a shortcut names one) and, within the hour, where you were scrolled.
 const PLACE = 'pc-app-place';
 const PLACE_FRESH = 60 * 60 * 1000; // ms a scroll position is worth going back to
-const leftAt = (() => {
-  try {
-    const v = JSON.parse(localStorage.getItem(PLACE) ?? 'null');
-    return v && VIEWS.includes(v.tab) ? v : null;
-  } catch {
-    return null;
-  }
-})();
+const leftAt = VIEWS.includes(kept(PLACE)?.tab) ? kept(PLACE) : null;
 if (leftAt && !location.hash) history.replaceState(history.state, '', `#${leftAt.tab}`);
 
 // The loading screen (app.html) goes once the view on screen has something in it, or after 3 seconds at most.
@@ -35,7 +28,7 @@ function hideSplash() {
   if (!splash || splash.classList.contains('is-gone')) return;
   backToPlace(); // the views are drawn: scroll to where they were left, before the splash fades off them
   splash.classList.add('is-gone');
-  setTimeout(() => splash.remove(), 400);
+  setTimeout(() => splash.remove(), motionMs('--dur') + 100); // once it has faded
 }
 const stillLoading = () => [...document.querySelectorAll('main .loading')].some((el) => el.offsetParent !== null);
 if (splash) {
@@ -64,11 +57,7 @@ new MutationObserver(() => {
 
 // What screen readers hear about the app itself (refreshing, offline, a new version): one live region that is always
 // on the page, so the words are read even when the strip showing them appears at the same moment.
-const appStatus = $('[data-app-status]');
-const say = (text) => {
-  appStatus.textContent = '';
-  setTimeout(() => (appStatus.textContent = text), 50); // a change, even to the same words, is read out
-};
+const say = (text) => announceIn($('[data-app-status]'), text);
 const OWN_VIEWS = ['hot', 'shop']; // drawn here; the rest are the account page's
 const account = $('#account');
 
@@ -111,9 +100,9 @@ let current = null; // the tab showing (showView)
 const scrolls = new Map(); // tab → scrollY when it was left
 
 // Kept scroll positions come back once, when the first view is drawn (hideSplash), if they're recent.
-const fresh = leftAt && Date.now() - (leftAt.at ?? 0) < PLACE_FRESH;
-if (fresh) for (const [tab, y] of Object.entries(leftAt.scrolls ?? {})) if (VIEWS.includes(tab) && y > 0) scrolls.set(tab, y);
-let placed = !fresh;
+const placeIsRecent = leftAt && Date.now() - (leftAt.at ?? 0) < PLACE_FRESH;
+if (placeIsRecent) for (const [tab, y] of Object.entries(leftAt.scrolls ?? {})) if (VIEWS.includes(tab) && y > 0) scrolls.set(tab, y);
+let placed = !placeIsRecent;
 function backToPlace() {
   if (placed || !current) return; // not yet: still signing in (showView calls again once a tab shows)
   placed = true;
@@ -123,8 +112,9 @@ function backToPlace() {
   // give up at once if the customer touches the screen first.
   const tryIt = () => document.documentElement.scrollHeight - innerHeight >= want && (scrollTo({ top: want, behavior: 'instant' }), true);
   if (tryIt()) return;
-  const watch = new MutationObserver(() => tryIt() && stop());
+  let watch = null;
   const stop = () => watch.disconnect();
+  watch = new MutationObserver(() => tryIt() && stop());
   watch.observe($('main'), { childList: true, subtree: true });
   addEventListener('touchstart', stop, { once: true, passive: true });
   setTimeout(stop, 5000);
@@ -132,15 +122,10 @@ function backToPlace() {
 function keepPlace() {
   if (!current || document.body.classList.contains('app-locked')) return;
   leaveTab(); // this tab's position, as when switching away from it
-  try {
-    localStorage.setItem(PLACE, JSON.stringify({ tab: current, scrolls: Object.fromEntries(scrolls), at: Date.now() }));
-  } catch {
-    /* private mode or full: it opens on My List next time */
-  }
+  keep(PLACE, { tab: current, scrolls: Object.fromEntries(scrolls), at: Date.now() }); // without storage: My List next time
 }
 document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && keepPlace());
 addEventListener('pagehide', keepPlace);
-const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 function leaveTab() {
   if (!current) return;
   // Search results stand in for the tab and start at the top: the tab's own place is where the search opened.
@@ -321,7 +306,9 @@ async function showFound(q, query, describe, { more = false } = {}) {
   const left = found.total - found.items.length;
   const cards = rows.map((i) => itemCard(i, { reservable: true })).join('');
   if (!more) {
-    box.innerHTML = `
+    // Search results stand in for the tab (and its heading): they get their own, for the page's outline. See all's
+    // list has one above its filters (showList).
+    box.innerHTML = `${box === results ? '<h2 class="visually-hidden">Search results</h2>' : ''}
       <p class="results-count" role="status" tabindex="-1">${found.describe(found.total)}</p>
       <div class="grid" data-found>${cards}</div>
       <button class="btn btn--ghost show-more" type="button" data-found-more hidden></button>`;
@@ -375,7 +362,8 @@ async function showList(key) {
   $('[data-search-form]').elements.q.value = '';
   const box = $('[data-search-results]');
   box.hidden = false;
-  box.innerHTML = `<form class="filters" aria-label="${esc(list.label)}" data-list-filters></form><div data-found-area></div>`;
+  const title = SHELVES.find((s) => s.key === key)?.more ?? 'Titles';
+  box.innerHTML = `<h2 class="visually-hidden">${esc(title)}</h2><form class="filters" aria-label="${esc(list.label)}" data-list-filters></form><div data-found-area></div>`;
   showView();
   scrollTo({ top: 0, behavior: 'instant' });
   const tz = (await getSettings().catch(() => ({}))).timezone;
@@ -511,6 +499,7 @@ const PULL_GO = 80; // px of badge travel that refreshes on release (about 260px
 const PULL_MAX = 100; // px the badge travels at most
 
 function setupPull() {
+  const buzz = buzzOnCross();
   const spot = $('[data-pull]');
   let startY = null;
   let pull = 0;
@@ -520,14 +509,14 @@ function setupPull() {
     spot.style.setProperty('--pull', `${px}px`);
     spot.style.setProperty('--pull-turn', String(px / PULL_GO));
     const ready = px >= PULL_GO;
-    if (ready && !spot.classList.contains('is-ready') && spot.classList.contains('is-pulling')) haptic('tick'); // letting go now refreshes
+    buzz(ready); // letting go now refreshes
     spot.classList.toggle('is-ready', ready);
   };
   const settle = () => {
     spot.classList.add('is-settling');
     spot.classList.remove('is-pulling', 'is-ready', 'is-refreshing');
     place(0);
-    setTimeout(() => spot.classList.remove('is-settling'), 200);
+    setTimeout(() => spot.classList.remove('is-settling'), motionMs('--dur') + 50);
   };
 
   addEventListener('touchstart', (e) => {
@@ -662,15 +651,7 @@ import('../../admin/update-check.js')
 // ---------------------------------------------------------------------------
 
 const DISMISSED = 'pc-app-install-dismissed';
-const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-const iPhone = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const dismissed = () => {
-  try {
-    return localStorage.getItem(DISMISSED) === '1';
-  } catch {
-    return false;
-  }
-};
+const dismissed = () => kept(DISMISSED) === 1; // kept as "1" (the JSON for 1) since before kept() existed
 
 function offerInstall(shopName, prompt = null) {
   const box = $('[data-install]');
@@ -689,11 +670,7 @@ function offerInstall(shopName, prompt = null) {
   });
   $('[data-install-close]', box).addEventListener('click', () => {
     box.hidden = true;
-    try {
-      localStorage.setItem(DISMISSED, '1');
-    } catch {
-      /* private mode: offered again next time */
-    }
+    keep(DISMISSED, 1); // without storage it's offered again next time
   });
 }
 

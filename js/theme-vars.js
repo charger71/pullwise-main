@@ -39,14 +39,18 @@ const mixHex = (hex, to, t) =>
   '#' + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - t) + parseInt(to.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');
 
 /**
- * The accent as text on this page: the accent itself when it reads at 4.5:1, else the accent darkened (on a light page)
- * or lightened (on a dark one) in 5% steps until it does, so it stays recognizably the shop's color.
+ * The accent as text on this page: the accent itself when it reads at 4.5:1 on the page and on its raised tone (`ink`,
+ * the text color, sets that tone), else the accent darkened (on a light page) or lightened (on a dark one) in 5% steps
+ * until it does, so it stays recognizably the shop's color.
  */
-export function accentText(accent, paper) {
+export function accentText(accent, paper, ink = null) {
   const to = isLight(paper) ? '#000000' : '#ffffff';
+  // It must read on the page and on the raised tone it also sits on (chips, the open multi-select), which css/site.css
+  // mixes as 9% of the text color into the page: on a light page that's a little darker, on a dark one lighter.
+  const raised = mixHex(paper, isHex6(ink) ? ink : isLight(paper) ? '#161616' : '#f4f0ea', 0.09);
   for (let t = 0; t <= 1; t += 0.05) {
     const c = mixHex(accent, to, Math.min(t, 1));
-    if (contrast(c, paper) >= 4.5) return c;
+    if (contrast(c, paper) >= 4.5 && contrast(c, raised) >= 4.5) return c;
   }
   return to;
 }
@@ -70,7 +74,7 @@ export function colorVars(colors) {
   // The accent as text: only written out when the stylesheet's (the accent itself) would not read on this page.
   if (isHex6(colors.accent) || isHex6(colors.paper)) {
     const accent = isHex6(colors.accent) ? colors.accent : DEFAULT_ACCENT;
-    const text = accentText(accent, isHex6(colors.paper) ? colors.paper : DEFAULT_PAPER);
+    const text = accentText(accent, isHex6(colors.paper) ? colors.paper : DEFAULT_PAPER, colors.ink);
     if (text !== accent.toLowerCase()) out.push(['--gold-text', text]);
   }
   const paper = isHex6(colors.paper) ? colors.paper : null;

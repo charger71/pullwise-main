@@ -4,10 +4,12 @@
 // Remove button, so removing works exactly as tapping the trash icon
 // does (and screen reader and keyboard users keep that button). Only rows that can still be changed have one.
 
-import { haptic } from './app-device.js';
+import { buzzOnCross } from './app-device.js';
+import { motionMs } from './site.js';
 
 const DECIDE = 10; // px of travel before the gesture is a sideways swipe or a scroll
-const OPEN = 88; // px a short swipe leaves open, the Remove button's width
+// px a short swipe leaves open: the Remove button's width, --swipe-open in css/site.css (88px when unreadable)
+const OPEN = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--swipe-open')) || 88;
 const OPEN_AFTER = 48; // px dragged that leaves it open on release
 const REMOVE_AT = 0.5; // share of the row's width that removes on release
 
@@ -26,8 +28,8 @@ function place(row, px, { settle = false } = {}) {
 async function confirmRemove(row) {
   const btn = removeOf(row);
   if (!btn) return;
-  place(row, OPEN, { settle: true });
-  await new Promise((done) => setTimeout(done, 250)); // let it settle on screen before the question covers it
+  place(row, OPEN(), { settle: true });
+  await new Promise((done) => setTimeout(done, motionMs('--dur-sheet'))); // let it settle on screen before the question covers it
   const what = (btn.getAttribute('aria-label') ?? 'Remove this title').replace(/^Remove /, '');
   if (!confirm(`Remove ${what} from your pull list?`)) return place(row, 0, { settle: true });
   place(row, row.offsetWidth, { settle: true }); // slides away, then the list is drawn without it
@@ -50,6 +52,7 @@ export function enableSwipeRemove(box) {
   let px = 0;
   let sideways = null; // null until decided
   let armed = false;
+  const buzz = buzzOnCross();
 
   box.addEventListener('touchstart', (e) => {
     const r = e.target.closest('.account-line--app');
@@ -59,10 +62,11 @@ export function enableSwipeRemove(box) {
     row = r;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
-    from = row.classList.contains('is-swiped') ? OPEN : 0;
+    from = row.classList.contains('is-swiped') ? OPEN() : 0;
     px = from;
     sideways = null;
     armed = false;
+    buzz(false);
   }, { passive: true });
 
   box.addEventListener('touchmove', (e) => {
@@ -77,12 +81,9 @@ export function enableSwipeRemove(box) {
     const width = row.offsetWidth;
     px = Math.min(width, Math.max(0, from - dx));
     place(row, px);
-    const nowArmed = px > width * REMOVE_AT;
-    if (nowArmed !== armed) {
-      armed = nowArmed;
-      row.classList.toggle('is-armed', armed);
-      if (armed) haptic('tick');
-    }
+    armed = px > width * REMOVE_AT;
+    row.classList.toggle('is-armed', armed);
+    buzz(armed);
   }, { passive: true });
 
   const release = () => {
@@ -90,11 +91,12 @@ export function enableSwipeRemove(box) {
     const r = row;
     row = null;
     r.classList.remove('is-armed');
+    buzz(false); // the next swipe buzzes again
     if (!sideways) return;
     if (armed) {
       confirmRemove(r);
     } else {
-      place(r, px > OPEN_AFTER ? OPEN : 0, { settle: true });
+      place(r, px > OPEN_AFTER ? OPEN() : 0, { settle: true });
     }
   };
   box.addEventListener('touchend', release);

@@ -621,15 +621,18 @@ export async function replaceImage(file, path, opts = {}) {
  */
 export function imageField(root, { folder, crop = 'original', maxSize = 1600, label = 'Image', library = false, thumb = false, exact = null }) {
   const id = uid('img');
+  // Several image fields can share a screen (Shop Settings has eight), so each button says which picture it's for to a
+  // screen reader: "Upload… App icon", not one of eight bare "Upload…".
+  const forWhat = `<span class="visually-hidden"> ${esc(label)}</span>`;
   root.innerHTML = `
     <span class="label">${esc(label)}</span>
     <div class="image-field">
       <div class="image-field__preview"></div>
       <div class="image-field__controls">
         <input id="${id}" type="file" accept="image/*" class="visually-hidden">
-        <label class="btn btn--ghost btn--small" for="${id}">Upload…</label>
-        ${library ? '<button type="button" class="btn btn--ghost btn--small" data-library>Choose from Media…</button>' : ''}
-        <button type="button" class="btn btn--danger btn--small" data-remove>${solidIcon('remove', 16)} Remove</button>
+        <label class="btn btn--ghost btn--small" for="${id}">Upload…${forWhat}</label>
+        ${library ? `<button type="button" class="btn btn--ghost btn--small" data-library>Choose from Media…${forWhat}</button>` : ''}
+        <button type="button" class="btn btn--danger btn--small" data-remove>${solidIcon('remove', 16)} Remove${forWhat}</button>
         <span class="admin-status" role="status"></span>
       </div>
     </div>`;

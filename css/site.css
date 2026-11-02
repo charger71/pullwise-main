@@ -98,6 +98,8 @@
   --list-bar-h: 76px;    /* the pull-list bar at the foot of the screen; the page leaves this much room under it */
   --tab-bar-h: 60px;     /* the pull list app's tab bar (app.html), not counting the phone's home-bar inset */
   --app-bar-h: 60px;     /* the pull list app's header bar, under the phone's status bar */
+  --app-header-bottom: calc(var(--app-bar-h) + env(safe-area-inset-top) + 1px); /* the app's header with its edge: what sits under it starts here */
+  --swipe-open: 88px;    /* the Remove a short swipe leaves showing on a My List row (js/app-swipe.js reads it) */
 
   /* Text sizes outside the headline, sub-heading and body scales above (which follow Shop Settings → Fonts).
      The same steps as the admin's where they overlap. */
@@ -139,6 +141,13 @@
   --dur: .15s;           /* hovers, the menu icon, a fold's arrow */
   --dur-slide: .22s;     /* the app's search sliding down from under the header */
   --dur-sheet: .28s;     /* the title dialog sliding up or down as a sheet on a phone */
+  --ease-sheet: cubic-bezier(.2, .8, .2, 1); /* a sheet or panel arriving: quick, then settling */
+
+  /* A press, in the app: what a control does under the finger (no grey tap flash there). */
+  --press-scale: .97;    /* a button shrinks a little */
+  --press-scale-icon: .85; /* a tab's icon shrinks more */
+  --press-dim: brightness(.85); /* a button or cover darkens */
+  --press-fade: .6;      /* a link-style button fades */
   --dur-spin: .7s;       /* one turn of the loading spinner */
   --dur-spin-calm: 2s;   /* the spinner under prefers-reduced-motion */
   --dur-pulse: 1.2s;     /* the loading skeleton's pulse */
@@ -528,6 +537,12 @@ address { font-style: normal; margin-bottom: 1em; }
   content: '';
   grid-column: 1 / -1;
   min-height: 640px;
+}
+/* The skeleton's look, wherever one waits for content (the app's loading blocks too). */
+[data-page="home"] .grid:empty::before,
+#results:empty::before,
+#series-list:empty::before,
+[data-page="app"] .empty.loading {
   border-radius: var(--radius);
   background: var(--raised);
   animation: skeleton-pulse var(--dur-pulse) ease-in-out infinite alternate;
@@ -535,7 +550,7 @@ address { font-style: normal; margin-bottom: 1em; }
 #series-list:empty::before { min-height: 700px; }
 #results-count { min-height: 1.6em; }
 @keyframes skeleton-pulse { from { opacity: .45; } to { opacity: .9; } }
-@media (prefers-reduced-motion: reduce) { [data-page="home"] .grid:empty::before, #results:empty::before, #series-list:empty::before { animation: none; } }
+@media (prefers-reduced-motion: reduce) { [data-page="home"] .grid:empty::before, #results:empty::before, #series-list:empty::before, [data-page="app"] .empty.loading { animation: none; } }
 @media (min-width: 600px) {
   .grid { grid-template-columns: repeat(3, 1fr); }
 }
@@ -835,8 +850,8 @@ dialog::backdrop { background: #000c; }
   .title-modal .dialog__body { flex: 1 1 auto; min-height: 0; max-height: none; overscroll-behavior: none; padding: 0 var(--sp-16) calc(var(--sp-24) + env(safe-area-inset-bottom)); }
   /* A sheet: it slides up to open and down to close, and follows a finger swiping it down from the top of its content
      (js/title-modal.js sets --sheet-drag and the classes). No overscroll bounce, so the swipe starts at once. */
-  .title-modal { transform: translateY(var(--sheet-drag, 0px)); transition: transform var(--dur-sheet) cubic-bezier(.2, .8, .2, 1); }
-  .title-modal[open] { animation: sheet-up var(--dur-sheet) cubic-bezier(.2, .8, .2, 1); }
+  .title-modal { transform: translateY(var(--sheet-drag, 0px)); transition: transform var(--dur-sheet) var(--ease-sheet); }
+  .title-modal[open] { animation: sheet-up var(--dur-sheet) var(--ease-sheet); }
   .title-modal.is-dragging { transition: none; }
   .title-modal.is-closing { transform: translateY(100%); transition-timing-function: ease-in; }
   .title-modal::backdrop { transition: opacity var(--dur-sheet); }
@@ -1233,9 +1248,10 @@ body:has([aria-busy="true"], .loading)::after {
 [data-page="app"] { -webkit-tap-highlight-color: transparent; }
 [data-page="app"] :is(.tab-bar, .app-bar, .app-view__title, .app-shelf__head, .btn, .link-button, .dialog__close) { -webkit-user-select: none; user-select: none; }
 [data-page="app"] :is(img, .tab-bar a, .app-bar a) { -webkit-touch-callout: none; }
-[data-page="app"] .btn:active { transform: scale(.97); filter: brightness(.9); }
-[data-page="app"] .link-button:active { opacity: .6; }
-[data-page="app"] :is(.card__open, .account-line__open):active .cover { filter: brightness(.8); }
+[data-page="app"] .btn:active { transform: scale(var(--press-scale)); filter: var(--press-dim); }
+[data-page="app"] .link-button { display: inline-flex; align-items: center; min-height: var(--tap); } /* Sign out, See all, Turn off: touch targets on a phone */
+[data-page="app"] .link-button:active { opacity: var(--press-fade); }
+[data-page="app"] :is(.card__open, .account-line__open):active .cover { filter: var(--press-dim); }
 [data-page="app"] :is(.app-bar__search, .account-line__remove, .app-install__close, .dialog__close, .app-shop__links a):active { background: var(--raised); }
 /* Switching tabs cross-fades the views (js/pages/app.js, View Transitions); the header and tab bar stay still. */
 /* Covers fade in as they load (js/pages/app.js sets .fade-covers and .is-loaded), over a placeholder of their own
@@ -1250,10 +1266,12 @@ body:has([aria-busy="true"], .loading)::after {
 /* Loading in the app: a pulsing block where the view will be, not the website's dimmer and spinner. Screen readers
    still hear its "Loading…"; the app's loading screen waits until none is showing (js/pages/app.js). */
 body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app"]:not(:has([aria-busy="true"]))::after { content: none; }
-[data-page="app"] .empty.loading { min-height: 240px; border-radius: var(--radius); background: var(--raised); color: transparent; animation: skeleton-pulse var(--dur-pulse) ease-in-out infinite alternate; }
-@media (prefers-reduced-motion: reduce) { [data-page="app"] .empty.loading { animation: none; } }
+/* The skeleton's look: Cards / grids. Its "Loading…" is still read out but pushed out of the box, not made transparent
+   (transparent text fails the contrast check and shows again when a visitor overrides page colors). */
+[data-page="app"] .empty.loading { min-height: 240px; overflow: hidden; white-space: nowrap; text-indent: 100vw; }
 [data-page="app"] #site-header:empty { min-height: var(--app-bar-h); }
 .app-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: var(--app-bar-h); }
+.app-bar .brand { min-height: var(--tap); } /* the shop's name goes to My List: a full touch target, not a 22px line */
 .app-bar .brand__logo { max-height: 40px; }
 .app-bar .brand__name { font-size: calc(1.25rem * var(--display-scale)); }
 /* The search button: a magnifier that opens the search under the header; pressed while it's open. */
@@ -1272,7 +1290,7 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 .app-shelf + .app-shelf { margin-top: var(--sp-32); }
 .app-shelf__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
 .app-shelf__head h3 { margin: 0; font-size: var(--fs-sub); }
-.app-shelf__head .link-button { flex: none; display: inline-flex; align-items: center; min-height: var(--tap); font-size: var(--fs-sm); font-weight: 700; }
+.app-shelf__head .link-button { flex: none; font-size: var(--fs-sm); font-weight: 700; }
 .app-shelf__lede { margin: 0 0 var(--sp-12); color: var(--muted); font-size: var(--fs-sm); }
 .app-shelf__row { display: grid; grid-auto-flow: column; grid-auto-columns: min(calc((100% - 2 * var(--sp-12)) / 2.5), 200px); gap: var(--sp-12); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); margin-inline: calc(-1 * var(--gutter)); padding: 0 var(--gutter) var(--sp-8); }
 /* The row holds the cards' hidden screen-reader text (position: absolute), so it must be their containing block:
@@ -1298,7 +1316,7 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
    it is scrolled, and stays fixed under the header. It sits under the header (z-index), so it comes out from behind
    it. Results stand in for the tab while the box has words in it, starting below the box. */
 @keyframes search-slide { from { transform: translateY(-100%); } }
-.app-search > form { position: fixed; top: calc(var(--app-bar-h) + env(safe-area-inset-top) + 1px); left: 0; right: 0; z-index: var(--z-popover); padding: var(--sp-10) max(var(--gutter), calc((100% - var(--max)) / 2 + var(--gutter))); background: var(--paper); border-bottom: var(--border); box-shadow: var(--shadow-menu); animation: search-slide var(--dur-slide) ease-out; }
+.app-search > form { position: fixed; top: var(--app-header-bottom); left: 0; right: 0; z-index: var(--z-popover); padding: var(--sp-10) max(var(--gutter), calc((100% - var(--max)) / 2 + var(--gutter))); background: var(--paper); border-bottom: var(--border); box-shadow: var(--shadow-menu); animation: search-slide var(--dur-slide) ease-out; }
 .app-search > form input { width: 100%; }
 .app-search:has([data-search-results]:not([hidden])) { padding-top: calc(var(--field-h) + 2 * var(--sp-10)); }
 @media (prefers-reduced-motion: reduce) { .app-search > form { animation: none; } }
@@ -1308,24 +1326,30 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 .app-pickup > div:last-child { flex: 1 1 140px; }
 .app-pickup__name { flex: 1 0 100%; margin: 0; font-family: var(--font-heading); font-size: var(--fs-title); font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
 .app-pickup__qr { flex: none; width: 112px; padding: var(--sp-4); border: 0; background: white; border-radius: var(--radius-sm); cursor: zoom-in; }
+.app-pickup__qr svg, .pickup-full__qr svg { display: block; width: 100%; height: auto; fill: black; } /* the QR code, dark on white, small and full screen */
+.app-pickup__label { margin: 0; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.app-pickup__code { margin: 0 0 var(--sp-4); font-family: var(--font-display); font-size: calc(1.6rem * var(--display-scale)); letter-spacing: var(--display-tracking); line-height: 1.1; }
+.app-pickup .card__meta { margin: 0; }
 /* Tapped, the code fills the screen (js/app-pickup.js): dark on white whatever the page, the name and number under it,
    big enough to scan from across the counter. The screen is kept awake meanwhile. */
 .pickup-full { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; padding: calc(var(--sp-24) + env(safe-area-inset-top)) var(--gutter) calc(var(--sp-24) + env(safe-area-inset-bottom)); border: 0; border-radius: 0; background: white; color: black; }
 .pickup-full[open] { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-12); text-align: center; }
 .pickup-full::backdrop { background: white; }
 .pickup-full__qr { width: min(80vw, 60dvh, 420px); }
-.pickup-full__qr svg { display: block; width: 100%; height: auto; fill: black; }
 .pickup-full__name { margin: var(--sp-8) 0 0; font-family: var(--font-heading); font-size: var(--fs-title); font-weight: 700; overflow-wrap: anywhere; }
 .pickup-full__code { margin: 0; font-family: var(--font-display); font-size: calc(2.4rem * var(--display-scale)); letter-spacing: var(--display-tracking); line-height: 1; }
 .pickup-full__hint { margin: 0; font-size: var(--fs-sm); }
-.pickup-full__close { position: absolute; top: calc(var(--sp-8) + env(safe-area-inset-top)); right: calc(var(--sp-8) + env(safe-area-inset-right)); width: var(--tap); height: var(--tap); border: 0; border-radius: 50%; background: none; color: black; font-size: var(--fs-lede); cursor: pointer; }
+/* ShopDialog's round close button, in the corner; on the always-white card it's black, and keyboard focus fills it
+   black, as the page's focus blue (made for the page, not for white) wouldn't show. Every other focus ring in the card
+   is black for the same reason. */
+.pickup-full__close { position: absolute; top: calc(var(--sp-8) + env(safe-area-inset-top)); right: calc(var(--sp-8) + env(safe-area-inset-right)); border-color: rgb(0 0 0 / .45); color: black; }
+.pickup-full__close:hover { background: rgb(0 0 0 / .08); border-color: black; }
+.pickup-full__close:focus-visible { background: black; border-color: black; color: white; }
+.pickup-full :focus-visible { outline-color: black; }
 /* My List's date headings stay pinned under the header while their titles scroll under them, as in a native
    grouped list; the next one slides over it. */
-[data-page="app"] .account-group { position: sticky; top: calc(var(--app-bar-h) + env(safe-area-inset-top) + 1px); z-index: calc(var(--z-raised) + 1); margin-bottom: 0; padding-top: var(--sp-12); background: var(--paper); }
-.app-pickup__qr svg { display: block; width: 100%; height: auto; fill: black; }
-.app-pickup__label { margin: 0; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-.app-pickup__code { margin: 0 0 var(--sp-4); font-family: var(--font-display); font-size: calc(1.6rem * var(--display-scale)); letter-spacing: var(--display-tracking); line-height: 1.1; }
-.app-pickup .card__meta { margin: 0; }
+[data-page="app"] .account-group { position: sticky; top: var(--app-header-bottom); z-index: calc(var(--z-raised) + 1); margin-bottom: 0; padding-top: var(--sp-12); background: var(--paper); }
+[data-page="app"] .panel .account-group { background: var(--surface); } /* My List sits in a panel: the band is the panel's color */
 /* The first-run welcome on My List, until "Got it". */
 .app-welcome { margin: 0 0 var(--sp-20); padding: 0 0 var(--sp-20); border-bottom: var(--border); }
 .app-welcome__title { margin: 0 0 var(--sp-8); font-size: var(--fs-sub); }
@@ -1364,7 +1388,7 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 /* High-contrast modes drop the shadow that marks the current tab: give it a real edge there. */
 @media (forced-colors: active) { .tab-bar a[aria-current="page"] { border-top: 3px solid Highlight; } }
 .tab-bar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--dur-press); }
-.tab-bar a:active svg { transform: scale(.85); }
+.tab-bar a:active svg { transform: scale(var(--press-scale-icon)); }
 .tab-bar__count { position: absolute; top: var(--sp-4); left: calc(50% + 8px); min-width: 18px; padding: 0 var(--sp-4); border-radius: var(--radius-pill); background: var(--gold); color: var(--on-accent); font-size: var(--fs-3xs); line-height: 18px; text-align: center; }
 .app-shop { text-align: center; }
 .app-shop__logo { max-height: 96px; width: auto; margin: 0 auto var(--sp-12); }
@@ -1402,7 +1426,7 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 .account-line--app { position: relative; touch-action: pan-y; }
 .account-line--app > :not(.account-line__swipe) { transform: translateX(calc(-1 * var(--swipe, 0px))); }
 .account-line__swipe { position: absolute; top: 0; right: 0; bottom: 0; z-index: var(--z-raised); display: flex; align-items: center; justify-content: flex-end; width: var(--swipe, 0px); padding: 0; overflow: hidden; border: 0; border-radius: var(--radius-sm); background: var(--swipe-remove); color: var(--on-swipe-remove); font: 700 var(--fs-sm)/1 var(--font-body); white-space: nowrap; cursor: pointer; }
-.account-line__swipe > span { flex: none; width: 88px; text-align: center; }
+.account-line__swipe > span { flex: none; width: var(--swipe-open); text-align: center; }
 .account-line--app:not(.is-swiped) .account-line__swipe { visibility: hidden; }
 .account-line--app.is-armed .account-line__swipe { justify-content: center; }
 .account-line--app.is-settling > :not(.account-line__swipe), .account-line--app.is-settling .account-line__swipe { transition: transform var(--dur-sheet) ease-out, width var(--dur-sheet) ease-out; }
@@ -1410,6 +1434,10 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 /* Pull down to refresh: a round badge drops from under the header, its arrow turning as it's pulled, gold once letting
    go will refresh, then spinning until the views are drawn again. js/pages/app.js sets --pull, --pull-turn, --pull-top. */
 html:has(body[data-page="app"]) { overscroll-behavior-y: none; }
+/* Keyboard focus never lands under the app's sticky header with a pinned date heading, or under the tab bar: the
+   browser keeps this much room when it scrolls a focused control into view (WCAG 2.4.11). The top room follows the
+   heading's own text size (Shop Settings → Fonts), with its padding and edge. */
+html:has(body[data-page="app"]) { scroll-padding-top: calc(var(--app-header-bottom) + 2 * var(--fs-sub) + var(--sp-24)); scroll-padding-bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom) + var(--sp-8)); }
 .app-pull { position: fixed; top: var(--pull-top, 0px); left: 50%; z-index: var(--z-popover); display: grid; place-items: center; width: 40px; height: 40px; margin-left: -20px; border: var(--border); border-radius: 50%; background: var(--surface); box-shadow: var(--shadow-menu); color: var(--muted); opacity: 0; pointer-events: none; transform: translateY(calc(var(--pull, 0px) - 48px)); }
 .app-pull.is-pulling, .app-pull.is-refreshing { opacity: 1; }
 .app-pull.is-settling { transition: transform var(--dur), opacity var(--dur); }

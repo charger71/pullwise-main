@@ -3,7 +3,7 @@
 // submit them together as one order, signed-in customers keep a standing list.
 
 import { reserve, getSettings, coverArtists } from './data.js';
-import { $, esc, badge, ITEM_BADGES, cover, price, fmtDate, daysUntil, lastReserveDay, cutoffPassed, itemTitle, itemFullTitle } from './site.js';
+import { $, esc, announceIn, focusBackOnClose, badge, ITEM_BADGES, cover, price, fmtDate, daysUntil, lastReserveDay, cutoffPassed, itemTitle, itemFullTitle } from './site.js';
 import { thumbOf, thumbFallback, formatPhone, nameKey, artistMeta, btnIcon } from './util.js';
 import * as list from './reservation-list.js';
 import * as pull from './customer.js';
@@ -127,7 +127,7 @@ function createFollowDialog() {
       </div>
     </div>`;
   document.body.append(d);
-  d.addEventListener('close', () => d.returnFocusTo?.isConnected && d.returnFocusTo.focus());
+  focusBackOnClose(d);
   d.addEventListener('click', (e) => {
     if (e.target === d || e.target.closest('.dialog__close, [data-close]')) return d.close();
     const btn = e.target.closest('[data-follow-series], [data-follow-artist]');
@@ -413,6 +413,7 @@ async function addAllCovers(btn, item) {
   btn.disabled = true;
   try {
     const { added, skipped } = await pull.addVariants(item.id);
+    if (added) haptic('done');
     const msg = `Added ${added} ${added === 1 ? 'cover' : 'covers'} to your pull list${skipped ? ` (${skipped} already on your list or not available)` : ''}.`;
     announce(msg);
     alert(msg);
@@ -442,7 +443,7 @@ let liveRegion;
 function announce(msg) {
   liveRegion ??= Object.assign(document.body.appendChild(document.createElement('p')), { className: 'visually-hidden' });
   liveRegion.setAttribute('role', 'status');
-  liveRegion.textContent = msg;
+  announceIn(liveRegion, msg);
 }
 
 // ---------------------------------------------------------------------------
@@ -600,7 +601,7 @@ function createDialog() {
     </div>`;
   document.body.append(d);
 
-  d.addEventListener('close', () => d.returnFocusTo?.isConnected && d.returnFocusTo.focus());
+  focusBackOnClose(d);
   d.addEventListener('click', async (e) => {
     if (e.target === d || e.target.closest('.dialog__close, [data-close]')) return d.close();
     const rm = e.target.closest('[data-remove]');

@@ -1,4 +1,4 @@
-import { initPage, openFocFrom } from '../site.js';
+import { initPage, openFocFrom, isPhone } from '../site.js';
 import { initCatalog, categoryOptions, publisherFilter, badgeFilter, focFilter } from '../catalog.js';
 
 await initPage();
@@ -8,7 +8,7 @@ await initPage();
 const how = document.querySelector('.how-it-works');
 if (how) {
   how.hidden = !how.querySelector('[data-content]')?.textContent.trim();
-  if (matchMedia('(max-width: 599px)').matches) how.open = false;
+  if (isPhone()) how.open = false;
 }
 
 const firstOpenFoc = openFocFrom();
