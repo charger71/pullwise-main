@@ -14,10 +14,26 @@ import { haptic } from '../app-device.js';
 
 const VIEWS = ['list', 'hot', 'shop', 'me'];
 
+// Where the app was left: the tab and each tab's scroll position, kept on this phone when the app goes to the
+// background. A phone closes background apps to save memory; opening it again puts you back on that tab (unless a
+// link, a notification or a shortcut names one) and, within the hour, where you were scrolled.
+const PLACE = 'pc-app-place';
+const PLACE_FRESH = 60 * 60 * 1000; // ms a scroll position is worth going back to
+const leftAt = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem(PLACE) ?? 'null');
+    return v && VIEWS.includes(v.tab) ? v : null;
+  } catch {
+    return null;
+  }
+})();
+if (leftAt && !location.hash) history.replaceState(history.state, '', `#${leftAt.tab}`);
+
 // The loading screen (app.html) goes once the view on screen has something in it, or after 3 seconds at most.
 const splash = $('[data-splash]');
 function hideSplash() {
   if (!splash || splash.classList.contains('is-gone')) return;
+  backToPlace(); // the views are drawn: scroll to where they were left, before the splash fades off them
   splash.classList.add('is-gone');
   setTimeout(() => splash.remove(), 400);
 }
@@ -34,6 +50,17 @@ if (splash) {
     hideSplash();
   }, 3000);
 }
+
+// Covers fade in as they arrive instead of popping in, over a placeholder of their own shape (css/site.css
+// .fade-covers). Only with this script running: without it the class is never set and covers show as they load.
+document.documentElement.classList.add('fade-covers');
+const coverIn = (e) => e.target.matches?.('img.cover') && e.target.classList.add('is-loaded');
+document.addEventListener('load', coverIn, true); // load and error don't bubble: catch them on the way down
+document.addEventListener('error', coverIn, true);
+// Covers already loaded (from the cache) by the time they're drawn fire no load event of their own.
+new MutationObserver(() => {
+  for (const img of document.querySelectorAll('img.cover:not(.is-loaded)')) if (img.complete) img.classList.add('is-loaded');
+}).observe(document.body, { childList: true, subtree: true });
 
 // What screen readers hear about the app itself (refreshing, offline, a new version): one live region that is always
 // on the page, so the words are read even when the strip showing them appears at the same moment.
@@ -66,6 +93,7 @@ function showView({ focus = false } = {}) {
     else a.removeAttribute('aria-current');
   }
   current = view;
+  if (!splash?.isConnected || splash.classList.contains('is-gone')) backToPlace(); // the splash went before sign-in did
   if (focus) {
     scrollTo({ top: scrolls.get(view) ?? 0, behavior: 'instant' }); // where this tab was left, as a native tab bar does
     const heading = $(`[data-view="${view}"] h2`);
@@ -81,6 +109,37 @@ let hotShown = false; // the Hot view loads the first time it's opened
 // Each tab keeps its own scroll position, so going to Hot and back to My List finds your place again.
 let current = null; // the tab showing (showView)
 const scrolls = new Map(); // tab → scrollY when it was left
+
+// Kept scroll positions come back once, when the first view is drawn (hideSplash), if they're recent.
+const fresh = leftAt && Date.now() - (leftAt.at ?? 0) < PLACE_FRESH;
+if (fresh) for (const [tab, y] of Object.entries(leftAt.scrolls ?? {})) if (VIEWS.includes(tab) && y > 0) scrolls.set(tab, y);
+let placed = !fresh;
+function backToPlace() {
+  if (placed || !current) return; // not yet: still signing in (showView calls again once a tab shows)
+  placed = true;
+  const want = current && scrolls.get(current);
+  if (!want) return;
+  // The list may still be filling in: wait (up to 5 seconds) until the page is tall enough to scroll that far, and
+  // give up at once if the customer touches the screen first.
+  const tryIt = () => document.documentElement.scrollHeight - innerHeight >= want && (scrollTo({ top: want, behavior: 'instant' }), true);
+  if (tryIt()) return;
+  const watch = new MutationObserver(() => tryIt() && stop());
+  const stop = () => watch.disconnect();
+  watch.observe($('main'), { childList: true, subtree: true });
+  addEventListener('touchstart', stop, { once: true, passive: true });
+  setTimeout(stop, 5000);
+}
+function keepPlace() {
+  if (!current || document.body.classList.contains('app-locked')) return;
+  leaveTab(); // this tab's position, as when switching away from it
+  try {
+    localStorage.setItem(PLACE, JSON.stringify({ tab: current, scrolls: Object.fromEntries(scrolls), at: Date.now() }));
+  } catch {
+    /* private mode or full: it opens on My List next time */
+  }
+}
+document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && keepPlace());
+addEventListener('pagehide', keepPlace);
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 function leaveTab() {
   if (!current) return;
