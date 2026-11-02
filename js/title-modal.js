@@ -5,10 +5,10 @@
 import { getItem, getVariants, getTopReserved, getSettings, getCategories } from './data.js';
 import { SITE_URL } from './config.js';
 import { titleUrl, releaseIcs, releaseGoogleLink } from './ics.js';
-import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shopToday } from './site.js';
+import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shopToday, isPhone, focusBackOnClose, motionMs } from './site.js';
 import { prefersReducedMotion } from './util.js';
 import * as pull from './customer.js';
-import { buzzOnCross } from './app-device.js';
+import { buzzOnCross, haptic } from './app-device.js';
 import { enableReservations, seenItems, focLabel, reserveButton, variantsButton, followButton, creatorNames, collectorBadges, topBadge } from './components.js';
 
 let dialog;
@@ -101,6 +101,7 @@ async function orderCopy(btn) {
   btn.disabled = true;
   try {
     await pull.reorder(item.id);
+    haptic('done');
     if (current !== item) return;
     render();
     $('[data-reorder-msg]', dialog).textContent = `We’ll order ${itemTitle(item)} for you. It’s on your pull list, and we’ll let you know when it’s in.`;
@@ -226,8 +227,8 @@ function create() {
       $(`[data-title-switch="${next.id}"]`, d)?.focus();
     }
   });
+  focusBackOnClose(d);
   d.addEventListener('close', () => {
-    d.returnFocusTo?.isConnected && d.returnFocusTo.focus();
     if (pushed) {
       pushed = false;
       history.back();
@@ -247,7 +248,7 @@ function create() {
 
 const SWIPE_CLOSE = 120; // px dragged down that closes it on release
 const SWIPE_FLICK = 0.6; // px per ms: a quick flick closes it even when shorter
-const asSheet = () => matchMedia('(max-width: 599px)').matches && !prefersReducedMotion(); // 599px: the phone breakpoint in css/site.css
+const asSheet = () => isPhone() && !prefersReducedMotion();
 
 /** Close the dialog: on a phone it slides down first; elsewhere (or with reduced motion) it closes at once. */
 function dismiss() {
@@ -264,7 +265,7 @@ function dismiss() {
     dialog.style.removeProperty('--sheet-drag');
   };
   dialog.addEventListener('transitionend', finish, { once: true });
-  setTimeout(finish, 400); // in case no transition runs (the sheet was already off screen)
+  setTimeout(finish, motionMs('--dur-sheet') + 120); // in case no transition runs (the sheet was already off screen)
 }
 
 function setupSwipe(d) {

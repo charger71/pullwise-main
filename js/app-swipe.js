@@ -5,6 +5,7 @@
 // does (and screen reader and keyboard users keep that button). Only rows that can still be changed have one.
 
 import { buzzOnCross } from './app-device.js';
+import { motionMs } from './site.js';
 
 const DECIDE = 10; // px of travel before the gesture is a sideways swipe or a scroll
 // px a short swipe leaves open: the Remove button's width, --swipe-open in css/site.css (88px when unreadable)
@@ -28,7 +29,7 @@ async function confirmRemove(row) {
   const btn = removeOf(row);
   if (!btn) return;
   place(row, OPEN(), { settle: true });
-  await new Promise((done) => setTimeout(done, 250)); // let it settle on screen before the question covers it
+  await new Promise((done) => setTimeout(done, motionMs('--dur-sheet'))); // let it settle on screen before the question covers it
   const what = (btn.getAttribute('aria-label') ?? 'Remove this title').replace(/^Remove /, '');
   if (!confirm(`Remove ${what} from your pull list?`)) return place(row, 0, { settle: true });
   place(row, row.offsetWidth, { settle: true }); // slides away, then the list is drawn without it

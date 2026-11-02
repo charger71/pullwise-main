@@ -5,12 +5,11 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { $, esc } from './site.js';
 import * as pull from './customer.js';
-import { isInstalled as installed } from './app-device.js';
+import { isInstalled as installed, isIPhone as iPhone } from './app-device.js';
 
 const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/push-notify`;
 
 const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-const iPhone = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 /** The shop's VAPID public key from push-notify ('' when notifications aren't set up there yet). */
 let keyPromise;

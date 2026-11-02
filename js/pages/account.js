@@ -4,7 +4,7 @@
 // claim_customer() links the record, and create_my_customer() creates it from the first-sign-in form.
 // The pull list app (app.html, js/pages/app.js) runs this same page, laid out as views for its tab bar.
 
-import { initPage, $, esc, fmtDate, itemFullTitle, itemTitle, cover, price, cutoffPassed } from '../site.js';
+import { initPage, $, esc, announceIn, fmtDate, itemFullTitle, itemTitle, cover, price, cutoffPassed } from '../site.js';
 import { DEMO, supabase, getSettings, searchSeries, searchArtists } from '../data.js';
 import { SITE_URL, APP_ENABLED } from '../config.js';
 import { LINE_STATUS_CUSTOMER as LINE_STATUS } from '../labels.js';
@@ -483,12 +483,7 @@ const PAST_SHOWN = 100; // picked up, released and so on: the most recent
 const canEdit = (r) => r.status === 'open' && !cutoffPassed(r.item);
 
 /** Say what just happened on the list (a polite live region that isn't redrawn with it). */
-const announce = (text) => {
-  const live = $('[data-orders-status]', root);
-  if (!live) return;
-  live.textContent = '';
-  setTimeout(() => (live.textContent = text), 50); // a change, even to the same words, is read out
-};
+const announce = (text) => announceIn($('[data-orders-status]', root), text);
 
 /** `focus`: selectors to try, in order, for where keyboard focus goes once the list is redrawn. */
 async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {

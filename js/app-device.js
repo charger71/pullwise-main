@@ -31,6 +31,9 @@ export function forget(key) {
   }
 }
 
+/** An iPhone or iPad (an iPad asking for the desktop site reports a Mac with touch). */
+export const isIPhone = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
 /** Opened from the Home Screen (installed), not in the browser. */
 export const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 

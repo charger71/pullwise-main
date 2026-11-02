@@ -3,14 +3,14 @@
 // Account — with the shop's brand on top, so the installed app is the shop's own. Tabs are #hash links, so the back
 // button and links from outside (a notification) can open one. sw.js keeps the app opening without a connection.
 
-import { $, esc, sizedImage, addressLines, hoursList, mapsHref, telHref, socialIcons, linkify, locationAs, openFocFrom, addDays } from '../site.js';
+import { $, esc, announceIn, motionMs, sizedImage, addressLines, hoursList, mapsHref, telHref, socialIcons, linkify, locationAs, openFocFrom, addDays } from '../site.js';
 import { getSettings, getItems, rankByPulls } from '../data.js';
 import { todayIn } from '../dates.js';
 import { itemCard, enableReservations } from '../components.js';
 import { loadFilters, filterControl, setupMulti, publisherFilter, categoryOptions, focFilter } from '../catalog.js';
 import { formatPhone, LOGO_WIDTH, prefersReducedMotion as reducedMotion } from '../util.js';
 import { setShopColors, setupAppearance } from '../app-theme.js';
-import { kept, keep, isInstalled as installed, buzzOnCross } from '../app-device.js';
+import { kept, keep, isInstalled as installed, isIPhone as iPhone, buzzOnCross } from '../app-device.js';
 
 const VIEWS = ['list', 'hot', 'shop', 'me'];
 
@@ -28,7 +28,7 @@ function hideSplash() {
   if (!splash || splash.classList.contains('is-gone')) return;
   backToPlace(); // the views are drawn: scroll to where they were left, before the splash fades off them
   splash.classList.add('is-gone');
-  setTimeout(() => splash.remove(), 400);
+  setTimeout(() => splash.remove(), motionMs('--dur') + 100); // once it has faded
 }
 const stillLoading = () => [...document.querySelectorAll('main .loading')].some((el) => el.offsetParent !== null);
 if (splash) {
@@ -57,11 +57,7 @@ new MutationObserver(() => {
 
 // What screen readers hear about the app itself (refreshing, offline, a new version): one live region that is always
 // on the page, so the words are read even when the strip showing them appears at the same moment.
-const appStatus = $('[data-app-status]');
-const say = (text) => {
-  appStatus.textContent = '';
-  setTimeout(() => (appStatus.textContent = text), 50); // a change, even to the same words, is read out
-};
+const say = (text) => announceIn($('[data-app-status]'), text);
 const OWN_VIEWS = ['hot', 'shop']; // drawn here; the rest are the account page's
 const account = $('#account');
 
@@ -516,7 +512,7 @@ function setupPull() {
     spot.classList.add('is-settling');
     spot.classList.remove('is-pulling', 'is-ready', 'is-refreshing');
     place(0);
-    setTimeout(() => spot.classList.remove('is-settling'), 200);
+    setTimeout(() => spot.classList.remove('is-settling'), motionMs('--dur') + 50);
   };
 
   addEventListener('touchstart', (e) => {
@@ -651,7 +647,6 @@ import('../../admin/update-check.js')
 // ---------------------------------------------------------------------------
 
 const DISMISSED = 'pc-app-install-dismissed';
-const iPhone = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const dismissed = () => kept(DISMISSED) === 1; // kept as "1" (the JSON for 1) since before kept() existed
 
 function offerInstall(shopName, prompt = null) {
