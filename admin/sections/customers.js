@@ -788,7 +788,7 @@ async function loadLog(el, c) {
       return void (box.innerHTML = '<p class="empty">No staff changes yet.</p>');
     }
     const staff = new Map((await must(sb.from('staff').select('user_id,name'))).map((s) => [s.user_id, s.name]));
-    const who = (r) => staff.get(r.staff_user) ?? 'Staff';
+    const who = (r) => (r.staff_user ? staff.get(r.staff_user) ?? 'Staff' : 'Customer'); // no staff login: the customer did it (deleting their account)
     if (sum) sum.textContent = `Latest ${fmtDateTime(rows[0].created_at)} by ${who(rows[0])}`;
     box.innerHTML = `<ul class="job-log">${rows
       .map((r) => `<li><span class="job-log__when">${fmtDateTime(r.created_at)}</span><span>${esc(who(r))}</span><span class="job-log__msg">${esc(r.action)}: ${esc(r.detail ?? '')}</span></li>`)
