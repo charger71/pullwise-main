@@ -2,6 +2,9 @@ import { fromError } from './errors.js';
 // Small helpers shared by the site, the admin and the command-line tools. No DOM, no
 // dependencies, so it loads anywhere.
 
+/** The visitor asked for less motion (in a browser; false anywhere else): animations are skipped, not shortened. */
+export const prefersReducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 /** HTML-escape a value for text or attribute positions. */
 export const esc = (v) =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

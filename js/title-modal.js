@@ -6,8 +6,9 @@ import { getItem, getVariants, getTopReserved, getSettings, getCategories } from
 import { SITE_URL } from './config.js';
 import { titleUrl, releaseIcs, releaseGoogleLink } from './ics.js';
 import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shopToday } from './site.js';
+import { prefersReducedMotion } from './util.js';
 import * as pull from './customer.js';
-import { haptic } from './app-device.js';
+import { buzzOnCross } from './app-device.js';
 import { enableReservations, seenItems, focLabel, reserveButton, variantsButton, followButton, creatorNames, collectorBadges, topBadge } from './components.js';
 
 let dialog;
@@ -246,7 +247,7 @@ function create() {
 
 const SWIPE_CLOSE = 120; // px dragged down that closes it on release
 const SWIPE_FLICK = 0.6; // px per ms: a quick flick closes it even when shorter
-const asSheet = () => matchMedia('(max-width: 599px)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+const asSheet = () => matchMedia('(max-width: 599px)').matches && !prefersReducedMotion(); // 599px: the phone breakpoint in css/site.css
 
 /** Close the dialog: on a phone it slides down first; elsewhere (or with reduced motion) it closes at once. */
 function dismiss() {
@@ -267,6 +268,7 @@ function dismiss() {
 }
 
 function setupSwipe(d) {
+  const buzz = buzzOnCross();
   const body = () => $('[data-tm-body]', d);
   let startY = null;
   let startAt = 0;
@@ -284,14 +286,13 @@ function setupSwipe(d) {
     if (dy > 0 && body().scrollTop > 0) return void (startY = null); // the content scrolled after all
     d.classList.add('is-dragging');
     d.style.setProperty('--sheet-drag', `${dy}px`);
-    const past = dy > SWIPE_CLOSE;
-    if (past && !d.classList.contains('is-past')) haptic('tick'); // letting go now closes it
-    d.classList.toggle('is-past', past);
+    buzz(dy > SWIPE_CLOSE); // letting go now closes it
   }, { passive: true });
   const release = () => {
     if (startY === null) return;
     startY = null;
-    d.classList.remove('is-dragging', 'is-past');
+    d.classList.remove('is-dragging');
+    buzz(false);
     if (dy > SWIPE_CLOSE || (dy > 40 && dy / Math.max(1, Date.now() - startAt) > SWIPE_FLICK)) return dismiss();
     d.style.removeProperty('--sheet-drag'); // springs back (the sheet's transition)
   };

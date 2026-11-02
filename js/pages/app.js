@@ -8,9 +8,9 @@ import { getSettings, getItems, rankByPulls } from '../data.js';
 import { todayIn } from '../dates.js';
 import { itemCard, enableReservations } from '../components.js';
 import { loadFilters, filterControl, setupMulti, publisherFilter, categoryOptions, focFilter } from '../catalog.js';
-import { formatPhone, LOGO_WIDTH } from '../util.js';
+import { formatPhone, LOGO_WIDTH, prefersReducedMotion as reducedMotion } from '../util.js';
 import { setShopColors, setupAppearance } from '../app-theme.js';
-import { haptic } from '../app-device.js';
+import { kept, keep, isInstalled as installed, buzzOnCross } from '../app-device.js';
 
 const VIEWS = ['list', 'hot', 'shop', 'me'];
 
@@ -19,14 +19,7 @@ const VIEWS = ['list', 'hot', 'shop', 'me'];
 // link, a notification or a shortcut names one) and, within the hour, where you were scrolled.
 const PLACE = 'pc-app-place';
 const PLACE_FRESH = 60 * 60 * 1000; // ms a scroll position is worth going back to
-const leftAt = (() => {
-  try {
-    const v = JSON.parse(localStorage.getItem(PLACE) ?? 'null');
-    return v && VIEWS.includes(v.tab) ? v : null;
-  } catch {
-    return null;
-  }
-})();
+const leftAt = VIEWS.includes(kept(PLACE)?.tab) ? kept(PLACE) : null;
 if (leftAt && !location.hash) history.replaceState(history.state, '', `#${leftAt.tab}`);
 
 // The loading screen (app.html) goes once the view on screen has something in it, or after 3 seconds at most.
@@ -132,15 +125,10 @@ function backToPlace() {
 function keepPlace() {
   if (!current || document.body.classList.contains('app-locked')) return;
   leaveTab(); // this tab's position, as when switching away from it
-  try {
-    localStorage.setItem(PLACE, JSON.stringify({ tab: current, scrolls: Object.fromEntries(scrolls), at: Date.now() }));
-  } catch {
-    /* private mode or full: it opens on My List next time */
-  }
+  keep(PLACE, { tab: current, scrolls: Object.fromEntries(scrolls), at: Date.now() }); // without storage: My List next time
 }
 document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && keepPlace());
 addEventListener('pagehide', keepPlace);
-const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 function leaveTab() {
   if (!current) return;
   // Search results stand in for the tab and start at the top: the tab's own place is where the search opened.
@@ -511,6 +499,7 @@ const PULL_GO = 80; // px of badge travel that refreshes on release (about 260px
 const PULL_MAX = 100; // px the badge travels at most
 
 function setupPull() {
+  const buzz = buzzOnCross();
   const spot = $('[data-pull]');
   let startY = null;
   let pull = 0;
@@ -520,7 +509,7 @@ function setupPull() {
     spot.style.setProperty('--pull', `${px}px`);
     spot.style.setProperty('--pull-turn', String(px / PULL_GO));
     const ready = px >= PULL_GO;
-    if (ready && !spot.classList.contains('is-ready') && spot.classList.contains('is-pulling')) haptic('tick'); // letting go now refreshes
+    buzz(ready); // letting go now refreshes
     spot.classList.toggle('is-ready', ready);
   };
   const settle = () => {
@@ -662,15 +651,8 @@ import('../../admin/update-check.js')
 // ---------------------------------------------------------------------------
 
 const DISMISSED = 'pc-app-install-dismissed';
-const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const iPhone = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const dismissed = () => {
-  try {
-    return localStorage.getItem(DISMISSED) === '1';
-  } catch {
-    return false;
-  }
-};
+const dismissed = () => kept(DISMISSED) === 1; // kept as "1" (the JSON for 1) since before kept() existed
 
 function offerInstall(shopName, prompt = null) {
   const box = $('[data-install]');
@@ -689,11 +671,7 @@ function offerInstall(shopName, prompt = null) {
   });
   $('[data-install-close]', box).addEventListener('click', () => {
     box.hidden = true;
-    try {
-      localStorage.setItem(DISMISSED, '1');
-    } catch {
-      /* private mode: offered again next time */
-    }
+    keep(DISMISSED, 1); // without storage it's offered again next time
   });
 }
 
