@@ -1,6 +1,7 @@
 // My List in the app (js/pages/account.js): swipe a title to the left to take it off the list, as in a native app's
-// list. A short swipe leaves a Remove button showing at the row's end; a long one (past half the row) removes it on
-// release. Either way it presses the row's own Remove button, so removing works exactly as tapping the trash icon
+// list. A short swipe leaves a Remove button showing at the row's end; a long one (past half the row) asks on
+// release. Either way the customer confirms first (a swipe is easy to make by mistake), then it presses the row's own
+// Remove button, so removing works exactly as tapping the trash icon
 // does (and screen reader and keyboard users keep that button). Only rows that can still be changed have one.
 
 import { haptic } from './app-device.js';
@@ -16,6 +17,21 @@ function place(row, px, { settle = false } = {}) {
   row.classList.toggle('is-settling', settle);
   row.style.setProperty('--swipe', `${px}px`);
   row.classList.toggle('is-swiped', px > 0);
+}
+
+/**
+ * Ask before removing, with the row held open on its Remove so it's clear which title is meant; then slide it away and
+ * press its own Remove button, or put it back.
+ */
+async function confirmRemove(row) {
+  const btn = removeOf(row);
+  if (!btn) return;
+  place(row, OPEN, { settle: true });
+  await new Promise((done) => setTimeout(done, 250)); // let it settle on screen before the question covers it
+  const what = (btn.getAttribute('aria-label') ?? 'Remove this title').replace(/^Remove /, '');
+  if (!confirm(`Remove ${what} from your pull list?`)) return place(row, 0, { settle: true });
+  place(row, row.offsetWidth, { settle: true }); // slides away, then the list is drawn without it
+  btn.click();
 }
 
 /** Close any row left open, except `keep`. */
@@ -76,8 +92,7 @@ export function enableSwipeRemove(box) {
     r.classList.remove('is-armed');
     if (!sideways) return;
     if (armed) {
-      place(r, r.offsetWidth, { settle: true }); // slides away, then the list is drawn without it
-      removeOf(r)?.click();
+      confirmRemove(r);
     } else {
       place(r, px > OPEN_AFTER ? OPEN : 0, { settle: true });
     }
@@ -100,8 +115,6 @@ export function enableSwipeRemove(box) {
   box.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-swipe-remove]');
     if (!btn) return;
-    const r = btn.closest('.account-line--app');
-    place(r, r.offsetWidth, { settle: true });
-    removeOf(r)?.click();
+    confirmRemove(btn.closest('.account-line--app'));
   });
 }
