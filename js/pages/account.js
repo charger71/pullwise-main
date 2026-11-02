@@ -688,9 +688,18 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
         // The line goes away: focus the next line's Remove (or the one before) instead.
         const li = rm.closest('li');
         const near = [li.nextElementSibling, li.previousElementSibling].map((n) => n?.querySelector('[data-remove]')?.dataset.remove).filter(Boolean);
-        await pull.remove(id);
-        await reload([...near.map((n) => `[data-remove="${n}"]`), '[data-remove]']);
+        const focusTo = [...near.map((n) => `[data-remove="${n}"]`), '[data-remove]'];
+        // The line goes at once (optimistic); the list is drawn again from the database once it answers, with the
+        // totals. If the removal fails, that redraw brings the line back and the error says why.
+        li.hidden = true;
+        const next = focusTo.map((sel) => [...el.querySelectorAll(sel)].find((b) => !b.closest('li[hidden]'))).find(Boolean);
+        (next ?? $('#orders-h', root))?.focus();
         announce(`Removed ${titleOf(id)} from your pull list.`);
+        try {
+          await pull.remove(id);
+        } finally {
+          await reload(focusTo);
+        }
       } else {
         const moved = await moveGuestList(el);
         await reload(['[data-remove]']);
