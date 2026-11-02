@@ -4,6 +4,51 @@ Ideas and next steps for the site, newest first. Move an item to "Done" when it 
 
 ## Next
 
+- **The pull list app on Google Play, then the App Store.** One listing per shop under the shop's own name (Powered by
+  Pullwise is the limit), published from the shop's own developer accounts with Pullwise added as a team member: Apple
+  only accepts apps built from a template like ours from the content owner's account (App Store guideline 4.2.6).
+  Step 1 is done (#171): Delete my account in the app and on the website, and `/.well-known/assetlinks.json` served
+  from a shop's `"android"` entry in shops.json.
+  - **Step 2, Google Play (a Trusted Web Activity).** The Android app is a thin wrapper that opens the shop's `/app`
+    in Chrome, full screen, so push, the icon badge, haptics and the screen wake lock keep working unchanged.
+    - Build: a `tools/android-app.mjs` that writes a Bubblewrap project per shop from shops.json and the shop's live
+      `/manifest.webmanifest` (name, colors, icons, shortcuts): package `com.<shop domain reversed>.pulllist`, start URL
+      `/app`, maskable icon from Shop Settings → Pull List App, notification delegation on. It builds a signed `.aab`
+      with an upload key kept outside the repo (a GitHub secret if it runs in Actions), never committed.
+    - The shop (or we, as a team member): create a Google Play developer account as an **organisation** (needs a D-U-N-S
+      number; a personal account must first run a closed test with 12 testers for 14 days), and turn on Play App
+      Signing.
+    - Listing: the shop's name, a short and a full description, the 512px icon, a 1024 × 500 feature graphic, phone
+      screenshots (the ones uploaded in Shop Settings), category Shopping or Books, the privacy policy URL
+      (`https://<shop domain>/privacy.html`), the data safety form (email, name, phone, address and pull list for
+      account management; push token for notifications; nothing sold or shared; deletion in the app) and the content
+      rating questionnaire. Reviewers get a demo customer login (a test email, and a code sent to an inbox we read).
+    - Link the app to the site: copy the SHA-256 fingerprints from Play Console → Test and release → App integrity (Play
+      App Signing's and the upload key's) into the shop's `"android"` entry in shops.json, deploy, then check
+      `https://<shop domain>/.well-known/assetlinks.json` and Google's Statement List tester. Without it the app shows
+      a browser bar.
+    - Release: internal testing first (open the app, sign in, notifications, pickup code full screen, swipe to remove,
+      Delete my account), then production. One test shop end to end before any other.
+  - **Step 3, the App Store.** Apple rejects a website in a wrapper, and its web view can't receive web push, so the
+    iPhone app is a small native shell (Capacitor) around the same `/app`, with native extras so it passes review.
+    - Native push through APNs: the app registers for notifications and saves its device token next to the web push
+      subscriptions; supabase/functions/push-notify sends to APNs as well as web push (an APNs key, `.p8`, per
+      developer account, kept as a Supabase secret).
+    - Native haptics and the icon badge through Capacitor plugins in place of `navigator.vibrate` and `setAppBadge`
+      (js/app-device.js picks whichever is there). Later: the pickup code as an Apple Wallet pass (needs a Pass Type ID
+      certificate and a small function that signs passes).
+    - The shop: an Apple Developer account as an organisation ($99 a year, D-U-N-S number), Pullwise invited as an App
+      Manager. Building and uploading needs a Mac with Xcode (or a cloud Mac build service).
+    - App Store Connect: the listing (name, subtitle, description, keywords, support URL, privacy policy URL),
+      screenshots at Apple's sizes (6.9" and 6.5" iPhone at least), the App Privacy answers (as for Play), age rating,
+      export compliance (standard encryption only), and review notes with the demo login and where to find Delete my
+      account (Account tab).
+    - Release: TestFlight first, then App Review (about a day to a week; answer questions in Resolution Center), then
+      release.
+  - **Before either store:** each shop's Privacy page (admin → Pages) mentions Delete my account and what the shop
+    keeps (new shops get it in the default text); the shop has uploaded its app icon and screenshots in Shop Settings.
+    Store rules change: check the current Play and App Store guidelines before each submission.
+
 - **Automatic daily Lunar import into the master catalog.** Lunar's sheets are public links, no login:
   `https://www.lunardistribution.com/home/productdatafile?foc=M/D/YYYY` (FOC, Mondays) and `?release=M/D/YYYY`
   (in store, Wednesdays). Shops copy from the catalog hourly, so importing there once covers every shop.
