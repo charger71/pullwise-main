@@ -219,6 +219,18 @@ the account page's app note, the weekly email's app line and the admin Dashboard
 later by changing `false` to `true` in a pull request: it's live once the deploy finishes. Turning it off again leaves
 installed copies opening the account page.
 
+For a shop whose app is on Google Play, add its package name and signing-certificate fingerprints to its entry:
+
+```json
+      "app": true,
+      "android": { "package": "com.mainstreetcomics.pulllist", "sha256": ["AB:CD:…:89"] }
+```
+
+The Worker then serves `/.well-known/assetlinks.json` on the shop's domains, which proves to Android that the app belongs
+to the website, so it opens full screen with no browser bar. The fingerprints are the SHA-256 of the app's signing
+certificates: in the Play Console under Test and release → App integrity (Play App Signing's, and the upload key's if
+you sideload test builds). Without a valid entry the address is a 404.
+
 
 Enable the version-stamping pre-commit hook once per clone: `git config core.hooksPath .githooks`. (The Deploy
 workflow stamps the version again before it deploys, so a commit made without the hook still shows the right one.)

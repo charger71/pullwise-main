@@ -16,7 +16,7 @@
 
 import SHOPS from '../shops.json';
 import { mediaUpload } from './media.js';
-import { MEDIA_UPLOAD_PATH, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { MEDIA_UPLOAD_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
 const CACHE_SECONDS = 60;
@@ -37,6 +37,10 @@ export default {
     if (!hasApp(shop) && url.pathname === '/manifest.webmanifest') return new Response('Not found', { status: 404 }); // nothing to install
     if (!hasApp(shop) && (url.pathname === '/app' || url.pathname === '/app.html')) return Response.redirect(new URL(NO_APP_PATH, url).href, 302);
     if (url.pathname === '/manifest.webmanifest') return text(JSON.stringify(appManifest((await shopData(shop, ctx))?.settings)), 'application/manifest+json', request);
+    if (url.pathname === ASSET_LINKS_PATH) {
+      const links = assetLinks(shop);
+      return links ? text(JSON.stringify(links), 'application/json', request) : new Response('Not found', { status: 404 });
+    }
     if (url.pathname === '/sitemap.xml') return text(sitemapXml(shop), 'application/xml', request);
     if (url.pathname === '/robots.txt') {
       const res = await env.ASSETS.fetch(new Request(new URL('/robots.txt', url), { method: 'GET' }));

@@ -1,6 +1,6 @@
 // node worker/shop-page.test.js
 import assert from 'node:assert/strict';
-import { findShop, siteUrl, hasApp, appRedirect, appManifest, appSplash, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { assetLinks, findShop, siteUrl, hasApp, appRedirect, appManifest, appSplash, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 
 const shops = [
   { id: 'a', domains: ['a-comics.com', 'www.a-comics.com'], supabaseUrl: 'https://aaa.supabase.co', anonKey: 'key-a', gaMeasurementId: 'G-1', app: true },
@@ -132,5 +132,14 @@ assert.match(appHead, /<meta name="apple-mobile-web-app-title" content="A &amp; 
 assert.match(appHead, /<meta name="theme-color" content="#f5f0e6">/);
 assert.match(appHead, /<link rel="apple-touch-icon" href="[^"]*width=180&amp;height=180/);
 assert.doesNotMatch(headTags('index.html', { logo_url: `${MEDIA}/logo.png` }).join(''), /apple-touch-icon|theme-color/, 'only the app page');
+
+// Google Play: assetlinks.json from the shop's "android" entry, only with the app and a valid package and fingerprint
+const FP = 'AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89';
+const withAndroid = { app: true, android: { package: 'com.mainstreetcomics.pulllist', sha256: [FP.toLowerCase(), 'not-a-fingerprint'] } };
+assert.deepEqual(assetLinks(withAndroid), [{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: 'com.mainstreetcomics.pulllist', sha256_cert_fingerprints: [FP] } }], 'fingerprints upper-cased, bad ones dropped');
+assert.equal(assetLinks({ ...withAndroid, app: false }), null, 'no app: no file');
+assert.equal(assetLinks({ app: true }), null, 'no android entry: no file');
+assert.equal(assetLinks({ app: true, android: { package: 'Not A Package', sha256: [FP] } }), null, 'a bad package name: no file');
+assert.equal(assetLinks({ app: true, android: { package: 'com.shop.app', sha256: ['nope'] } }), null, 'no valid fingerprint: no file');
 
 console.log('shop page tests passed');

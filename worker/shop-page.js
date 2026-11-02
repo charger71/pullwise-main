@@ -20,6 +20,27 @@ export const APP_PATH = '/app';
  * account page (the same pull list in the browser), have no install manifest, and hide every "Get the app" link. */
 export const hasApp = (shop) => shop?.app === true;
 
+/** Where Android looks for proof that the shop's Play Store app may open its website full screen. */
+export const ASSET_LINKS_PATH = '/.well-known/assetlinks.json';
+const ANDROID_PACKAGE = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/;
+const CERT_SHA256 = /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/;
+
+/**
+ * /.well-known/assetlinks.json for a shop whose app is on Google Play (a Trusted Web Activity): it tells Android
+ * that the app with this package name, signed with one of these certificates, belongs to this website, so the app
+ * opens the site full screen with no browser bar. From the shop's entry in shops.json:
+ *   "android": { "package": "com.mainstreetcomics.pulllist", "sha256": ["AB:CD:…"] }
+ * (the SHA-256 fingerprints of the app's signing certificate, Play App Signing's and any upload key's, from the
+ * Play Console). Null — the address is a 404 — for a shop without the app or without a valid entry.
+ */
+export function assetLinks(shop) {
+  const a = shop?.android;
+  if (!hasApp(shop) || !ANDROID_PACKAGE.test(a?.package ?? '')) return null;
+  const prints = (Array.isArray(a.sha256) ? a.sha256 : []).map((s) => String(s).trim().toUpperCase()).filter((s) => CERT_SHA256.test(s));
+  if (!prints.length) return null;
+  return [{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: a.package, sha256_cert_fingerprints: prints } }];
+}
+
 /**
  * The address "app.<shop domain>" forwards to (the shop's app on its main domain, or its account page if the shop
  * has no app), or null. The app stays on the shop's own domain so a customer signed in on the website is signed in
