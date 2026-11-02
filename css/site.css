@@ -1332,7 +1332,13 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 .pickup-full__name { margin: var(--sp-8) 0 0; font-family: var(--font-heading); font-size: var(--fs-title); font-weight: 700; overflow-wrap: anywhere; }
 .pickup-full__code { margin: 0; font-family: var(--font-display); font-size: calc(2.4rem * var(--display-scale)); letter-spacing: var(--display-tracking); line-height: 1; }
 .pickup-full__hint { margin: 0; font-size: var(--fs-sm); }
-.pickup-full__close { position: absolute; top: calc(var(--sp-8) + env(safe-area-inset-top)); right: calc(var(--sp-8) + env(safe-area-inset-right)); width: var(--tap); height: var(--tap); border: 0; border-radius: 50%; background: none; color: black; font-size: var(--fs-lede); cursor: pointer; }
+/* ShopDialog's round close button, in the corner; on the always-white card it's black, and keyboard focus fills it
+   black, as the page's focus blue (made for the page, not for white) wouldn't show. Every other focus ring in the card
+   is black for the same reason. */
+.pickup-full__close { position: absolute; top: calc(var(--sp-8) + env(safe-area-inset-top)); right: calc(var(--sp-8) + env(safe-area-inset-right)); border-color: rgb(0 0 0 / .45); color: black; }
+.pickup-full__close:hover { background: rgb(0 0 0 / .08); border-color: black; }
+.pickup-full__close:focus-visible { background: black; border-color: black; color: white; }
+.pickup-full :focus-visible { outline-color: black; }
 /* My List's date headings stay pinned under the header while their titles scroll under them, as in a native
    grouped list; the next one slides over it. */
 [data-page="app"] .account-group { position: sticky; top: var(--app-header-bottom); z-index: calc(var(--z-raised) + 1); margin-bottom: 0; padding-top: var(--sp-12); background: var(--paper); }

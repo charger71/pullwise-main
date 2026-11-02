@@ -384,6 +384,7 @@ The storefront's modal dialog: a native \`<dialog>\` with a title, a round close
 
 - \`surface\` with a \`line\` edge, 8px corners, \`shop-shadow-lg\`, up to 520px wide (wider variants: list 600px, follow 560px, title 900px); the backdrop is 80% black.
 - Head (\`.dialog__head\`): title in \`shop-type-title\` and a \`shop-tap\` (44px) round close button; keyboard focus fills it \`shop-teal\`.
+- Full-screen variants, in the app: the title details sheet on a phone (ShopTitleModal) and the pickup code (\`.pickup-full\`, ShopApp), always white whatever the page, so scanners can read it; its close button is the same round \`.dialog__close\` in black, and keyboard focus inside it is black, since \`shop-teal\` is set for the page, not for white.
 - A finished action shows \`.confirm\`: a big \`shop-gold-text\` line in the display face and what happens next.
 - Consumer provides: the title, body and the element focus returns to.`,
     html: page('ShopDialog', `

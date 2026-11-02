@@ -51,7 +51,7 @@ export function showPickupFull(card, opener) {
     <p class="pickup-full__name"></p>
     <p class="pickup-full__code"></p>
     <p class="pickup-full__hint">Show this at the counter · tap to close</p>
-    <button class="pickup-full__close" type="button" aria-label="Close">✕</button>`;
+    <button class="dialog__close pickup-full__close" type="button" aria-label="Close">✕</button>`;
   dialog.querySelector('.pickup-full__qr').append(qr.cloneNode(true));
   dialog.querySelector('.pickup-full__name').textContent = name;
   dialog.querySelector('.pickup-full__code').textContent = code;
