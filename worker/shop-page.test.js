@@ -113,6 +113,13 @@ assert.deepEqual(app.launch_handler, { client_mode: ['navigate-existing', 'auto'
 assert.equal(app.theme_color, '#f5f0e6');
 assert.deepEqual(app.icons.map((i) => i.sizes), ['192x192', '512x512']);
 assert.match(app.icons[1].src, /render\/image\/public\/media\/logo\.png\?width=512&height=512&resize=contain/);
+// The app icon and screenshots uploaded in Shop Settings: a maskable icon (also the iPhone's) and the install sheet's pictures
+const withApp = appManifest({ shop_name: 'A', logo_url: `${MEDIA}/logo.png`, app_icon_url: `${MEDIA}/brand/icon.png`, app_screenshots: [`${MEDIA}/brand/s1.jpg`, 'javascript:x', `${MEDIA}/brand/s2.jpg`] });
+assert.deepEqual(withApp.icons.at(-1), { src: `${MEDIA}/brand/icon.png`, sizes: '512x512', purpose: 'maskable' });
+assert.deepEqual(withApp.screenshots.map((x) => [x.src, x.sizes, x.form_factor]), [[`${MEDIA}/brand/s1.jpg`, '1080x2340', 'narrow'], [`${MEDIA}/brand/s2.jpg`, '1080x2340', 'narrow']]);
+assert.equal('screenshots' in app, false, 'no screenshots key without any');
+assert.equal(app.icons.some((i) => i.purpose === 'maskable'), false);
+assert.match(headTags('app.html', { app_icon_url: `${MEDIA}/brand/icon.png`, logo_url: `${MEDIA}/logo.png` }).join(''), /apple-touch-icon" href="[^"]*brand\/icon\.png\?width=180/);
 // The app's loading screen: the logo at the header's width, and the name; nothing for a picture that isn't https
 assert.deepEqual(appSplash({ shop_name: ' A Comics ', logo_url: `${MEDIA}/logo.png` }), { logo: `https://aaa.supabase.co/storage/v1/render/image/public/media/logo.png?width=320&height=2500&resize=contain&quality=75`, name: 'A Comics' });
 assert.deepEqual(appSplash({ logo_url: 'javascript:x' }), { logo: '', name: '' });

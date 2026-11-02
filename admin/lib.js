@@ -533,21 +533,26 @@ function loadImage(file) {
 }
 
 /**
- * Resize (and optionally center-crop) an image file. Keeps PNG for images with
+ * Resize (and optionally center-crop) an image file, or with `exact` crop it to that shape at exactly that size. Keeps PNG for images with
  * transparency (logos, Funko renders); everything else becomes JPEG.
  * @returns {Promise<{ blob: Blob, type: string, ext: string, width: number, height: number }>}
  */
-export async function processImage(file, { maxSize = 1600, crop = 'original', quality = 0.86, flatten = false } = {}) {
-  if (file.type === 'image/svg+xml') return { blob: file, type: file.type, ext: 'svg' };
+export async function processImage(file, { maxSize = 1600, crop = 'original', quality = 0.86, flatten = false, exact = null } = {}) {
+  if (file.type === 'image/svg+xml') {
+    if (exact) throw new Error('Upload a PNG or JPEG picture here, not an SVG.');
+    return { blob: file, type: file.type, ext: 'svg' };
+  }
   const img = await loadImage(file);
   let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
-  const ratio = CROPS[crop]?.ratio;
+  const ratio = exact ? exact[0] / exact[1] : CROPS[crop]?.ratio;
   if (ratio) {
     if (sw / sh > ratio) { const w = sh * ratio; sx = (sw - w) / 2; sw = w; }
     else { const h = sw / ratio; sy = (sh - h) / 2; sh = h; }
   }
   const scale = Math.min(1, maxSize / Math.max(sw, sh));
-  const width = Math.round(sw * scale), height = Math.round(sh * scale);
+  // `exact` [width, height]: cropped to that shape and saved at exactly that size, so the size can be stated where
+  // it's used (the app's manifest)
+  const [width, height] = exact ?? [Math.round(sw * scale), Math.round(sh * scale)];
   const canvas = Object.assign(document.createElement('canvas'), { width, height });
   const ctx = canvas.getContext('2d');
   if (flatten) {
@@ -614,7 +619,7 @@ export async function replaceImage(file, path, opts = {}) {
  * Returns { get(), getThumb(), set(url, thumbUrl) }. With `thumb`, an upload also makes a small copy;
  * getThumb() is its address (null when the picture was chosen from Media or removed).
  */
-export function imageField(root, { folder, crop = 'original', maxSize = 1600, label = 'Image', library = false, thumb = false }) {
+export function imageField(root, { folder, crop = 'original', maxSize = 1600, label = 'Image', library = false, thumb = false, exact = null }) {
   const id = uid('img');
   root.innerHTML = `
     <span class="label">${esc(label)}</span>
@@ -641,7 +646,7 @@ export function imageField(root, { folder, crop = 'original', maxSize = 1600, la
     if (!file) return;
     setStatus(status, 'Uploading…');
     try {
-      const saved = await uploadImage(file, folder, { crop, maxSize, thumb });
+      const saved = await uploadImage(file, folder, { crop, maxSize, thumb, exact });
       url = saved.url;
       thumbUrl = saved.thumbUrl;
       setStatus(status, '');
