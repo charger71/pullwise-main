@@ -57,8 +57,9 @@ function query(sqlText) {
   const r = spawnSync('supabase', ['db', 'query', '--linked', '-f', file, '-o', 'json'], { cwd: root, encoding: 'utf8' });
   rmSync(dir, { recursive: true, force: true });
   if (r.status !== 0) die(`${r.stderr || r.stdout}`.trim());
-  const json = r.stdout.slice(r.stdout.indexOf('{'));
-  return json ? JSON.parse(json).rows || [] : [];
+  // A statement with no result set prints no JSON object (just "[ ]"); the run itself succeeded.
+  const start = r.stdout.indexOf('{');
+  return start < 0 ? [] : JSON.parse(r.stdout.slice(start)).rows || [];
 }
 
 if (!args.length && process.stdin.isTTY) args = await askWhatToDo();
