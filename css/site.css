@@ -136,6 +136,7 @@
   --dur-press: .08s;     /* a button's press */
   --dur: .15s;           /* hovers, the menu icon, a fold's arrow */
   --dur-slide: .22s;     /* the app's search sliding down from under the header */
+  --dur-sheet: .28s;     /* the title dialog sliding up or down as a sheet on a phone */
   --dur-spin: .7s;       /* one turn of the loading spinner */
   --dur-spin-calm: 2s;   /* the spinner under prefers-reduced-motion */
   --dur-pulse: 1.2s;     /* the loading skeleton's pulse */
@@ -829,8 +830,18 @@ dialog::backdrop { background: #000c; }
   .title-modal { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; }
   .title-modal[open] { display: flex; flex-direction: column; }
   .title-modal__head { flex: none; padding: calc(var(--sp-8) + env(safe-area-inset-top)) calc(var(--sp-8) + env(safe-area-inset-right)) var(--sp-4) var(--sp-8); }
-  .title-modal .dialog__body { flex: 1 1 auto; min-height: 0; max-height: none; overscroll-behavior: contain; padding: 0 var(--sp-16) calc(var(--sp-24) + env(safe-area-inset-bottom)); }
+  .title-modal .dialog__body { flex: 1 1 auto; min-height: 0; max-height: none; overscroll-behavior: none; padding: 0 var(--sp-16) calc(var(--sp-24) + env(safe-area-inset-bottom)); }
+  /* A sheet: it slides up to open and down to close, and follows a finger swiping it down from the top of its content
+     (js/title-modal.js sets --sheet-drag and the classes). No overscroll bounce, so the swipe starts at once. */
+  .title-modal { transform: translateY(var(--sheet-drag, 0px)); transition: transform var(--dur-sheet) cubic-bezier(.2, .8, .2, 1); }
+  .title-modal[open] { animation: sheet-up var(--dur-sheet) cubic-bezier(.2, .8, .2, 1); }
+  .title-modal.is-dragging { transition: none; }
+  .title-modal.is-closing { transform: translateY(100%); transition-timing-function: ease-in; }
+  .title-modal::backdrop { transition: opacity var(--dur-sheet); }
+  .title-modal.is-closing::backdrop { opacity: 0; }
 }
+@keyframes sheet-up { from { transform: translateY(100%); } }
+@media (prefers-reduced-motion: reduce) { .title-modal[open] { animation: none; } }
 /* ---------- Reservation list ---------- */
 .list-bar {
   position: fixed;
@@ -1215,6 +1226,25 @@ body:has([aria-busy="true"], .loading)::after {
    The account page as an installed app: the shop's brand on top, one view at a time, a tab bar at the foot. The
    header and tab bar clear the phone's notch and home bar (viewport-fit=cover). */
 [data-page="app"] #site-header { padding-top: env(safe-area-inset-top); }
+/* Taps answer the way a native app's do: no grey flash over what's tapped (each control shows its own press below), no
+   text selected by a long press on the app's chrome, and no "Save image" menu from pressing a cover. */
+[data-page="app"] { -webkit-tap-highlight-color: transparent; }
+[data-page="app"] :is(.tab-bar, .app-bar, .app-view__title, .app-shelf__head, .btn, .link-button, .dialog__close) { -webkit-user-select: none; user-select: none; }
+[data-page="app"] :is(img, .tab-bar a, .app-bar a) { -webkit-touch-callout: none; }
+[data-page="app"] .btn:active { transform: scale(.97); filter: brightness(.9); }
+[data-page="app"] .link-button:active { opacity: .6; }
+[data-page="app"] :is(.card__open, .account-line__open):active .cover { filter: brightness(.8); }
+[data-page="app"] :is(.app-bar__search, .account-line__remove, .app-install__close, .dialog__close, .app-shop__links a):active { background: var(--raised); }
+/* Switching tabs cross-fades the views (js/pages/app.js, View Transitions); the header and tab bar stay still. */
+[data-page="app"] #site-header { view-transition-name: app-header; }
+[data-page="app"] .tab-bar { view-transition-name: app-tabs; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--dur); }
+@media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none; } }
+/* Loading in the app: a pulsing block where the view will be, not the website's dimmer and spinner. Screen readers
+   still hear its "Loading…"; the app's loading screen waits until none is showing (js/pages/app.js). */
+body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app"]:not(:has([aria-busy="true"]))::after { content: none; }
+[data-page="app"] .empty.loading { min-height: 240px; border-radius: var(--radius); background: var(--raised); color: transparent; animation: skeleton-pulse var(--dur-pulse) ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) { [data-page="app"] .empty.loading { animation: none; } }
 [data-page="app"] #site-header:empty { min-height: var(--app-bar-h); }
 .app-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: var(--app-bar-h); }
 .app-bar .brand__logo { max-height: 40px; }
@@ -1311,7 +1341,8 @@ body:has([aria-busy="true"], .loading)::after {
 .tab-bar a[aria-current="page"] svg { stroke: var(--gold-text); }
 /* High-contrast modes drop the shadow that marks the current tab: give it a real edge there. */
 @media (forced-colors: active) { .tab-bar a[aria-current="page"] { border-top: 3px solid Highlight; } }
-.tab-bar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tab-bar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--dur-press); }
+.tab-bar a:active svg { transform: scale(.85); }
 .tab-bar__count { position: absolute; top: var(--sp-4); left: calc(50% + 8px); min-width: 18px; padding: 0 var(--sp-4); border-radius: var(--radius-pill); background: var(--gold); color: var(--on-accent); font-size: var(--fs-3xs); line-height: 18px; text-align: center; }
 .app-shop { text-align: center; }
 .app-shop__logo { max-height: 96px; width: auto; margin: 0 auto var(--sp-12); }

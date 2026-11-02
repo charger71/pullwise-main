@@ -63,16 +63,19 @@ export function appManifest(settings = {}) {
     background_color: paper,
     theme_color: paper,
     ...(icons.length ? { icons } : {}),
-    // Long-press the icon (Android): straight to a tab.
+    // Tapping the icon, a shortcut or a link into the app while it's open brings that window forward (on the page the
+    // link names) instead of opening a second copy of the app.
+    launch_handler: { client_mode: ['navigate-existing', 'auto'] },
+    // Long-press the icon (Android): straight to a tab, each with the tab bar's icon.
     shortcuts: APP_SHORTCUTS,
   };
 }
 
 const APP_SHORTCUTS = [
-  { name: 'My List', url: `${APP_PATH}#list` },
-  { name: 'Hot', url: `${APP_PATH}#hot` },
-  { name: 'Shop', url: `${APP_PATH}#shop` },
-];
+  { name: 'My List', key: 'list' },
+  { name: 'Hot', key: 'hot' },
+  { name: 'Shop', key: 'shop' },
+].map(({ name, key }) => ({ name, url: `${APP_PATH}#${key}`, icons: [{ src: `/icons/shortcut-${key}.png`, sizes: '96x96', type: 'image/png' }] }));
 
 /** The app's loading screen: the shop's logo (at the header's width) and name. */
 export function appSplash(settings = {}) {

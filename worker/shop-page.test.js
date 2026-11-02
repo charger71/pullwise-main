@@ -108,6 +108,8 @@ assert.equal(app.start_url, '/app');
 assert.equal(app.scope, '/app');
 assert.equal(app.display, 'standalone');
 assert.deepEqual(app.shortcuts.map((x) => x.url), ['/app#list', '/app#hot', '/app#shop']);
+assert.deepEqual(app.shortcuts.map((x) => x.icons[0].src), ['/icons/shortcut-list.png', '/icons/shortcut-hot.png', '/icons/shortcut-shop.png']);
+assert.deepEqual(app.launch_handler, { client_mode: ['navigate-existing', 'auto'] }, 'one window: links bring the open app forward');
 assert.equal(app.theme_color, '#f5f0e6');
 assert.deepEqual(app.icons.map((i) => i.sizes), ['192x192', '512x512']);
 assert.match(app.icons[1].src, /render\/image\/public\/media\/logo\.png\?width=512&height=512&resize=contain/);
