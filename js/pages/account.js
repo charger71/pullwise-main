@@ -300,7 +300,7 @@ async function signedIn(sb, user) {
     <div class="app-view" data-view="list">${orders}</div>
     <div class="app-view" data-view="me">${who}
       ${titled('push-h', 'Notifications', '<div data-push><p class="empty loading">Loading…</p></div>')}
-      ${profile}${deleteAccount}${terms}</div>`
+      ${profile}<div data-export-slot></div>${deleteAccount}${terms}</div>`
     : `
     ${who}
     ${APP_ENABLED ? '<p class="notice account-app"><strong>Get the app:</strong> open <a href="app.html">our pull list app</a> on your phone and add it to your Home Screen.</p>' : ''}
@@ -308,7 +308,7 @@ async function signedIn(sb, user) {
       <div class="account-col">${orders}${following}
       </div>
       <div class="account-col">
-      ${terms}${profile}${deleteAccount}
+      ${terms}${profile}<div data-export-slot></div>${deleteAccount}
       </div>
     </div>`;
 
@@ -673,6 +673,15 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
     ${section('Not ordered by the shop', notOrdered)}
     ${!active.length ? '<p class="empty">Your pull list is empty. Tap <strong>Add to pull list</strong> on any title on the <a href="pre-orders.html">Pre-Orders</a> page, or <strong>Add all covers</strong> to pull every cover of an issue.</p>' : ''}
     ${past.length ? `<details class="account-past"><summary>Past (${past.length})</summary>${section('', past)}</details>` : ''}`;
+  // Export my comics sits under My Profile, once something has been picked up. Drawn only when that changes, so a
+  // redraw of the list doesn't close it.
+  const exportSlot = $('[data-export-slot]', root);
+  const hasPickedUp = past.some((r) => r.status === 'picked_up');
+  if (hasPickedUp !== !!exportSlot.firstElementChild) exportSlot.innerHTML = hasPickedUp ? EXPORT : '';
+  exportSlot.onclick = (e) => {
+    const btn = e.target.closest('[data-export]');
+    if (btn) exportCollection(sb, customerId, btn);
+  };
   // The copy kept for offline use includes the pickup code, once it's drawn.
   if (APP) drawPickupQr(el).finally(() => el.isConnected && saveList(el.innerHTML, ready.length));
   if (APP) enableSwipeRemove(el); // swipe a title left to remove it (js/app-swipe.js)
@@ -740,6 +749,56 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
       showError(err);
     }
   };
+}
+
+// Export my comics: the books picked up, for a comic collection app (js/collection-export.js has the file layouts).
+const EXPORT = `
+    <details class="account-export">
+      <summary>Export my comics</summary>
+      <div>
+        <p>Download the comics you’ve picked up, to add them to a collection app.</p>
+        <div class="account-export__actions">
+          <button class="btn btn--ghost" type="button" data-export="csv">Spreadsheet (CSV)</button>
+          <button class="btn btn--ghost" type="button" data-export="locg">League of Comic Geeks</button>
+        </div>
+        <p class="form-error" role="alert" data-export-error></p>
+        <ul class="account-export__how">
+          <li><strong>CLZ Comics:</strong> on the web, open the menu, choose <strong>Import</strong>, upload the spreadsheet and match each column. Match <strong>Barcode</strong> so CLZ finds the exact book.</li>
+          <li><strong>League of Comic Geeks:</strong> on the website, open <strong>Comics</strong> › <strong>Bulk Import / Export</strong>, choose the League of Comic Geeks format and upload that file.</li>
+          <li><strong>ComicBase, Key Collector, iCollect and others:</strong> use their import with the spreadsheet. It opens in Excel or Google Sheets too.</li>
+        </ul>
+      </div>
+    </details>`;
+
+/** Every picked-up line (a page at a time: the database hands back at most 1,000 rows per request). */
+async function exportCollection(sb, customerId, btn) {
+  const err = $('[data-export-error]', root);
+  err.textContent = '';
+  btn.disabled = true;
+  try {
+    const lines = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await sb
+        .from('reservations')
+        .select('quantity,item:items(title,issue_number,variant,publisher,price,release_date,upc,isbn),order:reservation_orders!inner(customer_id)')
+        .eq('order.customer_id', customerId)
+        .eq('status', 'picked_up')
+        .order('id')
+        .range(from, from + 999);
+      if (error) throw error;
+      lines.push(...data);
+      if (data.length < 1000) break;
+    }
+    const { collectionCsv, locgFile, saveFile } = await import('../collection-export.js');
+    const day = new Date().toISOString().slice(0, 10);
+    if (btn.dataset.export === 'locg') await saveFile(`my-comics-locg-${day}.csv`, locgFile(lines), 'text/csv', { share: APP });
+    else await saveFile(`my-comics-${day}.csv`, collectionCsv(lines), 'text/csv', { share: APP });
+    announce(`Exported ${lines.length} ${lines.length === 1 ? 'book' : 'books'}.`);
+  } catch (e) {
+    err.innerHTML = pull.errorHtml(pull.customerError(e));
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 /**
