@@ -182,9 +182,13 @@ function render() {
           )
           .join('')}</ul><p class="card__meta">${covers.length} covers</p>`
       : '';
+  // The cover opens full size in the site's lightbox (js/site.js), over this dialog.
+  const big = item.cover_url
+    ? `<a class="title-modal__zoom" href="${esc(item.cover_url)}" data-lightbox title="View larger">${cover(item, { full: true })}<span class="visually-hidden"> (view larger)</span></a>`
+    : cover(item, { full: true });
   $('[data-tm-body]', dialog).innerHTML = `
     <div class="title-modal__layout">
-      <div class="title-modal__media"><div class="title-modal__cover">${cover(item, { full: true })}${topIds.has(item.id) ? topBadge() : ''}</div>${thumbs}</div>
+      <div class="title-modal__media"><div class="title-modal__cover">${big}${topIds.has(item.id) ? topBadge() : ''}</div>${thumbs}</div>
       <div class="title-modal__info">${details(item)}</div>
     </div>`;
 }
