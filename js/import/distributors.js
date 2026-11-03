@@ -529,6 +529,32 @@ export function prhApiItem(record, content) {
   return Object.fromEntries(Object.entries(fields).filter(([, v]) => v != null && v !== ''));
 }
 
+// What the daily PRH import takes from the API's title list: comics and graphic novels, not the prose, stickers and
+// other goods PRH also distributes.
+const PRH_COMICS = new Set(['Comics', 'Graphic Novel']);
+
+/**
+ * PRH API title records (SALESPLATFORM's on-sale list) as a parsed sheet, for the daily PRH import
+ * (tools/prh-auto-import.mjs) → applyImport: the same fields, skip rules and exclusions as importing a PRH sheet.
+ * PRH marks ratio covers "Incentive Variant" even when the title doesn't say 1:25, so those are skipped too.
+ */
+export function parsePrhApi(records, { exclusions } = {}) {
+  const items = [];
+  const skipped = [];
+  for (const r of records) {
+    const sku = clean(r.isbnStr ?? r.isbn);
+    const rawTitle = clean(r.title);
+    if (!sku || !rawTitle || !PRH_COMICS.has(r.graphicCategory)) continue;
+    const reason = (r.coverVariantDesc === 'Incentive Variant' && 'Incentive / ratio variant') || skipReason(rawTitle);
+    if (reason) {
+      skipped.push({ sku, title: rawTitle, reason });
+      continue;
+    }
+    items.push({ ...prhApiItem(r, null), distributor: 'prh', sku, cover: { url: `https://images.penguinrandomhouse.com/cover/${encodeURIComponent(sku)}` } });
+  }
+  return applyExclusions(withoutRepeats({ distributor: 'prh', items, skipped }), exclusions);
+}
+
 const slug = (s) => String(s).toLowerCase().normalize('NFKD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '');
 
 /**

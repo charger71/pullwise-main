@@ -4,7 +4,8 @@
 //
 // Environment-specific pieces are passed in: how to fetch covers that live on
 // another site (PRH, funko.com) — the browser goes via the fetch-cover Edge
-// Function because of CORS.
+// Function because of CORS — and, for the daily PRH import in Node
+// (tools/prh-auto-import.mjs), where pictures are stored and how a card copy is made.
 
 import { must } from '../util.js';
 import { putMedia } from '../media-store.js';
@@ -128,14 +129,15 @@ async function uploadCover(sb, distributor, item, ctx) {
   // and CDN caches (a week) never keep showing the picture it replaced.
   const hash = (await sha1(got.bytes)).slice(0, 10);
   const path = `covers/${distributor}/${item.sku.replace(/[^\w.-]/g, '_')}-${got.hires ? 'hires-' : ''}${hash}.${ext}`;
-  const url = await putMedia(sb, path, got.bytes, { contentType: got.type, upsert: true, cacheControl: '604800' });
+  const put = ctx.putMedia ?? putMedia;
+  const url = await put(sb, path, got.bytes, { contentType: got.type, upsert: true, cacheControl: '604800' });
   // A small copy for cards and lists, so a page of covers isn't hundreds of KB per picture. If it can't be made
   // the title just uses the full-size cover.
   let thumbUrl = null;
-  const thumb = ctx.makeThumb ? await ctx.makeThumb(got.bytes, got.type).catch(() => null) : null;
+  const thumb = ctx.makeThumb ? await ctx.makeThumb(got.bytes, got.type, item).catch(() => null) : null;
   if (thumb?.bytes) {
     const thumbPath = path.replace(/\.\w+$/, `-sm.${extOf(thumb.type)}`);
-    thumbUrl = await putMedia(sb, thumbPath, thumb.bytes, { contentType: thumb.type, upsert: true, cacheControl: '604800' });
+    thumbUrl = await put(sb, thumbPath, thumb.bytes, { contentType: thumb.type, upsert: true, cacheControl: '604800' });
   }
   return { url, thumbUrl };
 }
@@ -144,8 +146,9 @@ async function uploadCover(sb, distributor, item, ctx) {
  * Write a parsed sheet to the database.
  * @param sb        Supabase client allowed to write items and storage
  * @param parsed    parseSheet() result
- * @param opts      { images, imagesByRow, fetchRemote, makeThumb, today, onSale, onProgress }
- *                  makeThumb(bytes, type) → { bytes, type } | null makes the small card copy of a cover
+ * @param opts      { images, imagesByRow, fetchRemote, makeThumb, putMedia, today, onSale, onProgress }
+ *                  makeThumb(bytes, type, item) → { bytes, type } | null makes the small card copy of a cover;
+ *                  putMedia(sb, path, bytes, opts) → url stores a picture (default: media-store.js)
  * @returns summary { added, updated, skipped, covers, coversMissing, coverErrors }
  */
 export async function applyImport(sb, parsed, opts) {

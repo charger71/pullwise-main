@@ -1,6 +1,6 @@
 // node js/import/prh-api.test.js
 import assert from 'node:assert/strict';
-import { prhApiItem } from './distributors.js';
+import { prhApiItem, parsePrhApi } from './distributors.js';
 
 // A Marvel comic, as SALESPLATFORM sends it
 const comic = prhApiItem({
@@ -33,5 +33,25 @@ assert.equal(book.category, 'trades');
 assert.equal(book.description, '#1 BESTSELLER\n\nRyland Grace’s mission.');
 assert.equal('foc_date' in book, false);
 assert.equal(prhApiItem({ title: 'X', price: [] }, { flapcopy: null, keynote: '<p>Pitch</p>' }).description, 'Pitch');
+
+// The daily import's list: comics and graphic novels only, ratio covers (marked by PRH or in the title) skipped,
+// each code once, then the catalog's Always Skip list
+const rec = (code, title, extra = {}) => ({ isbnStr: code, title, graphicCategory: 'Comics', format: { code: 'CB' }, imprint: { description: 'Oni Press' }, price: [{ amount: 4.99, currencyCode: 'USD' }], onsale: '2026-10-28', ...extra });
+const week = parsePrhApi([
+  rec('64985600908102011', 'ARCHIE #2 CVR A STUART IMMONEN'),
+  rec('64985600908102021', 'ARCHIE #2 CVR B FABIO MOON VAR', { coverVariantDesc: 'Variant' }),
+  rec('64985600908102041', 'ARCHIE #2 CVR D INC 1:10 DAVID LOPEZ VAR', { coverVariantDesc: 'Incentive Variant' }),
+  rec('75960621000000001', 'STAR WARS: THE BOOK OF BOBA FETT #4 RAHZZAH VARIANT', { coverVariantDesc: 'Incentive Variant', imprint: { description: 'Marvel Universe' } }),
+  rec('9781496750000', 'A Classic Case of Murder', { graphicCategory: null, format: { code: 'HC' } }),
+  rec('64985600908102011', 'ARCHIE #2 CVR A STUART IMMONEN'),
+  rec('76156801628400211', 'Six of Us #2 (CVR A) (Gabriel Hernández Walta)', { imprint: { description: 'Dark Horse Comics' } }),
+], { exclusions: [{ kind: 'publisher', value: 'Dark Horse Comics' }] });
+assert.equal(week.distributor, 'prh');
+assert.deepEqual(week.items.map((i) => i.sku), ['64985600908102011', '64985600908102021']);
+assert.equal(week.items[0].title, 'ARCHIE');
+assert.equal(week.items[0].issue_number, '2');
+assert.equal(week.items[0].cover.url, 'https://images.penguinrandomhouse.com/cover/64985600908102011');
+assert.deepEqual(week.skipped.map((s) => s.reason), ['Incentive / ratio variant', 'Incentive / ratio variant', 'Listed twice in this sheet', 'Excluded publisher: Dark Horse']);
+assert.equal(week.items.some((i) => i.title.includes('Murder')), false, 'prose PRH also distributes is left out');
 
 console.log('prh api tests passed');

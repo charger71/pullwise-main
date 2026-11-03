@@ -259,6 +259,15 @@ though it still can for things the catalog doesn't carry.
   linked rather than duplicated. Nothing is ever deleted; a title hidden in the catalog stops syncing.
 - The deploy gives every shop the catalog's address (`CATALOG_URL`, `CATALOG_ANON_KEY` function secrets). Progress
   is in `catalog_sync_state`; runs that changed something show in Import → Recent Runs as "Master catalog sync".
+- **Automatic PRH import** (`.github/workflows/prh-import.yml`, daily at 10:30 UTC, `tools/prh-auto-import.mjs`):
+  the comics and graphic novels PRH has going on sale in the next 13 weeks (Marvel, IDW, Oni, Boom, Dark Horse,
+  Ignition and the rest) are read from PRH's API (domain `SALESPLATFORM`) and imported into the catalog with the
+  same code as Admin → Import (`parsePrhApi` → `applyImport`): ratio variants (PRH's "Incentive Variant", or 1:25 in
+  the title), bundles and exclusives are skipped, the Always Skip list applies, and staff-owned fields are never
+  touched; titles already exactly as PRH lists them are left alone, so shops don't copy them again. Covers go
+  straight to R2 for new titles and ones still missing one, with PRH's 560 px copy as the card
+  picture. It reads the catalog's service key and writes R2 with the Deploy secrets, plus `PRH_API_KEY`. Runs show in
+  Recent Runs as "Automatic PRH import"; the workflow can be run by hand, with a dry run that only counts.
 - **PRH title updates** (`supabase/functions/prh-sync`, catalog only): hourly at :05, up to 200 PRH titles are looked
   up in the Penguin Random House API, books by ISBN (domain `PRH.US`) and comics by their 17-digit UPC (domain
   `SALESPLATFORM`, the only one that knows them). Dates and the retail price follow PRH, like re-importing a sheet;

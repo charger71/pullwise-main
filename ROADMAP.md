@@ -63,7 +63,9 @@ Ideas and next steps for the site, newest first. Move an item to "Done" when it 
   - Each run shows in Import → Recent Runs as "Automatic Lunar import" (added, updated, failures); System Health warns
     when it hasn't run for two days; the workflow can be run by hand. README, SETUP and the style guide (System Health
     card) updated with it.
-  - Later: Lunar's availability sheet (next item) in the same job. PRH titles are kept current by `prh-sync` (Done).
+  - Later: Lunar's availability sheet (next item) in the same job. PRH titles are imported daily by
+    `tools/prh-auto-import.mjs` (Done), which writes with the catalog's service key and R2 directly instead of a
+    staff account: the Lunar job can do the same.
 
 - **Distributor availability (backordered, out of print) on re-orders.** PRH's code is now saved per title
   (`prh_titles.sale_status`, from `prh-sync`: IN, IP, EL, HT seen so far) and needs mapping; Lunar
@@ -84,6 +86,8 @@ Ideas and next steps for the site, newest first. Move an item to "Done" when it 
 
 ## Done
 
+- **Automatic daily PRH import into the master catalog** (`tools/prh-auto-import.mjs`, GitHub Action): every comic
+  and graphic novel PRH has on sale in the next 13 weeks, ratio variants skipped, covers to R2. No more PRH sheets.
 - **PRH title updates in the master catalog** (`prh-sync`): hourly look-ups in the PRH API fill in descriptions and
   creators and keep dates and retail prices current, for books (ISBN) and comics (UPC, `SALESPLATFORM` domain).
   Re-importing a PRH sheet no longer clears a description. Edit Title in the catalog has "Fill in from PRH" (blank
