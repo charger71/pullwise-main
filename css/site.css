@@ -1052,6 +1052,10 @@ details > div { padding: 0 var(--sp-16) var(--sp-14); }
 .account-line__status--arrived { color: var(--ok); }
 .account-line__status--not_ordered { color: var(--gold-text); }
 .account-past { margin-top: var(--sp-16); }
+/* My Pull List → Export my comics */
+.account-export__actions { display: flex; flex-wrap: wrap; gap: var(--sp-12); }
+.account-export__how { margin: var(--sp-12) 0 0; padding-left: var(--sp-20); font-size: var(--fs-sm); color: var(--muted); }
+.account-export__how li + li { margin-top: var(--sp-6); }
 .account-group { font-size: var(--fs-sub); margin: var(--sp-20) 0 var(--sp-4); padding-bottom: var(--sp-6); border-bottom: var(--border); }
 .account-group:empty { display: none; }
 .account-line .cover { width: 56px; height: auto; flex: none; border-radius: var(--radius-sm); }
