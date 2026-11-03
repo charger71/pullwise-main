@@ -114,6 +114,8 @@ function secret on the catalog project only; the other shops' `prh-sync` does no
 supabase secrets set --project-ref <catalog ref> PRH_API_KEY=…
 ```
 
+The daily automatic Lunar import needs nothing more: Lunar's sheets are public, and it uses the Deploy secrets.
+
 For the daily automatic PRH import, add the same key as a GitHub repository secret named `PRH_API_KEY` (Settings →
 Secrets and variables → Actions). The job uses it with the Deploy secrets already there.
 

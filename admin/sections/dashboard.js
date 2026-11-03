@@ -9,7 +9,7 @@ import { lastReserveDay } from '../../js/site.js';
 import { lastBackup } from '../backup.js';
 import { LINE_STATUS_SHORT } from '../../js/labels.js';
 import { addDays, todayIn, dayIn } from '../../js/dates.js';
-import { APP_ENABLED } from '../../js/config.js';
+import { APP_ENABLED, IS_CATALOG } from '../../js/config.js';
 
 const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
 const DAYS = 30;
@@ -511,6 +511,9 @@ const JOB_HINTS = {
   'apply-subscriptions': 'adds new issues to the pull lists of customers who follow a series',
 };
 const STALE_MINUTES = 150; // every job runs hourly
+// The master catalog's daily automatic imports (GitHub Actions, tools/*-auto-import.mjs), by their job_log name.
+const DAILY_IMPORTS = { prh_import: 'Automatic PRH import', lunar_import: 'Automatic Lunar import' };
+const DAILY_STALE_HOURS = 48; // they run every morning: two days without a run means the Action has stopped
 
 /** "12 minutes ago", "3 hours ago", "2 days ago". */
 function ago(iso) {
@@ -524,6 +527,21 @@ const daysSince = (day) => Math.round((Date.parse(`${today()}T00:00:00Z`) - Date
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const hourLabel = (h) => `${h % 12 || 12} ${h < 12 ? 'am' : 'pm'}`;
 
+/**
+ * One of the catalog's daily imports → a System Health row from its last job_log entry. A run that broke before it
+ * could log anything (the Action itself failing) shows as no run for two days.
+ */
+function dailyImportRow(job, last) {
+  const label = DAILY_IMPORTS[job];
+  if (!last) return { level: 'warn', label, text: 'Has not run yet (a GitHub Action, every morning)' };
+  const brief = last.message ? `: ${last.message.length > 140 ? `${last.message.slice(0, 140)}…` : last.message}` : '';
+  if (!last.ok) return { level: 'bad', label, text: `Last run failed ${ago(last.created_at)}${brief}` };
+  if (Date.now() - new Date(last.created_at) > DAILY_STALE_HOURS * 3600000) {
+    return { level: 'warn', label, text: `Last ran ${ago(last.created_at)} (it should run every morning): check the Action on GitHub` };
+  }
+  return { level: 'ok', label, text: `Ran ${ago(last.created_at)}${brief}` };
+}
+
 /** One scheduled job → { level: ok | warn | bad, text } from its last run. */
 function jobStatus(j) {
   if (!j.active) return { level: 'warn', text: 'Switched off' };
@@ -534,10 +552,12 @@ function jobStatus(j) {
 }
 
 async function renderHealth(box) {
-  const [health, imports, arrivals] = await Promise.all([
+  const lastRun = (job) => must(sb.from('job_log').select('ok,message,created_at').eq('job', job).order('id', { ascending: false }).limit(1));
+  const [health, imports, arrivals, ...daily] = await Promise.all([
     must(sb.rpc('staff_health')),
-    must(sb.from('job_log').select('ok,message,created_at').eq('job', 'import').order('id', { ascending: false }).limit(1)),
+    lastRun('import'),
     must(sb.from('email_log').select('created_at,status').eq('kind', 'arrival').order('id', { ascending: false }).limit(1)),
+    ...(IS_CATALOG ? Object.keys(DAILY_IMPORTS).map(lastRun) : []),
   ]);
   const rows = [];
   for (const j of health.jobs) {
@@ -569,6 +589,7 @@ async function renderHealth(box) {
       ? { level: imp.ok ? 'ok' : 'bad', label: 'Last import', text: `${imp.ok ? 'Worked' : 'Failed'} ${ago(imp.created_at)}${imp.message ? `: ${imp.message.length > 140 ? `${imp.message.slice(0, 140)}…` : imp.message}` : ''}` }
       : { level: 'off', label: 'Last import', text: 'No imports yet' },
   );
+  if (IS_CATALOG) Object.keys(DAILY_IMPORTS).forEach((job, i) => rows.push(dailyImportRow(job, daily[i][0])));
   if (health.http_errors_24h) rows.push({ level: 'bad', label: 'Email service', text: `${plural(health.http_errors_24h, 'call')} to send email failed in the last 24 hours: check the Emails log and the function logs` });
 
   const problems = rows.filter((r) => r.level === 'bad').length;

@@ -49,24 +49,6 @@ Ideas and next steps for the site, newest first. Move an item to "Done" when it 
     keeps (new shops get it in the default text); the shop has uploaded its app icon and screenshots in Shop Settings.
     Store rules change: check the current Play and App Store guidelines before each submission.
 
-- **Automatic daily Lunar import into the master catalog.** Lunar's sheets are public links, no login:
-  `https://www.lunardistribution.com/home/productdatafile?foc=M/D/YYYY` (FOC, Mondays) and `?release=M/D/YYYY`
-  (in store, Wednesdays). Shops copy from the catalog hourly, so importing there once covers every shop.
-  - A daily GitHub Actions job (`tools/lunar-auto-import.mjs`), not an Edge Function: a 7 MB sheet with covers is too
-    much for its CPU limit. It fetches the FOC sheets for the next 8 Mondays (new titles) and the release sheets for
-    this week and the next 4 Wednesdays (slipped dates, price changes): about 13 downloads a day.
-  - Same code as Admin → Import (`readWorkbook`, `parseSheet` with the catalog's exclusions, `applyImport`), so the same
-    skip rules and badges, and staff changes are never overwritten. Covers only for new titles and ones still missing
-    one; card-size copies made in Node.
-  - Signs in as a dedicated "Automatic import" staff account (password in a GitHub secret), so R2 cover uploads and the
-    database's rules work unchanged and the change log names it. `putMedia` needs to take a token directly.
-  - Each run shows in Import → Recent Runs as "Automatic Lunar import" (added, updated, failures); System Health warns
-    when it hasn't run for two days; the workflow can be run by hand. README, SETUP and the style guide (System Health
-    card) updated with it.
-  - Later: Lunar's availability sheet (next item) in the same job. PRH titles are imported daily by
-    `tools/prh-auto-import.mjs` (Done), which writes with the catalog's service key and R2 directly instead of a
-    staff account: the Lunar job can do the same.
-
 - **Distributor availability (backordered, out of print) on re-orders.** PRH's code is now saved per title
   (`prh_titles.sale_status`, from `prh-sync`: IN, IP, EL, HT seen so far) and needs mapping; Lunar
   sends it as an .xlsx sheet (no API), read by the importer like today's sheets.
@@ -86,6 +68,13 @@ Ideas and next steps for the site, newest first. Move an item to "Done" when it 
 
 ## Done
 
+- **Automatic daily Lunar import into the master catalog** (`tools/lunar-auto-import.mjs`, GitHub Action): the FOC
+  sheets for the next 8 Mondays and release sheets for this week and the next 4 Wednesdays, through the same code as
+  Admin → Import. Lunar's hi-res covers (up to 18 MB) are shrunk with sharp to 1000 px plus a 560 px card copy and
+  written to R2. Like the PRH job it writes with the catalog's service key (`tools/catalog-job.mjs`), so no staff
+  account was needed, and leaves titles already stored as listed alone. Lunar's availability sheet can join it later.
+  System Health (catalog only) shows each daily import's last run: red when it failed, amber after two days without
+  one.
 - **Automatic daily PRH import into the master catalog** (`tools/prh-auto-import.mjs`, GitHub Action): every comic
   and graphic novel PRH has on sale in the next 13 weeks, ratio variants skipped, covers to R2. No more PRH sheets.
 - **PRH title updates in the master catalog** (`prh-sync`): hourly look-ups in the PRH API fill in descriptions and
