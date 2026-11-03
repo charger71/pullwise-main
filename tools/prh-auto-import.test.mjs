@@ -1,6 +1,7 @@
 // node tools/prh-auto-import.test.mjs
 import assert from 'node:assert/strict';
-import { weekRanges, weekUrl, fetchRecords, unchanged, summary, WEEKS } from './prh-auto-import.mjs';
+import { weekRanges, weekUrl, fetchRecords, summary, WEEKS } from './prh-auto-import.mjs';
+import { unchanged } from '../js/import/apply.js';
 
 // Windows: 13 seven-day spans from today, across a month and year end
 const ranges = weekRanges('2026-12-28');

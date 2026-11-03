@@ -230,6 +230,33 @@ export async function applyImport(sb, parsed, opts) {
   };
 }
 
+/**
+ * Is a title already stored exactly as the sheet lists it (and with a cover)? The daily automatic imports leave
+ * those out: re-saving them would mark them changed, and every shop would copy them all again each day.
+ * Fields the sheet doesn't provide (undefined) don't count.
+ */
+export function unchanged(item, row) {
+  if (!row?.cover_url) return false;
+  return SYNCED.every((k) => {
+    if (item[k] === undefined) return true;
+    const a = item[k] ?? null;
+    const b = row[col(k)] ?? null;
+    return k === 'price' ? (a == null ? b == null : b != null && Number(a) === Number(b)) : a === b;
+  });
+}
+
+/** A parsed sheet without the titles stored exactly as it lists them (see unchanged); `unchanged` is how many. */
+export async function withoutUnchanged(sb, parsed) {
+  const stored = new Map();
+  const skus = parsed.items.map((i) => i.sku);
+  for (const batch of chunks(skus, 200)) {
+    const rows = await must(sb.from('items').select(`sku,cover_url,${SYNCED.map(col).join(',')}`).eq('distributor', parsed.distributor).in('sku', batch));
+    rows.forEach((r) => stored.set(r.sku, r));
+  }
+  const items = parsed.items.filter((i) => !unchanged(i, stored.get(i.sku)));
+  return { ...parsed, items, unchanged: parsed.items.length - items.length };
+}
+
 /** Record an import run in job_log (shown on the admin Import page). */
 export async function logImport(sb, results) {
   const failed = results.some((r) => r.error);

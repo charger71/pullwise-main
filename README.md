@@ -118,8 +118,9 @@ logic in `js/import/apply.js`.
 | Restore | **Owners only.** Load tables back from a backup file: add missing rows or replace, all-or-nothing per table (see `BACKUPS.md`) |
 | Staff | Your account (change your password); owners add and remove staff, reset passwords and make owners (via the `staff-admin` Edge Function), and read the **Change log** of who changed what |
 
-The Dashboard also has a **System Health** card (are the scheduled jobs running, last import, email-service errors) and a
-backup reminder for owners. Regular staff can add and edit almost everything; owners alone can change Shop Settings and
+The Dashboard also has a **System Health** card (are the scheduled jobs running, last import, email-service errors;
+in the master catalog also the daily automatic PRH and Lunar imports, red when the last run failed and amber when
+there's been none for two days) and a backup reminder for owners. Regular staff can add and edit almost everything; owners alone can change Shop Settings and
 delete titles, Pages, Media files and series (enforced in the database).
 
 To add a staff member, an owner uses **Admin → Staff** (see `ADMIN-ONBOARDING.md`). The very first owner is added in
@@ -259,6 +260,14 @@ though it still can for things the catalog doesn't carry.
   linked rather than duplicated. Nothing is ever deleted; a title hidden in the catalog stops syncing.
 - The deploy gives every shop the catalog's address (`CATALOG_URL`, `CATALOG_ANON_KEY` function secrets). Progress
   is in `catalog_sync_state`; runs that changed something show in Import → Recent Runs as "Master catalog sync".
+- **Automatic Lunar import** (`.github/workflows/lunar-import.yml`, daily at 11:15 UTC, `tools/lunar-auto-import.mjs`):
+  Lunar's public sheets (`lunardistribution.com/home/productdatafile?foc=M/D/YYYY` and `?release=…`), the FOC sheets
+  for the next 8 Mondays and the release sheets for this week and the next 4 Wednesdays, go through the same code as
+  Admin → Import (`readWorkbook` → `parseSheet` with the Always Skip list → `applyImport`). Titles already stored as
+  a sheet lists them are left alone. Covers for new titles and ones missing one: Lunar's hi-res picture (60 KB to
+  18 MB) shrunk with sharp to 1000 px, plus the 560 px card copy, into R2; the sheet's own small picture when there's
+  no hi-res one. A sheet that isn't out yet is noted, not an error. Runs show in Recent Runs as "Automatic Lunar
+  import". Both daily imports share `tools/catalog-job.mjs` (service key, R2, logging).
 - **Automatic PRH import** (`.github/workflows/prh-import.yml`, daily at 10:30 UTC, `tools/prh-auto-import.mjs`):
   the comics and graphic novels PRH has going on sale in the next 13 weeks (Marvel, IDW, Oni, Boom, Dark Horse,
   Ignition and the rest) are read from PRH's API (domain `SALESPLATFORM`) and imported into the catalog with the

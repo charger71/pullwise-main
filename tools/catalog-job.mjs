@@ -1,0 +1,82 @@
+// What the daily automatic imports into the master catalog share (tools/prh-auto-import.mjs,
+// tools/lunar-auto-import.mjs): the catalog's database through its service key, covers written straight to R2
+// under the catalog's id (as the Worker stores staff uploads, worker/media.js), downloads that retry, and the run's
+// line in Import → Recent Runs. Needs SUPABASE_ACCESS_TOKEN, CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, plus
+// @supabase/supabase-js (the workflows install it).
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { r2Settings } from './move-images-to-r2.mjs';
+
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+export const env = (k) => process.env[k] || (() => { throw new Error(`Set ${k}`); })();
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** The master catalog's entry in shops.json. */
+export function catalogShop() {
+  const shop = JSON.parse(fs.readFileSync(path.join(ROOT, 'shops.json'), 'utf8')).shops.find((s) => s.catalog);
+  if (!shop) throw new Error('No master catalog in shops.json');
+  return shop;
+}
+
+/** A Supabase client for the catalog with its service key, read with the access token the deploy uses. */
+export async function catalogClient(shop) {
+  const res = await fetch(`https://api.supabase.com/v1/projects/${shop.projectRef}/api-keys?reveal=true`, { headers: { Authorization: `Bearer ${env('SUPABASE_ACCESS_TOKEN')}` } });
+  if (!res.ok) throw new Error(`Couldn't read the catalog's keys (${res.status})`);
+  const serviceKey = (await res.json()).find((k) => k.name === 'service_role')?.api_key;
+  if (!serviceKey) throw new Error('The catalog has no service_role key');
+  const { createClient } = await import('@supabase/supabase-js');
+  return createClient(shop.supabaseUrl, serviceKey, { auth: { persistSession: false } });
+}
+
+/** Today in the catalog's own timezone (Shop Settings), as YYYY-MM-DD. */
+export async function catalogToday(sb) {
+  const { data } = await sb.from('settings').select('timezone').eq('id', 1).single();
+  return new Intl.DateTimeFormat('en-CA', { timeZone: data?.timezone || 'America/New_York' }).format(new Date());
+}
+
+/** The catalog's Always Skip list. */
+export async function exclusions(sb) {
+  const { data, error } = await sb.from('import_exclusions').select('kind,value');
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/** Bytes and type of a picture, or null when there isn't one (404, or a tiny blank placeholder). Retries twice. */
+export async function download(url) {
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(url).catch(() => null);
+    if (res?.status === 404) return null;
+    if (res?.ok) {
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      return bytes.length >= 1024 ? { bytes, type: res.headers.get('content-type')?.split(';')[0] || 'image/jpeg' } : null;
+    }
+    if (attempt >= 3) throw new Error(`Couldn't download ${url} (${res?.status ?? 'network error'})`);
+    await pause(2000 * attempt);
+  }
+}
+
+/** applyImport's putMedia for the catalog: the picture straight into R2, returning its public address. */
+export function r2PutMedia(shop) {
+  const { bucket, publicBase } = r2Settings(fs.readFileSync(path.join(ROOT, 'wrangler.jsonc'), 'utf8'));
+  const token = env('CLOUDFLARE_API_TOKEN');
+  const account = env('CLOUDFLARE_ACCOUNT_ID');
+  return async (_sb, objectPath, bytes, { contentType }) => {
+    const objectKey = `${shop.id}/${objectPath}`.split('/').map(encodeURIComponent).join('/');
+    for (let attempt = 1; ; attempt++) {
+      const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/r2/buckets/${bucket}/objects/${objectKey}`, {
+        method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType, 'Cache-Control': 'public, max-age=604800' }, body: bytes,
+      }).catch(() => null);
+      if (res?.ok) return `${publicBase.replace(/\/+$/, '')}/${objectKey}`;
+      if (attempt >= 3) throw new Error(`Couldn't upload ${objectPath} to R2 (${res?.status ?? 'network error'})`);
+      await pause(2000 * attempt);
+    }
+  };
+}
+
+/** Record a run in job_log (Import → Recent Runs) and the GitHub run's summary. */
+export async function logRun(sb, { job, title, ok, message, detail }) {
+  await sb?.from('job_log').insert({ job, ok, message, detail });
+  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### ${title}\n${message}\n`);
+}
