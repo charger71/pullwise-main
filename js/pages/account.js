@@ -28,6 +28,13 @@ const titled = (id, title, body, { focusable = false } = {}) => {
     : `<section class="panel" aria-labelledby="${id}">${h}${body}</section>`;
 };
 
+/** On the website, a panel that folds away under its title (Following, My Profile, Delete my account). The app keeps
+ * them as titled panels in its Account view. */
+const folded = (id, title, body, { open = false } = {}) =>
+  APP
+    ? titled(id, title, body)
+    : `<details class="panel account-fold"${open ? ' open' : ''}><summary><h2 id="${id}">${title}</h2></summary><div>${body}</div></details>`;
+
 // An emailed link that has expired or was already used comes back with the reason in the address
 // (#error=access_denied&error_code=otp_expired&error_description=…). Read it before supabase-js looks at the
 // address, then tidy the address so a reload doesn't show it again.
@@ -239,7 +246,7 @@ async function signedIn(sb, user) {
           <summary><span>Following</span><span class="app-follows__count" data-follow-count></span></summary>
           <div>${followHint}<div data-follows></div></div>
         </details>`
-    : titled('follow-h', 'Following', `
+    : folded('follow-h', 'Following', `
           ${followHint}
           <form class="follow-form" data-follow-search role="search">
             <div class="follow-form__row">
@@ -248,12 +255,12 @@ async function signedIn(sb, user) {
             </div>
           </form>
           <div data-follow-results></div>
-          <div data-follows></div>`);
+          <div data-follows></div>`, { open: true });
   const orders = titled('orders-h', 'Coming Up', `${APP && !welcomed() ? WELCOME : ''}${APP ? following : ''}
           <p class="visually-hidden" role="status" aria-live="polite" data-orders-status></p>
           <div data-orders><p class="empty loading">Loading…</p></div>`, { focusable: true });
   const terms = `<p class="callout">We reserve the right to cancel any pre-order for any reason, and pre-orders over $100 may require a deposit. See our <a href="terms.html">terms</a>.</p>`;
-  const profile = titled('profile-h', 'My Profile', `
+  const profile = folded('profile-h', 'My Profile', `
         <form id="profile-form" novalidate>
           <div class="account-row">
             <div class="field"><label for="p-first">First name (required to place orders)</label><input id="p-first" name="first_name" autocomplete="given-name" required maxlength="80" value="${esc(customer.first_name)}"></div>
@@ -289,7 +296,7 @@ async function signedIn(sb, user) {
         </form>`);
   // Deleting the account (the app stores require it): the shop's choice is to disable it and keep the contact details,
   // which is said plainly here and in the question (supabase/migrations/…_delete_my_account.sql has the details).
-  const deleteAccount = titled('delete-h', 'Delete my account', `
+  const deleteAccount = folded('delete-h', 'Delete my account', `
         <p>Deleting your account signs you out everywhere and turns off sign-in, following and notifications. Titles the shop hasn’t ordered yet come off your list.</p>
         <p class="field__hint">The shop keeps your name and contact details, and any books it has already ordered or is holding for you, so it can reach you about them. Signing in again with ${esc(user.email)} opens your account again.</p>
         <p class="form-error" role="alert" data-delete-error></p>
@@ -305,10 +312,10 @@ async function signedIn(sb, user) {
     ${who}
     ${APP_ENABLED ? '<p class="notice account-app"><strong>Get the app:</strong> open <a href="app.html">our pull list app</a> on your phone and add it to your Home Screen.</p>' : ''}
     <div class="account-grid">
-      <div class="account-col">${orders}${following}
+      <div class="account-col">${orders}
       </div>
       <div class="account-col">
-      ${terms}${profile}<div data-export-slot></div>${deleteAccount}
+      ${terms}${following}${profile}<div data-export-slot></div>${deleteAccount}
       </div>
     </div>`;
 
