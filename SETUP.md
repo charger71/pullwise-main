@@ -114,6 +114,9 @@ function secret on the catalog project only; the other shops' `prh-sync` does no
 supabase secrets set --project-ref <catalog ref> PRH_API_KEY=…
 ```
 
+For the daily automatic PRH import, add the same key as a GitHub repository secret named `PRH_API_KEY` (Settings →
+Secrets and variables → Actions). The job uses it with the Deploy secrets already there.
+
 `tools/prh-probe.sh` checks a key and shows PRH's raw replies for a book and a comic.
 
 ## 1. Try it locally (optional, 2 minutes)

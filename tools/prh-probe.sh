@@ -30,4 +30,11 @@ if [ -n "$UPC" ]; then
 fi
 FROM=$(date +%m/%d/%Y); TO=$(date -v+7d +%m/%d/%Y)
 get onsale "$D/titles" "&onSaleFrom=$FROM&onSaleTo=$TO&rows=25"
+# One on-sale week from SALESPLATFORM (where comics live), to compare with that week's PRH comics sheet:
+# everything, then only product line DTP and only format CB (what the Marvel comic had).
+WEEK="${PRH_WEEK:-10/28/2026}"
+LIST="&onSaleFrom=$WEEK&onSaleTo=$WEEK&rows=0&suppressLinks=true"
+get week-all "domains/SALESPLATFORM/titles" "$LIST"
+get week-dtp "domains/SALESPLATFORM/titles" "$LIST&productLine=DTP"
+get week-cb "domains/SALESPLATFORM/titles" "$LIST&format=CB"
 echo "Saved to $OUT"
