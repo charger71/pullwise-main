@@ -884,7 +884,11 @@ body.has-list-bar { padding-bottom: var(--list-bar-h); }
   display: grid; grid-template-columns: 52px 1fr; gap: var(--sp-4) var(--sp-12); align-items: start;
   padding: var(--sp-12) 0; border-bottom: var(--border);
 }
-.list-line .cover { width: 52px; border-radius: var(--radius-sm); padding: var(--sp-4); grid-row: span 2; }
+.list-line .cover { width: 52px; border-radius: var(--radius-sm); padding: var(--sp-4); }
+/* The cover and title open the title's details; the title's tap area stretches as on a card (.card__title-open). */
+.list-line__open { grid-row: span 2; display: block; padding: 0; border: 0; background: none; cursor: pointer; }
+.list-line__open:hover .cover { filter: brightness(1.08); }
+.list-line__title { position: relative; }
 .list-line .cover--placeholder { font-size: var(--fs-3xs); padding: var(--sp-4); }
 .list-line__info { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
 .list-line__info .foc { margin: var(--sp-2) 0 0; }
@@ -894,7 +898,7 @@ body.has-list-bar { padding-bottom: var(--list-bar-h); }
 .list-line__remove:hover { color: var(--gold-text); }
 @media (min-width: 600px) {
   .list-line { grid-template-columns: 52px 1fr auto; align-items: center; }
-  .list-line .cover { grid-row: auto; }
+  .list-line__open { grid-row: auto; }
 }
 .confirm__lines { text-align: left; display: inline-block; margin: 0 0 1em; padding-left: 1.2em; }
 /* ---------- Calendar ---------- */
@@ -1415,11 +1419,12 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 /* My List in the app: a bigger cover, the title across the rest of the line, copies and a remove icon under the details. */
 .account-line--app { display: grid; grid-template-columns: 116px minmax(0, 1fr); align-items: start; gap: var(--sp-14); padding: var(--sp-14) 0; }
 .account-line--app .cover { width: 116px; }
-.account-line__open { display: block; padding: 0; border: 0; background: none; cursor: pointer; }
+.account-line__open { display: block; flex: none; padding: 0; border: 0; background: none; cursor: pointer; }
 .account-line__open:hover .cover { filter: brightness(1.08); }
 /* Holds the title button's stretched tap area (.card__title-open::after), as .card__title does on a card: without it
    the area grows to the page and covers the estimated total. */
-.account-line__title { display: block; position: relative; font-size: var(--fs-compact); line-height: 1.25; }
+.account-line__title { display: block; position: relative; }
+.account-line--app .account-line__title { font-size: var(--fs-compact); line-height: 1.25; }
 .account-line--app .account-line__status { text-align: left; }
 .account-line__controls { display: flex; align-items: center; gap: var(--sp-8); margin-top: var(--sp-6); }
 .account-line__qty-label { margin: 0; font-size: var(--fs-sm); font-weight: 700; color: var(--muted); }

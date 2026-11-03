@@ -296,12 +296,15 @@ export function renderGrid(el, items, opts, emptyText = 'Nothing here right now 
  * Buttons toggle: pressing "On your list" takes the title back off.
  */
 let detailsRequested = false;
+/** The title details dialog (click a cover or title) loads on first use; it wires its own buttons the same way. */
+function requestDetails() {
+  if (detailsRequested) return;
+  detailsRequested = true;
+  import('./title-modal.js').then((m) => m.init()).catch((err) => console.error('Title details failed to load', err));
+}
+
 export function enableReservations(root, lookup) {
-  // The title details dialog (click a cover) loads on first use; it wires its own buttons the same way.
-  if (!detailsRequested) {
-    detailsRequested = true;
-    import('./title-modal.js').then((m) => m.init()).catch((err) => console.error('Title details failed to load', err));
-  }
+  requestDetails();
   root.addEventListener('click', async (e) => {
     const variants = e.target.closest('[data-variants]');
     if (variants) return addAllCovers(variants, lookup(Number(variants.dataset.variants)));
@@ -506,6 +509,7 @@ let dialog;
 
 async function openListDialog(opener) {
   const s = await getSettings();
+  requestDetails();
   dialog ??= createDialog();
   dialog.returnFocusTo = opener;
   const form = $('form', dialog);
@@ -532,9 +536,9 @@ function renderLines(s) {
     .map(
       ({ item, quantity }) => `
       <li class="list-line">
-        ${cover(item)}
+        <button class="list-line__open" type="button" data-title-open="${item.id}" tabindex="-1" aria-hidden="true">${cover(item)}</button>
         <div class="list-line__info">
-          <strong>${esc(itemFullTitle(item))}</strong>
+          <strong class="list-line__title"><button class="card__title-open" type="button" data-title-open="${item.id}">${esc(itemFullTitle(item))}<span class="visually-hidden"> (details)</span></button></strong>
           <span class="card__meta">${esc([item.publisher, item.release_date && `Out ${fmtDate(item.release_date)}`, price(item.price)].filter(Boolean).join(' · '))}</span>
           ${focLabel(item)}
         </div>
@@ -602,6 +606,14 @@ function createDialog() {
   document.body.append(d);
 
   focusBackOnClose(d);
+  // The title details opened from a line can take it off the list or add covers: draw the lines again when it closes,
+  // and put focus back on that title. (`close` doesn't bubble: listen on the way down.)
+  document.addEventListener('close', async (e) => {
+    if (!d.open || !e.target.classList?.contains('title-modal')) return;
+    const opener = e.target.returnFocusTo?.dataset?.titleOpen;
+    renderLines(await getSettings());
+    (opener && $(`.card__title-open[data-title-open="${opener}"]`, d))?.focus();
+  }, true);
   d.addEventListener('click', async (e) => {
     if (e.target === d || e.target.closest('.dialog__close, [data-close]')) return d.close();
     const rm = e.target.closest('[data-remove]');
