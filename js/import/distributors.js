@@ -492,7 +492,7 @@ function parsePRH(header, body) {
       ...splitCode(sku),
       creators: cell(r, 'creators'),
       mature: t.mature,
-      description: null,
+      description: undefined, // PRH sheets have none: re-importing leaves the one prh-sync filled in
       cover: { url: `https://images.penguinrandomhouse.com/cover/${encodeURIComponent(sku)}` },
     });
   }

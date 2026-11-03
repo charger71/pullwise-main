@@ -112,5 +112,6 @@ const prh = parseSheet([prhHead.filter((h) => h !== 'Retail Price (US)'), ['9781
 assert.equal(prh.distributor, 'prh');
 assert.equal(prh.items[0].price, undefined);
 assert.equal(prh.items[0].title, 'SANDMAN VOL 1 (Paperback)');
+assert.equal(prh.items[0].description, undefined, 're-importing a PRH sheet keeps the description prh-sync added');
 assert.deepEqual(prh.columnsMissing, ['Retail Price (US)']);
 console.log('renamed and missing columns ok');

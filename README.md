@@ -259,6 +259,14 @@ though it still can for things the catalog doesn't carry.
   linked rather than duplicated. Nothing is ever deleted; a title hidden in the catalog stops syncing.
 - The deploy gives every shop the catalog's address (`CATALOG_URL`, `CATALOG_ANON_KEY` function secrets). Progress
   is in `catalog_sync_state`; runs that changed something show in Import → Recent Runs as "Master catalog sync".
+- **PRH title updates** (`supabase/functions/prh-sync`, catalog only): hourly at :05, up to 200 PRH titles are looked
+  up in the Penguin Random House API, books by ISBN (domain `PRH.US`) and comics by their 17-digit UPC (domain
+  `SALESPLATFORM`, the only one that knows them). Dates and the retail price follow PRH, like re-importing a sheet;
+  a description (PRH's flap copy) and creators are filled in only when the title has none, so staff edits stay.
+  Titles out within the last 60 days or still to come are looked up once a day; older ones still missing a
+  description once a month.
+  What PRH said (found, domain, its availability code) is in `prh_titles`; runs that changed something show in
+  Recent Runs as "PRH title updates". Covers aren't fetched yet (the function can't sign in to upload to R2).
 
 **Shop price:** `items.retail_price` comes from imports and the catalog, `items.shop_price` is set by staff, and a
 trigger keeps `items.price` (what everything shows and totals) as the shop price if set, else retail.

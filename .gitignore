@@ -14,3 +14,4 @@ shop-backup-*.json.gz
 
 # Design system generator output (tools/design-system/README.md)
 tools/design-system/out/
+tools/prh-probe-out/
