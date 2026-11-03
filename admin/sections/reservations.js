@@ -878,6 +878,7 @@ ${rows.length ? `        <div class="admin-actions toorder__actions"><button cla
 /**
  * "We're not ordering this title": every open reservation for it becomes Not ordered. It leaves the To order
  * list, and customers see it as "Not ordered by the shop" (staff can change a line back from the customer's pull list).
+ * If the title's order cutoff later moves to a date still open, the lines open again (a database trigger).
  */
 async function markNotOrdered(body, itemId, btn) {
   btn.disabled = true;
@@ -889,7 +890,7 @@ async function markNotOrdered(body, itemId, btn) {
     }
     const name = itemName(lines[0].item);
     const copies = lines.reduce((n, l) => n + l.quantity, 0);
-    if (!confirm(`Mark ${name} as not ordered?\n\n${lines.length} ${lines.length === 1 ? 'reservation' : 'reservations'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) will show "Not ordered" in the customers' pull lists and leave this list.`)) return;
+    if (!confirm(`Mark ${name} as not ordered?\n\n${lines.length} ${lines.length === 1 ? 'reservation' : 'reservations'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) will show "Not ordered" in the customers' pull lists and leave this list. If its order cutoff is moved later, they open again.`)) return;
     const done = await updateLines(lines.map((l) => l.id), 'not_ordered', ['open']);
     toast(`${name}: marked not ordered (${done} ${done === 1 ? 'reservation' : 'reservations'})`);
     renderToOrder(body);
