@@ -1,10 +1,7 @@
 /**
- * My Pull List → Export my comics: the books a customer has picked up, as a file their comic collection app can
- * import. Two layouts:
- * - a spreadsheet (CSV) with a header row, for CLZ Comics, ComicBase, Key Collector, iCollect and Excel. Those apps
- *   let the customer match each column to a field; the barcode (UPC) is what they match a book to their database by.
- * - League of Comic Geeks' Bulk Import file: no header, semicolons, one line per title: publisher; series;
- *   "series #issue"; release date (the layout third-party tools use to feed it; LoCG doesn't publish one).
+ * My Pull List → Export my comics: the books a customer has picked up, as a spreadsheet (CSV) with a header row that
+ * their comic collection app can import (CLZ Comics, ComicBase, Key Collector, iCollect) or Excel can open. Those apps
+ * let the customer match each column to a field; the barcode (UPC) is what they match a book to their database by.
  */
 
 export const CSV_HEADER = ['Series', 'Issue', 'Variant', 'Publisher', 'Release Date', 'Cover Price', 'Barcode', 'ISBN', 'Quantity'];
@@ -22,22 +19,6 @@ export function collectionCsv(lines) {
   const rows = sorted(lines).map(({ quantity, item: i }) => [i.title, i.issue_number, i.variant, i.publisher, i.release_date, i.price == null ? '' : Number(i.price).toFixed(2), i.upc, i.isbn, quantity ?? 1]);
   // A byte-order mark so Excel reads it as UTF-8; Windows line ends, as CSV expects.
   return '﻿' + [CSV_HEADER, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
-}
-
-/** League of Comic Geeks: one line per title (it counts a title once, however many copies or covers). */
-export function locgFile(lines) {
-  // The layout has no quoting, so a semicolon or line break inside a field becomes a comma or a space.
-  const field = (v) => String(v ?? '').replace(/;/g, ',').replace(/[\r\n]+/g, ' ').trim();
-  const seen = new Set();
-  const out = [];
-  for (const { item: i } of sorted(lines)) {
-    const name = i.issue_number ? `${i.title} #${i.issue_number}` : i.title;
-    const line = [i.publisher, i.title, name, i.release_date].map(field).join(';');
-    if (seen.has(line)) continue;
-    seen.add(line);
-    out.push(line);
-  }
-  return out.join('\n') + (out.length ? '\n' : '');
 }
 
 const sorted = (lines) =>

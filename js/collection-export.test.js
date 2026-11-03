@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { collectionCsv, locgFile, CSV_HEADER } from './collection-export.js';
+import { collectionCsv, CSV_HEADER } from './collection-export.js';
 
 const line = (item, quantity = 1) => ({ quantity, item });
 const batman14 = { title: 'Absolute Batman', issue_number: '14', publisher: 'DC', release_date: '2026-11-04', price: 4.99, upc: '76194138465601411', isbn: null, variant: null };
@@ -23,13 +23,5 @@ assert.equal(odd.slice(1).trimEnd().split('\r\n')[1], `'=cmd,-1,"Cover ""A""","I
 
 // Titles the shop has taken down (no item, or the placeholder with no fields) are left out.
 assert.equal(collectionCsv([{ quantity: 1, item: null }]).slice(1).trimEnd().split('\r\n').length, 1);
-
-// League of Comic Geeks: no header, semicolons, one line per title (covers and copies count once).
-assert.equal(locgFile([line(spidey), line(batman14b, 2), line(batman14)]), [
-  'DC;Absolute Batman;Absolute Batman #14;2026-11-04',
-  'Marvel;Ultimate Spider-Man;Ultimate Spider-Man #24;2026-10-28',
-].join('\n') + '\n');
-assert.equal(locgFile([line({ title: 'Love; Death', issue_number: null, publisher: null, release_date: null })]), ';Love, Death;Love, Death;\n');
-assert.equal(locgFile([]), '');
 
 console.log('collection-export tests passed');
