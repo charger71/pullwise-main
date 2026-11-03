@@ -347,7 +347,7 @@ async function loadLog(el) {
           .map(
             (j) => `<tr class="${j.ok ? '' : 'is-overdue'}">
             <td class="nowrap card__meta card-key" data-sort="${esc(j.created_at)}">${fmtDateTime(j.created_at)}</td>
-            <td class="card-title"><strong>${j.job === 'import' ? 'Import' : j.job === 'status_flip' ? 'Daily status update' : j.job === 'catalog_sync' ? 'Master catalog sync' : esc(j.job)}</strong></td>
+            <td class="card-title"><strong>${j.job === 'import' ? 'Import' : j.job === 'status_flip' ? 'Daily status update' : j.job === 'catalog_sync' ? 'Master catalog sync' : j.job === 'prh_sync' ? 'PRH title updates' : esc(j.job)}</strong></td>
             <td class="card-key"><span class="pill ${j.ok ? 'pill--done' : 'pill--failed'}">${j.ok ? 'OK' : 'Failed'}</span></td>
             <td class="card__meta card-wide">${esc(j.message ?? '')}</td>
           </tr>`,

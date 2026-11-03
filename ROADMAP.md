@@ -18,9 +18,10 @@ Ideas and next steps for the site, newest first. Move an item to "Done" when it 
   - Each run shows in Import → Recent Runs as "Automatic Lunar import" (added, updated, failures); System Health warns
     when it hasn't run for two days; the workflow can be run by hand. README, SETUP and the style guide (System Health
     card) updated with it.
-  - Later: PRH once its API access comes through, and Lunar's availability sheet (next item) in the same job.
+  - Later: Lunar's availability sheet (next item) in the same job. PRH titles are kept current by `prh-sync` (Done).
 
-- **Distributor availability (backordered, out of print) on re-orders.** Waiting on Penguin Random House API access; Lunar
+- **Distributor availability (backordered, out of print) on re-orders.** PRH's code is now saved per title
+  (`prh_titles.sale_status`, from `prh-sync`: IN, IP, EL, HT seen so far) and needs mapping; Lunar
   sends it as an .xlsx sheet (no API), read by the importer like today's sheets.
   - A distributor status per title, separate from the shop's own status, which it never changes: in stock /
     backordered / out of print / unknown, the date it was last updated, an expected date when given, and the
@@ -32,9 +33,15 @@ Ideas and next steps for the site, newest first. Move an item to "Done" when it 
   - Staff see a distributor-status pill in Ordering → Re-order (search results and the list), a warning when adding a
     backordered or out-of-print title, and a flag in On Order when a title goes to backorder after it was ordered, so
     the customers waiting can be told (a flag first; automatic email or push once the data is trusted).
-  - Before building: a sample Lunar sheet and the PRH API's availability fields, to map their codes.
+  - Before building: a sample Lunar sheet, and what PRH's sale status codes mean.
 
 - **Two-factor sign-in for owners (and then staff).** Supabase supports TOTP. Needs a set-up screen (QR code, then enter a code to confirm), a code step on the admin sign-in, and a way for an owner to reset someone's second factor. Today a staff login is email + password only.
 
 ## Done
+
+- **PRH title updates in the master catalog** (`prh-sync`): hourly look-ups in the PRH API fill in descriptions and
+  creators and keep dates and retail prices current, for books (ISBN) and comics (UPC, `SALESPLATFORM` domain).
+  Re-importing a PRH sheet no longer clears a description. Next: covers for titles still missing one (needs the
+  "Automatic import" staff account from the Lunar item to upload to R2), an ISBN look-up in Admin → Titles, and an
+  upcoming-titles feed.
 

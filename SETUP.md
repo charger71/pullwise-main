@@ -107,6 +107,15 @@ Merge its `shops.json` change; from then on every deploy gives each shop the cat
 new and changed titles in hourly. Import the week's sheets in the catalog's admin (Admin → Import) instead of in
 each shop. See README → "Master catalog" for exactly what syncs.
 
+For PRH title updates, set the catalog's Penguin Random House API key (developer.penguinrandomhouse.com) as a
+function secret on the catalog project only; the other shops' `prh-sync` does nothing without it:
+
+```bash
+supabase secrets set --project-ref <catalog ref> PRH_API_KEY=…
+```
+
+`tools/prh-probe.sh` checks a key and shows PRH's raw replies for a book and a comic.
+
 ## 1. Try it locally (optional, 2 minutes)
 
 ```bash
