@@ -1171,6 +1171,11 @@ a.follow-open { box-sizing: border-box; line-height: 24px; }
 .follow-subs { list-style: none; margin: 0 0 var(--sp-12); padding: 0; }
 .follow-subs li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-10); padding: var(--sp-8) 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .account-col { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-20); min-width: 0; }
+/* Following, My Profile and Delete my account fold away under their titles (the panel's padding moves inside). */
+.account-fold { padding: 0; margin: 0; }
+.account-fold > summary { padding: var(--sp-16) var(--sp-24); }
+.account-fold > summary h2 { margin: 0; }
+.account-fold > div { padding: 0 var(--sp-24) var(--sp-24); }
 .account-lastupdate { margin: -4px 0 var(--sp-10); }
 /* ---------- Pre-orders: collapsible "How it works" ---------- */
 .how-it-works { box-shadow: none; margin: 0 0 var(--space-block); background: none; border: 0; }
