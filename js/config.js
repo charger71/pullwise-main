@@ -17,6 +17,10 @@ export const MEDIA_UPLOAD_URL = '';
 // and in demo mode it's on, so the app can be tried; false hides every "Get the app" link and the admin's app numbers.
 export const APP_ENABLED = true;
 
+// Whether this is the master catalog ("catalog": true in shops.json, set by the Worker). It turns on Admin → Titles'
+// "Fill in from PRH", which needs the PRH key only the catalog has. Off locally and in demo mode.
+export const IS_CATALOG = false;
+
 // Google Analytics 4 measurement ID, e.g. 'G-XXXXXXXXXX'. Empty = no analytics.
 export const GA_MEASUREMENT_ID = '';
 

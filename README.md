@@ -267,6 +267,11 @@ though it still can for things the catalog doesn't carry.
   description once a month.
   What PRH said (found, domain, its availability code) is in `prh_titles`; runs that changed something show in
   Recent Runs as "PRH title updates". Covers aren't fetched yet (the function can't sign in to upload to R2).
+- **Fill in from PRH** (catalog admin only, `IS_CATALOG` in the Worker's `config.js`): in Edit Title / New Title,
+  looks the ISBN or UPC up through the staff-only `prh-lookup` function and fills in the fields that are blank
+  (title, issue, variant, publisher, category, retail price, dates, creators, description), plus the cover if there
+  isn't one. It reads PRH's reply with the PRH sheet's rules (`prhApiItem` in `js/import/distributors.js`) and never
+  replaces what's typed.
 
 **Shop price:** `items.retail_price` comes from imports and the catalog, `items.shop_price` is set by staff, and a
 trigger keeps `items.price` (what everything shows and totals) as the shop price if set, else retail.

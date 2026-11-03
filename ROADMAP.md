@@ -86,7 +86,7 @@ Ideas and next steps for the site, newest first. Move an item to "Done" when it 
 
 - **PRH title updates in the master catalog** (`prh-sync`): hourly look-ups in the PRH API fill in descriptions and
   creators and keep dates and retail prices current, for books (ISBN) and comics (UPC, `SALESPLATFORM` domain).
-  Re-importing a PRH sheet no longer clears a description. Next: covers for titles still missing one (needs the
-  "Automatic import" staff account from the Lunar item to upload to R2), an ISBN look-up in Admin → Titles, and an
-  upcoming-titles feed.
+  Re-importing a PRH sheet no longer clears a description. Edit Title in the catalog has "Fill in from PRH" (blank
+  fields and the cover, by ISBN or UPC). Next: covers for titles still missing one (needs the "Automatic import"
+  staff account from the Lunar item to upload to R2), and an upcoming-titles feed.
 

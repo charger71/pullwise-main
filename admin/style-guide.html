@@ -246,6 +246,20 @@
             </div>
           </div>
           <div class="sg-item" data-code>
+            <h3>Fill-in button under the fields it reads</h3>
+            <p>A ghost small button that fills blank fields from somewhere else (Edit Title's “Fill in from PRH”, master catalog only), on a full row right after the fields it reads, with its status beside it and a hint saying what it changes. It never replaces what's typed, and the form still needs Save.</p>
+            <div class="sg-demo">
+              <div class="form-grid form-grid--pairs">
+                <div class="field"><label for="sg-upc">UPC</label><input id="sg-upc" inputmode="numeric" value="75960621436500421"></div>
+                <div class="field"><label for="sg-isbn">ISBN</label><input id="sg-isbn"></div>
+                <div class="field span-2">
+                  <div class="admin-actions"><button class="btn btn--ghost btn--small" type="button">Fill in from PRH</button><span class="admin-status admin-status--ok" role="status">Filled in 7 fields and the cover. Check them, then save.</span></div>
+                  <p class="field__hint">Looks the ISBN (or UPC) up at Penguin Random House and fills in the fields that are blank, and the cover if there isn’t one. Nothing you’ve typed is replaced.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
             <h3>Drop zone</h3>
             <div class="sg-demo">
               <label class="dropzone" for="sg-drop"><input id="sg-drop" type="file" class="visually-hidden"><strong>Choose spreadsheets</strong> or drop them here</label>
