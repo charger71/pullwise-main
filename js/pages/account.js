@@ -48,6 +48,7 @@ let linkError = (() => {
 // Declared before the first show() below: opening the app offline draws the kept list (and sets this) right away,
 // before the rest of this module has run.
 let showing; // 'in' | 'out' | 'offline': avoids redrawing (and wiping a half-edited form) on token refresh
+let accountDeleted = false; // the sign-in form says so, once, after the account is deleted
 
 await initPage();
 if (DEMO) {
@@ -137,7 +138,10 @@ function signedOut(sb) {
   }
   const linkNote = linkError; // once: not again after a later sign-out
   linkError = null;
+  const deleted = accountDeleted; // once, right after deleting the account
+  accountDeleted = false;
   root.innerHTML = `
+    ${deleted ? '<p class="notice account-deleted" role="status" tabindex="-1">Your account is deleted, and you’re signed out on this device. The shop keeps your contact details and any books it has already ordered for you.</p>' : ''}
     ${APP ? '<h2 class="app-view__title">Sign in</h2>' : ''}
     <div class="panel account-panel">
       ${APP ? '' : '<h2>Sign in</h2>'}
@@ -283,13 +287,20 @@ async function signedIn(sb, user) {
           <p class="account-saved" role="status"></p>
           <button class="btn btn--primary" type="submit">Save profile</button>
         </form>`);
+  // Deleting the account (the app stores require it): the shop's choice is to disable it and keep the contact details,
+  // which is said plainly here and in the question (supabase/migrations/…_delete_my_account.sql has the details).
+  const deleteAccount = titled('delete-h', 'Delete my account', `
+        <p>Deleting your account signs you out everywhere and turns off sign-in, following and notifications. Titles the shop hasn’t ordered yet come off your list.</p>
+        <p class="field__hint">The shop keeps your name and contact details, and any books it has already ordered or is holding for you, so it can reach you about them. Signing in again with ${esc(user.email)} opens your account again.</p>
+        <p class="form-error" role="alert" data-delete-error></p>
+        <button class="btn btn--ghost" type="button" data-delete-account>Delete my account</button>`);
   // The app shows one view at a time under its tab bar (js/pages/app.js); the page lays them out side by side.
   root.innerHTML = APP
     ? `
     <div class="app-view" data-view="list">${orders}</div>
     <div class="app-view" data-view="me">${who}
       ${titled('push-h', 'Notifications', '<div data-push><p class="empty loading">Loading…</p></div>')}
-      ${profile}${terms}</div>`
+      ${profile}${deleteAccount}${terms}</div>`
     : `
     ${who}
     ${APP_ENABLED ? '<p class="notice account-app"><strong>Get the app:</strong> open <a href="app.html">our pull list app</a> on your phone and add it to your Home Screen.</p>' : ''}
@@ -297,11 +308,29 @@ async function signedIn(sb, user) {
       <div class="account-col">${orders}${following}
       </div>
       <div class="account-col">
-      ${terms}${profile}
+      ${terms}${profile}${deleteAccount}
       </div>
     </div>`;
 
   $('[data-out]', root).addEventListener('click', () => sb.auth.signOut());
+  $('[data-delete-account]', root).addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const err = $('[data-delete-error]', root);
+    err.textContent = '';
+    if (!confirm(`Delete your account (${user.email})?\n\nYou’ll be signed out everywhere, and sign-in, following and notifications turn off. Titles the shop hasn’t ordered yet come off your list.\n\nThe shop keeps your contact details and any books it has already ordered or is holding for you.`)) return;
+    btn.disabled = true;
+    const { error: deleteError } = await sb.rpc('delete_my_account');
+    if (deleteError) {
+      btn.disabled = false;
+      err.textContent = pull.customerMessage(deleteError);
+      return;
+    }
+    accountDeleted = true;
+    // The login is gone on the server; end this device's session without asking the server again.
+    await sb.auth.signOut({ scope: 'local' }).catch(() => {});
+    showing = null;
+    show(sb).then(() => $('.account-deleted', root)?.focus());
+  });
   $('[data-welcome]', root)?.addEventListener('click', (e) => {
     if (!e.target.closest('[data-welcome-done], [data-search-open]')) return;
     setWelcomed();

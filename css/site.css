@@ -1044,6 +1044,7 @@ details > div { padding: 0 var(--sp-16) var(--sp-14); }
 .post__cover { margin-bottom: 1em; }
 @media (min-width: 600px) { .survey-choices--cols { column-count: 2; column-gap: var(--sp-32); } }
 .account-saved { color: var(--ok); font-weight: 700; margin: 0 0 var(--sp-8); }
+.account-deleted { margin: 0 0 var(--sp-16); } /* over the sign-in form, once, after deleting the account */
 .account-lines { list-style: none; margin: 0; padding: 0; }
 .account-line { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-12); padding: var(--sp-10) 0; border-bottom: 1px solid var(--line); }
 .account-line .card__meta { display: block; }
