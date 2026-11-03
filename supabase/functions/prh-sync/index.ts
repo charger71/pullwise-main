@@ -6,7 +6,7 @@
 //
 // Secrets: CRON_SECRET; PRH_API_KEY (set on the catalog only; without it this does nothing, so every other shop
 // skips it). What changes on a title is in rules.js; which titles are looked up, and how often, in
-// public.prh_sync_batch() (20270219000000_prh_sync.sql).
+// public.prh_sync_batch() (20270220000000_prh_sync.sql).
 // Deploy with:  supabase functions deploy prh-sync --no-verify-jwt   (supabase/config.toml has it)
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
