@@ -150,6 +150,8 @@ export function configJs(shop, settings = {}) {
     // Covers and series images go to the shared R2 bucket through the Worker for shops marked "media": "r2".
     line('MEDIA_UPLOAD_URL', shop.media === 'r2' ? MEDIA_UPLOAD_PATH : ''),
     `export const APP_ENABLED = ${hasApp(shop)};`,
+    // The master catalog ("catalog": true) gets the admin's PRH look-up; its key is only on the catalog.
+    `export const IS_CATALOG = ${shop.catalog === true};`,
     `export const FALLBACK_SETTINGS = ${JSON.stringify(fallback).replace(/</g, '\\u003c')};`,
     '',
   ].join('\n');

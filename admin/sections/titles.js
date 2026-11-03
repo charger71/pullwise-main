@@ -2,10 +2,12 @@
 // changes in the list (status, staff pick, hidden), a read-only info view (click
 // the name), a full edit form, and who ordered each title.
 
-import { $, $$, esc, must, toast, isPhone, openDialog, imageField, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold, fetchAll, fmtDateTime, formatPhone, itemName, withCustomers, listLocations } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, openDialog, imageField, uploadImage, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold, fetchAll, fmtDateTime, formatPhone, itemName, withCustomers, listLocations } from '../lib.js';
 import { ITEM_BADGES, price } from '../../js/site.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, weekStart } from '../../js/dates.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, IS_CATALOG } from '../../js/config.js';
+import { prhApiItem } from '../../js/import/distributors.js';
 
 const PAGE = 50;
 let state = { q: '', status: '', category: '', flag: '', visibility: '', sort: 'updated', dir: 'desc', offset: 0, foc: '', release: '' };
@@ -37,7 +39,7 @@ export async function mount(el, ctx) {
   } catch {
     /* no hand-off */
   }
-  categories = await must(sb.from('categories').select('id,name').order('sort'));
+  categories = await must(sb.from('categories').select('id,name,slug').order('sort'));
   // On phones the less-used filters fold under "More filters" (open when one of them is set), so the list is on the first screen.
   const phone = isPhone();
   const moreOpen = ['flag', 'visibility', 'foc', 'release'].some((k) => state[k]) || (state.sort && state.sort !== 'updated');
@@ -486,6 +488,10 @@ async function edit(listEl, id) {
         <div class="field field--full"><label for="e-creators">Creators</label><input id="e-creators" name="creators" autocapitalize="words" value="${esc(item.creators)}"></div>
         <div class="field"><label for="e-upc">UPC</label><input id="e-upc" name="upc" inputmode="numeric" value="${esc(item.upc)}"></div>
         <div class="field"><label for="e-isbn">ISBN</label><input id="e-isbn" name="isbn" value="${esc(item.isbn)}"></div>
+        ${IS_CATALOG ? `<div class="field span-2">
+          <div class="admin-actions"><button class="btn btn--ghost btn--small" type="button" data-prh>Fill in from PRH</button><span class="admin-status" role="status" data-prh-status></span></div>
+          <p class="field__hint">Looks the ISBN (or UPC) up at Penguin Random House and fills in the fields that are blank, and the cover if there isn’t one. Nothing you’ve typed is replaced.</p>
+        </div>` : ''}
         <div class="field span-2"><label for="e-desc">Description</label><textarea id="e-desc" name="description" rows="4">${esc(item.description)}</textarea></div>
         <div class="field span-2 checks">
           <label><input type="checkbox" name="staff_pick"${item.staff_pick ? ' checked' : ''}> Staff pick</label>
@@ -513,6 +519,7 @@ async function edit(listEl, id) {
   // Following a name in Who Ordered leaves this screen, so it closes this dialog too (asking first if there are unsaved changes).
   let changed = false;
   form.addEventListener('input', () => (changed = true));
+  $('[data-prh]', d)?.addEventListener('click', () => fillFromPrh(form, cover, $('[data-prh-status]', d)).then((n) => n && (changed = true)));
   $('[data-who-ordered]', d)?.addEventListener('click', () =>
     whoOrdered(id, { onLeave: () => (!changed || confirm('Leave without saving your changes to this title?') ? (d.close(), true) : false) }),
   );
@@ -568,6 +575,62 @@ async function edit(listEl, id) {
       setStatus(status, err.code === '23503' ? 'Customers have reserved this title, so it can’t be deleted — mark it Hidden instead.' : `Not deleted: ${friendlyError(err)}`, 'error');
     }
   });
+}
+
+/**
+ * "Fill in from PRH" (master catalog only): looks the form's ISBN or UPC up through the prh-lookup Edge Function
+ * and fills in the blank fields, then the cover if there's none. Returns how many fields it filled.
+ */
+async function fillFromPrh(form, cover, status) {
+  const code = (form.elements.isbn.value || form.elements.upc.value).replace(/[\s-]/g, '');
+  if (!code) return setStatus(status, 'Enter an ISBN or UPC first.', 'error'), 0;
+  const button = $('[data-prh]', form);
+  button.disabled = true;
+  setStatus(status, 'Looking it up…');
+  try {
+    const { data, error } = await sb.functions.invoke('prh-lookup', { body: { code } });
+    if (error) throw new Error((await error.context?.json?.().catch(() => null))?.error ?? error.message);
+    const found = prhApiItem(data.record, data.content);
+    const inputs = { title: 'title', issue_number: 'issue_number', variant: 'variant', publisher: 'publisher', price: 'retail_price', foc_date: 'foc_date', release_date: 'release_date', creators: 'creators', upc: 'upc', isbn: 'isbn', description: 'description' };
+    let filled = 0;
+    for (const [field, name] of Object.entries(inputs)) {
+      const input = form.elements[name];
+      if (found[field] == null || input.value.trim()) continue;
+      input.value = found[field];
+      filled++;
+    }
+    const category = categories.find((c) => c.slug === found.category);
+    if (category && !form.elements.category_id.value) (form.elements.category_id.value = String(category.id), filled++);
+    if (found.mature && !form.elements.mature.checked) (form.elements.mature.checked = true, filled++);
+    const needCover = !cover.get();
+    if (needCover) setStatus(status, 'Getting the cover…');
+    const gotCover = needCover && (await prhCover(code, cover).catch(() => false));
+    const what = [filled && (filled === 1 ? '1 field' : `${filled} fields`), gotCover && 'the cover'].filter(Boolean).join(' and ');
+    const noCover = needCover && !gotCover ? ' PRH has no cover for it yet.' : '';
+    setStatus(status, what ? `Filled in ${what}. Check them, then save.${noCover}` : `PRH has nothing to add: every field it knows is already filled in.${noCover}`, what ? 'ok' : undefined);
+    return filled + (gotCover ? 1 : 0);
+  } catch (err) {
+    setStatus(status, `Not looked up: ${friendlyError(err)}`, 'error');
+    return 0;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+/** PRH's cover for a code, through fetch-cover (no CORS on PRH's images), uploaded like a cover picked by hand. */
+async function prhCover(code, cover) {
+  const { data: { session } } = await sb.auth.getSession();
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/fetch-cover`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${session?.access_token}` },
+    body: JSON.stringify({ url: `https://images.penguinrandomhouse.com/cover/${encodeURIComponent(code)}` }),
+  });
+  if (!res.ok) return false;
+  const blob = await res.blob();
+  if (blob.size < 1024) return false; // a blank placeholder, not a cover
+  const saved = await uploadImage(new File([blob], `${code}.jpg`, { type: blob.type || 'image/jpeg' }), 'covers/manual', { maxSize: 1200, thumb: true });
+  cover.set(saved.url, saved.thumbUrl);
+  return true;
 }
 
 /** Hides old titles (see staff_hide_old_titles): counts first, then asks. Hidden titles can be restored from the Hidden filter. */

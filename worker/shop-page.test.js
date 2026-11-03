@@ -101,6 +101,8 @@ assert.equal(hasApp({ ...shops[1], app: 'yes' }), false, 'only true turns it on'
 assert.equal(appRedirect(shops, 'app.b-comics.com'), 'https://B-Comics.com/account.html');
 assert.match(configJs(shops[0]), /^export const APP_ENABLED = true;$/m);
 assert.match(configJs(shops[1]), /^export const APP_ENABLED = false;$/m);
+assert.match(configJs({ ...shops[0], catalog: true }), /^export const IS_CATALOG = true;$/m);
+assert.match(configJs(shops[0]), /^export const IS_CATALOG = false;$/m);
 assert.equal(fileOf('/app'), 'app.html');
 const app = appManifest({ shop_name: ' A Comics ', colors: { paper: '#f5f0e6' }, logo_url: `${MEDIA}/logo.png` });
 assert.equal(app.name, 'A Comics');

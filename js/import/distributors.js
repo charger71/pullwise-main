@@ -499,6 +499,36 @@ function parsePRH(header, body) {
   return { items, skipped, columnsRenamed: renamed, columnsMissing: missing };
 }
 
+/**
+ * A title from the PRH API (prh-lookup: data.titles[0] and data.content) as the same fields a PRH sheet row gives,
+ * plus the description, for "Fill in from PRH" in Admin → Titles. Fields PRH doesn't send are left out.
+ */
+export function prhApiItem(record, content) {
+  const rawTitle = clean(record.title) ?? '';
+  const t = splitTitle(rawTitle);
+  const subtitle = clean(record.subtitle);
+  const format = clean(record.format?.code);
+  const base = subtitle && !t.issue_number ? `${t.title}: ${subtitle}` : t.title;
+  const binding = BINDING[format];
+  const usd = (record.price ?? []).find((p) => p?.currencyCode === 'USD')?.amount;
+  const date = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v ?? '') ? v : null);
+  const fields = {
+    title: binding && !/\b(hardcover|paperback)\b/i.test(base) ? `${base} (${binding})` : base,
+    issue_number: t.issue_number,
+    variant: t.variant,
+    publisher: normalizePublisher(clean(record.imprint?.description)),
+    category: categorize({ rawTitle, format }),
+    price: Number.isFinite(usd) && usd > 0 ? usd : null,
+    foc_date: date(record.focDate),
+    release_date: date(record.onsale),
+    ...splitCode(record.isbnStr ?? record.isbn),
+    creators: clean(record.author),
+    mature: t.mature || undefined,
+    description: htmlToText(content?.flapcopy) ?? htmlToText(content?.keynote),
+  };
+  return Object.fromEntries(Object.entries(fields).filter(([, v]) => v != null && v !== ''));
+}
+
 const slug = (s) => String(s).toLowerCase().normalize('NFKD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '');
 
 /**
