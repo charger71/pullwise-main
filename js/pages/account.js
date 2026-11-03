@@ -760,10 +760,7 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
 }
 
 // Export my comics: the books picked up, for a comic collection app (js/collection-export.js has the file layout).
-const EXPORT = `
-    <details class="account-export">
-      <summary>Export my comics</summary>
-      <div>
+const EXPORT = folded('export-h', 'Export my comics', `
         <p>Download the comics you’ve picked up, to add them to a collection app.</p>
         <div class="account-export__actions">
           <button class="btn btn--ghost" type="button" data-export>Download spreadsheet (CSV)</button>
@@ -772,9 +769,7 @@ const EXPORT = `
         <ul class="account-export__how">
           <li><strong>CLZ Comics:</strong> on the web, open the menu, choose <strong>Import</strong>, upload the spreadsheet and match each column. Match <strong>Barcode</strong> so CLZ finds the exact book.</li>
           <li><strong>ComicBase, Key Collector, iCollect and others:</strong> use their import with the spreadsheet. It opens in Excel or Google Sheets too.</li>
-        </ul>
-      </div>
-    </details>`;
+        </ul>`);
 
 /** Every picked-up line (a page at a time: the database hands back at most 1,000 rows per request). */
 async function exportCollection(sb, customerId, btn) {
