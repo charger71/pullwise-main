@@ -364,9 +364,9 @@ async function signedIn(sb, user) {
   // When they last looked, so titles their follows added since then are badged "New" (and the nav count resets).
   const seenBefore = await pull.markSeen().catch(() => null);
   loadOrders(sb, customer.id, seenBefore);
+  openTitleDetails(sb, customer.id, seenBefore);
   if (APP) {
     sb.rpc('mark_app_seen').then(({ error: seenError }) => seenError && console.error(seenError)); // for the shop's app numbers
-    openTitleDetails(sb, customer.id, seenBefore);
     import('../app-notifications.js')
       .then((m) => m.setupNotifications($('[data-push]', root), sb, customer))
       .catch((err) => console.error('Notification settings failed to load', err));
@@ -611,12 +611,13 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
     const editable = canEdit(r);
     const note = SOURCE_NOTE[r.source];
     const added = isNew(r);
+    const id = r.item.id;
     return `
       <li class="account-line${added ? ' account-line--new' : ''}">
-        ${cover(r.item)}
+        ${id ? `<button class="account-line__open" type="button" data-title-open="${id}" tabindex="-1" aria-hidden="true">${cover(r.item)}</button>` : cover(r.item)}
         <div class="account-line__info">
           ${added ? '<span class="new-badge" title="Added automatically from something you follow">New · added for you</span>' : ''}
-          <strong>${esc(itemTitle(r.item))}</strong>
+          <strong class="account-line__title">${id ? `<button class="card__title-open" type="button" data-title-open="${id}">${esc(itemTitle(r.item))}<span class="visually-hidden"> (details)</span></button>` : esc(itemTitle(r.item))}</strong>
           ${r.item.variant ? `<span class="card__variant">${esc(r.item.variant)}</span>` : ''}
           <span class="card__meta">${esc([r.item.publisher, price(r.item.price), note].filter(Boolean).join(' · '))}</span>
           ${r.updated_via === 'staff' ? `<span class="card__meta">Updated by the shop · ${esc(whenLabel(r.updated_at, settings.timezone))}</span>` : ''}
@@ -751,20 +752,18 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
   };
 }
 
-// Export my comics: the books picked up, for a comic collection app (js/collection-export.js has the file layouts).
+// Export my comics: the books picked up, for a comic collection app (js/collection-export.js has the file layout).
 const EXPORT = `
     <details class="account-export">
       <summary>Export my comics</summary>
       <div>
         <p>Download the comics you’ve picked up, to add them to a collection app.</p>
         <div class="account-export__actions">
-          <button class="btn btn--ghost" type="button" data-export="csv">Spreadsheet (CSV)</button>
-          <button class="btn btn--ghost" type="button" data-export="locg">League of Comic Geeks</button>
+          <button class="btn btn--ghost" type="button" data-export>Download spreadsheet (CSV)</button>
         </div>
         <p class="form-error" role="alert" data-export-error></p>
         <ul class="account-export__how">
           <li><strong>CLZ Comics:</strong> on the web, open the menu, choose <strong>Import</strong>, upload the spreadsheet and match each column. Match <strong>Barcode</strong> so CLZ finds the exact book.</li>
-          <li><strong>League of Comic Geeks:</strong> on the website, open <strong>Comics</strong> › <strong>Bulk Import / Export</strong>, choose the League of Comic Geeks format and upload that file.</li>
           <li><strong>ComicBase, Key Collector, iCollect and others:</strong> use their import with the spreadsheet. It opens in Excel or Google Sheets too.</li>
         </ul>
       </div>
@@ -789,10 +788,9 @@ async function exportCollection(sb, customerId, btn) {
       lines.push(...data);
       if (data.length < 1000) break;
     }
-    const { collectionCsv, locgFile, saveFile } = await import('../collection-export.js');
+    const { collectionCsv, saveFile } = await import('../collection-export.js');
     const day = new Date().toISOString().slice(0, 10);
-    if (btn.dataset.export === 'locg') await saveFile(`my-comics-locg-${day}.csv`, locgFile(lines), 'text/csv', { share: APP });
-    else await saveFile(`my-comics-${day}.csv`, collectionCsv(lines), 'text/csv', { share: APP });
+    await saveFile(`my-comics-${day}.csv`, collectionCsv(lines), 'text/csv', { share: APP });
     announce(`Exported ${lines.length} ${lines.length === 1 ? 'book' : 'books'}.`);
   } catch (e) {
     err.innerHTML = pull.errorHtml(pull.customerError(e));
@@ -802,7 +800,7 @@ async function exportCollection(sb, customerId, btn) {
 }
 
 /**
- * The app's cover and title buttons open the title's details (js/title-modal.js), as on the website. Its buttons can
+ * A line's cover and title open the title's details (js/title-modal.js), as on the website's cards. Its buttons can
  * take the title off the list or add other covers, so the list is drawn again when it closes.
  */
 let detailsReady = false;
