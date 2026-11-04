@@ -20,15 +20,18 @@ export function catalogShop() {
   return shop;
 }
 
-/** A Supabase client for the catalog with its service key, read with the access token the deploy uses. */
-export async function catalogClient(shop) {
+/** A Supabase client for any shop with its service key, read with the access token the deploy uses. */
+export async function serviceClient(shop) {
   const res = await fetch(`https://api.supabase.com/v1/projects/${shop.projectRef}/api-keys?reveal=true`, { headers: { Authorization: `Bearer ${env('SUPABASE_ACCESS_TOKEN')}` } });
-  if (!res.ok) throw new Error(`Couldn't read the catalog's keys (${res.status})`);
+  if (!res.ok) throw new Error(`Couldn't read ${shop.id}'s keys (${res.status})`);
   const serviceKey = (await res.json()).find((k) => k.name === 'service_role')?.api_key;
-  if (!serviceKey) throw new Error('The catalog has no service_role key');
+  if (!serviceKey) throw new Error(`${shop.id} has no service_role key`);
   const { createClient } = await import('@supabase/supabase-js');
   return createClient(shop.supabaseUrl, serviceKey, { auth: { persistSession: false } });
 }
+
+/** The catalog's client (see serviceClient). */
+export const catalogClient = serviceClient;
 
 /** Today in the catalog's own timezone (Shop Settings), as YYYY-MM-DD. */
 export async function catalogToday(sb) {

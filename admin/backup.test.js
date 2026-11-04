@@ -82,3 +82,24 @@ assert.ok(!CUSTOMER_HEADER.join().toLowerCase().includes('token') && !JSON.strin
 assert.equal(csv[0][1] === '' ? csv[0][0] : csv[0][1], 'Guest Only'); // no last name sorts first
 
 console.log('backup tests passed');
+
+// Nightly backups: listed through the Worker with the staff member's token, with how long each is kept.
+{
+  const { nightlyBackups, nightlyBackupFile } = await import('./backup.js');
+  const nsb = { auth: { getSession: async () => ({ data: { session: { access_token: 'tok' } } }) } };
+  const seen = [];
+  const fetchOk = async (url, init) => {
+    seen.push([url, init.headers.Authorization]);
+    return url.includes('?file=')
+      ? new Response(new Uint8Array(10))
+      : Response.json({ files: [{ key: 'daily/demo/shop-backup-2026-11-04.json.gz', kind: 'daily', date: '2026-11-04', size: 1 }, { key: 'monthly/demo/shop-backup-2026-11-01.json.gz', kind: 'monthly', date: '2026-11-01', size: 1 }] });
+  };
+  assert.deepEqual((await nightlyBackups(nsb, fetchOk)).map((f) => f.keptUntil), ['2026-12-09', '2027-12-06']);
+  const got = await nightlyBackupFile(nsb, 'daily/demo/shop-backup-2026-11-04.json.gz', fetchOk);
+  assert.equal(got.name, 'shop-backup-2026-11-04.json.gz');
+  assert.equal(got.file.size, 10);
+  assert.deepEqual(seen, [['/__backups', 'Bearer tok'], ['/__backups?file=daily%2Fdemo%2Fshop-backup-2026-11-04.json.gz', 'Bearer tok']]);
+  // The Worker's own message comes through; a plain 404 (no Worker: local or a preview build) says why.
+  await assert.rejects(nightlyBackups(nsb, async () => Response.json({ error: 'Only an owner can see the backups.' }, { status: 403 })), /Only an owner/);
+  await assert.rejects(nightlyBackups(nsb, async () => new Response('<html>', { status: 404 })), /only on the live site/);
+}

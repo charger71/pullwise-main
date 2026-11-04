@@ -54,6 +54,38 @@ export async function recordBackup(sb, who, built) {
 }
 
 // ---------------------------------------------------------------------------------------------------------
+// Nightly backups (tools/backup-shops.mjs saves them to R2; worker/backups.js lists and serves them to owners)
+// ---------------------------------------------------------------------------------------------------------
+
+export const BACKUPS_URL = '/__backups';
+/** How long R2 keeps each kind of file (tools/backup-shops.mjs → LIFECYCLE). */
+export const KEPT_DAYS = { daily: 35, monthly: 400 };
+
+async function backupsFetch(sb, query, fetchFn) {
+  const { data } = await sb.auth.getSession();
+  const res = await fetchFn(`${BACKUPS_URL}${query}`, { headers: { Authorization: `Bearer ${data?.session?.access_token ?? ''}` } });
+  if (res.ok) return res;
+  const out = await res.json().catch(() => null);
+  throw new Error(out?.error ?? (res.status === 404 ? 'Nightly backups are only on the live site.' : `The backups didn’t load (${res.status}).`));
+}
+
+/** This shop's nightly backup files, newest first: [{ key, kind, date, size, keptUntil }]. */
+export async function nightlyBackups(sb, fetchFn = fetch) {
+  const { files } = await (await backupsFetch(sb, '', fetchFn)).json();
+  return files.map((f) => {
+    const until = new Date(`${f.date}T00:00:00Z`);
+    until.setUTCDate(until.getUTCDate() + (KEPT_DAYS[f.kind] ?? 0));
+    return { ...f, keptUntil: until.toISOString().slice(0, 10) };
+  });
+}
+
+/** One nightly file, as { file (Blob), name }. */
+export async function nightlyBackupFile(sb, key, fetchFn = fetch) {
+  const res = await backupsFetch(sb, `?file=${encodeURIComponent(key)}`, fetchFn);
+  return { file: await res.blob(), name: key.split('/').pop() };
+}
+
+// ---------------------------------------------------------------------------------------------------------
 // Restore
 // ---------------------------------------------------------------------------------------------------------
 

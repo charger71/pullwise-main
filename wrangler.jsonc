@@ -15,7 +15,12 @@
   },
   // Covers and series images for shops marked "media": "r2" (worker/media.js). The bucket must exist before a
   // deploy; MEDIA_PUBLIC_URL is the custom domain connected to it (R2 → the bucket → Settings → Custom Domains).
-  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "pullwise-media" }],
+  // BACKUPS is the private bucket the nightly backup writes (tools/backup-shops.mjs) and Backup → Nightly Backups lists
+  // (worker/backups.js). It has no public address; the Deploy workflow creates it if it's missing.
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "pullwise-media" },
+    { "binding": "BACKUPS", "bucket_name": "pullwise-backups" }
+  ],
   "vars": { "MEDIA_PUBLIC_URL": "https://images.pullwise.shop" },
   "observability": { "enabled": true },
   // Preview builds of non-production branches (`wrangler preview`) refuse to run without this block. Empty means a

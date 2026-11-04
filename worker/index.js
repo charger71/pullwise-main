@@ -8,6 +8,7 @@
 //  * /sitemap.xml is generated on the shop's main domain, and /robots.txt (the static file) gets its address.
 //  * An address with no file gets 404.html (wrangler.jsonc's not_found_handling), branded like the other pages.
 //  * PUT /__media stores covers and series images in R2 for shops using it (worker/media.js).
+//  * GET /__backups lists and serves the shop's nightly backup files to its owners (worker/backups.js).
 //  * /manifest.webmanifest is the shop's installable pull list app (app.html), under its name, icon and colors;
 //    app.<shop domain> forwards to that app on the shop's main domain. Only shops marked "app": true in shops.json
 //    have it: for the rest /app forwards to the account page and the manifest is a 404.
@@ -16,6 +17,7 @@
 
 import SHOPS from '../shops.json';
 import { mediaUpload } from './media.js';
+import { BACKUPS_PATH, backupFiles } from './backups.js';
 import { MEDIA_UPLOAD_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
@@ -33,6 +35,7 @@ export default {
       return app ? Response.redirect(app, app.endsWith(NO_APP_PATH) ? 302 : 301) : env.ASSETS.fetch(request);
     }
     if (url.pathname === MEDIA_UPLOAD_PATH) return mediaUpload(request, shop, env);
+    if (url.pathname === BACKUPS_PATH) return backupFiles(request, shop, env);
     if (url.pathname === '/js/config.js') return config(shop, request, await cachedShopData(shop));
     if (!hasApp(shop) && url.pathname === '/manifest.webmanifest') return new Response('Not found', { status: 404 }); // nothing to install
     if (!hasApp(shop) && (url.pathname === '/app' || url.pathname === '/app.html')) return Response.redirect(new URL(NO_APP_PATH, url).href, 302);

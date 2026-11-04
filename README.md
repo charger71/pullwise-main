@@ -114,7 +114,7 @@ logic in `js/import/apply.js`.
 | Emails | The weekly pull list email and the "your books are in" email: schedule, sender, preview, test and send now |
 | Surveys | Short surveys with a shareable link and QR code, and their answers |
 | Shop settings | **Owners only.** Name, headline, contact, hours, socials, map, logo, colors, reservation rules, timezone, pinned publishers |
-| Backup | **Owners only.** Download the whole database as one file, or export just the customers as a CSV (see `BACKUPS.md`) |
+| Backup | **Owners only.** Every shop is backed up nightly to a private R2 bucket (download any of those files here); download the whole database now as one file, or export just the customers as a CSV (see `BACKUPS.md`) |
 | Restore | **Owners only.** Load tables back from a backup file: add missing rows or replace, all-or-nothing per table (see `BACKUPS.md`) |
 | Staff | Your account (change your password); owners add and remove staff, reset passwords and make owners (via the `staff-admin` Edge Function), and read the **Change log** of who changed what |
 
@@ -156,9 +156,9 @@ Edge Functions (deploy with `supabase functions deploy <name>`):
 | `js/content.js` | Loads, sanitizes and shows staff-edited page text (`pages`, `faqs` tables) |
 | `js/page-defaults.js` | Starting page text and FAQ (demo mode, new shops) and the list of editable blocks |
 | `admin/` | Staff admin: `admin.js` (sign-in, routing), `lib.js` (shared helpers), `filters.js` (safe `.or()` search filters), `backup.js` (backup/restore/customer export logic), `sections/*.js`, `pull-list-pdf.js` and `order-sheet-pdf.js` (printable PDFs, built in the browser) |
-| `worker/` | The site Worker: serves every shop, generates `js/config.js` per domain and writes page titles, icons and the home banner into the HTML (`shop-page.js`, with tests) |
+| `worker/` | The site Worker: serves every shop, generates `js/config.js` per domain and writes page titles, icons and the home banner into the HTML (`shop-page.js`, with tests), stores R2 images (`media.js`) and serves owners their nightly backups (`backups.js`) |
 | `shops.json` | Every shop: id, domains, Supabase URL, anon key (public), project ref |
-| `tools/` | `add-shop.mjs` (`npm run add-shop`: set up a new shop end to end), `deploy-plan.mjs` and `smoke-site.mjs` (the deploy workflow), `check-migrations.js`, `test-migrations.sh`, `restore.mjs` (backup file → SQL, for the terminal), `stamp-version.js` |
+| `tools/` | `add-shop.mjs` (`npm run add-shop`: set up a new shop end to end), `deploy-plan.mjs` and `smoke-site.mjs` (the deploy workflow), `check-migrations.js`, `test-migrations.sh`, `restore.mjs` (backup file → SQL, for the terminal), `backup-shops.mjs` (the nightly automatic backup), `stamp-version.js` |
 | `js/import/apply.js` | Import database logic shared by the CLI and admin |
 | `js/catalog.js` | Filter/search listing shared by Pre-Orders and New Arrivals |
 | `js/pages/*.js` | Per-page scripts |
