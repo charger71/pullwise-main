@@ -3,10 +3,14 @@
 // functions chat_start / chat_send / chat_fetch (supabase/migrations/…_live_chat.sql) only ever give back the chat
 // that token belongs to. Staff answer from Admin → Chat. New replies arrive by checking every few seconds while the
 // box is open (and every half minute while it is closed, to light the dot on the button).
+// A customer who is signed in starts the chat on their account (chat_start links it), so staff see who they are and
+// the shop's replies reach the customer's phone as an app notification (supabase/functions/push-notify, chat-reply).
+// In the shop's app the button sits above the tab bar, and a notification's ?chat=1 opens the chat.
 
 import { supabase, DEMO } from './data.js';
 import { esc, chatOn } from './util.js';
 import { $, linkify, fmtTime } from './site.js';
+import { profile } from './customer.js';
 
 const KEY = 'pw-chat';
 const POLL_OPEN = 4000;
@@ -33,7 +37,8 @@ const writeSaved = (patch) => {
 /** The message to show a visitor for a failed call: the database's own sentence when it wrote one, else a generic one. */
 const sayError = (error) => (error?.code === 'P0001' ? error.message : 'Sorry, that didn’t go through. Please check your connection and try again.');
 
-export function initChat(settings) {
+/** `findAgain`: where a visitor who hid the button finds the chat again (the website's footer, the app's Shop tab). */
+export function initChat(settings, { findAgain = 'Find it again in the page footer.' } = {}) {
   if (DEMO || !chatOn(settings) || $('#chat')) return;
   const saved = readSaved();
   let token = saved.token ?? null; // set once a chat has been started
@@ -52,7 +57,7 @@ export function initChat(settings) {
         <button class="btn btn--ghost btn--small" type="button" data-chat-close>Close</button>
       </div>
       <div class="chat__body"></div>
-      <p class="chat__foot"><button class="chat__hide" type="button">Hide this button</button><span>Find it again in the page footer.</span></p>
+      <p class="chat__foot"><button class="chat__hide" type="button">Hide this button</button><span>${esc(findAgain)}</span></p>
     </section>`);
   const launch = $('#chat-launch');
   launch.hidden = hidden;
@@ -69,11 +74,13 @@ export function initChat(settings) {
   const newestShop = () => messages.filter((m) => m.from_staff).reduce((max, m) => Math.max(max, m.id), 0);
 
   function renderStart() {
+    const me = profile(); // signed in: the chat goes on their account, and the form starts with their details
     body.innerHTML = `
       <form class="chat__form" novalidate>
         <p class="chat__note">${esc(settings.chat_greeting || DEFAULT_GREETING)}</p>
-        <div class="field"><label for="chat-name">Your name</label><input id="chat-name" name="name" required maxlength="80" autocomplete="given-name"></div>
-        <div class="field"><label for="chat-email">Email (optional)</label><input id="chat-email" name="email" type="email" maxlength="200" autocomplete="email"><p class="field__hint">So we can reach you if you close this page.</p></div>
+        ${me ? '<p class="chat__note">You’re signed in, so the shop sees this chat on your account, and its replies can reach you as app notifications.</p>' : ''}
+        <div class="field"><label for="chat-name">Your name</label><input id="chat-name" name="name" required maxlength="80" autocomplete="given-name" value="${esc(me?.name.slice(0, 80) ?? '')}"></div>
+        <div class="field"><label for="chat-email">Email (optional)</label><input id="chat-email" name="email" type="email" maxlength="200" autocomplete="email" value="${esc(me?.email.slice(0, 200) ?? '')}"><p class="field__hint">So we can reach you if you close this page.</p></div>
         <div class="field"><label for="chat-first">Message</label><textarea id="chat-first" name="body" rows="2" required maxlength="1000"></textarea></div>
         <div class="honeypot" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
         <p class="form-error" role="alert"></p>
@@ -212,7 +219,7 @@ export function initChat(settings) {
     launch.setAttribute('aria-expanded', String(open));
     if (open) {
       token ? renderThread() : renderStart();
-      (token ? $('#chat-reply', body) : $('#chat-name', body))?.focus();
+      (token ? $('#chat-reply', body) : profile()?.name ? $('#chat-first', body) : $('#chat-name', body))?.focus();
       await refresh();
       if (token) {
         seen = newestShop();
@@ -243,8 +250,14 @@ export function initChat(settings) {
   });
   panel.addEventListener('keydown', (e) => e.key === 'Escape' && setOpen(false));
 
-  // A visitor who chatted before sees the dot if the shop has answered since they last looked.
-  if (token) {
+  // Tapping a "the shop replied" notification opens the app at ?chat=1: show the chat, then tidy the address.
+  const params = new URLSearchParams(location.search);
+  if (params.has('chat')) {
+    params.delete('chat');
+    history.replaceState(history.state, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`);
+    setOpen(true);
+  } else if (token) {
+    // A visitor who chatted before sees the dot if the shop has answered since they last looked.
     refresh().then(schedule);
   }
 }

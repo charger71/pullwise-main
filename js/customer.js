@@ -17,6 +17,8 @@ let subs = []; // follows: { id, kind: 'series' | 'artist', key, label, role, qu
 const listeners = new Set();
 
 export const isSignedIn = () => customer != null;
+/** The signed-in customer's name and email (for forms that ask for them), or null when signed out. */
+export const profile = () => (customer ? { name: customer.name ?? '', email: customer.email ?? '' } : null);
 export const has = (itemId) => lines.has(itemId);
 export const lineFor = (itemId) => lines.get(itemId);
 export const count = () => lines.size;

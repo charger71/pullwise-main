@@ -153,6 +153,18 @@ export function staffChatMessage({ id, name, body, unread = 1 }) {
   };
 }
 
+/** The shop answered a customer's chat (one they started signed in). Tapping opens the app with the chat open. */
+export function chatReplyMessage({ shopName = '', body = '' }) {
+  const shop = String(shopName).trim();
+  const text = String(body ?? '').replace(/\s+/g, ' ').trim();
+  return {
+    title: shop ? `${shop} replied` : 'The shop replied',
+    body: text.length > CHAT_SNIPPET ? `${text.slice(0, CHAT_SNIPPET - 1)}…` : text,
+    url: '/app?chat=1',
+    tag: 'chat-reply', // one notice for the chat at a time
+  };
+}
+
 /** The test a staff member sends to their own devices from the Chat screen. */
 export const staffTestMessage = (shopName = '') => ({
   title: shopName.trim() ? `${shopName.trim()} · Staff` : 'Chat notifications are on',

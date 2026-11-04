@@ -59,7 +59,7 @@ async function showList() {
       <button type="button" class="admin-tab" role="tab" data-status="open">Open <span class="admin-tab__badge" data-unread hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-status="closed">Closed</button>
     </div>
-    ${hintFold('Visitors start a chat from the button in the corner of every public page. This screen shows new messages as they arrive, so leave it open while you want to be reachable; if you are on another screen, a message pops up in the corner and the Chat menu item shows how many chats are waiting. Turn on chat notifications (the line under the switch) to get a notification on this phone or computer when a visitor writes, even with the admin closed; each staff member turns them on for each of their own devices. Reply here, close a chat when you are done, and delete the ones you no longer need (chats keep the visitor’s name and, if they gave it, their email). A visitor who writes again reopens a closed chat. Use the switch at the top to turn chat on or off for visitors. The owner can remove the chat feature altogether in Shop Settings → Online.')}
+    ${hintFold('Visitors start a chat from the button in the corner of every public page. This screen shows new messages as they arrive, so leave it open while you want to be reachable; if you are on another screen, a message pops up in the corner and the Chat menu item shows how many chats are waiting. Turn on chat notifications (the line under the switch) to get a notification on this phone or computer when a visitor writes, even with the admin closed; each staff member turns them on for each of their own devices. Reply here, close a chat when you are done, and delete the ones you no longer need (chats keep the visitor’s name and, if they gave it, their email). A visitor who writes again reopens a closed chat. A customer who is signed in (on the website or in the app) chats on their account: the chat says Customer and links to their account, and your replies reach their phone as an app notification if they turned those on. Use the switch at the top to turn chat on or off for visitors. The owner can remove the chat feature altogether in Shop Settings → Online.')}
     <p class="admin-status" role="status" data-state></p>
     <div data-list></div>`;
   $$('[data-status]', root).forEach((b) =>
@@ -112,7 +112,7 @@ function wireSwitch(mine, on) {
 async function loadList(mine) {
   const box = $('[data-list]', root);
   try {
-    const all = await must(sb.from('chat_conversations').select('id,name,email,status,unread_staff,last_message_at').order('last_message_at', { ascending: false }).limit(200));
+    const all = await must(sb.from('chat_conversations').select('id,name,email,status,unread_staff,last_message_at,customer_id').order('last_message_at', { ascending: false }).limit(200));
     if (mine !== run) return;
     const rows = all.filter((c) => c.status === listTab);
     const last = new Map(); // the newest message of each chat, for the preview
@@ -133,7 +133,7 @@ async function loadList(mine) {
             const m = last.get(c.id);
             const text = m ? `${m.from_staff ? 'You: ' : ''}${m.body}` : '';
             return `<tr>
-              <td class="card-title"><strong>${esc(c.name)}</strong>${c.email ? `<br><span class="card__meta">${esc(c.email)}</span>` : ''}</td>
+              <td class="card-title"><strong>${esc(c.name)}</strong>${c.email || c.customer_id ? `<br><span class="card__meta">${[c.customer_id ? 'Customer' : '', esc(c.email ?? '')].filter(Boolean).join(' · ')}</span>` : ''}</td>
               <td class="card-wide">${esc(text.length > SNIPPET ? `${text.slice(0, SNIPPET)}…` : text)}</td>
               <td class="card-key">${esc(fmtDateTime(c.last_message_at))}</td>
               <td class="card-key">${c.unread_staff > 0 ? `<span class="pill pill--new">${c.unread_staff} new</span>` : c.status === 'closed' ? '<span class="pill pill--off">Closed</span>' : '<span class="pill pill--done">Answered</span>'}</td>
@@ -151,7 +151,7 @@ async function loadList(mine) {
 
 async function showChat(id) {
   const mine = ++run;
-  const chat = await must(sb.from('chat_conversations').select('id,name,email,status,created_at').eq('id', id).maybeSingle());
+  const chat = await must(sb.from('chat_conversations').select('id,name,email,status,created_at,customer_id').eq('id', id).maybeSingle());
   if (!chat) {
     root.innerHTML = `<p><a class="btn btn--ghost btn--small" href="${adminHash('chat')}">← Back to chats</a></p><p class="empty">That chat is gone. A teammate may have deleted it.</p>`;
     return;
@@ -166,7 +166,7 @@ async function showChat(id) {
         <button class="btn btn--danger btn--small" type="button" data-delete>Delete</button>
       </div>
     </div>
-    <p class="card__meta">${chat.email ? `<a href="mailto:${esc(chat.email)}" data-email-to="${esc(chat.email)}" data-email-name="${esc(chat.name)}">${esc(chat.email)}</a> · ` : ''}Started ${esc(fmtDateTime(chat.created_at))}</p>
+    <p class="card__meta">${chat.customer_id ? `<a href="${adminHash('customers', chat.customer_id)}">Customer account</a> · ` : ''}${chat.email ? `<a href="mailto:${esc(chat.email)}" data-email-to="${esc(chat.email)}" data-email-name="${esc(chat.name)}">${esc(chat.email)}</a> · ` : ''}Started ${esc(fmtDateTime(chat.created_at))}</p>
     <div class="chat-thread" role="log" aria-label="Messages with ${esc(chat.name)}" tabindex="0" data-log></div>
     <form class="chat-compose" data-reply-form>
       <div class="field"><label for="${replyId}">Reply</label><textarea id="${replyId}" name="reply" rows="2" maxlength="1000" required></textarea></div>
