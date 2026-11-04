@@ -20,9 +20,10 @@ const readSaved = () => {
     return {};
   }
 };
-const writeSaved = (v) => {
+/** Keep what is saved (the chat's token, what was read, whether the button is hidden) and change only `patch`. */
+const writeSaved = (patch) => {
   try {
-    localStorage.setItem(KEY, JSON.stringify(v));
+    localStorage.setItem(KEY, JSON.stringify({ ...readSaved(), ...patch }));
   } catch {
     /* without storage the chat lasts until the page is closed */
   }
@@ -35,6 +36,7 @@ export function initChat(settings) {
   const saved = readSaved();
   let token = saved.token ?? null; // set once a chat has been started
   let seen = saved.seen ?? 0; // the newest shop message the visitor has read
+  let hidden = saved.hidden ?? false; // the visitor hid the floating button; the footer link still opens the chat
   let messages = [];
   let status = 'open';
   let isOpen = false;
@@ -45,11 +47,13 @@ export function initChat(settings) {
     <section class="chat" id="chat" aria-label="Chat with ${esc(settings.shop_name)}" hidden>
       <div class="chat__head">
         <h2 class="chat__title">Chat with ${esc(settings.shop_name)}</h2>
-        <button class="dialog__close" type="button" aria-label="Close chat">×</button>
+        <button class="btn btn--ghost btn--small" type="button" data-chat-close>Close</button>
       </div>
       <div class="chat__body"></div>
+      <p class="chat__foot"><button class="chat__hide" type="button">Hide this button</button><span>Find it again in the page footer.</span></p>
     </section>`);
   const launch = $('#chat-launch');
+  launch.hidden = hidden;
   const panel = $('#chat');
   const body = $('.chat__body', panel);
   const dot = $('.chat-launch__dot', launch);
@@ -62,7 +66,7 @@ export function initChat(settings) {
         <p class="chat__note">${esc(settings.chat_greeting || DEFAULT_GREETING)}</p>
         <div class="field"><label for="chat-name">Your name</label><input id="chat-name" name="name" required maxlength="80" autocomplete="given-name"></div>
         <div class="field"><label for="chat-email">Email (optional)</label><input id="chat-email" name="email" type="email" maxlength="200" autocomplete="email"><p class="field__hint">So we can reach you if you close this page.</p></div>
-        <div class="field"><label for="chat-first">Message</label><textarea id="chat-first" name="body" rows="3" required maxlength="1000"></textarea></div>
+        <div class="field"><label for="chat-first">Message</label><textarea id="chat-first" name="body" rows="2" required maxlength="1000"></textarea></div>
         <div class="honeypot" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
         <p class="form-error" role="alert"></p>
         <button class="btn btn--primary" type="submit">Start chat</button>
@@ -115,7 +119,7 @@ export function initChat(settings) {
       token = null;
       messages = [];
       seen = 0;
-      writeSaved({});
+      writeSaved({ token: null, seen: 0 });
       dot.hidden = true;
       if (isOpen) renderStart();
       return;
@@ -196,7 +200,7 @@ export function initChat(settings) {
   async function setOpen(open) {
     isOpen = open;
     panel.hidden = !open;
-    launch.hidden = open;
+    launch.hidden = open || hidden;
     launch.setAttribute('aria-expanded', String(open));
     if (open) {
       token ? renderThread() : renderStart();
@@ -208,13 +212,27 @@ export function initChat(settings) {
         dot.hidden = true;
       }
     } else {
-      launch.focus();
+      // Back to where the visitor opened it from: the button, or the footer link once the button is hidden.
+      hidden ? $('a[href="#chat"]')?.focus({ preventScroll: true }) : launch.focus();
     }
     schedule();
   }
 
   launch.addEventListener('click', () => setOpen(true));
-  $('.dialog__close', panel).addEventListener('click', () => setOpen(false));
+  $('[data-chat-close]', panel).addEventListener('click', () => setOpen(false));
+  $('.chat__hide', panel).addEventListener('click', () => {
+    hidden = true;
+    writeSaved({ hidden });
+    setOpen(false);
+  });
+  // The footer's "Chat with us" link (js/site.js) opens the chat, whether or not the button is hidden. Hiding is kept
+  // between visits; closing the box afterwards doesn't bring the button back.
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href="#chat"]');
+    if (!link || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    setOpen(true);
+  });
   panel.addEventListener('keydown', (e) => e.key === 'Escape' && setOpen(false));
 
   // A visitor who chatted before sees the dot if the shop has answered since they last looked.

@@ -411,7 +411,7 @@ function renderFooter(s, extraLinks = []) {
       </section>
       <section>
         <h2 class="footer__heading">More</h2>
-        <ul class="footer__links">${[...FOOTER_LINKS, ...extraLinks].map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('')}</ul>
+        <ul class="footer__links">${[...FOOTER_LINKS, ...(s.chat_enabled ? [{ href: '#chat', label: 'Chat with us' }] : []), ...extraLinks].map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('')}</ul>
       </section>
     </div>
     <p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)} · ${POWERED_BY}</p>`;

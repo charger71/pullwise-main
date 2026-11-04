@@ -110,7 +110,7 @@ export async function mount(el, { sb }) {
       </div></div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Live Chat</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         <div class="field span-2"><label><input type="checkbox" name="chat_enabled"${s.chat_enabled ? ' checked' : ''}> Show a “Chat with us” button on every public page</label>
-        <p class="field__hint">Visitors write to you without signing in, and you answer from Admin → Chat. Staff only see messages while signed in, so switch it off when nobody is around to answer.</p></div>
+        <p class="field__hint">Visitors write to you without signing in, and you answer from Admin → Chat. Customers can hide the button; a “Chat with us” link stays in the page footer. You only see messages while signed in to the admin, so switch chat off when nobody is around to answer.</p></div>
         ${field('chat_greeting', 'Greeting', 'maxlength="200"', 'Shown above the first message box. Leave blank for the standard greeting.', 'field--full')}
       </div></div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Footer Code</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
