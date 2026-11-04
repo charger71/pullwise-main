@@ -32,6 +32,14 @@ export const formReaders = (f) => ({
 });
 
 /** Trailing-edge debounce: calls `fn` once, `ms` after the last call. */
+/** After a pager's Previous/Next: bring the list's top (`target`) back into view when it has scrolled up out of
+ *  sight or under the sticky header, so the new page starts at its first row. Its CSS scroll-margin clears the header. */
+export const toListTop = (target) => {
+  if (!target) return;
+  const margin = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+  if (target.getBoundingClientRect().top < margin) target.scrollIntoView({ block: 'start' });
+};
+
 export const debounce = (fn, ms) => {
   let t;
   return (...a) => (clearTimeout(t), (t = setTimeout(() => fn(...a), ms)));

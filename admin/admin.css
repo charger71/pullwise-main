@@ -216,6 +216,7 @@ th[aria-sort='ascending'], th[aria-sort='descending'] { color: #fff; }
 .thumb--sm { width: 32px; min-width: 32px; height: 48px; } /* compact lists, e.g. Dashboard → Most reserved */
 .thumb--lg { width: 200px; min-width: 200px; height: 300px; } /* one title on its own, e.g. Titles → Title Info */
 .thumb--none { background: repeating-linear-gradient(45deg, var(--neutral-bg), var(--neutral-bg) 4px, var(--neutral-bg-2) 4px, var(--neutral-bg-2) 8px); }
+.results-count, .email-log, .dash-card { scroll-margin-top: calc(var(--header-h) + var(--sp-8)); } /* paging scrolls the list's top here, clear of the sticky header */
 .admin-pager { display: flex; align-items: center; justify-content: center; gap: var(--sp-14); margin-top: var(--sp-16); font-size: var(--fs-ui); color: var(--muted); }
 
 /* ---------- Forms & dialogs ---------- */

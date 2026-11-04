@@ -2,7 +2,7 @@
 // status, lookup by name/phone/email, CSV export — plus a "To order" view that
 // totals reserved copies per title for each order cutoff.
 
-import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime, fetchAll, debounce, titleFilter, STATUS_LABELS } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime, fetchAll, debounce, titleFilter, STATUS_LABELS, toListTop } from '../lib.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, todayIn, dayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
 
@@ -161,8 +161,9 @@ function renderOrders(body) {
   });
   form.elements.status.addEventListener('change', syncChips);
   sortableTable($('table', body), { sort: state.sort, dir: state.dir, onSort: (sort, dir) => ((state = { ...state, sort, dir, offset: 0 }), loadOrders(body)) });
-  $('[data-prev]', body).addEventListener('click', () => ((state.offset = Math.max(0, state.offset - PAGE)), loadOrders(body)));
-  $('[data-next]', body).addEventListener('click', () => ((state.offset += PAGE), loadOrders(body)));
+  const turnPage = (offset) => ((state.offset = offset), toListTop($('[data-count]', body)), loadOrders(body));
+  $('[data-prev]', body).addEventListener('click', () => turnPage(Math.max(0, state.offset - PAGE)));
+  $('[data-next]', body).addEventListener('click', () => turnPage(state.offset + PAGE));
   $('[data-csv]', body).addEventListener('click', () => exportCsv());
   $('[data-rows]', body).addEventListener('click', (e) => {
     const link = e.target.closest('[data-customer]');

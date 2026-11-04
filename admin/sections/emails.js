@@ -2,7 +2,7 @@
 // schedule, sender, and preview / test / send-now tools. Saves only its own
 // settings columns, so it never touches the Shop Settings fields.
 
-import { $, $$, esc, must, toast, setStatus, openDialog, makeEditor, setHtml, getHtml, imageField, settingsField, formReaders, fmtDateTime, debounce, friendlyError, setupTabs, fmtTime } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, openDialog, makeEditor, setHtml, getHtml, imageField, settingsField, formReaders, fmtDateTime, debounce, friendlyError, setupTabs, fmtTime, toListTop } from '../lib.js';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const hourLabel = (h) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
@@ -283,8 +283,9 @@ function setupLog(sb, el) {
   loaded = true;
   load();
   $('[data-log-q]', box).addEventListener('input', debounce((e) => ((state.q = e.target.value), reload()), 300));
-  $('[data-log-prev]', box).addEventListener('click', () => ((state.offset = Math.max(0, state.offset - LOG_PAGE)), load()));
-  $('[data-log-next]', box).addEventListener('click', () => ((state.offset += LOG_PAGE), load()));
+  const turnPage = (offset) => ((state.offset = offset), toListTop(box.closest('.email-log') ?? box), load());
+  $('[data-log-prev]', box).addEventListener('click', () => turnPage(Math.max(0, state.offset - LOG_PAGE)));
+  $('[data-log-next]', box).addEventListener('click', () => turnPage(state.offset + LOG_PAGE));
 
   rowsBox.addEventListener('click', async (e) => {
     const run = e.target.closest('[data-log-run]');

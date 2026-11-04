@@ -4,7 +4,7 @@
 // titles, titles needing attention) and how many customers use the pull list
 // app. Read-only; links out to the sections where things get changed.
 
-import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations, fmtTime } from '../lib.js';
+import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations, fmtTime, toListTop } from '../lib.js';
 import { lastReserveDay } from '../../js/site.js';
 import { lastBackup } from '../backup.js';
 import { LINE_STATUS_SHORT } from '../../js/labels.js';
@@ -433,8 +433,9 @@ function renderTop(box, lines) {
       draw();
     },
   });
-  $('[data-top-prev]', pager).addEventListener('click', () => (state.page--, draw()));
-  $('[data-top-next]', pager).addEventListener('click', () => (state.page++, draw()));
+  const turnPage = (step) => ((state.page += step), toListTop(box.closest('.dash-card') ?? box), draw());
+  $('[data-top-prev]', pager).addEventListener('click', () => turnPage(-1));
+  $('[data-top-next]', pager).addEventListener('click', () => turnPage(1));
   draw();
 }
 
