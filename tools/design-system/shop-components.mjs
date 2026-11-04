@@ -400,7 +400,7 @@ The storefront's modal dialog: a native \`<dialog>\` with a title, a round close
     name: 'ShopChat', group: G('Overlays'), height: 614, width: 860,
     readme: `# ShopChat
 
-The live chat: a button in the bottom-right corner opens a small chat box. It appears only when staff switch Live Chat on (Shop Settings → Online). Rendered by \`initChat()\` in js/chat.js.
+The live chat: a button in the bottom-right corner opens a small chat box. It appears only when the owner has Live Chat on for the site (Shop Settings → Online) and staff have switched chat on (the switch on Admin → Chat). Rendered by \`initChat()\` in js/chat.js.
 
 - **Button** (\`.chat-launch\`): a \`.btn--primary\` fixed to the corner at \`shop-z-chat\`, over the sticky header and the pull-list bar, under the skip link. A dot (\`.chat-launch__dot\`) in \`shop-on-primary\` shows when the shop has answered since the visitor last looked; it follows the button's fill, so it reads on any main color. It lifts clear of the pull-list bar (\`body.has-list-bar\`).
 - **Box** (\`.chat\`): \`surface\` with a \`line\` edge, \`shop-radius-lg\`, \`shop-shadow-lg\`, 380px wide and at most 600px tall. Under 480px it is a sheet pinned to the bottom of the screen.
@@ -409,7 +409,7 @@ The live chat: a button in the bottom-right corner opens a small chat box. It ap
 - **Conversation** (\`.chat__log\`, \`role="log"\`): the visitor's messages sit on the right on \`shop-red-btn\` with \`shop-on-primary\` text (\`.chat__msg--mine\`); the shop's sit on the left on \`raised\` and may contain links. Each has a small time (\`.chat__time\`). Enter sends on screens 600px and wider; a phone's Return key adds a line.
 - **Hide this button** (\`.chat__hide\`): a link-style button in the foot (\`shop-teal\`, 44px tall). It hides the floating button in that browser. The footer's "Chat with us" link (\`a[href="#chat"]\`) opens the chat whether the button shows or not, so there is always a way back.
 - Text on the button, the visitor's bubbles and the dot follow their fill (\`shop-on-primary\`); everything else follows the page, so the chat reads on any colors a shop picks.
-- Consumer provides: shop settings (\`chat_enabled\`, \`chat_greeting\`, the shop name). Staff answer from Admin → Chat (AdminChat).`,
+- Consumer provides: shop settings (\`chat_available\` and \`chat_enabled\`, both needed, through \`chatOn()\` in js/util.js; \`chat_greeting\`; the shop name). Staff answer from Admin → Chat (AdminChat).`,
     html: page('ShopChat', `
 <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
 <section class="chat" aria-label="Chat with Pop's Comics" style="position:static;max-height:none">

@@ -16,6 +16,7 @@ const SECTIONS = ['dashboard', 'titles', 'reservations', 'customers', 'chat', 's
 // Screens only owners open (the menu item is hidden and the address redirects to the Dashboard).
 const OWNER_ONLY = ['settings', 'locations', 'backup', 'restore'];
 let isOwner = false;
+let chatAvailable = true; // Shop Settings → Online → Live Chat: off removes the Chat screen
 let current = null; // { name, module }
 let sb;
 let signedInAs = null; // the staff user id the screens were opened for
@@ -170,6 +171,16 @@ async function showApp() {
     const item = $(`.admin-nav a[href="#${name}"]`)?.closest('li');
     if (item) item.hidden = !isOwner;
   });
+  // Live chat can be switched off for the whole shop (Shop Settings); then its screen is gone. A shop that hasn't got the
+  // column yet (an update still rolling out) keeps the screen.
+  const showChat = (on) => {
+    chatAvailable = on;
+    const item = $('.admin-nav a[href="#chat"]')?.closest('li');
+    if (item) item.hidden = !on;
+  };
+  const { data: chatSetting } = await sb.from('settings').select('chat_available').eq('id', 1).maybeSingle();
+  showChat(chatSetting?.chat_available !== false);
+  window.addEventListener('chat-available', (e) => showChat(e.detail));
   $('#login').hidden = true;
   $('#app').hidden = false;
   $('#admin-user').hidden = false;
@@ -202,7 +213,7 @@ const setTitle = () => {
 let lastHash = location.hash;
 async function route() {
   let { name, arg } = parseAdminHash(location.hash, SECTIONS);
-  if (OWNER_ONLY.includes(name) && !isOwner) {
+  if ((OWNER_ONLY.includes(name) && !isOwner) || (name === 'chat' && !chatAvailable)) {
     name = 'dashboard';
     arg = '';
     history.replaceState(null, '', '#dashboard');

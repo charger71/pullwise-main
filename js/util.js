@@ -5,6 +5,9 @@ import { fromError } from './errors.js';
 /** The visitor asked for less motion (in a browser; false anywhere else): animations are skipped, not shortened. */
 export const prefersReducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/** Is the live chat showing on the public pages? Needs the feature (Shop Settings → Online) and the switch on Admin → Chat. */
+export const chatOn = (s) => !!s?.chat_enabled && s.chat_available !== false;
+
 /** HTML-escape a value for text or attribute positions. */
 export const esc = (v) =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

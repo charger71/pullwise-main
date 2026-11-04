@@ -1,8 +1,8 @@
-// Chat: read and answer the live chat visitors start on the public pages (Shop Settings → Online switches the
-// chat button on). The list and an open chat update as messages arrive (Supabase Realtime), with a slow refresh
+// Chat: read and answer the live chat visitors start on the public pages. The switch at the top of the list turns the
+// chat button on and off for visitors; the owner can remove the whole feature in Shop Settings → Online. The list and an open chat update as messages arrive (Supabase Realtime), with a slow refresh
 // as a backup in case the live connection drops.
 
-import { $, $$, esc, must, toast, setStatus, fmtDateTime, friendlyError, hintFold, uid } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, fmtDateTime, friendlyError, hintFold, uid, switchHtml } from '../lib.js';
 import { adminHash } from '../route.js';
 
 const BACKUP_REFRESH = 20000;
@@ -49,14 +49,15 @@ export async function mount(el, ctx) {
 async function showList() {
   const mine = ++run;
   const settings = await must(sb.from('settings').select('chat_enabled').eq('id', 1).maybeSingle());
+  const on = !!settings?.chat_enabled;
   root.innerHTML = `
-    <div class="admin-title-row"><h1>Chat</h1></div>
+    <div class="admin-title-row"><h1>Chat</h1>${switchHtml(chatLabel(on), { checked: on, attrs: 'data-chat-switch' })}</div>
+    <p class="admin-hint" data-switch-hint></p>
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-status="open">Open <span class="admin-tab__badge" data-unread hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-status="closed">Closed</button>
     </div>
-    ${hintFold('Visitors start a chat from the button in the corner of every public page. This screen shows new messages as they arrive, so leave it open while you want to be reachable; if you are on another screen, a message pops up in the corner. Reply here, close a chat when you are done, and delete the ones you no longer need (chats keep the visitor’s name and, if they gave it, their email). A visitor who writes again reopens a closed chat. Chat is on or off in Shop Settings → Online.')}
-    ${settings?.chat_enabled ? '' : '<p class="admin-hint">Chat is switched off, so visitors don’t see the chat button. An owner can turn it on in Shop Settings → Online.</p>'}
+    ${hintFold('Visitors start a chat from the button in the corner of every public page. This screen shows new messages as they arrive, so leave it open while you want to be reachable; if you are on another screen, a message pops up in the corner. Reply here, close a chat when you are done, and delete the ones you no longer need (chats keep the visitor’s name and, if they gave it, their email). A visitor who writes again reopens a closed chat. Use the switch at the top to turn chat on or off for visitors. The owner can remove the chat feature altogether in Shop Settings → Online.')}
     <p class="admin-status" role="status" data-state></p>
     <div data-list></div>`;
   $$('[data-status]', root).forEach((b) =>
@@ -65,8 +66,44 @@ async function showList() {
       loadList(mine);
     }),
   );
+  wireSwitch(mine, on);
   await loadList(mine);
   listen(mine, () => loadList(mine));
+}
+
+const chatLabel = (on) => (on ? 'Chat is on' : 'Chat is off');
+const switchHint = (on) =>
+  on
+    ? 'Visitors see a “Chat with us” button on every public page. You only get their messages while you are signed in to the admin, so switch chat off when nobody is around to answer.'
+    : 'Visitors don’t see the chat button or the footer link. Switch chat on when you can answer.';
+
+/** The on/off switch: saves as soon as it is flipped, and goes back if the save fails. */
+function wireSwitch(mine, on) {
+  const box = $('[data-chat-switch]', root);
+  const text = $('.switch__text', root);
+  const hint = $('[data-switch-hint]', root);
+  const show = (v) => {
+    box.checked = v;
+    text.textContent = chatLabel(v);
+    hint.textContent = switchHint(v);
+  };
+  show(on);
+  box.addEventListener('change', async () => {
+    const want = box.checked;
+    box.disabled = true;
+    try {
+      // Row-level security turns an update by a signed-out session into "0 rows", not an error.
+      const rows = await must(sb.from('settings').update({ chat_enabled: want }).eq('id', 1).select('id'));
+      if (!rows?.length) throw Object.assign(new Error('You may have been signed out. Sign in again, then try once more.'), { code: 'P0001' });
+      show(want);
+      toast(want ? 'Chat is on. Visitors can message you now.' : 'Chat is off. Visitors no longer see the chat button.');
+    } catch (err) {
+      if (mine === run && root.isConnected) show(!want);
+      toast(`Not saved: ${friendlyError(err)}`, 'error');
+    } finally {
+      box.disabled = false;
+    }
+  });
 }
 
 async function loadList(mine) {

@@ -1289,3 +1289,4 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .chat-msg__meta { display: block; margin-top: var(--sp-4); font-size: var(--fs-2xs); color: var(--muted); }
 .chat-compose { display: flex; align-items: flex-end; gap: var(--sp-8); }
 .chat-compose .field { flex: 1; min-width: 0; margin: 0; }
+.admin-title-row .switch { margin-left: auto; }
