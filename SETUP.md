@@ -187,12 +187,16 @@ Secrets (`supabase secrets set NAME=value …`; never put these in code):
 | `RESEND_FROM` | emails (fallback) | e.g. `Your Shop <hello@yourshop.com>`; Shop Settings' From address wins when set |
 | `CRON_SECRET` | weekly / arrival / event emails | A long random string |
 | `STAFF_CC` | optional | Comma-separated extra addresses that get copies of sell inquiries and event signups (the shop email in Shop Settings always does) |
-| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | app notifications | A pair from `node tools/vapid-keys.mjs`. One pair serves every shop; keep it (a new pair makes every customer turn notifications on again) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | app and staff chat notifications | A pair from `node tools/vapid-keys.mjs`. One pair serves every shop; keep it (a new pair makes every customer turn notifications on again) |
 | `VAPID_SUBJECT` | app notifications | `mailto:` address push services can reach you at, e.g. `mailto:support@yourdomain.com` |
 
 App notifications (`push-notify`) go out hourly inside the "Your books are in" email's sending hours, whether or not
 that email is on. The database finds the function next to `weekly-pull-list` and uses the same `CRON_SECRET`, so it needs
 nothing more than the two Vault secrets below. Without the VAPID secrets the app says notifications aren't available yet.
+
+Staff chat notifications use the same function, keys and Vault secrets: when a visitor writes in live chat, the database
+asks `push-notify` to tell every staff device that turned them on (admin → Chat, at most once every 5 minutes for each
+chat). Without the VAPID secrets the Chat screen offers in-tab desktop alerts instead.
 
 Then give the database the email function's address and the same `CRON_SECRET` (SQL editor):
 

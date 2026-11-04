@@ -6,6 +6,9 @@
 //           for books still waiting (after a week, and near the end of the hold), one the day before the last
 //           day to change the list, and one when titles they asked about ("tell me when it's in") are in the shop
 //   POST  Authorization: Bearer <customer>  { "mode": "test" }   a test notice to the signed-in customer's own devices
+//   POST  x-cron-secret  { "mode": "chat", "conversation_id" }   a visitor wrote in live chat: tell every staff device
+//           that turned chat notifications on (public.chat_message_push asks, at most every 5 minutes for a chat)
+//   POST  Authorization: Bearer <staff>  { "mode": "staff-test" }   a test notice to the signed-in staff member's devices
 //
 // Secrets (supabase secrets set …): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (`node tools/vapid-keys.mjs` makes a pair; the
 // same pair can serve every shop), VAPID_SUBJECT (mailto: or https: address push services can reach the sender at);
@@ -15,7 +18,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
-import { arrivalMessage, newTitlesMessage, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, testMessage, notificationIcon, subscriptionGone, shopToday, addDays, focsChangingOn, pickupDue } from './messages.js';
+import { arrivalMessage, newTitlesMessage, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, testMessage, staffChatMessage, staffTestMessage, notificationIcon, subscriptionGone, shopToday, addDays, focsChangingOn, pickupDue } from './messages.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
@@ -50,13 +53,22 @@ Deno.serve(async (req) => {
   const cron = req.headers.get('x-cron-secret');
   const secret = Deno.env.get('CRON_SECRET');
   try {
-    if (cron && secret && same(cron, secret)) return json(200, await sendAll());
-    if (body.mode !== 'test') return json(400, { error: 'Unknown mode.' });
-    // A customer testing their own devices.
+    if (cron && secret && same(cron, secret)) return json(200, body.mode === 'chat' ? await sendChat(Number(body.conversation_id)) : await sendAll());
+    if (body.mode !== 'test' && body.mode !== 'staff-test') return json(400, { error: 'Unknown mode.' });
     const auth = req.headers.get('authorization');
     if (!auth) return json(401, { error: 'Please sign in.' });
     const caller = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
     const user = (await caller.auth.getUser()).data.user;
+    if (body.mode === 'staff-test') {
+      // A staff member testing their own devices (the staff table is readable only by staff).
+      const { data: staff } = user ? await caller.from('staff').select('user_id').eq('user_id', user.id).maybeSingle() : { data: null };
+      if (!staff) return json(401, { error: 'Please sign in with your staff account.' });
+      const shop = await loadShop();
+      const devices = await staffDevices(user!.id);
+      const result = await sendTo(devices, { ...staffTestMessage(shop.shop_name), icon: notificationIcon(shop) }, STAFF_TABLE);
+      return json(200, { devices: devices.length, ...result });
+    }
+    // A customer testing their own devices.
     // By user id: staff can read every customer, and must only reach their own devices here.
     const { data: me } = user ? await caller.from('customers').select('id').eq('user_id', user.id).maybeSingle() : { data: null };
     if (!me) return json(401, { error: 'Please sign in.' });
@@ -76,7 +88,35 @@ async function loadShop() {
   return data;
 }
 
-type Device = { id: number; customer_id: number; endpoint: string; p256dh: string; auth: string };
+type Device = { id: number; customer_id?: number; endpoint: string; p256dh: string; auth: string };
+const CUSTOMER_TABLE = 'push_subscriptions';
+const STAFF_TABLE = 'staff_push_subscriptions';
+
+/** Staff devices with chat notifications on: one staff member's, or everyone's. */
+async function staffDevices(userId?: string): Promise<Device[]> {
+  let q = admin.from(STAFF_TABLE).select('id,endpoint,p256dh,auth').order('id').limit(1000);
+  if (userId) q = q.eq('user_id', userId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+/** A visitor wrote in this chat: one notice to every staff device, naming the visitor and quoting their newest line. */
+async function sendChat(id: number) {
+  if (!Number.isInteger(id) || id <= 0) return { error: 'No chat named.' };
+  const [{ data: chat, error }, { data: last }] = await Promise.all([
+    admin.from('chat_conversations').select('id,name,unread_staff').eq('id', id).maybeSingle(),
+    admin.from('chat_messages').select('body').eq('conversation_id', id).eq('from_staff', false).order('id', { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  if (error) throw error;
+  // Deleted already, or a teammate opened it in the moment since: nothing to say.
+  if (!chat || !chat.unread_staff) return { chat: id, sent: 0, skipped: true };
+  const devices = await staffDevices();
+  if (!devices.length) return { chat: id, devices: 0, sent: 0 };
+  const shop = await loadShop();
+  const result = await sendTo(devices, { ...staffChatMessage({ id, name: chat.name, body: last?.body, unread: chat.unread_staff }), icon: notificationIcon(shop) }, STAFF_TABLE, 60 * 30, 'high');
+  return { chat: id, devices: devices.length, ...result };
+}
 
 /** Every device of these customers (all of them when `ids` is null). Paged: one request returns at most 1000 rows. */
 async function subscriptionsOf(ids: number[] | null): Promise<Device[]> {
@@ -95,20 +135,20 @@ async function subscriptionsOf(ids: number[] | null): Promise<Device[]> {
  * One notification to each device. A device the push service says is gone is forgotten. Resolves how many got it,
  * how many failed, and whether any device is still worth trying again (so the caller knows whether to mark it sent).
  */
-async function sendTo(devices: Device[], message: Record<string, unknown>) {
+async function sendTo(devices: Device[], message: Record<string, unknown>, table = CUSTOMER_TABLE, ttl = 60 * 60 * 12, urgency = 'normal') {
   let sent = 0;
   let failed = 0;
   let retry = false;
   const payload = JSON.stringify(message);
   for (const d of devices) {
     try {
-      await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload, { TTL: 60 * 60 * 12, urgency: 'normal' });
+      await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload, { TTL: ttl, urgency });
       sent++;
-      await admin.from('push_subscriptions').update({ last_sent_at: new Date().toISOString() }).eq('id', d.id);
+      await admin.from(table).update({ last_sent_at: new Date().toISOString() }).eq('id', d.id);
     } catch (err) {
       const status = (err as { statusCode?: number }).statusCode;
       if (subscriptionGone(status)) {
-        await admin.from('push_subscriptions').delete().eq('id', d.id);
+        await admin.from(table).delete().eq('id', d.id);
       } else {
         failed++;
         retry = true;
@@ -125,7 +165,7 @@ async function sendAll() {
   const icon = notificationIcon(shop);
   const devices = await subscriptionsOf(null);
   const byCustomer = new Map<number, Device[]>();
-  for (const d of devices) byCustomer.set(d.customer_id, [...(byCustomer.get(d.customer_id) ?? []), d]);
+  for (const d of devices) byCustomer.set(d.customer_id!, [...(byCustomer.get(d.customer_id!) ?? []), d]);
   const ids = [...byCustomer.keys()];
   const out = { customers: ids.length, arrivals: 0, newTitles: 0, pickupReminders: 0, cutoffReminders: 0, inStock: 0, sent: 0, failed: 0, errors: [] as string[] };
   const today = shopToday(shop.timezone || 'America/New_York');
