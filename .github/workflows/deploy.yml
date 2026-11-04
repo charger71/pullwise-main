@@ -78,6 +78,12 @@ jobs:
       - name: Stamp the admin version
         # The footer's version, even when the commit was made without the pre-commit hook (tools/stamp-version.js).
         run: node tools/stamp-version.js --commit-date
+      - name: Make the backups bucket if it's missing
+        # wrangler.jsonc binds the private pullwise-backups bucket (nightly backups); a deploy fails if it doesn't exist.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: $WRANGLER r2 bucket info pullwise-backups > /dev/null 2>&1 || $WRANGLER r2 bucket create pullwise-backups
       - name: Deploy the canary Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -124,6 +130,12 @@ jobs:
       - name: Stamp the admin version
         # The footer's version, even when the commit was made without the pre-commit hook (tools/stamp-version.js).
         run: node tools/stamp-version.js --commit-date
+      - name: Make the backups bucket if it's missing
+        # wrangler.jsonc binds the private pullwise-backups bucket (nightly backups); a deploy fails if it doesn't exist.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: $WRANGLER r2 bucket info pullwise-backups > /dev/null 2>&1 || $WRANGLER r2 bucket create pullwise-backups
       - name: Deploy the Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -1,14 +1,39 @@
 # Backups
 
-The Supabase project has **no automatic backups** (its backup list is empty and point-in-time recovery is off), so
-the admin has a manual one.
+Supabase's free plan keeps **no backups** (point-in-time recovery is off), so Pullwise makes its own: automatically
+every night, and by hand from the admin whenever you want one.
 
-## Make a backup
+## Automatic nightly backups
+
+Every night at about 4 a.m. Eastern, the **Automatic backup** GitHub workflow (`.github/workflows/backup.yml` →
+`tools/backup-shops.mjs`) backs up **every shop in shops.json**: the same file as Download backup below, read with the
+shop's service key. Files go to the **private** R2 bucket `pullwise-backups` (bound to the Worker as `BACKUPS` in
+`wrangler.jsonc`; the Deploy workflow creates it if it's missing; it has no public address, unlike the media bucket):
+
+- `daily/<shop>/shop-backup-YYYY-MM-DD.json.gz`, kept 35 days;
+- `monthly/<shop>/shop-backup-YYYY-MM-01.json.gz`, the 1st of each month, kept 400 days.
+
+R2 deletes old files by itself (a lifecycle rule the script sets on each run). Each backup is written to that shop's
+**Backup → Backup Log** as "Automatic nightly backup", which also keeps the Dashboard's Back up reminder quiet. If a shop
+fails, the run fails and GitHub emails you; the other shops are still backed up, and the failure is in that shop's log.
+
+- **Get a file:** **Admin → Backup → Nightly Backups** (owners only) lists the shop's files with how long each is kept;
+  press Download, then use Restore below as with any backup file. Each download is written to the Backup Log. The list
+  comes from the Worker (`GET /__backups`, `worker/backups.js`), which checks the caller is an owner of that shop and
+  only ever shows that shop's own files. (Cloudflare dashboard → R2 → `pullwise-backups` also works.)
+- **Run it now:** GitHub → Actions → Automatic backup → Run workflow (leave Shop blank for every shop).
+- **Needs:** the `SUPABASE_ACCESS_TOKEN`, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets the
+  Deploy workflow already uses. The Cloudflare token needs **Workers R2 Storage: Edit** (to create the bucket and set its
+  clean-up rule), and each shop's database needs migration `20270227000000_automatic_backup` (deployed with main).
+
+The files hold customer data, so leave the bucket private: never connect a custom domain or public r2.dev address to it.
+
+## Make a backup by hand
 
 **Admin → Backup → Download backup** (owners only). It reads every table (about 20,000 rows) and saves one file,
-`shop-backup-YYYY-MM-DD.json.gz` (about 1.5 MB). Do it weekly and keep the file somewhere safe, such as Dropbox.
-The Dashboard's Needs Attention list shows a **Back up** reminder to owners when the last download is over 7 days old
-(or there never was one). **Backup → Backup Log** lists every backup downloaded and customer list exported, with who did it.
+`shop-backup-YYYY-MM-DD.json.gz` (about 1.5 MB). Use it before a big change, or to keep a copy outside Cloudflare, such
+as in Dropbox. The Dashboard's Needs Attention list shows a **Back up** reminder to owners when the last backup
+(automatic or downloaded) is over 7 days old, which with nightly backups running means they have stopped. **Backup → Backup Log** lists every backup downloaded and customer list exported, with who did it.
 
 The file holds customer names, phone numbers and emails: don't share or email it, and never commit it to git.
 
@@ -66,7 +91,8 @@ settings, pages, events, the series list, follows and the titles table loaded ba
 
 ## Better protection
 
-Supabase's paid plan includes daily backups kept for 7 days, and point-in-time recovery as an add-on.
+Supabase's paid plan includes daily backups kept for 7 days, and point-in-time recovery as an add-on. Both restore the
+whole database at once; the nightly files above let you bring back single tables.
 
 ## Filling a new project from another site's backup
 

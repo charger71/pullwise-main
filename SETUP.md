@@ -273,7 +273,7 @@ Sign in at `https://<your site>/admin/` as the owner, then:
 2. **Pages / FAQ**: rewrite the About text and anything else that doesn't fit your shop.
 3. **Emails**: set the From address, preview, send yourself a test, then turn on the weekly and "your books are in" emails.
 4. **Import**: drop in your first distributor FOC sheets.
-5. **Backup**: download a first backup and set a weekly reminder (see `BACKUPS.md`).
+5. **Backup**: nightly backups start on their own once the shop is in shops.json; check the next day that Backup → Backup Log lists one (see `BACKUPS.md`).
 
 ## Checklist
 

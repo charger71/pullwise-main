@@ -1,9 +1,10 @@
-// Backup (owners): download everything in the shop's database as one file. Restoring is the Restore screen. See BACKUPS.md.
+// Backup (owners): the nightly backups (download any of them), or download everything in the shop's database now as one
+// file. Restoring is the Restore screen. See BACKUPS.md.
 
-import { $, setStatus, fmtDateTime, solidIcon, friendlyError, downloadCsv, setupTabs, loadRunLog } from '../lib.js';
+import { $, esc, setStatus, fmtDate, fmtDateTime, solidIcon, friendlyError, downloadCsv, setupTabs, loadRunLog } from '../lib.js';
 
-const LOG_NAMES = { backup: 'Backup', export: 'Customer export' };
-import { buildBackup, lastBackup, recordBackup, customerRows, CUSTOMER_HEADER } from '../backup.js';
+const LOG_NAMES = { backup: 'Backup', backup_file: 'Nightly backup downloaded', export: 'Customer export' };
+import { buildBackup, lastBackup, recordBackup, customerRows, CUSTOMER_HEADER, nightlyBackups, nightlyBackupFile } from '../backup.js';
 
 export async function mount(el, ctx) {
   const sb = ctx.sb;
@@ -11,15 +12,22 @@ export async function mount(el, ctx) {
   el.innerHTML = `
     <h1>Backup</h1>
     <div class="admin-tabs" role="tablist">
+      <button type="button" class="admin-tab" role="tab" data-tab="nightly">Nightly Backups</button>
       <button type="button" class="admin-tab" role="tab" data-tab="backup">Download Backup</button>
       <button type="button" class="admin-tab" role="tab" data-tab="customers">Export Customers</button>
       <button type="button" class="admin-tab" role="tab" data-tab="log">Backup Log</button>
+    </div>
+    <div data-tabpane="nightly">
+    <p>The shop is backed up automatically every night. Each day’s file is kept for 35 days, and the first of each month for about a year. To load one back, download it and choose it in <a href="#restore">Restore</a>.</p>
+    <p class="field__hint">The files contain customer names, phone numbers and emails: don’t share them or email them. Each download is listed in the Backup Log.</p>
+    <p class="admin-status" role="status" data-nightly-status></p>
+    <div data-nightly><p class="card__meta">Loading the backups…</p></div>
     </div>
     <div data-tabpane="backup">
     <section class="fold fold--compact fold--static">
     <div class="fold__head"><h2>Download a Backup</h2></div>
     <div class="fold__body">
-    <p>Downloads one file with <strong>everything in the shop’s database</strong>: titles, customers, pull lists and reservations, orders, events, news, page text, settings and the change log. Do this regularly (weekly is a good habit) and keep the file somewhere safe, such as Dropbox.</p>
+    <p>Downloads one file with <strong>everything in the shop’s database</strong>: titles, customers, pull lists and reservations, orders, events, news, page text, settings and the change log. The shop is also backed up automatically every night (listed in the Backup Log); download one yourself before a big change, or to keep a copy of your own somewhere safe, such as Dropbox.</p>
     <p class="field__hint">The file contains customer names, phone numbers and emails: don’t share it or email it. Uploaded pictures (Media) are not in it, and neither are distributor cover images, which a re-import brings back. To load data back from a file, use <a href="#restore">Restore</a>.</p>
     <p data-last class="card__meta">Checking the last backup…</p>
     <p class="admin-status" role="status" data-status></p>
@@ -39,17 +47,57 @@ export async function mount(el, ctx) {
     </section>
     </div>
     <div data-tabpane="log">
-    <p>Every backup downloaded and every customer list exported, newest first, with who did it.</p>
+    <p>Every backup (the nightly automatic ones and those downloaded here), every nightly file downloaded, and every customer list exported, newest first, with who did it.</p>
     <div data-log></div>
     </div>`;
   const log = () => loadRunLog(sb, $('[data-log]', el), { jobs: Object.keys(LOG_NAMES), name: (job) => LOG_NAMES[job] ?? job, by: true, limit: 50, empty: 'No backups or exports yet.' }).catch(() => {});
-  setupTabs(el, 'admin-backup-tab', 'backup');
+  setupTabs(el, 'admin-backup-tab', 'nightly');
   log();
+
+  const nightlyEl = $('[data-nightly]', el);
+  const showNightly = async () => {
+    try {
+      const files = await nightlyBackups(sb);
+      nightlyEl.innerHTML = files.length
+        ? `<div class="admin-table-wrap"><table class="admin-table cards">
+            <thead><tr><th scope="col">Backup</th><th scope="col">Kept until</th><th scope="col" class="center">Size</th><th scope="col"><span class="visually-hidden">Download</span></th></tr></thead>
+            <tbody>${files.map((f) => `<tr>
+              <td class="card-title"><strong>${esc(fmtDate(f.date, { weekday: 'short', month: 'short', day: 'numeric' }))}</strong>${f.kind === 'monthly' ? ' <span class="pill pill--accent">Monthly</span>' : ''}</td>
+              <td class="card__meta nowrap card-line card-label">${esc(fmtDate(f.keptUntil))}</td>
+              <td class="center nowrap card-key card-label">${(f.size / 1024 / 1024).toFixed(1)} MB</td>
+              <td class="card-foot"><button type="button" class="btn btn--ghost btn--small" data-get="${esc(f.key)}">Download</button></td>
+            </tr>`).join('')}</tbody>
+          </table></div>`
+        : '<p class="empty">No nightly backups yet. The first one is made tonight.</p>';
+    } catch (err) {
+      nightlyEl.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
+    }
+  };
+  showNightly();
+  nightlyEl.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-get]');
+    if (!btn) return;
+    const status = $('[data-nightly-status]', el);
+    btn.disabled = true;
+    setStatus(status, 'Downloading…');
+    try {
+      const { file, name } = await nightlyBackupFile(sb, btn.dataset.get);
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(file), download: name });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      await sb.from('job_log').insert({ job: 'backup_file', ok: true, message: `${user.email}: ${name}` }).catch(() => {});
+      setStatus(status, `Saved ${name}. Keep it somewhere safe.`, 'ok');
+      log();
+    } catch (err) {
+      setStatus(status, `Download failed: ${friendlyError(err)}`, 'error');
+    }
+    btn.disabled = false;
+  });
 
   const lastEl = $('[data-last]', el);
   const showLast = async () => {
     const last = await lastBackup(sb);
-    lastEl.textContent = last ? `Last backup: ${fmtDateTime(last.at)} (${last.days === 0 ? 'today' : `${last.days} ${last.days === 1 ? 'day' : 'days'} ago`}). ${last.message ?? ''}` : 'No backup has been downloaded yet.';
+    lastEl.textContent = last ? `Last backup: ${fmtDateTime(last.at)} (${last.days === 0 ? 'today' : `${last.days} ${last.days === 1 ? 'day' : 'days'} ago`}). ${last.message ?? ''}` : 'No backup has been made yet.';
   };
   showLast().catch(() => (lastEl.textContent = ''));
 
