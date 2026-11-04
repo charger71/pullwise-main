@@ -12,6 +12,7 @@ import { VERSION } from './version.js';
 import { syncTheme } from './theme.js';
 import { watchForUpdates } from './update-check.js';
 import { startChatAlerts, stopChatAlerts, unreadChats } from './chat-alerts.js';
+import { listenForOpenRequests } from './staff-push.js';
 
 const SECTIONS = ['dashboard', 'titles', 'reservations', 'customers', 'chat', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'restore', 'staff'];
 // Screens only owners open (the menu item is hidden and the address redirects to the Dashboard).
@@ -184,6 +185,7 @@ async function showApp() {
   const { data: chatSetting } = await sb.from('settings').select('chat_available').eq('id', 1).maybeSingle();
   showChat(chatSetting?.chat_available !== false);
   window.addEventListener('chat-available', (e) => showChat(e.detail));
+  listenForOpenRequests(); // tapping a chat notification while the admin is open shows that chat here
   $('#login').hidden = true;
   $('#app').hidden = false;
   $('#admin-user').hidden = false;

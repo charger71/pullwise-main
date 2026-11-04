@@ -1,6 +1,6 @@
 // node supabase/functions/push-notify/messages.test.js
 import assert from 'node:assert/strict';
-import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone, addDays, shopToday, dayLabel, lastChangeDay, focsChangingOn, pickupDue, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK } from './messages.js';
+import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone, addDays, shopToday, dayLabel, lastChangeDay, focsChangingOn, pickupDue, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, staffChatMessage, staffTestMessage } from './messages.js';
 
 const line = (title, issue, id) => ({ item: { id, title, issue_number: issue } });
 
@@ -98,3 +98,17 @@ assert.equal(subscriptionGone(429), false);
 assert.equal(subscriptionGone(undefined), false);
 
 console.log('push message tests passed');
+
+// Staff: a visitor's chat message
+const chat = staffChatMessage({ id: 12, name: ' Sam ', body: 'Do you\n  have issue 3?' });
+assert.equal(chat.title, 'Chat from Sam');
+assert.equal(chat.body, 'Do you have issue 3?', 'line breaks fold into one line');
+assert.equal(chat.url, '/admin/#chat/12');
+assert.equal(chat.tag, 'chat-12');
+assert.equal(staffChatMessage({ id: 3, name: '', body: 'hi', unread: 4 }).title, 'A visitor (4 new messages)');
+const long = staffChatMessage({ id: 1, name: 'A', body: 'x'.repeat(500) });
+assert.equal(long.body.length, 140);
+assert.ok(long.body.endsWith('…'));
+assert.equal(staffTestMessage('Area71').title, 'Area71 · Staff');
+assert.equal(staffTestMessage().url, '/admin/#chat');
+console.log('staff chat message tests passed');
