@@ -450,7 +450,7 @@ async function renderAttention(box, loc = null, stale = () => false) {
   const heldBefore = addDays(today(), -(settings.hold_days ?? 30));
   const wide = (fn) => (scoped ? Promise.resolve(0) : fn());
   const overdueQuery = sb.from('reservations').select('id', { count: 'exact', head: true }).eq('status', 'arrived').lt('arrived_on', heldBefore);
-  const [guestMatches, overdue, failedEmails, signups, noEmail, noCover, noCategory, hidden, noPrice] = await Promise.all([
+  const [guestMatches, overdue, failedEmails, signups, noEmail, noCover, noCategory, hidden, noPrice, newResponses] = await Promise.all([
     wide(() => findGuestMatches(sb).then((m) => m.length)),
     count(scoped ? overdueQuery.eq('location_id', loc) : overdueQuery),
     wide(() => count(sb.from('email_log').select('id', { count: 'exact', head: true }).eq('status', 'failed').gte('created_at', weekAgo))),
@@ -460,6 +460,7 @@ async function renderAttention(box, loc = null, stale = () => false) {
     wide(() => count(items().is('category_id', null).eq('hidden', false))),
     wide(() => count(items().eq('hidden', true))),
     wide(() => count(items().is('price', null).eq('hidden', false))),
+    wide(() => count(sb.from('survey_responses').select('id', { count: 'exact', head: true }).eq('seen', false))),
   ]);
   if (stale()) return;
   // Each row with something to fix links to the screen that fixes it, already filtered (the destination reads the hand-off).
@@ -477,6 +478,7 @@ async function renderAttention(box, loc = null, stale = () => false) {
     ${row(overdue, `${overdue === 1 ? 'title is' : 'titles are'} past the pickup window`, { page: 'reservations', key: 'admin-reservations-status', filter: 'overdue' })}
     ${scoped ? '' : row(failedEmails, `${failedEmails === 1 ? 'email' : 'emails'} failed to send in the last 7 days`, { page: 'emails', key: 'admin-emails-failed', filter: '1' })}
     ${scoped ? '' : row(guestMatches, `guest ${guestMatches === 1 ? 'order matches' : 'orders match'} an existing customer`, { page: 'customers', key: 'admin-customers-show', filter: 'link_guests' })}
+    ${scoped ? '' : row(newResponses, `new survey ${newResponses === 1 ? 'response' : 'responses'} to read`, { page: 'surveys', key: 'admin-surveys-tab', filter: 'all', view: true })}
     ${row(signups, `${signups === 1 ? 'customer' : 'customers'} signed up this week`, { page: 'customers', key: 'admin-customers-show', filter: 'new_week', view: true })}
     ${row(noEmail, `${noEmail === 1 ? 'customer has' : 'customers have'} no email`, { page: 'customers', key: 'admin-customers-show', filter: 'no_email' })}
     ${scoped ? '' : row(noCover, `visible ${noCover === 1 ? 'title has' : 'titles have'} no cover`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'no_cover', ...visible } })}
