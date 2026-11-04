@@ -191,6 +191,8 @@ const SOLID_ICONS = {
   person: 'M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z',
   shield: 'M12 2 20 5v7c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V5zM12 6.5l1.2 2.7 2.9.3-2.2 1.9.7 2.9L12 12.9l-2.6 1.4.7-2.9-2.2-1.9 2.9-.3z',
   clock: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM11 6h2v5.1l3.3 1.9-1 1.7L11 12.2z',
+  grid: 'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
+  list: 'M3 4h4v4H3zM9 5h12v2H9zM3 10h4v4H3zM9 11h12v2H9zM3 16h4v4H3zM9 17h12v2H9z',
   remove: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM6.5 11h11v2h-11z',
 };
 export const solidIcon = (name, size = 22) => `<svg class="solid-icon" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" focusable="false"><path d="${SOLID_ICONS[name]}"/></svg>`;

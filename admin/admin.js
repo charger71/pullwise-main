@@ -256,13 +256,14 @@ async function route() {
   el.focus({ preventScroll: true });
 }
 
-// Collapsible groups in the section list (Pull List, Website, Utilities). Collapsed groups are remembered.
-const NAV_KEY = 'admin-nav-collapsed';
-const collapsedGroups = () => {
+// Collapsible groups in the section list (Pull List, Website, Utilities). Each starts as its markup says (Pull List
+// open; Website and Utilities folded) until staff open or fold it, which is remembered on this device.
+const NAV_KEY = 'admin-nav-groups';
+const savedGroups = () => {
   try {
-    return new Set(JSON.parse(localStorage.getItem(NAV_KEY) ?? '[]'));
+    return JSON.parse(localStorage.getItem(NAV_KEY) ?? '{}') ?? {};
   } catch {
-    return new Set();
+    return {};
   }
 };
 function setGroup(btn, open, remember = true) {
@@ -270,16 +271,15 @@ function setGroup(btn, open, remember = true) {
   const list = document.getElementById(btn.getAttribute('aria-controls'));
   if (list) list.hidden = !open;
   if (!remember) return;
-  const set = collapsedGroups();
-  open ? set.delete(btn.getAttribute('aria-controls')) : set.add(btn.getAttribute('aria-controls'));
   try {
-    localStorage.setItem(NAV_KEY, JSON.stringify([...set]));
+    localStorage.setItem(NAV_KEY, JSON.stringify({ ...savedGroups(), [btn.getAttribute('aria-controls')]: open }));
   } catch {
     /* remembering is optional */
   }
 }
 $$('.admin-nav__heading').forEach((btn) => {
-  setGroup(btn, !collapsedGroups().has(btn.getAttribute('aria-controls')), false);
+  const saved = savedGroups()[btn.getAttribute('aria-controls')];
+  setGroup(btn, typeof saved === 'boolean' ? saved : btn.getAttribute('aria-expanded') === 'true', false);
   btn.addEventListener('click', () => setGroup(btn, btn.getAttribute('aria-expanded') !== 'true'));
 });
 /** Open the group that holds the page being shown, so the current item is never hidden. */
