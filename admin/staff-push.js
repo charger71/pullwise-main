@@ -5,8 +5,38 @@
 // the shop has no VAPID keys yet, the line offers the in-tab desktop alerts instead (admin/chat-alerts.js).
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../js/config.js';
-import { $, toast, friendlyError } from './lib.js';
+import { $, toast, friendlyError, solidIcon, openDialog, esc } from './lib.js';
 import { desktopAlerts, askForDesktopAlerts } from './chat-alerts.js';
+
+/** How to allow notifications again once they are blocked, for the browsers staff use. */
+function showUnblockHelp() {
+  const site = esc(location.host || 'this site');
+  const d = openDialog('Allow notifications', `
+    <p>Notifications for <strong>${site}</strong> were blocked in this browser. Allow them again, reload this page, then choose <strong>Turn on chat notifications</strong>.</p>
+    <h3>Chrome</h3>
+    <ol>
+      <li>Click the icon at the left end of the address bar, just before <strong>${site}</strong>.</li>
+      <li>Next to <strong>Notifications</strong>, choose <strong>Allow</strong> (or turn the switch on).</li>
+      <li>Reload the page.</li>
+    </ol>
+    <p class="admin-hint">Or open Settings → Privacy and security → Site settings → Notifications, find ${site} under “Not allowed to send notifications” and change it to Allow. On an Android phone: tap the icon before the address, then Permissions → Notifications.</p>
+    <h3>Edge</h3>
+    <ol>
+      <li>Click the lock icon at the left end of the address bar.</li>
+      <li>Choose <strong>Permissions for this site</strong>.</li>
+      <li>Next to <strong>Notifications</strong>, choose <strong>Allow</strong>, then reload the page.</li>
+    </ol>
+    <p class="admin-hint">Or open Settings → Cookies and site permissions → Notifications and remove ${site} from the Block list.</p>
+    <h3>Safari on a Mac</h3>
+    <ol>
+      <li>In the menu bar, choose <strong>Safari → Settings</strong> (Preferences on older versions), then the <strong>Websites</strong> tab.</li>
+      <li>Choose <strong>Notifications</strong> on the left.</li>
+      <li>Find ${site} and set it to <strong>Allow</strong>, then reload the page.</li>
+    </ol>
+    <p class="admin-hint">Also check that the Mac lets Safari show notifications: System Settings → Notifications → Safari.</p>
+    <div class="admin-actions"><button class="btn btn--primary" type="button" data-close>Done</button></div>`);
+  $('[data-close]', d).addEventListener('click', () => d.close());
+}
 
 const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
@@ -58,7 +88,9 @@ export async function setupStaffPush(line, sb) {
     const permission = desktopAlerts();
     line.hidden = permission === 'unsupported';
     if (permission === 'unsupported') return;
-    if (permission === 'denied') return show('Notifications are blocked for this site. To get them, allow notifications for this site in your browser’s settings.');
+    if (permission === 'denied') {
+      return show(`Notifications are blocked for this site. To get them, allow notifications for this site in your browser’s settings. <button class="icon-btn icon-btn--info" type="button" aria-label="How to allow notifications" title="How to allow notifications" data-push-help>${solidIcon('info', 20)}</button>`);
+    }
     if (!supported() || !(await publicKey())) {
       // No Web Push here: alerts while the admin is open in a background tab.
       return show(permission === 'granted'
@@ -109,6 +141,7 @@ export async function setupStaffPush(line, sb) {
   line.addEventListener('click', async (e) => {
     const b = e.target.closest('button');
     if (!b) return;
+    if (b.matches('[data-push-help]')) return showUnblockHelp();
     b.disabled = true;
     try {
       if (b.matches('[data-push-on]')) await turnOn();

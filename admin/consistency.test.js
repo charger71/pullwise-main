@@ -218,7 +218,7 @@ check('clickable fold headers keep their minimum height', () => {
 
 // ---- The style guide must show the shared components ---------------------------------------------------------------
 check('the style guide shows every shared component', () => {
-  const COMPONENTS = ['btn--primary', 'btn--ghost', 'btn--green', 'btn--blue', 'btn--danger', 'btn--add', 'btn--small', 'icon-btn', 'admin-tab', 'admin-tab__badge', 'admin-nav__badge', 'chip',
+  const COMPONENTS = ['btn--primary', 'btn--ghost', 'btn--green', 'btn--blue', 'btn--danger', 'btn--add', 'btn--small', 'icon-btn', 'icon-btn--info', 'admin-tab', 'admin-tab__badge', 'admin-nav__badge', 'chip',
     'admin-table', 'cards', 'card-title', 'card-key', 'card-wide', 'card-foot', 'pill', 'fold', 'fold--static', 'admin-hint-fold', 'panel', 'dash-tile', 'dash-card', 'dialog__head',
     'toast', 'toast__link', 'notice', 'dropzone', 'sticky-actions', 'form-grid--pairs', 'field--check', 'admin-pager', 'admin-status', 'admin-hint', 'empty', 'form-error',
     'select--small', 'cust-export-opt', 'color-grid', 'color-row', 'font-pick', 'font-preview', 'hours-row', 'media-grid', 'media-item', 'thumb', 'thumb--fix', 'thumb--sm', 'thumb--lg', 'info-list', 'job-log', 'faq-item__move', 'is-hidden', 'is-overdue', 'chat-thread', 'chat-msg', 'chat-msg--staff', 'chat-msg__meta', 'chat-compose', 'switch', 'switch__track', 'switch__text'];
