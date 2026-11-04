@@ -45,7 +45,7 @@ export function initChat(settings) {
   let timer;
 
   document.body.insertAdjacentHTML('beforeend', `
-    <button class="btn btn--primary chat-launch" id="chat-launch" type="button" aria-controls="chat" aria-expanded="false" aria-label="${LAUNCH_LABEL}" title="${LAUNCH_LABEL}"><svg class="chat-launch__icon" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M3.5 13.5a12.5 9.5 0 1 1 25 0a12.5 9.5 0 1 1-25 0zM16.5 22.5C13.5 26.5 8.5 29 3.5 29c2.5-2.5 4-5.5 4-9.5zM8.5 13.5a2 2 0 1 0 4 0a2 2 0 1 0-4 0zM14 13.5a2 2 0 1 0 4 0a2 2 0 1 0-4 0zM19.5 13.5a2 2 0 1 0 4 0a2 2 0 1 0-4 0z"/></svg><span class="chat-launch__dot" hidden></span></button>
+    <button class="btn btn--primary chat-launch" id="chat-launch" type="button" aria-controls="chat" aria-expanded="false" aria-label="${LAUNCH_LABEL}" title="${LAUNCH_LABEL}"><svg class="chat-launch__icon" viewBox="0 0 1414 953" aria-hidden="true" focusable="false"><path d="M0 418a707 418 0 1 1 1414 0a707 418 0 1 1-1414 0zM855 827C743 885 623 932 498 953C565 920 634 887 688 836L688 800L855 800zM332 418a95 95 0 1 0 190 0a95 95 0 1 0-190 0zM612 418a95 95 0 1 0 190 0a95 95 0 1 0-190 0zM892 418a95 95 0 1 0 190 0a95 95 0 1 0-190 0z"/></svg><span class="chat-launch__dot" hidden></span></button>
     <section class="chat" id="chat" aria-label="Chat with ${esc(settings.shop_name)}" hidden>
       <div class="chat__head">
         <h2 class="chat__title">Chat with ${esc(settings.shop_name)}</h2>
