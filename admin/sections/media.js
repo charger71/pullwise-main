@@ -53,10 +53,35 @@ export async function mount(el, ctx) {
     </div>
     </div>
     <div data-tabpane="library">
-    <p class="results-count" data-count></p>
+    <div class="media-toolbar">
+      <p class="results-count" data-count></p>
+      <div class="view-switch" role="group" aria-label="Show images as">
+        <button class="icon-btn" type="button" data-view="grid" aria-pressed="false" aria-label="Grid" title="Grid">${solidIcon('grid', 20)}</button>
+        <button class="icon-btn" type="button" data-view="list" aria-pressed="false" aria-label="List" title="List">${solidIcon('list', 20)}</button>
+      </div>
+    </div>
     <ul class="media-grid" data-grid></ul>
     </div>`;
   showTab = setupTabs(el, 'admin-media-tab', 'library');
+
+  // Grid or list, remembered on this device.
+  const setView = (view) => {
+    $('[data-grid]', el).classList.toggle('media-grid--list', view === 'list');
+    el.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
+    try {
+      localStorage.setItem('admin-media-view', view);
+    } catch {
+      /* remembering the view is optional */
+    }
+  };
+  let view = 'grid';
+  try {
+    view = localStorage.getItem('admin-media-view') === 'list' ? 'list' : 'grid';
+  } catch {
+    /* start on the grid */
+  }
+  setView(view);
+  el.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
 
   const input = $('#m-files', el);
   const zone = $('.dropzone', el);

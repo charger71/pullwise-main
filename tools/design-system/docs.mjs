@@ -166,6 +166,6 @@ Layouts that belong to one screen, built from the components; reuse the componen
 ## Icons
 
 - **Admin tab icons:** 44 line icons, 24px grid, 2px stroke, round caps and joins, \`currentColor\`. Only in front of tab labels, matched by label in admin/tab-icons.js.
-- **Admin action icons:** 19 solid icons cut with even-odd fill (\`solidIcon(name, size)\` in lib.js): Add, Remove, Edit, Delete, View, Follow, role pills and status icons. Inside a table row, icon only with \`aria-label\` and \`title\`; elsewhere icon plus the word.
+- **Admin action icons:** 21 solid icons cut with even-odd fill (\`solidIcon(name, size)\` in lib.js): Add, Remove, Edit, Delete, View, Follow, Grid, List, role pills and status icons. Inside a table row, under a Media Library picture and in a view switch, icon only with \`aria-label\` and \`title\`; elsewhere icon plus the word.
 - Don't mix in the marketing line icons or another set.
 `;
