@@ -433,6 +433,7 @@ setHtml(quill, saved); … getHtml(quill)</pre>
           <div class="sg-item" data-code>
             <h3>Pager</h3>
             <div class="sg-demo"><div class="admin-pager"><button class="btn btn--ghost" type="button">← Previous</button><span>1–25 of 120</span><button class="btn btn--ghost" type="button">Next →</button></div></div>
+            <p class="admin-hint">Previous and Next call <code>toListTop()</code> on the list's top (its results count, or the card or fold it sits in): when that has scrolled out of sight the page jumps back to it, clear of the sticky header, so the new page starts at its first row. Give the target a <code>scroll-margin-top</code> in <code>admin.css</code>.</p>
           </div>
         </section>
         <!-- ===================================================== -->

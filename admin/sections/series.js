@@ -4,7 +4,7 @@
 // Customers following a merged-away series move to the one you keep, and future imports of the
 // old title land on it too.
 
-import { $, $$, esc, must, hintFold, toast, setStatus, imageField, openDialog, sortableTable, debounce, solidIcon, friendlyError, setupTabs, fetchAll, fmtDate } from '../lib.js';
+import { $, $$, esc, must, hintFold, toast, setStatus, imageField, openDialog, sortableTable, debounce, solidIcon, friendlyError, setupTabs, fetchAll, fmtDate, toListTop } from '../lib.js';
 
 let sb;
 let isOwner = false;
@@ -323,8 +323,8 @@ function mountArtists(el, sb, isOwner) {
   box.addEventListener('click', async (e) => {
     if (e.target.closest('[data-ar-prev], [data-ar-next]')) {
       page += e.target.closest('[data-ar-next]') ? 1 : -1;
+      toListTop($('[data-ar-count]', el));
       load();
-      $('[data-ar-count]', el).scrollIntoView({ block: 'start' });
       return;
     }
     const b = e.target.closest('[data-block]');

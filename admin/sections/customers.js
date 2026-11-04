@@ -4,7 +4,7 @@
 // adding titles goes through staff_pull_list_add(), which can also add past the cutoff.
 // Every change is recorded in pull_list_log and shown under "Recent changes".
 
-import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
 import { cutoffPassed } from '../../js/site.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { todayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
@@ -268,8 +268,9 @@ function renderList(el) {
   form.addEventListener('submit', (e) => e.preventDefault());
   addLocationFilter(sb, form, state, 'c-loc', () => loadList(el)); // only for a shop with 2+ locations
   sortableTable($('table', el), { sort: state.sort, dir: state.dir, onSort: (sort, dir) => ((state = { ...state, sort, dir, offset: 0 }), loadList(el)) });
-  $('[data-prev]', el).addEventListener('click', () => ((state.offset = Math.max(0, state.offset - PAGE)), loadList(el)));
-  $('[data-next]', el).addEventListener('click', () => ((state.offset += PAGE), loadList(el)));
+  const turnPage = (offset) => ((state.offset = offset), toListTop($('[data-count]', el)), loadList(el));
+  $('[data-prev]', el).addEventListener('click', () => turnPage(Math.max(0, state.offset - PAGE)));
+  $('[data-next]', el).addEventListener('click', () => turnPage(state.offset + PAGE));
   $('[data-export-all]', el).addEventListener('click', (e) => exportAll(e.currentTarget, $('[data-export-history]', el).checked));
   $('[data-export-customers]', el).addEventListener('click', (e) => exportCustomersPdf(e.currentTarget));
   $('[data-scan]', el)?.addEventListener('click', () => scanPickupCode(el));

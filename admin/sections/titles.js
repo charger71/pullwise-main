@@ -2,7 +2,7 @@
 // changes in the list (status, staff pick, hidden), a read-only info view (click
 // the name), a full edit form, and who ordered each title.
 
-import { $, $$, esc, must, toast, isPhone, openDialog, imageField, uploadImage, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold, fetchAll, fmtDateTime, formatPhone, itemName, withCustomers, listLocations } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, openDialog, imageField, uploadImage, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold, fetchAll, fmtDateTime, formatPhone, itemName, withCustomers, listLocations, toListTop } from '../lib.js';
 import { ITEM_BADGES, price } from '../../js/site.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, weekStart } from '../../js/dates.js';
@@ -141,8 +141,10 @@ export async function mount(el, ctx) {
       load(el);
     },
   });
-  $('[data-prev]', el).addEventListener('click', () => ((state.offset = Math.max(0, state.offset - PAGE)), load(el)));
-  $('[data-next]', el).addEventListener('click', () => ((state.offset += PAGE), load(el)));
+  // A new page starts at the top of the list, not down by the pager that was clicked.
+  const turnPage = (offset) => ((state.offset = offset), toListTop($('[data-count]', el)), load(el));
+  $('[data-prev]', el).addEventListener('click', () => turnPage(Math.max(0, state.offset - PAGE)));
+  $('[data-next]', el).addEventListener('click', () => turnPage(state.offset + PAGE));
   $('[data-new]', el).addEventListener('click', () => edit(el, null));
   $('[data-cleanup]', el).addEventListener('click', () => cleanUp(el));
 
