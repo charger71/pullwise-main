@@ -479,6 +479,7 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .cust-icon.is-solid path.cust-icon__stroke { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }   /* a line drawn over a solid icon (No login's ✕) */
 .cust-icon.is-minor { color: var(--minor-icon); }
 .col-cust-name { min-width: 220px; }
+.admin-table .col-cust-status { text-align: right; } /* the icons and Fix button line up at the row's end; on a phone card they start the line again */
 .cust-grid { display: grid; gap: var(--sp-16); align-items: start; min-width: 0; }
 /* A new customer has no pull list beside the form, so give the form the room. */
 .cust-grid--new { max-width: 860px; }
@@ -942,6 +943,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
   /* Specifics: Past Orders shows what became of the copies in bold; a customer with no icons and nothing to fix has no status line; status pills stay inline. */
   .past-table.cards > tbody > tr > td.card-wide { font-weight: 600; }
   .cust-list.cards > tbody > tr > td.card-wide:not(:has(.cust-icon, .btn)) { display: none; }
+  .cust-list.cards .col-cust-status { text-align: left; }
   .dash-latest__more { display: none; }
 }
 @media (max-width: 699px) {

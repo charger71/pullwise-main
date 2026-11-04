@@ -2,6 +2,7 @@
 // Customers answer at survey.html?s=<slug> (no login). Responses are private to staff.
 
 import { $, $$, esc, must, toast, setStatus, slugify, fmtDateTime, downloadCsv, solidIcon, friendlyError, setupTabs, fetchAll, hintFold, fmtDate } from '../lib.js';
+import { refreshSurveyAlerts } from '../survey-alerts.js';
 import { adminHash } from '../route.js';
 import { newSlug } from './qr.js';
 import { SITE_URL } from '../../js/config.js';
@@ -95,7 +96,7 @@ async function makeQr(el, btn) {
 async function load(el) {
   const box = $('[data-list]', el);
   try {
-    const all = (surveys = await must(sb.from('surveys').select('id,slug,title,is_open,questions,survey_responses(count)').order('created_at', { ascending: false })));
+    const all = (surveys = await must(sb.from('surveys').select('id,slug,title,is_open,questions,survey_responses(count),unread:survey_responses(count)').eq('unread.seen', false).order('created_at', { ascending: false })));
     const rows = all.filter((s) => listTab === 'all' || (listTab === 'open') === s.is_open);
     $$('[data-status]', el).forEach((b) => b.setAttribute('aria-selected', b.dataset.status === listTab));
     const openCount = all.filter((s) => s.is_open).length;
@@ -117,7 +118,7 @@ async function load(el) {
             <td class="card-title"><strong>${esc(s.title)}</strong><br><span class="card__meta">${s.questions.filter((q) => q.type !== 'section').length} question${s.questions.filter((q) => q.type !== 'section').length === 1 ? '' : 's'}</span>
             </td>
             <td class="card-key">${s.is_open ? 'Open' : 'Closed'}</td>
-            <td class="card-key card-label">${s.survey_responses[0].count}</td>${qrCell(s)}<td class="card-foot"><button class="btn btn--ghost btn--small" type="button" data-share="${s.id}">Link<span class="visually-hidden"> for ${esc(s.title)}</span></button>
+            <td class="card-key card-label">${s.survey_responses[0].count}${unreadOf(s) ? ` <span class="pill pill--new">${unreadOf(s)} new</span>` : ''}</td>${qrCell(s)}<td class="card-foot"><button class="btn btn--ghost btn--small" type="button" data-share="${s.id}">Link<span class="visually-hidden"> for ${esc(s.title)}</span></button>
             </td>
             <td class="card-foot"><a class="icon-btn" href="../survey.html?s=${encodeURIComponent(s.slug)}&amp;preview=1" target="_blank" rel="noopener" aria-label="Preview ${esc(s.title)}" title="Preview (opens in a new tab)">${solidIcon('view')}</a>
             </td>
@@ -130,6 +131,9 @@ async function load(el) {
     box.innerHTML = `<p class="form-error">Couldn’t load surveys: ${esc(friendlyError(err))}</p>`;
   }
 }
+
+/** How many of a listed survey's responses nobody has read yet (Results marks them read). */
+const unreadOf = (s) => s?.unread?.[0]?.count ?? 0;
 
 const newQuestionId = () => `q${Math.random().toString(36).slice(2, 8)}`;
 
@@ -193,7 +197,7 @@ async function edit(listEl, id, startTab) {
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="details">Details</button>
       <button type="button" class="admin-tab" role="tab" data-tab="questions">Questions</button>
-      ${id ? `<button type="button" class="admin-tab" role="tab" data-tab="results">Results</button>
+      ${id ? `<button type="button" class="admin-tab" role="tab" data-tab="results">Results${unreadOf(surveys.find((s) => s.id === id)) ? ` <span class="admin-tab__badge" data-unread>${unreadOf(surveys.find((s) => s.id === id))}<span class="visually-hidden"> new</span></span>` : ''}</button>
       <button type="button" class="admin-tab" role="tab" data-tab="share">Share</button>` : ''}
     </div>
     <form class="admin-form" novalidate>
@@ -308,8 +312,16 @@ const answerText = (v) => (Array.isArray(v) ? v.join('; ') : v ?? '');
 async function renderResults(box, sv) {
   const id = sv.id;
   box.innerHTML = '<p class="admin-hint" aria-busy="true">Loading…</p>';
-  const rows = await fetchAll(() => sb.from('survey_responses').select('id,answers,created_at').eq('survey_id', id).order('created_at', { ascending: false }).order('id', { ascending: false }));
+  const rows = await fetchAll(() => sb.from('survey_responses').select('id,answers,created_at,seen').eq('survey_id', id).order('created_at', { ascending: false }).order('id', { ascending: false }));
   const answerable = sv.questions.filter((q) => q.type !== 'section');
+  // Looking at the results reads the new responses: clear them from the counts (menu, list, Dashboard). Best effort.
+  const unread = rows.filter((r) => !r.seen).length;
+  if (unread)
+    sb.rpc('staff_mark_survey_seen', { p_survey_id: id }).then(({ error }) => {
+      if (error) return;
+      document.querySelector('[data-tab="results"] [data-unread]')?.remove();
+      refreshSurveyAlerts();
+    });
   const summary = answerable.map((q) => {
     const answers = rows.map((r) => r.answers[q.id]).filter((v) => v != null && v !== '');
     let body;
@@ -336,7 +348,7 @@ async function renderResults(box, sv) {
   const entries = sv.collect_email ? await fetchAll(() => sb.from('survey_entries').select('email,created_at').eq('survey_id', id).order('created_at', { ascending: false }).order('email')) : [];
   const d = box;
   box.innerHTML = `
-    <p><strong>${rows.length}</strong> response${rows.length === 1 ? '' : 's'}${rows[0] ? ` · latest ${fmtDateTime(rows[0].created_at)}` : ''}</p>
+    <p><strong>${rows.length}</strong> response${rows.length === 1 ? '' : 's'}${unread ? ` · <span class="pill pill--new">${unread} new</span>` : ''}${rows[0] ? ` · latest ${fmtDateTime(rows[0].created_at)}` : ''}</p>
     <p class="print-only">${esc(sv.title)} · printed ${fmtDate(new Date().toISOString(), { month: 'short', day: 'numeric', year: 'numeric' })}</p>
     ${rows.length ? '<p class="no-print"><button class="btn btn--primary" type="button" data-print>Print / Save as PDF</button> <button class="btn btn--ghost" type="button" data-csv>Download CSV</button></p>' : ''}
     ${sv.collect_email ? `<p><strong>${entries.length}</strong> email${entries.length === 1 ? '' : 's'} entered for the drawing${entries.length ? ' <button class="btn btn--ghost btn--small no-print" type="button" data-entries>Download emails</button>' : ''}</p>` : ''}

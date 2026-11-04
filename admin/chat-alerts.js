@@ -1,5 +1,5 @@
-// Chat alerts on every admin screen: a count of chats with unread visitor messages on the Chat menu item (and on the
-// phone menu button), the same count in the browser tab's title, a toast when a visitor writes while staff are
+// Chat alerts on every admin screen: a count of chats with unread visitor messages on the Chat menu item (admin.js adds
+// it to the phone menu button's total), the same count in the browser tab's title, a toast when a visitor writes while staff are
 // somewhere else, and a desktop notification when this tab is in the background and staff turned those on (Chat
 // screen). The count clears once staff open the chat, since opening it sets its unread_staff back to 0.
 // Supabase Realtime tells us about changes; a slow refresh is the backup in case the live connection drops.
