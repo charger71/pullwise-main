@@ -463,6 +463,11 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .icon-btn--sm { width: 26px; height: 26px; }
 .icon-btn--add { color: var(--success-ink); }
 .icon-btn--remove { color: var(--danger-ink); }
+/* An "i" inside a line of text that opens more help (a dialog): sits on the text's middle without making the line taller. */
+.icon-btn--info { vertical-align: middle; margin-block: calc(-1 * var(--sp-8)); color: var(--ink); }
+@media (max-width: 899px) {
+  .icon-btn--info { width: var(--tap); height: var(--tap); margin-inline-start: calc(-1 * var(--sp-8)); } /* the bigger target, not a bigger gap */
+}
 .cust-status { display: inline-flex; align-items: center; gap: var(--sp-12); }
 .cust-icons { display: inline-flex; gap: var(--sp-8); align-items: center; }
 .cust-icon { display: inline-flex; }
