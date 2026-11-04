@@ -108,6 +108,11 @@ export async function mount(el, { sb }) {
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Google Analytics</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         ${field('ga_measurement_id', 'Measurement ID', 'placeholder="G-XXXXXXXXXX" pattern="G-[A-Za-z0-9]+" autocomplete="off"', 'From Google Analytics: Admin → Data streams → your website. Tracking runs on every public page; leave blank to turn it off.', 'field--full')}
       </div></div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Live Chat</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
+        <div class="field span-2"><label><input type="checkbox" name="chat_enabled"${s.chat_enabled ? ' checked' : ''}> Show a “Chat with us” button on every public page</label>
+        <p class="field__hint">Visitors write to you without signing in, and you answer from Admin → Chat. Customers can hide the button; a “Chat with us” link stays in the page footer. You only see messages while signed in to the admin, so switch chat off when nobody is around to answer.</p></div>
+        ${field('chat_greeting', 'Greeting', 'maxlength="200"', 'Shown above the first message box. Leave blank for the standard greeting.', 'field--full')}
+      </div></div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Footer Code</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="s-footer-scripts">Code for the bottom of every page</label>
           <textarea id="s-footer-scripts" class="font-mono" name="footer_scripts" rows="8" maxlength="20000" spellcheck="false" autocomplete="off" placeholder="&lt;script src=&quot;https://…&quot;&gt;&lt;/script&gt;">${esc(s.footer_scripts)}</textarea>
@@ -225,7 +230,7 @@ export async function mount(el, { sb }) {
     if (typeof fontPicks === 'string') return setStatus(status, fontPicks, 'error');
 
     const row = {
-      shop_name: text('shop_name'), tagline: text('tagline'), hero_headline: text('hero_headline'), copyright_text: text('copyright_text'), footer_scripts: text('footer_scripts'), founded_year: int('founded_year', null),
+      shop_name: text('shop_name'), tagline: text('tagline'), hero_headline: text('hero_headline'), copyright_text: text('copyright_text'), footer_scripts: text('footer_scripts'), chat_enabled: f.has('chat_enabled'), chat_greeting: text('chat_greeting'), founded_year: int('founded_year', null),
       phone: text('phone'), email: text('email'), street: text('street'), city: text('city'), region: text('region'), postal_code: text('postal_code'),
       hours, socials, colors, fonts: fontPicks, logo_url: logo.get(), favicon_url: favicon.get(), show_name_with_logo: f.has('show_name_with_logo'), hero_image_url: hero.get(), show_map: f.has('show_map'), map_embed_url: mapUrl, ga_measurement_id: gaId,
       max_copies_per_title: int('max_copies_per_title', 10), hold_days: int('hold_days', 30),

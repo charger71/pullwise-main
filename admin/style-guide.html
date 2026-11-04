@@ -81,6 +81,7 @@
           <li><a href="#icons">Status icons</a></li>
           <li><a href="#containers">Panels &amp; folds</a></li>
           <li><a href="#messages">Messages</a></li>
+          <li><a href="#chat">Chat</a></li>
           <li><a href="#dashboard">Dashboard</a></li>
           <li><a href="#dialogs">Dialogs</a></li>
           <li><a href="#screens">Screen patterns</a></li>
@@ -671,6 +672,25 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
             <h3>Toasts (bottom-right, auto-dismiss)</h3>
             <div class="sg-demo"><div class="sg-row"><span class="toast" style="position:static">Title marked arrived</span><span class="toast toast--error" style="position:static">Not saved: network error</span></div></div>
             <p class="admin-hint mt-8">Call <code>toast('message')</code> or <code>toast('message', 'error')</code> from <code>lib.js</code>; do not build these by hand.</p>
+          </div>
+        </section>
+
+        <!-- ===================================================== -->
+        <section class="sg-section" id="chat">
+          <h2>Chat</h2>
+          <div class="sg-item" data-code>
+            <h3>A chat with its reply box</h3>
+            <div class="sg-demo">
+              <div class="chat-thread" role="log" aria-label="Messages with Jane Smith" tabindex="0">
+                <div class="chat-msg"><p>Hi! Is the new Absolute Batman in yet?</p><span class="chat-msg__meta">Visitor · Nov 4, 9:12 AM</span></div>
+                <div class="chat-msg chat-msg--staff"><p>It comes in Wednesday. Want us to add it to your pull list?</p><span class="chat-msg__meta">don@example.com · Nov 4, 9:14 AM</span></div>
+              </div>
+              <form class="chat-compose">
+                <div class="field"><label for="sg-chat-reply">Reply</label><textarea id="sg-chat-reply" rows="2"></textarea></div>
+                <button class="btn btn--primary" type="submit">Send</button>
+              </form>
+            </div>
+            <p class="admin-hint mt-8">The visitor’s messages sit on the left in the surface color; staff replies sit on the right in the selected tint. The Chat screen lists chats in a <a href="#tables">card-list table</a> with a <code>pill--new</code> count of unread messages, and shows new messages live.</p>
           </div>
         </section>
 

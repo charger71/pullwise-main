@@ -243,6 +243,20 @@ Cover thumbnails in admin lists.
     html: page('AdminThumb', demo('Cover thumbnails')),
   },
   {
+    name: 'AdminChat', group: G('Data'), height: 339, width: 960,
+    readme: `# AdminChat
+
+One live chat with a visitor, and the box to answer it. Built by admin/sections/chat.js (Admin → Chat); the storefront side is ShopChat.
+
+- **Thread** (\`.chat-thread\`, \`role="log"\`): a \`admin-stripe\` box that scrolls past 60vh. The visitor's messages (\`.chat-msg\`) sit on the left on \`admin-surface\`; staff replies (\`.chat-msg--staff\`) sit on the right on the selected tint. Under each, \`.chat-msg__meta\` shows who and when in \`admin-muted\` at the smallest size.
+- **Reply box** (\`.chat-compose\`): an ordinary \`.field\` with a label ("Reply") and a \`.btn--primary\` Send at its natural width, side by side. Ctrl or Cmd + Enter sends. Replying to a closed chat opens it again.
+- **List**: chats are an \`AdminTable\` card list. Open and Closed are \`AdminTabs\` with a count of unread chats; a chat with unread messages carries a \`.pill--new\`. Closing, reopening and deleting use the ordinary buttons, and Delete asks first (AdminDialog).
+- New messages appear on their own, and a toast ("New chat message. Open Chat to reply.") tells staff on other screens (AdminToast).
+- Consumer provides: the messages (who sent each, and when) and the reply handler.`,
+    html: page('AdminChat', `<style>.pw-admin .chat-thread{max-height:none}</style>
+${demo('A chat with its reply box')}`),
+  },
+  {
     name: 'AdminPill', group: G('Status'), height: 112, width: 960,
     readme: `# AdminPill
 
