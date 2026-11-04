@@ -168,12 +168,12 @@ async function load(el, bust = false) {
           const shown = bust ? `${url}?v=${Date.now()}` : url; // preview only; the copied link stays clean
           const kb = Math.round((f.metadata?.size ?? 0) / 1024);
           return `<li class="media-item">
-            <a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(shown)}" alt="${esc(f.name)}" loading="lazy"></a>
             <p class="card__meta media-item__name" title="${esc(f.name)}">${esc(f.name.replace(/^[a-z0-9]+-/, ''))} · ${kb} KB</p>
+            <a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(shown)}" alt="${esc(f.name)}" loading="lazy"></a>
             <div class="media-item__actions">
-              <button class="btn btn--ghost btn--small" type="button" data-copy="${esc(url)}">${solidIcon('link', 16)} Copy link</button>
-              <label class="btn btn--ghost btn--small media-replace">${solidIcon('swap', 16)} Replace<input type="file" accept="image/*" class="visually-hidden" data-replace="${esc(path)}" aria-label="Replace ${esc(f.name)} with a new image"></label>
-              ${isOwner ? `<button class="btn btn--danger btn--small" type="button" data-delete="${esc(path)}" aria-label="Delete ${esc(f.name)}">${solidIcon('trash', 16)} Delete</button>` : ''}
+              <button class="icon-btn" type="button" data-copy="${esc(url)}" aria-label="Copy link to ${esc(f.name)}" title="Copy link">${solidIcon('link', 20)}</button>
+              <label class="icon-btn media-replace" title="Replace">${solidIcon('swap', 20)}<input type="file" accept="image/*" class="visually-hidden" data-replace="${esc(path)}" aria-label="Replace ${esc(f.name)} with a new image"></label>
+              ${isOwner ? `<button class="icon-btn icon-btn--remove" type="button" data-delete="${esc(path)}" aria-label="Delete ${esc(f.name)}" title="Delete">${solidIcon('trash', 20)}</button>` : ''}
             </div>
           </li>`;
         })

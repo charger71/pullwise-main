@@ -195,7 +195,7 @@ A count on a menu item for work waiting on staff, shown on every screen.
 
 - \`.admin-nav__badge\`: the same pill as the tab count (\`admin-brand-primary\` with white text), pushed to the end of the menu row. Below 900px the menu is folded away, so the menu button shows the total of every badge (\`data-nav-total\`).
 - Carries hidden words for screen readers ("2 unread chats") and clears when the work is done (opening the chat reads it; opening a survey's Results reads its responses). The unread chat count also goes first in the tab title, "(2) Dashboard · Staff · …".
-- Only for things someone has to answer or read, not for things that are merely new. Today: unread chats (admin/chat-alerts.js) and unread survey responses (admin/survey-alerts.js).`,
+- Only for things someone has to answer or read, not for things that are merely new. Today: unread chats (admin/chat-alerts.js), unread survey responses (admin/survey-alerts.js) and new event signups (admin/event-alerts.js).`,
     html: page('AdminNavBadge', demo('Menu item with a count badge')),
   },
   {

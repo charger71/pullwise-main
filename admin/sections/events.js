@@ -1,5 +1,6 @@
 // Events: the Community Calendar (signings, release parties, tournaments…).
 
+import { refreshEventAlerts, newEventSignups } from '../event-alerts.js';
 import { $, esc, must, toast, openDialog, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, sortableTable, formatPhone, solidIcon, friendlyError, fetchAll, listLocations } from '../lib.js';
 
 const TYPES = { release_party: 'Release party', signing: 'Signing', tournament: 'Tournament', livestream: 'Livestream', comic_con: 'Comic Con', sale: 'Sale', other: 'Other' };
@@ -14,6 +15,7 @@ export async function mount(el, ctx) {
 
 function showList(el) {
   try {
+    // Remembers the last tab; the Dashboard's Needs Attention "View" sets it to 'signups' to open Event Signups.
     const tab = sessionStorage.getItem('admin-events-past');
     showPast = tab === '1';
     showSignupsTab = tab === 'signups';
@@ -28,7 +30,7 @@ function showList(el) {
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-past="0">Upcoming</button>
       <button type="button" class="admin-tab" role="tab" data-past="1">Past</button>
-      <button type="button" class="admin-tab" role="tab" data-past="signups">Event Signups</button>
+      <button type="button" class="admin-tab" role="tab" data-past="signups">Event Signups${newEventSignups() ? ` <span class="admin-tab__badge" data-unread>${newEventSignups()}<span class="visually-hidden"> new</span></span>` : ''}</button>
     </div>
     <div data-list></div>`;
   el.querySelectorAll('[data-past]').forEach((b) => b.addEventListener('click', () => ((showSignupsTab = b.dataset.past === 'signups'), (showPast = b.dataset.past === '1'), remember(), load(el))));
@@ -153,7 +155,7 @@ async function edit(listEl, id) {
 function signupsTable(rows) {
   return `<table class="admin-table cards"><thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col">People</th><th scope="col">Notes</th><th scope="col"><span class="visually-hidden">Remove</span></th></tr></thead><tbody>${rows
       .map((r) => `<tr>
-        <td class="card-title">${esc(r.name)}</td>
+        <td class="card-title">${esc(r.name)}${r.seen ? '' : ' <span class="pill pill--new">New</span>'}</td>
         <td class="nowrap card-line">${esc(formatPhone(r.phone))}</td>
         <td class="card-foot"><button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(r.email)}" aria-label="Email ${esc(r.name)}" data-email-to="${esc(r.email)}" data-email-name="${esc(r.name)}">Email</button>
         </td>
@@ -163,6 +165,26 @@ function signupsTable(rows) {
         </td>
         </tr>`)
       .join('')}</tbody></table>`;
+}
+
+/** Looking at signups reads them: clear them from the counts (menu, tab, Dashboard). Best effort.
+ *  `all` (the Event Signups tab) reads every new signup, including any for an event whose form was since turned off,
+ *  which no screen lists. */
+function markSeen(rows, { all = false } = {}) {
+  const ids = rows.filter((r) => !r.seen).map((r) => r.id);
+  if (!ids.length && !(all && newEventSignups())) return;
+  (async () => {
+    if (all) {
+      const { error } = await sb.from('event_signups').update({ seen: true }).eq('seen', false);
+      if (error) return;
+    } else
+      for (let i = 0; i < ids.length; i += 100) {
+        const { error } = await sb.from('event_signups').update({ seen: true }).in('id', ids.slice(i, i + 100));
+        if (error) return;
+      }
+    document.querySelector('[data-past="signups"] [data-unread]')?.remove();
+    refreshEventAlerts();
+  })();
 }
 
 /** Admin > Events > Event Signups: every event with a signup form, its signups under it. */
@@ -184,13 +206,15 @@ async function loadAllSignups(box) {
           .map((e) => {
             const rows = byEvent.get(e.id);
             const people = rows.reduce((n, r) => n + r.party_size, 0);
+            const fresh = rows.filter((r) => !r.seen).length;
             return `<details class="fold fold--compact" data-event="${e.id}"${rows.length ? ' open' : ''}>
-              <summary class="fold__head"><h2>${esc(e.title)}<span class="fold__note">${fmtDateTime(e.starts_at)} · ${rows.length} ${rows.length === 1 ? 'signup' : 'signups'} · ${people} ${people === 1 ? 'person' : 'people'}${e.signup_capacity ? ` of ${e.signup_capacity} spots` : ''}</span></h2></summary>
+              <summary class="fold__head"><h2>${esc(e.title)}<span class="fold__note">${fmtDateTime(e.starts_at)} · ${rows.length} ${rows.length === 1 ? 'signup' : 'signups'} · ${people} ${people === 1 ? 'person' : 'people'}${e.signup_capacity ? ` of ${e.signup_capacity} spots` : ''}${fresh ? ` · ${fresh} new` : ''}</span></h2></summary>
               <div class="fold__body">${rows.length ? signupsTable(rows) : '<p class="empty">No one has signed up yet.</p>'}</div>
             </details>`;
           })
           .join('')
       : '<p class="empty">No events have a signup form. Turn on “Show a signup form on the event page” when editing an event.</p>';
+    markSeen(signups, { all: true });
     if (!box.dataset.wired) {
       box.dataset.wired = '1';
       box.addEventListener('click', async (ev) => {
@@ -219,6 +243,7 @@ async function showSignups(el, ev) {
     <p>${rows.length} signup${rows.length === 1 ? '' : 's'}, ${people} ${people === 1 ? 'person' : 'people'}${ev.signup_capacity ? ` of ${ev.signup_capacity} spots` : ''}.</p>
     <div data-signups-view>${rows.length ? signupsTable(rows) : '<p class="empty">No one has signed up yet.</p>'}</div>`;
   window.scrollTo(0, 0);
+  markSeen(rows);
   $('[data-back]', el).addEventListener('click', () => edit(el, ev.id));
   // On an element of this view (not the section itself, which outlives it), so the handler goes when the view does.
   $('[data-signups-view]', el).addEventListener('click', async (e) => {
