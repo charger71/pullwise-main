@@ -713,6 +713,8 @@ export async function initPage() {
   if (app) return s; // staff footer code (a help chat) would sit on the tab bar
   injectSchema(s);
   runFooterScripts(s);
+  // The live chat button (Shop Settings → Online). Loaded lazily, and only on shops that switched it on.
+  if (s.chat_enabled) import('./chat.js').then((m) => m.initChat(s)).catch((err) => console.error('Live chat failed to load', err));
   // Reservation list bar follows the customer across pages. Loaded lazily:
   // components.js imports this module, so a static import would be circular.
   import('./components.js').then((m) => m.initReservationBar());

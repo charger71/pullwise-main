@@ -6,7 +6,7 @@ const TABLES = {
   reservations: 'reservations', reservation_orders: 'orders', customers: 'customers', items: 'titles', subscriptions: 'follows',
   pull_list_exclusions: 'pull list exclusions', item_creators: 'creators', event_signups: 'event signups', survey_responses: 'survey answers',
   survey_entries: 'survey entries', posts: 'news posts', events: 'events', pages: 'pages', faqs: 'FAQ entries', series_catalog: 'series', creator_catalog: 'creatives',
-  customer_notes: 'customer notes', customer_messages: 'sent emails', categories: 'categories', surveys: 'surveys', pull_list_log: 'pull list history',
+  customer_notes: 'customer notes', customer_messages: 'sent emails', chat_conversations: 'chats', chat_messages: 'chat messages', categories: 'categories', surveys: 'surveys', pull_list_log: 'pull list history',
 };
 const tableName = (t) => TABLES[t] ?? String(t).replace(/_/g, ' ');
 const columnName = (c) => String(c).replace(/_/g, ' ');

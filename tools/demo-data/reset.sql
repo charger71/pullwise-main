@@ -17,6 +17,7 @@ delete from public.email_log where customer_id is null or customer_id not in (se
 delete from public.event_signups where email not in (select email from keep_customers);
 delete from public.survey_entries;
 delete from public.survey_responses;
+delete from public.chat_conversations;  -- its messages go with it
 delete from public.form_rate;
 delete from public.customers where id not in (select id from keep_customers);
 update public.qr_codes set scan_count = 0, last_scan_at = now() - interval '3 days';

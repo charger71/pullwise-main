@@ -1275,7 +1275,17 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 
 /* ---------- Natural-width buttons ----------
    Buttons in these places shrink to their label or share a row, so they drop the minimum width (see --btn-w at the top). */
-.media-item__actions, [data-move], .cust-email { --btn-w: 0; --btn-w-sm: 0; }
+.media-item__actions, [data-move], .cust-email, .chat-compose { --btn-w: 0; --btn-w-sm: 0; }
 @media (max-width: 899px) {
   .cards.is-stack > tbody > tr > td, .admin-pager, .titles-table .tt-edit, .admin-toolbar, .faq-item__actions, .qr-item__actions, .qr-item__downloads { --btn-w: 0; --btn-w-sm: 0; }
 }
+
+/* ---------- Live chat (sections/chat.js) ----------
+   The messages of one chat, the visitor's on the left and staff's on the right, with the reply box under them. */
+.chat-thread { display: flex; flex-direction: column; gap: var(--sp-8); max-height: 60vh; margin-bottom: var(--sp-12); padding: var(--sp-12); overflow-y: auto; background: var(--stripe); border: var(--border); border-radius: var(--radius); }
+.chat-msg { max-width: 80%; padding: var(--sp-8) var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius-lg); overflow-wrap: anywhere; }
+.chat-msg p { margin: 0; white-space: pre-wrap; }
+.chat-msg--staff { align-self: flex-end; background: var(--select-bg-light); }
+.chat-msg__meta { display: block; margin-top: var(--sp-4); font-size: var(--fs-2xs); color: var(--muted); }
+.chat-compose { display: flex; align-items: flex-end; gap: var(--sp-8); }
+.chat-compose .field { flex: 1; min-width: 0; margin: 0; }

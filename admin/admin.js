@@ -6,13 +6,13 @@
 import { parseAdminHash, adminHash } from './route.js';
 import { decorateTabs, tabKeys } from './tab-icons.js';
 import { DEMO, getSettings } from '../js/data.js';
-import { $, $$, db, esc, openEmailDialog, friendlyError } from './lib.js';
+import { $, $$, db, esc, openEmailDialog, friendlyError, toast } from './lib.js';
 import { sizedImage } from '../js/util.js';
 import { VERSION } from './version.js';
 import { syncTheme } from './theme.js';
 import { watchForUpdates } from './update-check.js';
 
-const SECTIONS = ['dashboard', 'titles', 'reservations', 'customers', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'restore', 'staff'];
+const SECTIONS = ['dashboard', 'titles', 'reservations', 'customers', 'chat', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'restore', 'staff'];
 // Screens only owners open (the menu item is hidden and the address redirects to the Dashboard).
 const OWNER_ONLY = ['settings', 'locations', 'backup', 'restore'];
 let isOwner = false;
@@ -182,6 +182,12 @@ async function showApp() {
   };
   window.addEventListener('admin-notice', (e) => showNotice(e.detail));
   sb.from('staff_notice').select('notice').eq('id', 1).maybeSingle().then(({ data }) => showNotice(data?.notice));
+  // A visitor's chat message while staff are on another screen (the Chat screen shows its own as they arrive).
+  sb.channel('chat-alert')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (change) => {
+      if (!change.new.from_staff && current?.name !== 'chat') toast('New chat message. Open Chat to reply.');
+    })
+    .subscribe();
   window.addEventListener('hashchange', route);
   route();
 }
