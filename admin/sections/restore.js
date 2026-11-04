@@ -1,6 +1,6 @@
 // Restore (owners): load tables back from a backup file made on the Backup screen. See BACKUPS.md.
 
-import { $, $$, esc, setStatus, fmtDateTime, openDialog, toast, friendlyError, setupTabs } from '../lib.js';
+import { $, $$, esc, setStatus, fmtDateTime, openDialog, toast, friendlyError, setupTabs, loadRunLog } from '../lib.js';
 import { buildBackup, parseBackup, currentCounts, restoreTables, replaceImpact, failedTable, restoreOrder, recordRestore, NOT_RESTORED } from '../backup.js';
 
 const label = (n) => n.replace(/_/g, ' ');
@@ -19,6 +19,7 @@ export async function mount(el, ctx) {
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="file">Backup File</button>
       <button type="button" class="admin-tab" role="tab" data-tab="tables" disabled title="Choose a backup file first">Tables to Restore</button>
+      <button type="button" class="admin-tab" role="tab" data-tab="log">Restore Log</button>
     </div>
     <div data-tabpane="file">
     <p>Load tables back from a backup file, for example after something was deleted by mistake. Pick the file, then tick only the tables you need. <strong>Nothing happens until you press Restore.</strong></p>
@@ -27,10 +28,16 @@ export async function mount(el, ctx) {
     </div>
     <div data-tabpane="tables">
     <div data-plan hidden></div>
+    </div>
+    <div data-tabpane="log">
+    <p>Every restore, newest first: who ran it, how (add missing rows or replace), and what each table got. A failed restore changed nothing.</p>
+    <div data-log></div>
     </div>`;
+  const log = () => loadRunLog(sb, $('[data-log]', el), { jobs: ['restore'], name: (_, text) => (text.startsWith('replace') ? 'Replace' : 'Add missing rows'), detail: (text) => text.replace(/^(replace|add missing) — /, ''), by: true, limit: 50, empty: 'No restores yet.' }).catch(() => {});
   const showTab = setupTabs(el, 'admin-restore-tab', 'file');
   const tablesTab = $('[data-tab="tables"]', el);
-  showTab('file', false); // never reopen on the table list: it needs a file read first
+  if (tablesTab.getAttribute('aria-selected') === 'true') showTab('file', false); // never reopen on the table list: it needs a file read first
+  log();
 
   const fileStatus = $('[data-file-status]', el);
   const plan = $('[data-plan]', el);
@@ -183,6 +190,7 @@ export async function mount(el, ctx) {
         setStatus(status, 'Nothing was restored: every table was left as it was. See the ✗ above.', 'error');
       }
       await recordRestore(sb, user.email, replace ? 'replace' : 'add missing', results).catch(() => {});
+      log();
     } catch (err) {
       setStatus(status, `Restore didn’t start: ${friendlyError(err)}`, 'error');
     }

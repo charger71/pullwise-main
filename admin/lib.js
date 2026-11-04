@@ -895,6 +895,47 @@ export function sortableTable(table, { sort = null, dir = 'asc', onSort = null }
   return { set: (key, d) => ((current = { key, dir: d }), mark(key, d)) };
 }
 
+/** A job_log message written as "who@example.com: what happened" → { who, text }; other messages have no who. */
+export const splitWho = (message = '') => {
+  const m = /^([^\s:@]+@[^\s:]+): ([\s\S]*)$/.exec(message ?? '');
+  return m ? { who: m[1], text: m[2] } : { who: '', text: message ?? '' };
+};
+
+/**
+ * Fill `box` with the latest job_log runs, newest first, as a sortable table: When, Run, (By), Result, Details.
+ * `jobs` limits it to those job names; `name(job, text)` labels each run and `detail(text)` trims what the Details
+ * column shows; `by` splits "who: …" off the message into its own column (Backup and Restore write the staff email
+ * first). Import → Recent Runs, Backup Log, Restore Log.
+ */
+export async function loadRunLog(sb, box, { jobs = null, name = (job) => job, detail = (text) => text, by = false, limit = 15, empty = 'No runs yet.' } = {}) {
+  let q = sb.from('job_log').select('id,job,ok,message,created_at').order('id', { ascending: false }).limit(limit);
+  if (jobs) q = q.in('job', jobs);
+  const { data, error } = await q;
+  if (error) {
+    box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`;
+    return [];
+  }
+  box.innerHTML = data.length
+    ? `<div class="admin-table-wrap"><table class="admin-table run-log cards">
+        <thead><tr><th scope="col" data-sort="text" data-first="desc">When</th><th scope="col" data-sort="text">Run</th>${by ? '<th scope="col" data-sort="text">By</th>' : ''}<th scope="col" data-sort="text">Result</th><th scope="col">Details</th></tr></thead>
+        <tbody>${data
+          .map((j) => {
+            const { who, text } = by ? splitWho(j.message) : { who: '', text: j.message ?? '' };
+            return `<tr class="${j.ok ? '' : 'is-overdue'}">
+            <td class="nowrap card__meta card-key" data-sort="${esc(j.created_at)}">${fmtDateTime(j.created_at)}</td>
+            <td class="card-title"><strong>${esc(name(j.job, text))}</strong></td>
+            ${by ? `<td class="card-line">${esc(who)}</td>` : ''}
+            <td class="card-key"><span class="pill ${j.ok ? 'pill--done' : 'pill--failed'}">${j.ok ? 'OK' : 'Failed'}</span></td>
+            <td class="card__meta card-wide">${esc(detail(text))}</td>
+          </tr>`;
+          })
+          .join('')}</tbody>
+      </table></div>${data.length === limit ? `<p class="admin-hint">Showing the latest ${limit}.</p>` : ''}`
+    : `<p class="empty">${esc(empty)}</p>`;
+  if (data.length) sortableTable($('.run-log', box));
+  return data;
+}
+
 /**
  * Fill `box` with the emails staff sent to a customer from the compose box (newest first; click one to read it).
  * Matches by customer id, or by email address for people who only ever placed guest orders. `sum` gets a short summary.
