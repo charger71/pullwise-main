@@ -402,13 +402,13 @@ The storefront's modal dialog: a native \`<dialog>\` with a title, a round close
 
 The live chat: a button in the bottom-right corner opens a small chat box. It appears only when the owner has Live Chat on for the site (Shop Settings → Online) and staff have switched chat on (the switch on Admin → Chat). Rendered by \`initChat()\` in js/chat.js.
 
-- **Button** (\`.chat-launch\`): a \`.btn--primary\` fixed to the corner at \`shop-z-chat\`, over the sticky header and the pull-list bar, under the skip link. A dot (\`.chat-launch__dot\`) in \`shop-on-primary\` shows when the shop has answered since the visitor last looked; it follows the button's fill, so it reads on any main color. It lifts clear of the pull-list bar (\`body.has-list-bar\`).
+- **Button** (\`.chat-launch\`): a 56px round \`.btn--primary\` fixed to the corner at \`shop-z-chat\`, over the sticky header and the pull-list bar, under the skip link. It shows a comic word balloon (three dots, a tail) drawn in \`shop-on-primary\`, so it reads on any main color; the name \"Chat with us\" is its \`aria-label\` and \`title\`. When the shop has answered since the visitor last looked, a dot (\`.chat-launch__dot\`, \`shop-gold-text\` in a ring of \`shop-paper\`) sits on its rim and the name becomes \"Chat with us, the shop has replied\". It lifts clear of the pull-list bar (\`body.has-list-bar\`).
 - **Box** (\`.chat\`): \`surface\` with a \`line\` edge, \`shop-radius-lg\`, \`shop-shadow-lg\`, 380px wide and at most 600px tall. Under 480px it is a sheet pinned to the bottom of the screen.
 - **Head** (\`.chat__head\`): the title in \`shop-type-compact\` and a labelled **Close** (\`.btn--ghost .btn--small\`, 44px tall on phones). Escape closes it too, and focus goes back to where the visitor opened it.
 - **Start form** (\`.chat__form\`): the ordinary storefront fields (name, optional email, message), a hidden honeypot and a \`.btn--primary\` "Start chat". Errors use \`.form-error\`.
 - **Conversation** (\`.chat__log\`, \`role="log"\`): the visitor's messages sit on the right on \`shop-red-btn\` with \`shop-on-primary\` text (\`.chat__msg--mine\`); the shop's sit on the left on \`raised\` and may contain links. Each has a small time (\`.chat__time\`). Enter sends on screens 600px and wider; a phone's Return key adds a line.
 - **Hide this button** (\`.chat__hide\`): a link-style button in the foot (\`shop-teal\`, 44px tall). It hides the floating button in that browser. The footer's "Chat with us" link (\`a[href="#chat"]\`) opens the chat whether the button shows or not, so there is always a way back.
-- Text on the button, the visitor's bubbles and the dot follow their fill (\`shop-on-primary\`); everything else follows the page, so the chat reads on any colors a shop picks.
+- The balloon and the visitor's bubbles follow their fill (\`shop-on-primary\`); everything else follows the page, so the chat reads on any colors a shop picks.
 - Consumer provides: shop settings (\`chat_available\` and \`chat_enabled\`, both needed, through \`chatOn()\` in js/util.js; \`chat_greeting\`; the shop name). Staff answer from Admin → Chat (AdminChat).`,
     html: page('ShopChat', `
 <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
@@ -447,7 +447,7 @@ The live chat: a button in the bottom-right corner opens a small chat box. It ap
   </div>
   <p class="chat__foot"><button class="chat__hide" type="button">Hide this button</button><span>Find it again in the page footer.</span></p>
 </section>
-<p style="margin-top:16px"><button class="btn btn--primary chat-launch" type="button" style="position:static">Chat with us<span class="chat-launch__dot"></span></button></p>
+<p style="margin-top:16px"><button class="btn btn--primary chat-launch" type="button" style="position:relative;right:auto;bottom:auto" aria-label="Chat with us, the shop has replied" title="Chat with us, the shop has replied"><svg class="chat-launch__icon" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M3.5 13.5a12.5 9.5 0 1 1 25 0a12.5 9.5 0 1 1-25 0zM16.5 22.5C13.5 26.5 8.5 29 3.5 29c2.5-2.5 4-5.5 4-9.5zM8.5 13.5a2 2 0 1 0 4 0a2 2 0 1 0-4 0zM14 13.5a2 2 0 1 0 4 0a2 2 0 1 0-4 0zM19.5 13.5a2 2 0 1 0 4 0a2 2 0 1 0-4 0z"/></svg><span class="chat-launch__dot"></span></button></p>
 </div>
 </div>`),
   },
