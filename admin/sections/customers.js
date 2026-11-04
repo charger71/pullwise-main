@@ -228,7 +228,7 @@ function renderList(el) {
     <p class="results-count" role="status" data-count></p>
     ${phone ? `<details class="admin-hint-fold"><summary>Status icon key</summary>${iconLegend()}</details>` : iconLegend()}
     <div class="admin-table-wrap"><table class="admin-table cust-list cards">
-      <thead><tr><th scope="col" class="col-cust-name" data-sort="name">Name</th><th scope="col" data-sort="phone">Phone</th><th scope="col" data-sort="email">Email</th><th scope="col" class="center" data-sort="ready">Ready</th><th scope="col" class="center" data-sort="active">Active</th><th scope="col" data-sort="updated">Last updated</th><th scope="col" class="col-cust-status" data-sort="notes">Status</th></tr></thead>
+      <thead><tr><th scope="col" class="col-cust-name" data-sort="name">Name</th><th scope="col" data-sort="phone">Phone</th><th scope="col" data-sort="email">Email</th><th scope="col" class="center" data-sort="ready">Ready</th><th scope="col" class="center" data-sort="active">Active</th><th scope="col" data-sort="updated">Updated</th><th scope="col" class="col-cust-status" data-sort="notes">Status</th></tr></thead>
       <tbody data-rows></tbody>
     </table></div>
     <div class="admin-pager"><button class="btn btn--ghost" type="button" data-prev>← Previous</button><span data-page></span><button class="btn btn--ghost" type="button" data-next>Next →</button></div>`;
