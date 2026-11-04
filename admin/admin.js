@@ -13,6 +13,7 @@ import { syncTheme } from './theme.js';
 import { watchForUpdates } from './update-check.js';
 import { startChatAlerts, stopChatAlerts, unreadChats } from './chat-alerts.js';
 import { startSurveyAlerts, refreshSurveyAlerts, newSurveyResponses } from './survey-alerts.js';
+import { startEventAlerts, refreshEventAlerts, newEventSignups } from './event-alerts.js';
 import { listenForOpenRequests } from './staff-push.js';
 
 const SECTIONS = ['dashboard', 'titles', 'reservations', 'customers', 'chat', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'restore', 'staff'];
@@ -187,6 +188,7 @@ async function showApp() {
   showChat(chatSetting?.chat_available !== false);
   window.addEventListener('chat-available', (e) => showChat(e.detail));
   startSurveyAlerts(sb, { onCount: setTitle }); // the count of new survey responses on the Surveys menu item
+  startEventAlerts(sb, { onCount: setTitle }); // the count of new event signups on the Events menu item
   listenForOpenRequests(); // tapping a chat notification while the admin is open shows that chat here
   $('#login').hidden = true;
   $('#app').hidden = false;
@@ -206,13 +208,14 @@ async function showApp() {
 
 // The browser tab names the open screen first ("Customers · Staff · Pop's Comics"), so tabs and history can be told apart,
 // after the number of unread chats ("(2) Customers · …") so a new chat shows on a tab in the background.
-// The phone menu button (the menu is folded away there) counts everything waiting: unread chats and new survey responses.
+// The phone menu button (the menu is folded away there) counts everything waiting: unread chats, new survey responses
+// and new event signups.
 let shopName = '';
 const setTitle = () => {
   const screen = $('#app').hidden ? '' : $('[data-nav-label]')?.textContent.trim();
   const unread = unreadChats();
   document.title = `${unread ? `(${unread}) ` : ''}${[screen, 'Staff', shopName].filter(Boolean).join(' · ')}`;
-  const total = unread + newSurveyResponses();
+  const total = unread + newSurveyResponses() + newEventSignups();
   const badge = $('[data-nav-total]');
   if (badge) (badge.hidden = !total), (badge.innerHTML = total ? `${total}<span class="visually-hidden"> waiting</span>` : '');
 };
@@ -236,6 +239,7 @@ async function route() {
   if (navLabel) $('[data-nav-label]').textContent = navLabel;
   setTitle();
   refreshSurveyAlerts();
+  refreshEventAlerts();
   setNavOpen(false);
   const el = $('#section');
   el.setAttribute('aria-label', navLabel || name); // focus lands here on each screen change, so a screen reader names the screen

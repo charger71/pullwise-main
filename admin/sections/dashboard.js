@@ -450,7 +450,11 @@ async function renderAttention(box, loc = null, stale = () => false) {
   const heldBefore = addDays(today(), -(settings.hold_days ?? 30));
   const wide = (fn) => (scoped ? Promise.resolve(0) : fn());
   const overdueQuery = sb.from('reservations').select('id', { count: 'exact', head: true }).eq('status', 'arrived').lt('arrived_on', heldBefore);
-  const [guestMatches, overdue, failedEmails, signups, noEmail, noCover, noCategory, hidden, noPrice, newResponses] = await Promise.all([
+  // Event signups nobody has looked at yet; a store's tab counts only signups for that store's events.
+  const eventSignups = scoped
+    ? sb.from('event_signups').select('id, events!inner(location_id)', { count: 'exact', head: true }).eq('events.location_id', loc)
+    : sb.from('event_signups').select('id', { count: 'exact', head: true });
+  const [guestMatches, overdue, failedEmails, signups, noEmail, noCover, noCategory, hidden, noPrice, newResponses, newEventSignups] = await Promise.all([
     wide(() => findGuestMatches(sb).then((m) => m.length)),
     count(scoped ? overdueQuery.eq('location_id', loc) : overdueQuery),
     wide(() => count(sb.from('email_log').select('id', { count: 'exact', head: true }).eq('status', 'failed').gte('created_at', weekAgo))),
@@ -461,32 +465,38 @@ async function renderAttention(box, loc = null, stale = () => false) {
     wide(() => count(items().eq('hidden', true))),
     wide(() => count(items().is('price', null).eq('hidden', false))),
     wide(() => count(sb.from('survey_responses').select('id', { count: 'exact', head: true }).eq('seen', false))),
+    count(eventSignups.eq('seen', false)),
   ]);
   if (stale()) return;
   // Each row with something to fix links to the screen that fixes it, already filtered (the destination reads the hand-off).
   // `go.view` marks an item that is information rather than a problem: a quieter "View" button instead of "Fix".
+  // Rows at zero are left off, so the card lists only what needs doing.
   const row = (n, text, go) => {
+    if (!n) return '';
     const btn = go.view ? { cls: 'btn--ghost', icon: 'view', word: 'View' } : { cls: 'btn--primary', icon: 'fix', word: 'Fix' };
-    return `<li class="${n ? 'has-fix' : 'is-zero'}"><span class="dash-facts__text"><strong>${n.toLocaleString()}</strong> <span>${text}</span></span>${n ? `<a class="btn ${btn.cls} btn--small" href="#${go.page}" data-go-page="${go.page}" data-go-key="${go.key}" data-go="${esc(JSON.stringify(go.filter))}" aria-label="${btn.word}: ${n.toLocaleString()} ${esc(text)}">${solidIcon(btn.icon, 16)} ${btn.word}</a>` : ''}</li>`;
+    return `<li class="has-fix"><span class="dash-facts__text"><strong>${n.toLocaleString()}</strong> <span>${text}</span></span><a class="btn ${btn.cls} btn--small" href="#${go.page}" data-go-page="${go.page}" data-go-key="${go.key}" data-go="${esc(JSON.stringify(go.filter))}" aria-label="${btn.word}: ${n.toLocaleString()} ${esc(text)}">${solidIcon(btn.icon, 16)} ${btn.word}</a></li>`;
   };
   // Owners: nag when the last backup download is more than a week old (or there never was one).
   const backup = isOwner && !scoped ? await lastBackup(sb).catch(() => undefined) : undefined;
   const backupRow = backup === undefined || (backup && backup.days <= 7) ? '' : `<li class="has-fix"><span class="dash-facts__text"><strong>${backup ? `${backup.days} days` : 'Never'}</strong> <span>${backup ? 'since the last backup' : 'backed up: download a backup'}</span></span><a class="btn btn--primary btn--small" href="#backup">${solidIcon('fix', 16)} Back up</a></li>`;
   const visible = { visibility: 'visible' };
-  box.innerHTML = `<ul class="dash-facts">
-    ${backupRow}
-    ${row(overdue, `${overdue === 1 ? 'title is' : 'titles are'} past the pickup window`, { page: 'reservations', key: 'admin-reservations-status', filter: 'overdue' })}
-    ${scoped ? '' : row(failedEmails, `${failedEmails === 1 ? 'email' : 'emails'} failed to send in the last 7 days`, { page: 'emails', key: 'admin-emails-failed', filter: '1' })}
-    ${scoped ? '' : row(guestMatches, `guest ${guestMatches === 1 ? 'order matches' : 'orders match'} an existing customer`, { page: 'customers', key: 'admin-customers-show', filter: 'link_guests' })}
-    ${scoped ? '' : row(newResponses, `new survey ${newResponses === 1 ? 'response' : 'responses'} to read`, { page: 'surveys', key: 'admin-surveys-tab', filter: 'all', view: true })}
-    ${row(signups, `${signups === 1 ? 'customer' : 'customers'} signed up this week`, { page: 'customers', key: 'admin-customers-show', filter: 'new_week', view: true })}
-    ${row(noEmail, `${noEmail === 1 ? 'customer has' : 'customers have'} no email`, { page: 'customers', key: 'admin-customers-show', filter: 'no_email' })}
-    ${scoped ? '' : row(noCover, `visible ${noCover === 1 ? 'title has' : 'titles have'} no cover`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'no_cover', ...visible } })}
-    ${scoped ? '' : row(noCategory, `visible ${noCategory === 1 ? 'title has' : 'titles have'} no category`, { page: 'titles', key: 'admin-titles-filter', filter: { category: 'none', ...visible } })}
-    ${scoped ? '' : row(noPrice, `visible ${noPrice === 1 ? 'title has' : 'titles have'} no price`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'no_price', ...visible } })}
-    ${scoped ? '' : row(hidden, `${hidden === 1 ? 'title is' : 'titles are'} hidden from customers`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'hidden' } })}
-  </ul>
-  <p class="admin-hint">Fix and View open the list already filtered to those titles or customers.</p>`;
+  const rows = [
+    backupRow,
+    row(overdue, `${overdue === 1 ? 'title is' : 'titles are'} past the pickup window`, { page: 'reservations', key: 'admin-reservations-status', filter: 'overdue' }),
+    scoped ? '' : row(failedEmails, `${failedEmails === 1 ? 'email' : 'emails'} failed to send in the last 7 days`, { page: 'emails', key: 'admin-emails-failed', filter: '1' }),
+    scoped ? '' : row(guestMatches, `guest ${guestMatches === 1 ? 'order matches' : 'orders match'} an existing customer`, { page: 'customers', key: 'admin-customers-show', filter: 'link_guests' }),
+    scoped ? '' : row(newResponses, `new survey ${newResponses === 1 ? 'response' : 'responses'} to read`, { page: 'surveys', key: 'admin-surveys-tab', filter: 'all', view: true }),
+    row(newEventSignups, `new event ${newEventSignups === 1 ? 'signup' : 'signups'} to look at`, { page: 'events', key: 'admin-events-past', filter: 'signups', view: true }),
+    row(signups, `${signups === 1 ? 'customer' : 'customers'} signed up this week`, { page: 'customers', key: 'admin-customers-show', filter: 'new_week', view: true }),
+    row(noEmail, `${noEmail === 1 ? 'customer has' : 'customers have'} no email`, { page: 'customers', key: 'admin-customers-show', filter: 'no_email' }),
+    scoped ? '' : row(noCover, `visible ${noCover === 1 ? 'title has' : 'titles have'} no cover`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'no_cover', ...visible } }),
+    scoped ? '' : row(noCategory, `visible ${noCategory === 1 ? 'title has' : 'titles have'} no category`, { page: 'titles', key: 'admin-titles-filter', filter: { category: 'none', ...visible } }),
+    scoped ? '' : row(noPrice, `visible ${noPrice === 1 ? 'title has' : 'titles have'} no price`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'no_price', ...visible } }),
+    scoped ? '' : row(hidden, `${hidden === 1 ? 'title is' : 'titles are'} hidden from customers`, { page: 'titles', key: 'admin-titles-filter', filter: { flag: 'hidden' } }),
+  ].join('');
+  box.innerHTML = rows
+    ? `<ul class="dash-facts">${rows}</ul><p class="admin-hint">Fix and View open the list already filtered to those items.</p>`
+    : '<p class="empty">Nothing needs attention. All caught up.</p>';
   box.onclick = (e) => {
     const link = e.target.closest('[data-go]');
     if (!link) return;

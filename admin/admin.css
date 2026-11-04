@@ -344,17 +344,11 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .media-item { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
 .media-item img { width: 100%; aspect-ratio: 1; object-fit: contain; background: var(--media-bg); border-radius: var(--radius-sm); }
 .media-item__name { margin: 0; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.media-item__actions { display: flex; flex-direction: column; gap: var(--sp-4); }
-.media-item__actions .btn { width: 100%; }
+/* Library cards: name, picture, then Copy link, Replace and Delete as icons under it. */
+.media-item__actions { display: flex; justify-content: center; gap: var(--sp-8); }
+.media-replace:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
 /* Library: the file name across the top, then the thumbnail on the left with its three buttons on the right. */
-.media-grid:not(.media-pick) { grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); }
-.media-grid:not(.media-pick) .media-item { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--sp-6) var(--sp-10); align-items: start; }
-.media-grid:not(.media-pick) .media-item__name { grid-column: 1 / -1; grid-row: 1; }
-.media-grid:not(.media-pick) .media-item > a { grid-column: 1; grid-row: 2; }
-.media-grid:not(.media-pick) .media-item__actions { grid-column: 2; grid-row: 2; }
-.media-grid:not(.media-pick) .media-item__actions .btn--danger { width: 50%; align-self: flex-end; }
-.media-item__actions .btn--danger { background: var(--danger); color: #fff; box-shadow: none; }
-.media-item__actions .btn--danger:hover { background: var(--danger-hover); color: #fff; }
+.media-grid:not(.media-pick) { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 
 /* ---------- Dashboard ---------- */
 .dash-tiles { list-style: none; padding: 0; margin: 0 0 var(--sp-20); display: grid; gap: var(--sp-12); grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1103,7 +1097,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 
 /* ---------- Dashboard on phones ---------- */
 @media (max-width: 899px) {
-  /* Needs Attention lists only what needs doing: the rows at zero are left off. */
+  /* Fact lists drop their zero rows on phones (Needs Attention leaves them out at every width). */
   .dash-facts li.is-zero { display: none; }
 }
 @media (max-width: 899px) {
@@ -1211,9 +1205,8 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
   /* Pages: the page chooser takes the row, View and Delete share the next one. */
   .admin-toolbar .field { flex: 1 1 100%; min-width: 100%; }
   .admin-toolbar > .btn { flex: 1 1 0; justify-content: center; }
-  /* Media: every button is 44px and Delete is as wide as the rest. */
-  .media-item__actions .btn { font-size: var(--fs-ui); }
-  .media-grid:not(.media-pick) .media-item__actions .btn--danger { width: 100%; align-self: stretch; }
+  /* Media: the icon buttons under each picture are 44px targets. */
+  .media-item__actions .icon-btn { width: var(--tap); height: var(--tap); }
   /* FAQ: the question wraps instead of disappearing behind the arrows. */
   .faq-item__q { white-space: normal; overflow-wrap: anywhere; }
   .faq-item__actions .btn, .qr-item__actions .btn { flex: 1 1 0; }
@@ -1287,7 +1280,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 
 /* ---------- Natural-width buttons ----------
    Buttons in these places shrink to their label or share a row, so they drop the minimum width (see --btn-w at the top). */
-.media-item__actions, [data-move], .cust-email, .chat-compose { --btn-w: 0; --btn-w-sm: 0; }
+[data-move], .cust-email, .chat-compose { --btn-w: 0; --btn-w-sm: 0; }
 @media (max-width: 899px) {
   .cards.is-stack > tbody > tr > td, .admin-pager, .titles-table .tt-edit, .admin-toolbar, .faq-item__actions, .qr-item__actions, .qr-item__downloads { --btn-w: 0; --btn-w-sm: 0; }
 }
