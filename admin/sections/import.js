@@ -6,7 +6,7 @@
 
 import { readWorkbook, parseSheet } from '../../js/import/distributors.js';
 import { planImport, applyImport, logImport } from '../../js/import/apply.js';
-import { $, esc, must, setStatus, toast, fmtDate, fmtDateTime, processImage, loadScript, solidIcon, friendlyError, setupTabs, sortableTable, hintFold, uid, downloadCsv } from '../lib.js';
+import { $, esc, must, setStatus, toast, fmtDate, processImage, loadScript, solidIcon, friendlyError, setupTabs, hintFold, uid, downloadCsv, loadRunLog } from '../lib.js';
 import { tally } from '../../js/util.js';
 import { todayIn, addDays } from '../../js/dates.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../js/config.js';
@@ -333,27 +333,8 @@ async function makeThumb(bytes, type) {
   return { bytes: new Uint8Array(await small.blob.arrayBuffer()), type: small.type };
 }
 
-async function loadLog(el) {
-  const box = $('[data-log]', el);
-  const { data, error } = await sb.from('job_log').select('*').order('id', { ascending: false }).limit(15);
-  if (error) {
-    box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`;
-    return;
-  }
-  box.innerHTML = data.length
-    ? `<div class="admin-table-wrap"><table class="admin-table run-log cards">
-        <thead><tr><th scope="col" data-sort="text" data-first="desc">When</th><th scope="col" data-sort="text">Run</th><th scope="col" data-sort="text">Result</th><th scope="col">Details</th></tr></thead>
-        <tbody>${data
-          .map(
-            (j) => `<tr class="${j.ok ? '' : 'is-overdue'}">
-            <td class="nowrap card__meta card-key" data-sort="${esc(j.created_at)}">${fmtDateTime(j.created_at)}</td>
-            <td class="card-title"><strong>${j.job === 'import' ? 'Import' : j.job === 'status_flip' ? 'Daily status update' : j.job === 'catalog_sync' ? 'Master catalog sync' : j.job === 'prh_sync' ? 'PRH title updates' : j.job === 'prh_import' ? 'Automatic PRH import' : j.job === 'lunar_import' ? 'Automatic Lunar import' : esc(j.job)}</strong></td>
-            <td class="card-key"><span class="pill ${j.ok ? 'pill--done' : 'pill--failed'}">${j.ok ? 'OK' : 'Failed'}</span></td>
-            <td class="card__meta card-wide">${esc(j.message ?? '')}</td>
-          </tr>`,
-          )
-          .join('')}</tbody>
-      </table></div>`
-    : '<p class="empty">No runs yet.</p>';
-  if (data.length) sortableTable($('.run-log', box));
+const RUN_NAMES = { import: 'Import', status_flip: 'Daily status update', catalog_sync: 'Master catalog sync', prh_sync: 'PRH title updates', prh_import: 'Automatic PRH import', lunar_import: 'Automatic Lunar import' };
+
+function loadLog(el) {
+  return loadRunLog(sb, $('[data-log]', el), { name: (job) => RUN_NAMES[job] ?? job });
 }

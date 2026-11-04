@@ -19,6 +19,11 @@ const TABLE_ROWS = {
   ],
   staff_notice: [{ id: 1, notice: '' }],
   staff: [{ user_id: 'u1', name: 'Test Owner', is_owner: true }],
+  // Import → Recent Runs, Backup Log and Restore Log (the made-up client ignores filters, so every log shows both).
+  job_log: [
+    { id: 2, job: 'restore', ok: false, message: 'owner@example.com: replace — customers FAILED (violates foreign key)', created_at: '2026-10-02T15:00:00Z' },
+    { id: 1, job: 'backup', ok: true, message: 'owner@example.com: 1,234 rows in 20 tables (1.5 MB)', created_at: '2026-10-01T15:00:00Z' },
+  ],
 };
 const RPC_DATA = {
   is_owner: true,

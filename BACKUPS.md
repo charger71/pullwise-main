@@ -8,7 +8,7 @@ the admin has a manual one.
 **Admin → Backup → Download backup** (owners only). It reads every table (about 20,000 rows) and saves one file,
 `shop-backup-YYYY-MM-DD.json.gz` (about 1.5 MB). Do it weekly and keep the file somewhere safe, such as Dropbox.
 The Dashboard's Needs Attention list shows a **Back up** reminder to owners when the last download is over 7 days old
-(or there never was one).
+(or there never was one). **Backup → Backup Log** lists every backup downloaded and customer list exported, with who did it.
 
 The file holds customer names, phone numbers and emails: don't share or email it, and never commit it to git.
 
@@ -39,7 +39,7 @@ Not included:
    is in neither the database nor the backup (a backup taken while someone was ordering) are skipped and counted. A table
    whose parent rows are missing from a table you didn't tick is refused (tick the parent table too). A very large restore
    can hit the database's time limit; restore fewer tables at a time if it says so. Every restore is recorded in the job
-   log.
+   log and listed under **Restore → Restore Log** (who, add or replace, what each table got, or which table failed).
 
 Not restored: the staff list (add people under Admin → Staff), the staff change log and the job log (kept as the record of
 what was done), and customers' sign-ins (they sign up again with the same email and are matched back to their customer
