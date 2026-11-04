@@ -11,6 +11,8 @@ import { $, linkify, fmtTime } from './site.js';
 const KEY = 'pw-chat';
 const POLL_OPEN = 4000;
 const POLL_CLOSED = 30000;
+const LAUNCH_LABEL = 'Chat with us';
+const LAUNCH_LABEL_NEW = 'Chat with us, the shop has replied';
 const DEFAULT_GREETING = 'Ask us anything. We’ll reply right here. If we’re busy in the shop it can take a few minutes.';
 
 const readSaved = () => {
@@ -43,7 +45,7 @@ export function initChat(settings) {
   let timer;
 
   document.body.insertAdjacentHTML('beforeend', `
-    <button class="btn btn--primary chat-launch" id="chat-launch" type="button" aria-controls="chat" aria-expanded="false">Chat with us<span class="chat-launch__dot" hidden></span></button>
+    <button class="btn btn--primary chat-launch" id="chat-launch" type="button" aria-controls="chat" aria-expanded="false" aria-label="${LAUNCH_LABEL}" title="${LAUNCH_LABEL}"><svg class="chat-launch__icon" viewBox="0 0 307 246" aria-hidden="true" focusable="false"><path d="M47.5 179.4A153.4 103.8 0 1 1 100.2 201.4L27 246L20 244zM88.3 103.9a14.5 14.5 0 1 0 29 0a14.5 14.5 0 1 0-29 0zM138.3 103.9a14.5 14.5 0 1 0 29 0a14.5 14.5 0 1 0-29 0zM188.3 103.9a14.5 14.5 0 1 0 29 0a14.5 14.5 0 1 0-29 0z"/></svg><span class="chat-launch__dot" hidden></span></button>
     <section class="chat" id="chat" aria-label="Chat with ${esc(settings.shop_name)}" hidden>
       <div class="chat__head">
         <h2 class="chat__title">Chat with ${esc(settings.shop_name)}</h2>
@@ -57,6 +59,12 @@ export function initChat(settings) {
   const panel = $('#chat');
   const body = $('.chat__body', panel);
   const dot = $('.chat-launch__dot', launch);
+  /** The dot on the button says there is a new reply; the button's name says it too, for a screen reader. */
+  const setDot = (show) => {
+    dot.hidden = !show;
+    launch.setAttribute('aria-label', show ? LAUNCH_LABEL_NEW : LAUNCH_LABEL);
+    launch.title = show ? LAUNCH_LABEL_NEW : LAUNCH_LABEL;
+  };
 
   const newestShop = () => messages.filter((m) => m.from_staff).reduce((max, m) => Math.max(max, m.id), 0);
 
@@ -120,7 +128,7 @@ export function initChat(settings) {
       messages = [];
       seen = 0;
       writeSaved({ token: null, seen: 0 });
-      dot.hidden = true;
+      setDot(false);
       if (isOpen) renderStart();
       return;
     }
@@ -132,7 +140,7 @@ export function initChat(settings) {
       writeSaved({ token, seen });
       if (changed) paintLog();
     } else {
-      dot.hidden = newestShop() <= seen;
+      setDot(newestShop() > seen);
     }
   }
 
@@ -209,7 +217,7 @@ export function initChat(settings) {
       if (token) {
         seen = newestShop();
         writeSaved({ token, seen });
-        dot.hidden = true;
+        setDot(false);
       }
     } else {
       // Back to where the visitor opened it from: the button, or the footer link once the button is hidden.
