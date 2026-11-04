@@ -4,6 +4,7 @@
 
 import { $, $$, esc, must, toast, setStatus, fmtDateTime, friendlyError, hintFold, uid, switchHtml } from '../lib.js';
 import { adminHash } from '../route.js';
+import { desktopAlerts, askForDesktopAlerts } from '../chat-alerts.js';
 
 const BACKUP_REFRESH = 20000;
 const SNIPPET = 90;
@@ -53,11 +54,12 @@ async function showList() {
   root.innerHTML = `
     <div class="admin-title-row"><h1>Chat</h1>${switchHtml(chatLabel(on), { checked: on, attrs: 'data-chat-switch' })}</div>
     <p class="admin-hint" data-switch-hint></p>
+    <p class="admin-hint" data-desktop-alerts></p>
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-status="open">Open <span class="admin-tab__badge" data-unread hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-status="closed">Closed</button>
     </div>
-    ${hintFold('Visitors start a chat from the button in the corner of every public page. This screen shows new messages as they arrive, so leave it open while you want to be reachable; if you are on another screen, a message pops up in the corner. Reply here, close a chat when you are done, and delete the ones you no longer need (chats keep the visitor’s name and, if they gave it, their email). A visitor who writes again reopens a closed chat. Use the switch at the top to turn chat on or off for visitors. The owner can remove the chat feature altogether in Shop Settings → Online.')}
+    ${hintFold('Visitors start a chat from the button in the corner of every public page. This screen shows new messages as they arrive, so leave it open while you want to be reachable; if you are on another screen, a message pops up in the corner and the Chat menu item shows how many chats are waiting. Turn on desktop alerts to hear about messages while the admin is in a background tab. Reply here, close a chat when you are done, and delete the ones you no longer need (chats keep the visitor’s name and, if they gave it, their email). A visitor who writes again reopens a closed chat. Use the switch at the top to turn chat on or off for visitors. The owner can remove the chat feature altogether in Shop Settings → Online.')}
     <p class="admin-status" role="status" data-state></p>
     <div data-list></div>`;
   $$('[data-status]', root).forEach((b) =>
@@ -67,6 +69,7 @@ async function showList() {
     }),
   );
   wireSwitch(mine, on);
+  paintDesktopAlerts();
   await loadList(mine);
   listen(mine, () => loadList(mine));
 }
@@ -104,6 +107,23 @@ function wireSwitch(mine, on) {
       box.disabled = false;
     }
   });
+}
+
+/** Desktop alerts belong to this browser (staff allow them once), so the line says where they stand and offers the switch. */
+function paintDesktopAlerts() {
+  const line = $('[data-desktop-alerts]', root);
+  const state = desktopAlerts();
+  line.hidden = state === 'unsupported';
+  if (state === 'granted') line.textContent = 'Desktop alerts are on in this browser: a message shows on your screen even while the admin is in a background tab.';
+  else if (state === 'denied') line.textContent = 'Desktop alerts are blocked for this site. To get them, allow notifications for this site in your browser’s settings.';
+  else if (state === 'default') {
+    line.innerHTML = 'Get a desktop alert when a visitor writes while the admin is in a background tab. <button class="admin-link-button" type="button">Turn on desktop alerts</button>';
+    $('button', line).addEventListener('click', async () => {
+      const now = await askForDesktopAlerts();
+      if (root.isConnected) paintDesktopAlerts();
+      if (now === 'granted') toast('Desktop alerts are on');
+    });
+  }
 }
 
 async function loadList(mine) {
