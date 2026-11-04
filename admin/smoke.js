@@ -65,6 +65,12 @@ const stubClient = () => ({
   },
   storage: { from: () => ({ list: async () => ({ data: [], error: null }), getPublicUrl: (p) => ({ data: { publicUrl: `https://example.com/${p}` } }), remove: async () => ({ error: null }), upload: async () => ({ error: null }) }) },
   functions: { invoke: async () => ({ data: {}, error: null }) },
+  // Realtime (the Chat screen listens for new messages): a channel that never sends anything.
+  channel: () => {
+    const ch = { on: () => ch, subscribe: () => ch, unsubscribe: async () => 'ok' };
+    return ch;
+  },
+  removeChannel: async () => 'ok',
 });
 
 const results = document.getElementById('results');

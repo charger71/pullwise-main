@@ -392,6 +392,16 @@ setHtml(quill, saved); … getHtml(quill)</pre>
             <p class="admin-hint mt-8">Up to 899px the tabs stay on one row that scrolls sideways, never up and down; under 700px each tab shows its icon only.</p>
           </div>
           <div class="sg-item" data-code>
+            <h3>Menu item with a count badge</h3>
+            <div class="sg-demo">
+              <div class="admin-nav is-open"><ul>
+                <li><a href="#chat"><span>Chat</span><span class="admin-nav__badge">2<span class="visually-hidden"> unread chats</span></span></a></li>
+                <li><a href="#chat" aria-current="page"><span>Chat</span><span class="admin-nav__badge">2<span class="visually-hidden"> unread chats</span></span></a></li>
+              </ul></div>
+            </div>
+            <p class="admin-hint mt-8">The menu shows a count for work waiting on staff on every screen: the Chat item counts chats with unread visitor messages (<code>admin/chat-alerts.js</code>). The badge sits at the end of the row, carries hidden words for screen readers (“2 unread chats”), and also shows on the phone menu button, since the menu itself is folded away there. It clears when the work is done (opening the chat reads it). The same count goes first in the browser tab’s title, “(2) Dashboard · Staff · …”. Don’t add a badge for things that are merely new; only for things someone has to answer.</p>
+          </div>
+          <div class="sg-item" data-code>
             <h3>Quick-filter chips</h3>
             <div class="sg-demo">
               <div class="status-chips" role="group" aria-label="Quick filters">
@@ -682,8 +692,8 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
           </div>
           <div class="sg-item" data-code>
             <h3>Toasts (bottom-right, auto-dismiss)</h3>
-            <div class="sg-demo"><div class="sg-row"><span class="toast" style="position:static">Title marked arrived</span><span class="toast toast--error" style="position:static">Not saved: network error</span></div></div>
-            <p class="admin-hint mt-8">Call <code>toast('message')</code> or <code>toast('message', 'error')</code> from <code>lib.js</code>; do not build these by hand.</p>
+            <div class="sg-demo"><div class="sg-row"><span class="toast" style="position:static">Title marked arrived</span><span class="toast toast--error" style="position:static">Not saved: network error</span><span class="toast toast--ok" style="position:static">New chat message from Sam <a class="toast__link" href="#chat">Open chat</a></span></div></div>
+            <p class="admin-hint mt-8">Call <code>toast('message')</code> or <code>toast('message', 'error')</code> from <code>lib.js</code>; do not build these by hand. For news from another screen (a visitor’s chat message), pass a link as the third argument, <code>toast('New chat message from Sam', 'ok', { href, text: 'Open chat' })</code>: it adds <code>.toast__link</code> and stays up 10 seconds. A toast disappears, so whatever it reports must also be reachable another way (the Chat menu item’s count).</p>
           </div>
         </section>
 

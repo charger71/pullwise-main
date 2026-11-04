@@ -51,8 +51,11 @@ export function setStatus(el, text, kind = '') {
   el.classList.toggle('admin-status--ok', kind === 'ok');
 }
 
-/** Small toast in the corner for save/delete confirmations. */
-export function toast(text, kind = 'ok') {
+/**
+ * Small toast in the corner for save/delete confirmations. Pass `link` ({ href, text }) to add a link that goes
+ * straight to the thing the toast is about ("Open chat"); a toast with a link stays up longer.
+ */
+export function toast(text, kind = 'ok', link = null) {
   let box = $('#toasts');
   if (!box) {
     box = Object.assign(document.createElement('div'), { id: 'toasts', className: 'toasts' });
@@ -60,8 +63,13 @@ export function toast(text, kind = 'ok') {
     document.body.append(box);
   }
   const t = Object.assign(document.createElement('div'), { className: `toast toast--${kind}`, textContent: text });
+  if (link) {
+    const a = Object.assign(document.createElement('a'), { className: 'toast__link', href: link.href, textContent: link.text });
+    a.addEventListener('click', () => t.remove());
+    t.append(' ', a);
+  }
   box.append(t);
-  setTimeout(() => t.remove(), kind === 'error' ? 8000 : 3500);
+  setTimeout(() => t.remove(), link ? 10000 : kind === 'error' ? 8000 : 3500);
 }
 
 /**

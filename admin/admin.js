@@ -6,11 +6,12 @@
 import { parseAdminHash, adminHash } from './route.js';
 import { decorateTabs, tabKeys } from './tab-icons.js';
 import { DEMO, getSettings } from '../js/data.js';
-import { $, $$, db, esc, openEmailDialog, friendlyError, toast } from './lib.js';
+import { $, $$, db, esc, openEmailDialog, friendlyError } from './lib.js';
 import { sizedImage } from '../js/util.js';
 import { VERSION } from './version.js';
 import { syncTheme } from './theme.js';
 import { watchForUpdates } from './update-check.js';
+import { startChatAlerts, stopChatAlerts, unreadChats } from './chat-alerts.js';
 
 const SECTIONS = ['dashboard', 'titles', 'reservations', 'customers', 'chat', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'restore', 'staff'];
 // Screens only owners open (the menu item is hidden and the address redirects to the Dashboard).
@@ -177,6 +178,8 @@ async function showApp() {
     chatAvailable = on;
     const item = $('.admin-nav a[href="#chat"]')?.closest('li');
     if (item) item.hidden = !on;
+    // The unread count on the menu and the alerts while staff are on other screens.
+    on ? startChatAlerts(sb, { current: () => parseAdminHash(location.hash, SECTIONS), onCount: setTitle }) : stopChatAlerts();
   };
   const { data: chatSetting } = await sb.from('settings').select('chat_available').eq('id', 1).maybeSingle();
   showChat(chatSetting?.chat_available !== false);
@@ -193,21 +196,17 @@ async function showApp() {
   };
   window.addEventListener('admin-notice', (e) => showNotice(e.detail));
   sb.from('staff_notice').select('notice').eq('id', 1).maybeSingle().then(({ data }) => showNotice(data?.notice));
-  // A visitor's chat message while staff are on another screen (the Chat screen shows its own as they arrive).
-  sb.channel('chat-alert')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (change) => {
-      if (!change.new.from_staff && current?.name !== 'chat') toast('New chat message. Open Chat to reply.');
-    })
-    .subscribe();
   window.addEventListener('hashchange', route);
   route();
 }
 
-// The browser tab names the open screen first ("Customers · Staff · Pop's Comics"), so tabs and history can be told apart.
+// The browser tab names the open screen first ("Customers · Staff · Pop's Comics"), so tabs and history can be told apart,
+// after the number of unread chats ("(2) Customers · …") so a new chat shows on a tab in the background.
 let shopName = '';
 const setTitle = () => {
   const screen = $('#app').hidden ? '' : $('[data-nav-label]')?.textContent.trim();
-  document.title = [screen, 'Staff', shopName].filter(Boolean).join(' · ');
+  const unread = unreadChats();
+  document.title = `${unread ? `(${unread}) ` : ''}${[screen, 'Staff', shopName].filter(Boolean).join(' · ')}`;
 };
 
 let lastHash = location.hash;
@@ -225,7 +224,7 @@ async function route() {
   lastHash = adminHash(name, arg);
   $$('.admin-nav a').forEach((a) => (a.getAttribute('href') === `#${name}` ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   revealCurrentGroup();
-  const navLabel = $(`.admin-nav a[href="#${name}"]`)?.textContent.trim();
+  const navLabel = $(`.admin-nav a[href="#${name}"] > span:not([data-chat-badge])`)?.textContent.trim(); // not the unread count
   if (navLabel) $('[data-nav-label]').textContent = navLabel;
   setTitle();
   setNavOpen(false);
