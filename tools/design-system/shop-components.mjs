@@ -397,6 +397,61 @@ The storefront's modal dialog: a native \`<dialog>\` with a title, a round close
 </dialog>`),
   },
   {
+    name: 'ShopChat', group: G('Overlays'), height: 614, width: 860,
+    readme: `# ShopChat
+
+The live chat: a button in the bottom-right corner opens a small chat box. It appears only when staff switch Live Chat on (Shop Settings → Online). Rendered by \`initChat()\` in js/chat.js.
+
+- **Button** (\`.chat-launch\`): a \`.btn--primary\` fixed to the corner at \`shop-z-chat\`, over the sticky header and the pull-list bar, under the skip link. A dot (\`.chat-launch__dot\`) in \`shop-on-primary\` shows when the shop has answered since the visitor last looked; it follows the button's fill, so it reads on any main color. It lifts clear of the pull-list bar (\`body.has-list-bar\`).
+- **Box** (\`.chat\`): \`surface\` with a \`line\` edge, \`shop-radius-lg\`, \`shop-shadow-lg\`, 380px wide and at most 600px tall. Under 480px it is a sheet pinned to the bottom of the screen.
+- **Head** (\`.chat__head\`): the title in \`shop-type-compact\` and a labelled **Close** (\`.btn--ghost .btn--small\`, 44px tall on phones). Escape closes it too, and focus goes back to where the visitor opened it.
+- **Start form** (\`.chat__form\`): the ordinary storefront fields (name, optional email, message), a hidden honeypot and a \`.btn--primary\` "Start chat". Errors use \`.form-error\`.
+- **Conversation** (\`.chat__log\`, \`role="log"\`): the visitor's messages sit on the right on \`shop-red-btn\` with \`shop-on-primary\` text (\`.chat__msg--mine\`); the shop's sit on the left on \`raised\` and may contain links. Each has a small time (\`.chat__time\`). Enter sends on screens 600px and wider; a phone's Return key adds a line.
+- **Hide this button** (\`.chat__hide\`): a link-style button in the foot (\`shop-teal\`, 44px tall). It hides the floating button in that browser. The footer's "Chat with us" link (\`a[href="#chat"]\`) opens the chat whether the button shows or not, so there is always a way back.
+- Text on the button, the visitor's bubbles and the dot follow their fill (\`shop-on-primary\`); everything else follows the page, so the chat reads on any colors a shop picks.
+- Consumer provides: shop settings (\`chat_enabled\`, \`chat_greeting\`, the shop name). Staff answer from Admin → Chat (AdminChat).`,
+    html: page('ShopChat', `
+<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+<section class="chat" aria-label="Chat with Pop's Comics" style="position:static;max-height:none">
+  <div class="chat__head">
+    <h2 class="chat__title">Chat with Pop's Comics</h2>
+    <button class="btn btn--ghost btn--small" type="button">Close</button>
+  </div>
+  <div class="chat__body">
+    <form class="chat__form" novalidate>
+      <p class="chat__note">Ask us anything. We’ll reply right here. If we’re busy in the shop it can take a few minutes.</p>
+      <div class="field"><label for="pw-chat-name">Your name</label><input id="pw-chat-name" name="name"></div>
+      <div class="field"><label for="pw-chat-email">Email (optional)</label><input id="pw-chat-email" name="email" type="email"><p class="field__hint">So we can reach you if you close this page.</p></div>
+      <div class="field"><label for="pw-chat-first">Message</label><textarea id="pw-chat-first" name="body" rows="2"></textarea></div>
+      <button class="btn btn--primary" type="submit">Start chat</button>
+    </form>
+  </div>
+  <p class="chat__foot"><button class="chat__hide" type="button">Hide this button</button><span>Find it again in the page footer.</span></p>
+</section>
+<div>
+<section class="chat" aria-label="Chat with Pop's Comics" style="position:static;max-height:none">
+  <div class="chat__head">
+    <h2 class="chat__title">Chat with Pop's Comics</h2>
+    <button class="btn btn--ghost btn--small" type="button">Close</button>
+  </div>
+  <div class="chat__body">
+    <div class="chat__log" role="log" aria-label="Chat messages" tabindex="0">
+      <div class="chat__msg chat__msg--mine"><p>Hi! Is the new Absolute Batman #12 in yet?</p><span class="chat__time">9:12 AM</span></div>
+      <div class="chat__msg"><p>It comes in Wednesday. Want us to add it to your pull list?</p><span class="chat__time">Shop · 9:14 AM</span></div>
+    </div>
+    <form class="chat__send">
+      <label class="visually-hidden" for="pw-chat-reply">Your message</label>
+      <textarea id="pw-chat-reply" rows="2"></textarea>
+      <button class="btn btn--primary" type="submit">Send</button>
+    </form>
+  </div>
+  <p class="chat__foot"><button class="chat__hide" type="button">Hide this button</button><span>Find it again in the page footer.</span></p>
+</section>
+<p style="margin-top:16px"><button class="btn btn--primary chat-launch" type="button" style="position:static">Chat with us<span class="chat-launch__dot"></span></button></p>
+</div>
+</div>`),
+  },
+  {
     name: 'ShopAccount', group: G('Account'), height: 436,
     readme: `# ShopAccount
 

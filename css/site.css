@@ -884,7 +884,7 @@ body.has-list-bar { padding-bottom: var(--list-bar-h); }
 body.has-list-bar .chat-launch, body.has-list-bar .chat { bottom: calc(var(--list-bar-h) + var(--sp-16)); }
 body.has-list-bar .chat { max-height: min(600px, calc(100dvh - var(--list-bar-h) - var(--sp-32))); }
 .chat-launch { box-shadow: var(--shadow-lg); }
-.chat-launch__dot { width: var(--sp-10); height: var(--sp-10); margin-left: var(--sp-6); border-radius: 50%; background: var(--gold); }
+.chat-launch__dot { width: var(--sp-10); height: var(--sp-10); margin-left: var(--sp-6); border-radius: 50%; background: var(--on-primary); }
 .chat { display: flex; flex-direction: column; width: min(380px, calc(100vw - 2 * var(--sp-16))); max-height: min(600px, calc(100dvh - var(--sp-32))); background: var(--surface); border: var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
 .chat[hidden] { display: none; }
 .chat__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); padding: var(--sp-8) var(--sp-12) var(--sp-8) var(--sp-14); border-bottom: var(--border); }
