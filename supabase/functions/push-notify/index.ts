@@ -8,6 +8,8 @@
 //   POST  Authorization: Bearer <customer>  { "mode": "test" }   a test notice to the signed-in customer's own devices
 //   POST  x-cron-secret  { "mode": "chat", "conversation_id" }   a visitor wrote in live chat: tell every staff device
 //           that turned chat notifications on (public.chat_message_push asks, at most every 5 minutes for a chat)
+//   POST  x-cron-secret  { "mode": "chat-reply", "conversation_id" }   staff answered a chat a signed-in customer
+//           started: tell that customer's devices (public.chat_reply_push asks, at most once a minute for a chat)
 //   POST  Authorization: Bearer <staff>  { "mode": "staff-test" }   a test notice to the signed-in staff member's devices
 //
 // Secrets (supabase secrets set …): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (`node tools/vapid-keys.mjs` makes a pair; the
@@ -18,7 +20,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
-import { arrivalMessage, newTitlesMessage, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, testMessage, staffChatMessage, staffTestMessage, notificationIcon, subscriptionGone, shopToday, addDays, focsChangingOn, pickupDue } from './messages.js';
+import { arrivalMessage, newTitlesMessage, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, testMessage, staffChatMessage, staffTestMessage, chatReplyMessage, notificationIcon, subscriptionGone, shopToday, addDays, focsChangingOn, pickupDue } from './messages.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
@@ -53,7 +55,7 @@ Deno.serve(async (req) => {
   const cron = req.headers.get('x-cron-secret');
   const secret = Deno.env.get('CRON_SECRET');
   try {
-    if (cron && secret && same(cron, secret)) return json(200, body.mode === 'chat' ? await sendChat(Number(body.conversation_id)) : await sendAll());
+    if (cron && secret && same(cron, secret)) return json(200, body.mode === 'chat' ? await sendChat(Number(body.conversation_id)) : body.mode === 'chat-reply' ? await sendChatReply(Number(body.conversation_id)) : await sendAll());
     if (body.mode !== 'test' && body.mode !== 'staff-test') return json(400, { error: 'Unknown mode.' });
     const auth = req.headers.get('authorization');
     if (!auth) return json(401, { error: 'Please sign in.' });
@@ -99,6 +101,24 @@ async function staffDevices(userId?: string): Promise<Device[]> {
   const { data, error } = await q;
   if (error) throw error;
   return data;
+}
+
+/** Staff answered this chat: one notice to the customer it belongs to, quoting the newest reply. */
+async function sendChatReply(id: number) {
+  if (!Number.isInteger(id) || id <= 0) return { error: 'No chat named.' };
+  const { data: chat, error } = await admin.from('chat_conversations').select('id,customer_id').eq('id', id).maybeSingle();
+  if (error) throw error;
+  if (!chat?.customer_id) return { chat: id, sent: 0, skipped: true };
+  const [{ data: who }, { data: last }] = await Promise.all([
+    admin.from('customers').select('push_chat').eq('id', chat.customer_id).maybeSingle(),
+    admin.from('chat_messages').select('body').eq('conversation_id', id).eq('from_staff', true).order('id', { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  if (!who?.push_chat || !last) return { chat: id, sent: 0, skipped: true };
+  const devices = await subscriptionsOf([chat.customer_id]);
+  if (!devices.length) return { chat: id, devices: 0, sent: 0 };
+  const shop = await loadShop();
+  const result = await sendTo(devices, { ...chatReplyMessage({ shopName: shop.shop_name, body: last.body }), icon: notificationIcon(shop) }, CUSTOMER_TABLE, 60 * 60 * 12, 'high');
+  return { chat: id, devices: devices.length, ...result };
 }
 
 /** A visitor wrote in this chat: one notice to every staff device, naming the visitor and quoting their newest line. */

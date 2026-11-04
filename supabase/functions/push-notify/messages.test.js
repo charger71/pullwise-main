@@ -1,6 +1,6 @@
 // node supabase/functions/push-notify/messages.test.js
 import assert from 'node:assert/strict';
-import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone, addDays, shopToday, dayLabel, lastChangeDay, focsChangingOn, pickupDue, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, staffChatMessage, staffTestMessage } from './messages.js';
+import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone, addDays, shopToday, dayLabel, lastChangeDay, focsChangingOn, pickupDue, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, staffChatMessage, staffTestMessage, chatReplyMessage } from './messages.js';
 
 const line = (title, issue, id) => ({ item: { id, title, issue_number: issue } });
 
@@ -112,3 +112,13 @@ assert.ok(long.body.endsWith('…'));
 assert.equal(staffTestMessage('Area71').title, 'Area71 · Staff');
 assert.equal(staffTestMessage().url, '/admin/#chat');
 console.log('staff chat message tests passed');
+
+// Customer: the shop answered their chat
+const reply = chatReplyMessage({ shopName: ' Area71 Comics ', body: 'Yes,\n we have it.' });
+assert.equal(reply.title, 'Area71 Comics replied');
+assert.equal(reply.body, 'Yes, we have it.');
+assert.equal(reply.url, '/app?chat=1', 'opens the app with the chat open');
+assert.equal(reply.tag, 'chat-reply');
+assert.equal(chatReplyMessage({ body: 'x'.repeat(300) }).body.length, 140);
+assert.equal(chatReplyMessage({}).title, 'The shop replied');
+console.log('chat reply message tests passed');

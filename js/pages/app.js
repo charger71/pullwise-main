@@ -8,7 +8,7 @@ import { getSettings, getItems, rankByPulls } from '../data.js';
 import { todayIn } from '../dates.js';
 import { itemCard, enableReservations } from '../components.js';
 import { loadFilters, filterControl, setupMulti, publisherFilter, categoryOptions, focFilter } from '../catalog.js';
-import { formatPhone, LOGO_WIDTH, prefersReducedMotion as reducedMotion } from '../util.js';
+import { formatPhone, LOGO_WIDTH, prefersReducedMotion as reducedMotion, chatOn } from '../util.js';
 import { setShopColors, setupAppearance } from '../app-theme.js';
 import { kept, keep, isInstalled as installed, isIPhone as iPhone, buzzOnCross } from '../app-device.js';
 
@@ -484,6 +484,7 @@ async function renderShop() {
       ${s.tagline ? `<p class="app-shop__tagline">${esc(s.tagline)}</p>` : ''}
       ${many ? s.locations.map((l) => placeHtml(locationAs(s, l), l.name)).join('') : placeHtml(s)}
       ${s.email ? `<p class="app-shop__email"><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></p>` : ''}
+      ${chatOn(s) ? '<p class="mt-1em"><a class="btn btn--primary" href="#chat">Chat with us</a></p>' : ''}
       ${social}
     </div>
     <ul class="app-shop__links">${SITE_LINKS.map((l) => `<li><a href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.label)}<span class="visually-hidden"> (opens in your browser)</span></a></li>`).join('')}</ul>`;
