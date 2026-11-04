@@ -8,6 +8,18 @@ const FOLDER = 'library';
 let sb;
 let isOwner = false;
 let showTab = () => {};
+let files = []; // the Library's images as last listed
+let bustAt = 0; // after a Replace, the previews skip the browser's copy (one stamp per load, so re-sorting reuses them)
+
+/** Library sort orders; Newest first is the default. */
+const SORTS = {
+  newest: { label: 'Newest first', cmp: (a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? '') },
+  oldest: { label: 'Oldest first', cmp: (a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? '') },
+  name: { label: 'Name A–Z', cmp: (a, b) => shortName(a.name).localeCompare(shortName(b.name), undefined, { numeric: true, sensitivity: 'base' }) },
+  largest: { label: 'Largest first', cmp: (a, b) => (b.metadata?.size ?? 0) - (a.metadata?.size ?? 0) },
+};
+const shortName = (name) => name.replace(/^[a-z0-9]+-/, ''); // without the random prefix uploads get
+let sort = 'newest';
 
 /** What media_usage() found, as short plain-English lines. */
 const PLACES = {
@@ -55,6 +67,8 @@ export async function mount(el, ctx) {
     <div data-tabpane="library">
     <div class="media-toolbar">
       <p class="results-count" data-count></p>
+      <label class="visually-hidden" for="m-sort">Sort images</label>
+      <select id="m-sort" class="select--small media-toolbar__sort">${Object.entries(SORTS).map(([k, s]) => `<option value="${k}">${s.label}</option>`).join('')}</select>
       <div class="view-switch" role="group" aria-label="Show images as">
         <button class="icon-btn" type="button" data-view="grid" aria-pressed="false" aria-label="Grid" title="Grid">${solidIcon('grid', 20)}</button>
         <button class="icon-btn" type="button" data-view="list" aria-pressed="false" aria-label="List" title="List">${solidIcon('list', 20)}</button>
@@ -81,6 +95,25 @@ export async function mount(el, ctx) {
     /* start on the grid */
   }
   setView(view);
+
+  // Sort order, remembered on this device; Newest first until changed.
+  try {
+    const saved = localStorage.getItem('admin-media-sort');
+    if (SORTS[saved]) sort = saved;
+  } catch {
+    /* start on Newest first */
+  }
+  const sortSelect = $('#m-sort', el);
+  sortSelect.value = sort;
+  sortSelect.addEventListener('change', () => {
+    sort = SORTS[sortSelect.value] ? sortSelect.value : 'newest';
+    try {
+      localStorage.setItem('admin-media-sort', sort);
+    } catch {
+      /* remembering the sort is optional */
+    }
+    render(el);
+  });
   el.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
 
   const input = $('#m-files', el);
@@ -172,7 +205,7 @@ async function upload(el, files) {
   load(el);
 }
 
-async function load(el, bust = false) {
+async function load(el, fresh = false) {
   const grid = $('[data-grid]', el);
   let data;
   try {
@@ -181,19 +214,27 @@ async function load(el, bust = false) {
   } catch (error) {
     return (grid.innerHTML = `<li class="form-error">${esc(friendlyError(error))}</li>`);
   }
-  const files = data.filter((f) => f.id && !/-sm\.jpg$/.test(f.name)); // skip folder placeholders and the small copies
+  files = data.filter((f) => f.id && !/-sm\.jpg$/.test(f.name)); // skip folder placeholders and the small copies
+  bustAt = fresh ? Date.now() : 0;
   $('[data-count]', el).textContent = `${files.length} ${files.length === 1 ? 'image' : 'images'}`;
   const badge = $('[data-image-count]', el);
   if (badge) (badge.textContent = files.length), (badge.hidden = !files.length);
+  render(el);
+}
+
+/** Draw the Library in the chosen order. */
+function render(el) {
+  const grid = $('[data-grid]', el);
   grid.innerHTML = files.length
-    ? files
+    ? [...files]
+        .sort(SORTS[sort].cmp)
         .map((f) => {
           const path = `${FOLDER}/${f.name}`;
           const url = sb.storage.from('media').getPublicUrl(path).data.publicUrl;
-          const shown = bust ? `${url}?v=${Date.now()}` : url; // preview only; the copied link stays clean
+          const shown = bustAt ? `${url}?v=${bustAt}` : url; // preview only; the copied link stays clean
           const kb = Math.round((f.metadata?.size ?? 0) / 1024);
           return `<li class="media-item">
-            <p class="card__meta media-item__name" title="${esc(f.name)}">${esc(f.name.replace(/^[a-z0-9]+-/, ''))} · ${kb} KB</p>
+            <p class="card__meta media-item__name" title="${esc(f.name)}">${esc(shortName(f.name))} · ${kb} KB</p>
             <a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(shown)}" alt="${esc(f.name)}" loading="lazy"></a>
             <div class="media-item__actions">
               <button class="icon-btn" type="button" data-copy="${esc(url)}" aria-label="Copy link to ${esc(f.name)}" title="Copy link">${solidIcon('link', 20)}</button>
