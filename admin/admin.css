@@ -4,7 +4,20 @@
 .admin-header__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: var(--header-h); }
 .admin-header .brand__name { color: var(--brand-accent); }
 .admin-header__user { display: flex; align-items: center; gap: var(--sp-12); font-size: var(--fs-ui); }
-@media (max-width: 599px) { #admin-email { display: none; } }
+/* Account menu: the name, then a circle with its first letter that opens My account and Sign out. */
+.account__name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22ch; }
+@media (max-width: 599px) { .account__name { display: none; } }
+.account-menu { position: relative; }
+.account-menu__btn { display: grid; place-items: center; width: var(--tap); height: var(--tap); padding: 0; border: 0; border-radius: 50%; background: var(--brand-accent); color: var(--on-accent); font: 700 var(--fs-md) var(--font-body); cursor: pointer; }
+.account-menu__btn:hover, .account-menu__btn[aria-expanded='true'] { box-shadow: 0 0 0 var(--sp-2) var(--header-fg); }
+.account-menu__btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.account-menu__panel { position: absolute; top: calc(100% + var(--sp-8)); right: 0; z-index: var(--z-float); min-width: 220px; max-width: calc(100vw - var(--sp-32)); padding: var(--sp-6); background: var(--surface); color: var(--ink); border-radius: var(--radius); box-shadow: var(--shadow-lg); }
+.account-menu__panel[hidden] { display: none; }
+.account-menu__who { display: grid; gap: var(--sp-2); margin: 0 0 var(--sp-6); padding: var(--sp-6) var(--sp-10) var(--sp-10); border-bottom: var(--border); }
+.account-menu__who span { color: var(--muted); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.account-menu__item { display: flex; align-items: center; width: 100%; min-height: var(--tap); padding: 0 var(--sp-10); border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink); font: inherit; font-weight: 600; text-align: left; text-decoration: none; cursor: pointer; }
+.account-menu__item:hover { background: var(--head-bg); }
+.account-menu__item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .btn--small { min-height: 36px; padding: var(--sp-6) var(--sp-12); font-size: var(--fs-ui); }
 /* Even button widths across the admin: every button is at least this wide, with its label centered.
    (Icon-only buttons and the tab buttons are not .btn, so they keep their own sizes.) */
@@ -626,7 +639,6 @@ tr.is-clickable { cursor: pointer; }
 @media (max-width: 599px) {
   .admin-header .brand { min-width: 0; }
   .admin-header .brand__name { display: block; font-size: var(--fs-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .admin-header__user .btn { white-space: nowrap; }
 }
 
 /* ---------- Alternating row backgrounds on the customer pull list ---------- */
