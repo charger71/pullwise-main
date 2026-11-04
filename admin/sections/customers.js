@@ -228,7 +228,7 @@ function renderList(el) {
     <p class="results-count" role="status" data-count></p>
     ${phone ? `<details class="admin-hint-fold"><summary>Status icon key</summary>${iconLegend()}</details>` : iconLegend()}
     <div class="admin-table-wrap"><table class="admin-table cust-list cards">
-      <thead><tr><th scope="col" class="col-cust-name" data-sort="name">Name</th><th scope="col" data-sort="phone">Phone</th><th scope="col" data-sort="email">Email</th><th scope="col" class="center" data-sort="ready">Ready</th><th scope="col" class="center" data-sort="active">Active</th><th scope="col" data-sort="updated">Last updated</th><th scope="col" data-sort="notes">Status</th></tr></thead>
+      <thead><tr><th scope="col" class="col-cust-name" data-sort="name">Name</th><th scope="col" data-sort="phone">Phone</th><th scope="col" data-sort="email">Email</th><th scope="col" class="center" data-sort="ready">Ready</th><th scope="col" class="center" data-sort="active">Active</th><th scope="col" data-sort="updated">Last updated</th><th scope="col" class="col-cust-status" data-sort="notes">Status</th></tr></thead>
       <tbody data-rows></tbody>
     </table></div>
     <div class="admin-pager"><button class="btn btn--ghost" type="button" data-prev>← Previous</button><span data-page></span><button class="btn btn--ghost" type="button" data-next>Next →</button></div>`;
@@ -333,7 +333,7 @@ async function loadList(el) {
             <td class="center card-key card-label">${c.ready_count ? `<span class="pill pill--arrived">${c.ready_count}</span>` : '<span class="card__meta">–</span>'}</td>
             <td class="center card-key card-label">${c.active_count || '<span class="card__meta">–</span>'}</td>
             <td class="card__meta nowrap card-label" data-label="Updated">${c.last_updated ? esc(fmtDate(c.last_updated)) : ''}</td>
-            <td class="nowrap card-wide"><span class="cust-status"><span class="cust-icons">${statusIcons(c)}</span>${needsFix(c) ? `<a class="btn btn--primary btn--small" href="#customers" data-open="${c.id}" aria-label="Fix ${esc(listName(c))}">${solidIcon('fix', 16)} Fix</a>` : ''}</span></td></tr>`;
+            <td class="nowrap card-wide col-cust-status"><span class="cust-status"><span class="cust-icons">${statusIcons(c)}</span>${needsFix(c) ? `<a class="btn btn--primary btn--small" href="#customers" data-open="${c.id}" aria-label="Fix ${esc(listName(c))}">${solidIcon('fix', 16)} Fix</a>` : ''}</span></td></tr>`;
         })
         .join('')
     : `<tr><td colspan="7" class="empty">${state.q ? 'No customers match.' : 'No customers yet.'}</td></tr>`;
