@@ -247,6 +247,17 @@
             </div>
           </div>
           <div class="sg-item" data-code>
+            <h3>On/off switch</h3>
+            <p>For a setting that is either on or off. Build it with <code>switchHtml(label, { name, checked })</code> from lib.js: a checkbox with <code>role="switch"</code> and its words beside it, on the green <code>--success</code> fill when on, with a 44px touch area and the ordinary focus ring. Change the words with the state (“Chat is on” / “Chat is off”). A switch on its own screen saves the moment it is flipped and says so in a toast, going back if the save fails; a switch inside a settings form waits for Save like every other field there. Use a plain checkbox for “also do this” options in a list of choices.</p>
+            <div class="sg-demo">
+              <div class="stack">
+                <label class="switch"><input type="checkbox" role="switch" checked><span class="switch__track" aria-hidden="true"></span><span class="switch__text">Chat is on</span></label>
+                <label class="switch"><input type="checkbox" role="switch"><span class="switch__track" aria-hidden="true"></span><span class="switch__text">Chat is off</span></label>
+                <label class="switch"><input type="checkbox" role="switch" disabled><span class="switch__track" aria-hidden="true"></span><span class="switch__text">Saving…</span></label>
+              </div>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
             <h3>Fill-in button under the fields it reads</h3>
             <p>A ghost small button that fills blank fields from somewhere else (Edit Title's “Fill in from PRH”, master catalog only), on a full row right after the fields it reads, with its status beside it and a hint saying what it changes. It never replaces what's typed, and the form still needs Save.</p>
             <div class="sg-demo">
@@ -690,7 +701,7 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
                 <button class="btn btn--primary" type="submit">Send</button>
               </form>
             </div>
-            <p class="admin-hint mt-8">The visitor’s messages sit on the left in the surface color; staff replies sit on the right in the selected tint. The Chat screen lists chats in a <a href="#tables">card-list table</a> with a <code>pill--new</code> count of unread messages, and shows new messages live.</p>
+            <p class="admin-hint mt-8">The visitor’s messages sit on the left in the surface color; staff replies sit on the right in the selected tint. The Chat screen has an <a href="#forms">on/off switch</a> beside its title that turns chat on or off for visitors, lists chats in a <a href="#tables">card-list table</a> with a <code>pill--new</code> count of unread messages, and shows new messages live. The owner can remove the whole feature, and this screen with it, in Shop Settings → Online.</p>
           </div>
         </section>
 

@@ -5,7 +5,7 @@
 // box is open (and every half minute while it is closed, to light the dot on the button).
 
 import { supabase, DEMO } from './data.js';
-import { esc } from './util.js';
+import { esc, chatOn } from './util.js';
 import { $, linkify, fmtTime } from './site.js';
 
 const KEY = 'pw-chat';
@@ -32,7 +32,7 @@ const writeSaved = (patch) => {
 const sayError = (error) => (error?.code === 'P0001' ? error.message : 'Sorry, that didn’t go through. Please check your connection and try again.');
 
 export function initChat(settings) {
-  if (DEMO || !settings.chat_enabled || $('#chat')) return;
+  if (DEMO || !chatOn(settings) || $('#chat')) return;
   const saved = readSaved();
   let token = saved.token ?? null; // set once a chat has been started
   let seen = saved.seen ?? 0; // the newest shop message the visitor has read

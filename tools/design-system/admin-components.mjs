@@ -115,6 +115,19 @@ ${demo('Fields in a pairs grid')}
 ${demo('<h3>Error'.slice(4))}`),
   },
   {
+    name: 'AdminSwitch', group: G('Forms'), height: 196,
+    readme: `# AdminSwitch
+
+An on/off switch for a setting that is either on or off. Build it with \`switchHtml(label, { name, checked, attrs })\` from lib.js.
+
+- A checkbox with \`role="switch"\` and its words beside it (\`.switch\`, \`.switch__track\`, \`.switch__text\`). Off: a \`admin-stripe\` track with an \`admin-field-line\` edge and an \`admin-muted\` knob. On: the \`admin-success\` fill, an \`admin-success-ink\` edge (so the edge reads on the dark page too) and a white knob. Every pair is 3:1 or better in both themes.
+- 44px tall (\`admin-tap\`), the whole label is the click target, and keyboard focus draws the ordinary 3px \`admin-focus\` ring round the track. Space flips it. The track slides in \`admin-dur\` and holds still under reduced motion.
+- Change the words with the state ("Chat is on" / "Chat is off"), never leave a bare "Enabled".
+- **On its own screen** a switch saves the moment it is flipped: disable it while saving, say the result in a toast, and put it back if the save fails. **Inside a settings form** it waits for Save like the other fields there.
+- For "also do this" options in a list of choices, use a plain checkbox (AdminField) instead.`,
+    html: page('AdminSwitch', demo('On/off switch')),
+  },
+  {
     name: 'AdminDropzone', group: G('Forms'), height: 141,
     readme: `# AdminDropzone
 
@@ -250,6 +263,7 @@ One live chat with a visitor, and the box to answer it. Built by admin/sections/
 
 - **Thread** (\`.chat-thread\`, \`role="log"\`): a \`admin-stripe\` box that scrolls past 60vh. The visitor's messages (\`.chat-msg\`) sit on the left on \`admin-surface\`; staff replies (\`.chat-msg--staff\`) sit on the right on the selected tint. Under each, \`.chat-msg__meta\` shows who and when in \`admin-muted\` at the smallest size.
 - **Reply box** (\`.chat-compose\`): an ordinary \`.field\` with a label ("Reply") and a \`.btn--primary\` Send at its natural width, side by side. Ctrl or Cmd + Enter sends. Replying to a closed chat opens it again.
+- **On/off**: an \`AdminSwitch\` beside the page title turns chat on or off for visitors (it starts off) and saves as soon as it is flipped. Any staff member can use it; the owner can remove the whole feature, and this screen, in Shop Settings → Online.
 - **List**: chats are an \`AdminTable\` card list. Open and Closed are \`AdminTabs\` with a count of unread chats; a chat with unread messages carries a \`.pill--new\`. Closing, reopening and deleting use the ordinary buttons, and Delete asks first (AdminDialog).
 - New messages appear on their own, and a toast ("New chat message. Open Chat to reply.") tells staff on other screens (AdminToast).
 - Consumer provides: the messages (who sent each, and when) and the reply handler.`,

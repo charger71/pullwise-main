@@ -181,6 +181,13 @@ export const solidIcon = (name, size = 22) => `<svg class="solid-icon" viewBox="
 /** True on phones and tablets (up to 899px): where lists become cards and long instructions fold away. */
 export const isPhone = (max = 899) => window.matchMedia(`(max-width: ${max}px)`).matches;
 
+/**
+ * An on/off switch: a checkbox that reads as a switch (role="switch"), with its label beside it. Pass `name` for a form
+ * field, or `attrs` (e.g. a data attribute) to find it from script; change the words in `.switch__text` as it flips.
+ */
+export const switchHtml = (label, { name, checked = false, attrs = '' } = {}) =>
+  `<label class="switch"><input type="checkbox" role="switch"${name ? ` name="${esc(name)}"` : ''}${checked ? ' checked' : ''}${attrs ? ` ${attrs}` : ''}><span class="switch__track" aria-hidden="true"></span><span class="switch__text">${esc(label)}</span></label>`;
+
 /** Instructions that fold under "How this works". They start closed everywhere to save screen space. `html` is the text of the hint. */
 export const hintFold = (html) => `<details class="admin-hint-fold"><summary>${solidIcon('help', 18)} How this works</summary><p class="admin-hint">${html}</p></details>`;
 
