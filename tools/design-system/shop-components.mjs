@@ -447,7 +447,7 @@ The live chat: a button in the bottom-right corner opens a small chat box. It ap
   </div>
   <p class="chat__foot"><button class="chat__hide" type="button">Hide this button</button><span>Find it again in the page footer.</span></p>
 </section>
-<p style="margin-top:16px"><button class="btn btn--primary chat-launch" type="button" style="position:relative;right:auto;bottom:auto" aria-label="Chat with us, the shop has replied" title="Chat with us, the shop has replied"><svg class="chat-launch__icon" viewBox="0 0 1414 953" aria-hidden="true" focusable="false"><path d="M0 418a707 418 0 1 1 1414 0a707 418 0 1 1-1414 0zM855 827C743 885 623 932 498 953C565 920 634 887 688 836L688 800L855 800zM332 418a95 95 0 1 0 190 0a95 95 0 1 0-190 0zM612 418a95 95 0 1 0 190 0a95 95 0 1 0-190 0zM892 418a95 95 0 1 0 190 0a95 95 0 1 0-190 0z"/></svg><span class="chat-launch__dot"></span></button></p>
+<p style="margin-top:16px"><button class="btn btn--primary chat-launch" type="button" style="position:relative;right:auto;bottom:auto" aria-label="Chat with us, the shop has replied" title="Chat with us, the shop has replied"><svg class="chat-launch__icon" viewBox="0 0 307 246" aria-hidden="true" focusable="false"><path d="M47.5 179.4A153.4 103.8 0 1 1 100.2 201.4L27 246L20 244zM88.3 103.9a14.5 14.5 0 1 0 29 0a14.5 14.5 0 1 0-29 0zM138.3 103.9a14.5 14.5 0 1 0 29 0a14.5 14.5 0 1 0-29 0zM188.3 103.9a14.5 14.5 0 1 0 29 0a14.5 14.5 0 1 0-29 0z"/></svg><span class="chat-launch__dot"></span></button></p>
 </div>
 </div>`),
   },

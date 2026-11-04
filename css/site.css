@@ -883,10 +883,10 @@ body.has-list-bar { padding-bottom: var(--list-bar-h); }
 .chat-launch, .chat { position: fixed; right: var(--sp-16); bottom: var(--sp-16); z-index: var(--z-chat); }
 body.has-list-bar .chat-launch, body.has-list-bar .chat { bottom: calc(var(--list-bar-h) + var(--sp-16)); }
 body.has-list-bar .chat { max-height: min(600px, calc(100dvh - var(--list-bar-h) - var(--sp-32))); }
-/* The button is a round comic word balloon (an oval with a curved tail, and three dots cut out of it) in the shop's main color; its drawing takes the text color
+/* The button is a round comic word balloon (an oval with a pointed tail at the lower left, and three dots cut out of it) in the shop's main color; its drawing takes the text color
    on that fill. The dot for a new reply sits on the rim in a ring of the page color so it reads on any page. */
 .chat-launch { display: grid; place-items: center; width: calc(var(--sp-40) + var(--sp-16)); height: calc(var(--sp-40) + var(--sp-16)); min-height: 0; padding: 0; border-radius: 50%; box-shadow: var(--shadow-lg); }
-.chat-launch__icon { width: var(--sp-40); height: auto; fill: currentColor; }
+.chat-launch__icon { width: calc(var(--sp-40) + var(--sp-8)); height: auto; fill: currentColor; }
 .chat-launch__dot { position: absolute; top: var(--sp-2); right: var(--sp-2); width: var(--sp-14); height: var(--sp-14); border: 2px solid var(--paper); border-radius: 50%; background: var(--gold-text); }
 .chat { display: flex; flex-direction: column; width: min(380px, calc(100vw - 2 * var(--sp-16))); max-height: min(600px, calc(100dvh - var(--sp-32))); background: var(--surface); border: var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
 .chat[hidden] { display: none; }
