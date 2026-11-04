@@ -18,7 +18,9 @@ import { listenForOpenRequests } from './staff-push.js';
 
 const SECTIONS = ['dashboard', 'titles', 'reservations', 'customers', 'chat', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'restore', 'staff'];
 // Screens only owners open (the menu item is hidden and the address redirects to the Dashboard).
-const OWNER_ONLY = ['settings', 'locations', 'backup', 'restore'];
+// Owner-only screens: the whole Utilities group except Staff, which every staff member opens for My Account (from the
+// header's My account button, since staff don't see the Utilities group).
+const OWNER_ONLY = ['import', 'settings', 'locations', 'backup', 'restore'];
 let isOwner = false;
 let chatAvailable = true; // Shop Settings → Online → Live Chat: off removes the Chat screen
 let current = null; // { name, module }
@@ -175,6 +177,7 @@ async function showApp() {
     const item = $(`.admin-nav a[href="#${name}"]`)?.closest('li');
     if (item) item.hidden = !isOwner;
   });
+  $$('.admin-nav [data-owner-only]').forEach((group) => (group.hidden = !isOwner)); // Utilities
   // Live chat can be switched off for the whole shop (Shop Settings); then its screen is gone. A shop that hasn't got the
   // column yet (an update still rolling out) keeps the screen.
   const showChat = (on) => {
@@ -193,7 +196,7 @@ async function showApp() {
   $('#login').hidden = true;
   $('#app').hidden = false;
   $('#admin-user').hidden = false;
-  $('#admin-email').textContent = user.email;
+  showAccount(user);
   syncTheme(user);
   const showNotice = (text) => {
     const n = $('#admin-notice');
@@ -288,6 +291,31 @@ const revealCurrentGroup = () => {
   const btn = list && $(`.admin-nav__heading[aria-controls="${list.id}"]`);
   if (btn && btn.getAttribute('aria-expanded') !== 'true') setGroup(btn, true, false);
 };
+
+// The header's account menu: the staff member's name, then a circle with its first letter that opens My account and
+// Sign out. Staff without a name show their email instead.
+async function showAccount(user) {
+  $('#admin-email').textContent = user.email;
+  const { data: me } = await sb.from('staff').select('name').eq('user_id', user.id).maybeSingle();
+  const name = me?.name?.trim() || user.email;
+  $('#admin-name').textContent = name;
+  $('[data-account-name]').textContent = name;
+  $('[data-initial]').textContent = (Array.from(name.trim())[0] ?? '?').toUpperCase();
+  $('#account-btn').setAttribute('aria-label', `Account: ${name}`);
+  $('#account-btn').title = name;
+}
+function setAccountOpen(open) {
+  $('#account-btn').setAttribute('aria-expanded', String(open));
+  $('#account-menu').hidden = !open;
+}
+$('#account-btn').addEventListener('click', () => setAccountOpen($('#account-btn').getAttribute('aria-expanded') !== 'true'));
+$('#my-account').addEventListener('click', () => setAccountOpen(false));
+document.addEventListener('click', (e) => !e.target.closest('.account-menu') && setAccountOpen(false));
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || $('#account-menu').hidden) return;
+  setAccountOpen(false);
+  $('#account-btn').focus();
+});
 
 // Phones and tablets: the section list opens from a menu button; picking a section, Escape or a tap elsewhere closes it.
 function setNavOpen(open) {

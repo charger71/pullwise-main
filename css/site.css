@@ -770,6 +770,11 @@ dialog {
   border-radius: var(--radius-lg);
 }
 dialog::backdrop { background: #000c; }
+/* While a dialog or the lightbox is open the page behind it stays put: it can't scroll (the scrollbar's space is kept, so
+   nothing shifts), and scrolling to the end of a long dialog (or the title dialog's scrolling body) doesn't carry on into
+   the page. */
+html:has(dialog:modal) { overflow: hidden; scrollbar-gutter: stable; }
+dialog, dialog .dialog__body { overscroll-behavior: contain; }
 .dialog__head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-12); padding: var(--sp-16) var(--sp-16) 0; }
 .dialog__head h2 { font-size: var(--fs-title); margin: 0; }
 .dialog__body { padding: var(--sp-16); }

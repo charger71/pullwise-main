@@ -137,7 +137,7 @@ export async function mount(el, ctx) {
     <section class="fold fold--compact fold--static">
       <div class="fold__head"><h2>Staff List</h2></div>
       <div class="fold__body">
-      ${hintFold('Everyone here can open every admin screen. Owners can also manage this list. Removing someone locks them out of the admin right away. A Super Admin can’t be removed, demoted or have their password reset by an owner.')}
+      ${hintFold('Staff can open every admin screen except the Utilities group (Import Titles, Settings, Locations, Backup and Restore); they reach their own My Account from the circle with their initial in the header. Owners can open all of them and also manage this list. Removing someone locks them out of the admin right away. A Super Admin can’t be removed, demoted or have their password reset by an owner.')}
       <div class="admin-table-wrap"><table class="admin-table staff-table cards">
         <thead><tr><th scope="col" data-sort="text">Name</th><th scope="col" data-sort="text">Role</th><th scope="col" data-sort="text" data-first="desc">Last Signed In</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
         <tbody>${rows.map((r) => {
