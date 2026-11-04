@@ -59,8 +59,11 @@ export function setStatus(el, text, kind = '') {
   el.classList.toggle('admin-status--ok', kind === 'ok');
 }
 
-/** Small toast in the corner for save/delete confirmations. */
-export function toast(text, kind = 'ok') {
+/**
+ * Small toast in the corner for save/delete confirmations. Pass `link` ({ href, text }) to add a link that goes
+ * straight to the thing the toast is about ("Open chat"); a toast with a link stays up longer.
+ */
+export function toast(text, kind = 'ok', link = null) {
   let box = $('#toasts');
   if (!box) {
     box = Object.assign(document.createElement('div'), { id: 'toasts', className: 'toasts' });
@@ -68,8 +71,13 @@ export function toast(text, kind = 'ok') {
     document.body.append(box);
   }
   const t = Object.assign(document.createElement('div'), { className: `toast toast--${kind}`, textContent: text });
+  if (link) {
+    const a = Object.assign(document.createElement('a'), { className: 'toast__link', href: link.href, textContent: link.text });
+    a.addEventListener('click', () => t.remove());
+    t.append(' ', a);
+  }
   box.append(t);
-  setTimeout(() => t.remove(), kind === 'error' ? 8000 : 3500);
+  setTimeout(() => t.remove(), link ? 10000 : kind === 'error' ? 8000 : 3500);
 }
 
 /**
@@ -166,6 +174,7 @@ export async function findGuestMatches(sb) {
 const SOLID_ICONS = {
   add: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM11 6.5h2V11h4.5v2H13v4.5h-2V13H6.5v-2H11z',
   help: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6.5c2.2 0 3.8 1.3 3.8 3.3 0 1.4-.7 2.2-1.7 3-.9.7-1.3 1.1-1.3 2v.3h-2v-.4c0-1.4.6-2.1 1.6-2.9.9-.7 1.3-1.1 1.3-1.9 0-.9-.7-1.5-1.7-1.5-1 0-1.7.7-1.8 1.7h-2C8.2 7.9 9.8 6.5 12 6.5zM13.2 17.4a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z',
+  info: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM11 10.5h2V17h-2zM12 6.3a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5z',
   addAll: 'M7 7.1a4.9 4.9 0 1 0 0 9.8 4.9 4.9 0 0 0 0-9.8zM6.2 8.8h1.6v2.4h2.4v1.6H7.8v2.4H6.2v-2.4H3.8v-1.6h2.4zM17 7.1a4.9 4.9 0 1 0 0 9.8 4.9 4.9 0 0 0 0-9.8zM16.2 8.8h1.6v2.4h2.4v1.6h-2.4v2.4h-1.6v-2.4h-2.4v-1.6h2.4z',
   view: 'M12 4.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
   fix: 'M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z',

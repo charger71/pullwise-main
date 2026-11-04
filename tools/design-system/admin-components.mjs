@@ -188,6 +188,17 @@ A row of tabs that switches the view inside a screen, each with an icon in front
     html: page('AdminTabs', `<div class="admin-tabs" role="tablist">${tab('All customers', 'people', true)}${tab('New this week', 'sparkle', false)}${tab('Needs attention', 'alert', false, 3)}${tab('Pull list', 'bookmark', false)}</div>`),
   },
   {
+    name: 'AdminNavBadge', group: G('Navigation'), height: 96, width: 420,
+    readme: `# AdminNavBadge
+
+A count on a menu item for work waiting on staff, shown on every screen.
+
+- \`.admin-nav__badge\`: the same pill as the tab count (\`admin-brand-primary\` with white text), pushed to the end of the menu row. Below 900px the menu is folded away, so the menu button shows the count too.
+- Carries hidden words for screen readers ("2 unread chats") and clears when the work is done (opening the chat reads it). The same count goes first in the tab title, "(2) Dashboard · Staff · …".
+- Only for things someone has to answer, not for things that are merely new. Today: unread chats (admin/chat-alerts.js).`,
+    html: page('AdminNavBadge', demo('Menu item with a count badge')),
+  },
+  {
     name: 'AdminChips', group: G('Navigation'), height: 86,
     readme: `# AdminChips
 
@@ -265,7 +276,7 @@ One live chat with a visitor, and the box to answer it. Built by admin/sections/
 - **Reply box** (\`.chat-compose\`): an ordinary \`.field\` with a label ("Reply") and a \`.btn--primary\` Send at its natural width, side by side. Ctrl or Cmd + Enter sends. Replying to a closed chat opens it again.
 - **On/off**: an \`AdminSwitch\` beside the page title turns chat on or off for visitors (it starts off) and saves as soon as it is flipped. Any staff member can use it; the owner can remove the whole feature, and this screen, in Shop Settings → Online.
 - **List**: chats are an \`AdminTable\` card list. Open and Closed are \`AdminTabs\` with a count of unread chats; a chat with unread messages carries a \`.pill--new\`. Closing, reopening and deleting use the ordinary buttons, and Delete asks first (AdminDialog).
-- New messages appear on their own, and a toast ("New chat message. Open Chat to reply.") tells staff on other screens (AdminToast).
+- New messages appear on their own. On every other screen, admin/chat-alerts.js counts chats with unread visitor messages on the Chat menu item (AdminNavBadge) and in the tab title, and a toast with an **Open chat** link names the visitor (AdminToast). Desktop alerts and push notifications to staff devices are turned on per device from the line under the switch (admin/staff-push.js).
 - Consumer provides: the messages (who sent each, and when) and the reply handler.`,
     html: page('AdminChat', `<style>.pw-admin .chat-thread{max-height:none}</style>
 ${demo('A chat with its reply box')}`),
@@ -377,7 +388,8 @@ ${demo('Empty state')}`),
 A short confirmation that appears bottom-right and dismisses itself.
 
 - Call \`toast('Title marked arrived')\` or \`toast('Not saved: network error', 'error')\` from lib.js; never build one by hand.
-- Sits at \`admin-z-float\`. One line, past tense for done ("Saved"), the reason for a failure.`,
+- Sits at \`admin-z-float\`. One line, past tense for done ("Saved"), the reason for a failure.
+- News from another screen (a visitor's chat message) takes a link as the third argument: \`toast('New chat message from Sam', 'ok', { href, text: 'Open chat' })\` adds \`.toast__link\` (underlined, the toast's own text color) and stays up 10 seconds. A toast disappears, so what it reports must also be reachable another way (AdminNavBadge).`,
     html: page('AdminToast', demo('Toasts (bottom-right, auto-dismiss)')),
   },
   {

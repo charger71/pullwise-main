@@ -710,11 +710,12 @@ export async function initPage() {
   await within(contentP, SETTINGS_TIMEOUT, null).catch((err) => console.error('Page content failed to load', err));
   setupLightbox();
   loadAnalyticsWhenIdle(s);
+  // The live chat button (Shop Settings → Online), on the website and in the app. Loaded lazily, and only on shops
+  // that switched it on. The app has no footer: its Shop tab has the "Chat with us" link.
+  if (chatOn(s)) import('./chat.js').then((m) => m.initChat(s, app ? { findAgain: 'Find it again on the Shop tab.' } : undefined)).catch((err) => console.error('Live chat failed to load', err));
   if (app) return s; // staff footer code (a help chat) would sit on the tab bar
   injectSchema(s);
   runFooterScripts(s);
-  // The live chat button (Shop Settings → Online). Loaded lazily, and only on shops that switched it on.
-  if (chatOn(s)) import('./chat.js').then((m) => m.initChat(s)).catch((err) => console.error('Live chat failed to load', err));
   // Reservation list bar follows the customer across pages. Loaded lazily:
   // components.js imports this module, so a static import would be circular.
   import('./components.js').then((m) => m.initReservationBar());

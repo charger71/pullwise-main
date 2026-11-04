@@ -27,6 +27,7 @@ const worker = () => Promise.race([navigator.serviceWorker.ready, new Promise((r
 const KINDS = [
   { key: 'push_arrivals', label: 'When my books are ready for pickup' },
   { key: 'push_new_titles', label: 'When a series or artist I follow adds a title to my list' },
+  { key: 'push_chat', label: 'When the shop replies to a chat I started' },
   { key: 'push_reminders', label: 'Reminders: books still waiting for pickup, and the day before my list closes for an order' },
 ];
 

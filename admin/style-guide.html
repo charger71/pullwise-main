@@ -212,6 +212,13 @@
             <p class="admin-hint mt-8">The rule: <strong>inside a table row, icon only</strong> (<code>icon-btn</code>, with <code>aria-label</code> and <code>title</code>); <strong>everywhere else, icon plus the word</strong>.</p>
           </div>
           <div class="sg-item" data-code>
+            <h3>More help from inside a sentence: the info button</h3>
+            <div class="sg-demo">
+              <p class="admin-hint">Notifications are blocked for this site. To get them, allow notifications for this site in your browser’s settings. <button class="icon-btn icon-btn--info" type="button" aria-label="How to allow notifications" title="How to allow notifications"><svg class="solid-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM11 10.5h2V17h-2zM12 6.3a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5z"/></svg></button></p>
+            </div>
+            <p class="admin-hint mt-8">When a line of help needs steps too long for the screen (where to click in each browser), end the line with <code>icon-btn icon-btn--info</code> holding <code>solidIcon('info', 20)</code>, with <code>aria-label</code> and <code>title</code> saying what it opens, and open the steps with <code>openDialog</code>. It sits on the text’s middle without making the line taller, and is a 44px target on phones. For a screen’s own “How this works”, use the hint fold instead.</p>
+          </div>
+          <div class="sg-item" data-code>
             <h3>Save row with status</h3>
             <div class="sg-demo">
               <div class="admin-actions"><button class="btn btn--primary" type="button">Save changes</button><span class="admin-status admin-status--ok" role="status">Saved.</span></div>
@@ -390,6 +397,16 @@ setHtml(quill, saved); … getHtml(quill)</pre>
               </div>
             </div>
             <p class="admin-hint mt-8">Up to 899px the tabs stay on one row that scrolls sideways, never up and down; under 700px each tab shows its icon only.</p>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Menu item with a count badge</h3>
+            <div class="sg-demo">
+              <div class="admin-nav is-open"><ul>
+                <li><a href="#chat"><span>Chat</span><span class="admin-nav__badge">2<span class="visually-hidden"> unread chats</span></span></a></li>
+                <li><a href="#chat" aria-current="page"><span>Chat</span><span class="admin-nav__badge">2<span class="visually-hidden"> unread chats</span></span></a></li>
+              </ul></div>
+            </div>
+            <p class="admin-hint mt-8">The menu shows a count for work waiting on staff on every screen: the Chat item counts chats with unread visitor messages (<code>admin/chat-alerts.js</code>). The badge sits at the end of the row, carries hidden words for screen readers (“2 unread chats”), and also shows on the phone menu button, since the menu itself is folded away there. It clears when the work is done (opening the chat reads it). The same count goes first in the browser tab’s title, “(2) Dashboard · Staff · …”. Don’t add a badge for things that are merely new; only for things someone has to answer.</p>
           </div>
           <div class="sg-item" data-code>
             <h3>Quick-filter chips</h3>
@@ -683,8 +700,8 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
           </div>
           <div class="sg-item" data-code>
             <h3>Toasts (bottom-right, auto-dismiss)</h3>
-            <div class="sg-demo"><div class="sg-row"><span class="toast" style="position:static">Title marked arrived</span><span class="toast toast--error" style="position:static">Not saved: network error</span></div></div>
-            <p class="admin-hint mt-8">Call <code>toast('message')</code> or <code>toast('message', 'error')</code> from <code>lib.js</code>; do not build these by hand.</p>
+            <div class="sg-demo"><div class="sg-row"><span class="toast" style="position:static">Title marked arrived</span><span class="toast toast--error" style="position:static">Not saved: network error</span><span class="toast toast--ok" style="position:static">New chat message from Sam <a class="toast__link" href="#chat">Open chat</a></span></div></div>
+            <p class="admin-hint mt-8">Call <code>toast('message')</code> or <code>toast('message', 'error')</code> from <code>lib.js</code>; do not build these by hand. For news from another screen (a visitor’s chat message), pass a link as the third argument, <code>toast('New chat message from Sam', 'ok', { href, text: 'Open chat' })</code>: it adds <code>.toast__link</code> and stays up 10 seconds. A toast disappears, so whatever it reports must also be reachable another way (the Chat menu item’s count).</p>
           </div>
         </section>
 

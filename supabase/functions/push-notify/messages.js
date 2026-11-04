@@ -137,6 +137,42 @@ export const testMessage = (shopName = '') => ({
   tag: 'test',
 });
 
+// ---- Staff: live chat (admin/sw.js shows these; tapping opens the chat in the admin) ---------------------------------
+
+const CHAT_SNIPPET = 140;
+
+/** A visitor's chat message, for staff devices. `unread` is how many messages of theirs nobody has read yet. */
+export function staffChatMessage({ id, name, body, unread = 1 }) {
+  const who = String(name ?? '').trim() || 'A visitor';
+  const text = String(body ?? '').replace(/\s+/g, ' ').trim();
+  return {
+    title: unread > 1 ? `${who} (${unread} new messages)` : `Chat from ${who}`,
+    body: text.length > CHAT_SNIPPET ? `${text.slice(0, CHAT_SNIPPET - 1)}…` : text,
+    url: `/admin/#chat/${Number(id)}`,
+    tag: `chat-${Number(id)}`, // the same tag the admin's own alert uses, so one chat shows once
+  };
+}
+
+/** The shop answered a customer's chat (one they started signed in). Tapping opens the app with the chat open. */
+export function chatReplyMessage({ shopName = '', body = '' }) {
+  const shop = String(shopName).trim();
+  const text = String(body ?? '').replace(/\s+/g, ' ').trim();
+  return {
+    title: shop ? `${shop} replied` : 'The shop replied',
+    body: text.length > CHAT_SNIPPET ? `${text.slice(0, CHAT_SNIPPET - 1)}…` : text,
+    url: '/app?chat=1',
+    tag: 'chat-reply', // one notice for the chat at a time
+  };
+}
+
+/** The test a staff member sends to their own devices from the Chat screen. */
+export const staffTestMessage = (shopName = '') => ({
+  title: shopName.trim() ? `${shopName.trim()} · Staff` : 'Chat notifications are on',
+  body: 'Chat notifications are on. We’ll let you know here when a visitor writes.',
+  url: '/admin/#chat',
+  tag: 'staff-test',
+});
+
 /**
  * The app icon for notifications: the shop's tab icon (or logo) at 192px, squared by Supabase's image service, as in
  * the app's manifest (worker/shop-page.js appManifest). Only pictures in the shop's own storage are resized.
