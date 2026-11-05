@@ -44,6 +44,12 @@ export async function mount(el, ctx) {
       <h1>Dashboard</h1>
       <p class="card__meta" data-asof></p>
     </div>
+    <div class="admin-tabs" role="tablist">
+      <button type="button" class="admin-tab" role="tab" data-tab="today">Today</button>
+      ${locations.map((l) => `<button type="button" class="admin-tab" role="tab" data-tab="loc-${l.id}" data-icon="pin">${esc(l.name)}</button>`).join('')}
+      <button type="button" class="admin-tab" role="tab" data-tab="trends">Trends</button>
+      <button type="button" class="admin-tab" role="tab" data-tab="system">System</button>
+    </div>
     <details class="fold fold--compact dash-announce-fold">
       <summary class="fold__head"><h2 id="dash-announce-title">Special Announcement<span class="fold__note" data-announce-sum>${esc(settings.announcement || 'None showing')}</span></h2></summary>
       <div class="fold__body">
@@ -57,12 +63,6 @@ export async function mount(el, ctx) {
     </form>
       </div>
     </details>
-    <div class="admin-tabs" role="tablist">
-      <button type="button" class="admin-tab" role="tab" data-tab="today">Today</button>
-      ${locations.map((l) => `<button type="button" class="admin-tab" role="tab" data-tab="loc-${l.id}" data-icon="pin">${esc(l.name)}</button>`).join('')}
-      <button type="button" class="admin-tab" role="tab" data-tab="trends">Trends</button>
-      <button type="button" class="admin-tab" role="tab" data-tab="system">System</button>
-    </div>
     <div data-tabpane="today">
     <p class="card__meta" data-scope hidden></p>
     <ul class="dash-tiles" data-tiles aria-busy="true"><li class="dash-tile"><p class="admin-hint loading">Loading…</p></li></ul>

@@ -2,7 +2,7 @@
 // status, lookup by name/phone/email, CSV export — plus a "To order" view that
 // totals reserved copies per title for each order cutoff.
 
-import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime, fetchAll, debounce, titleFilter, STATUS_LABELS, toListTop } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime, fetchAll, debounce, titleFilter, STATUS_LABELS, toListTop, hintSlot, setHint } from '../lib.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, todayIn, dayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
 
@@ -40,6 +40,7 @@ export async function mount(el, ctx) {
   settings = await must(sb.from('settings').select('hold_days,timezone').eq('id', 1).single());
   el.innerHTML = `
     <h1>Ordering</h1>
+    ${hintSlot()}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-view="orders">Reservations</button>
       <button type="button" class="admin-tab" role="tab" data-view="toorder">Place Order</button>
@@ -111,6 +112,7 @@ export async function mount(el, ctx) {
 function render(el) {
   $$('[data-view]', el).forEach((b) => b.setAttribute('aria-selected', b.dataset.view === state.view));
   const body = $('[data-body]', el);
+  setHint(el, ''); // each view puts its own How this works in the slot above the tabs
   if (state.view === 'orders') renderOrders(body);
   else if (state.view === 'ready') renderReady(body);
   else if (state.view === 'past') renderPastOrders(body);
@@ -482,7 +484,8 @@ async function exportCsv() {
 /** Open, ordered and reordered reservations, totalled per title. Titles releasing after this week (Sunday to Saturday) are listed only when asked for. */
 async function renderReady(body) {
   // The instructions are long: folded away on phones, where they would fill the first screen.
-  body.innerHTML = `${hintFold(`Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked; tick Only titles with reservations to hide them. Click a column heading to sort by it. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.`)}
+  setHint(body, `Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked; tick Only titles with reservations to hide them. Click a column heading to sort by it. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.`);
+  body.innerHTML = `
     <form class="filters admin-filters" role="search" aria-label="Find titles">
       <div class="field field--search"><label for="rd-q">Title</label><input id="rd-q" type="search" placeholder="Filter by title or publisher"></div>
       <div class="field"><label class="cust-export-opt" for="rd-future"><input type="checkbox" id="rd-future"> Include titles releasing after this week</label></div>
@@ -741,7 +744,8 @@ async function renderToOrder(body) {
   // Titles whose customer list is open, so a refresh can open them again.
   const openPeople = $$('[data-customers][aria-expanded="true"]', body).map((b) => b.dataset.customers);
   // The instructions are folded away on phones, where they would push the cutoffs off the first screen.
-  body.innerHTML = `${hintFold(`Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one; picking a distributor also narrows the list to its titles), then mark the cutoff as ordered once you've placed it. A cutoff ordered before its date stays here marked Ordered until the date passes, then moves to Past Orders. The list groups titles by distributor with the product code, and counts customer reservations (including pull lists) only.`)}<div data-order-tools>
+  setHint(body, `Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one; picking a distributor also narrows the list to its titles), then mark the cutoff as ordered once you've placed it. A cutoff ordered before its date stays here marked Ordered until the date passes, then moves to Past Orders. The list groups titles by distributor with the product code, and counts customer reservations (including pull lists) only.`);
+  body.innerHTML = `<div data-order-tools>
     </div>
     <div data-groups aria-busy="true">
     </div>`;
@@ -958,7 +962,8 @@ const WAITING_STATUSES = ['open', 'ordered', 'reordered'];
 
 async function renderPastOrders(body) {
   // The instructions are folded away on phones, where they would push the cutoffs down the screen.
-  body.innerHTML = `${hintFold(`Cutoffs that have passed and were ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.`)}<div data-groups aria-busy="true"></div>`;
+  setHint(body, `Cutoffs that have passed and were ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.`);
+  body.innerHTML = `<div data-groups aria-busy="true"></div>`;
   const box = $('[data-groups]', body);
   try {
     const lines = [];
@@ -1219,7 +1224,8 @@ const reorderRows = (rows, dist) =>
 async function renderReorders(body) {
   const keepDist = $('#ro-dist', body)?.value ?? 'all';
   const keepQ = $('#ro-q', body)?.value ?? '';
-  body.innerHTML = `${hintFold(`Order any title from the distributor after its order cutoff: trades and omnibuses stay in print, so they can be ordered any time after release. Coming Soon titles (past their cutoff, not out yet) are where most re-orders happen. Search the catalog (pre-orders aren't listed: they go through Place Order), pick the copies and who they're for (the shelf, or a customer: the copy goes on their pull list), and add it to the re-order list. Signed-in customers can also order released trades and omnibuses themselves from the title's details on the site. Export the list for the distributor, then mark it ordered. When the copies come in, mark customers' copies Ready on Received and shelf copies received here.`)}
+  setHint(body, `Order any title from the distributor after its order cutoff: trades and omnibuses stay in print, so they can be ordered any time after release. Coming Soon titles (past their cutoff, not out yet) are where most re-orders happen. Search the catalog (pre-orders aren't listed: they go through Place Order), pick the copies and who they're for (the shelf, or a customer: the copy goes on their pull list), and add it to the re-order list. Signed-in customers can also order released trades and omnibuses themselves from the title's details on the site. Export the list for the distributor, then mark it ordered. When the copies come in, mark customers' copies Ready on Received and shelf copies received here.`);
+  body.innerHTML = `
     <section class="fold fold--compact fold--static">
       <div class="fold__head"><h2 id="ro-find">Find a Title</h2></div>
       <div class="fold__body">

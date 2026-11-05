@@ -46,11 +46,11 @@ export async function mount(el, ctx) {
   isOwner = ctx.isOwner === true;
   el.innerHTML = `
     <h1>Media Library</h1>
+    ${hintFold(`Images for news posts, emails, social media and series covers. Each upload is resized to the chosen size — the original file is never changed. To fix or update a picture without breaking anything that uses it, press <strong>Replace</strong> on it: the new image takes the old one’s place under the same link (it uses the Crop and Longest side chosen below, and can take up to an hour to show for people who already loaded the old one).`)}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="library">Library <span class="admin-tab__badge" data-image-count hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-tab="upload">Upload</button>
     </div>
-    ${hintFold(`Images for news posts, emails, social media and series covers. Each upload is resized to the chosen size — the original file is never changed. To fix or update a picture without breaking anything that uses it, press <strong>Replace</strong> on it: the new image takes the old one’s place under the same link (it uses the Crop and Longest side chosen below, and can take up to an hour to show for people who already loaded the old one).`)}
     <div data-tabpane="upload">
     <div class="panel media-upload">
       <div class="form-grid form-grid--pairs">

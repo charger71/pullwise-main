@@ -314,6 +314,37 @@ check('every "How this works" box is built with hintFold', () => {
   assert.equal(bad.length, 0, `${bad.join(', ')} build the hint box by hand; use hintFold() from lib.js`);
 });
 
+// Every screen's top, in this order: the title row (the h1 and at most two buttons), How this works (hintFold, or the
+// hintSlot that setHint / setupTabs' hints fill), the tabs, then everything else. A screen-level hint is never under
+// the tabs: a tab's own hint goes in the slot.
+check('screen tops: title row, How this works, tabs, then everything else', () => {
+  const bad = [];
+  for (const [f, t] of Object.entries(sections)) {
+    for (const m of t.matchAll(/class="admin-tabs[^"]*" role="tablist"/g)) {
+      const h1 = t.lastIndexOf('<h1', m.index);
+      if (h1 < 0 || m.index - h1 > 2000) continue; // tabs inside a dialog or a panel, not a screen's top
+      const top = t.slice(h1, m.index);
+      // Between the title and the tabs: only the title row's own pieces and the hint.
+      const extra = top
+        .replace(/\$\{hintFold\((`[\s\S]*?`|'[^']*')\)\}/g, '')
+        .replace(/\$\{hintSlot\(\)\}/g, '');
+      if (/<(form|details|section|table|ul|ol)\b|class="(admin-hint|admin-toolbar|filters)\b/.test(extra)) bad.push(`${f}: something other than the title row and How this works sits above the tabs`);
+      const row = top.match(/class="admin-title-row[\s\S]*/)?.[0] ?? '';
+      const buttons = (row.match(/class="btn\b/g) ?? []).length;
+      if (buttons > 2) bad.push(`${f}: ${buttons} buttons in the title row (two at most; the rest go below the tabs)`);
+      const end = t.indexOf('`;', m.index);
+      const below = t.slice(m.index, end < 0 ? undefined : end);
+      // A form's own hint inside a fold (Staff → My account's colours) is fine; a loose one under the tabs is not.
+      const loose = [...below.matchAll(/\$\{hintFold\(/g)].some((h) => {
+        const before = below.slice(0, h.index);
+        return (before.match(/<details\b/g) ?? []).length <= (before.match(/<\/details>/g) ?? []).length;
+      });
+      if (loose) bad.push(`${f}: How this works sits below the tabs (put it above them, or in the hintSlot for a tab's own hint)`);
+    }
+  }
+  assert.equal(bad.length, 0, bad.join('\n'));
+});
+
 if (failures) {
   console.error(`\n${failures} admin consistency check${failures === 1 ? '' : 's'} failed`);
   process.exit(1);

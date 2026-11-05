@@ -586,6 +586,7 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 
 /* ---------- Customers list: clickable rows, header actions ---------- */
 .cust-head-actions { flex: 1 1 auto; flex-wrap: wrap; justify-content: flex-end; margin: 0 0 0 auto; }
+.cust-export { flex-wrap: wrap; align-items: center; margin-top: var(--sp-16); }
 .cust-export-opt { display: inline-flex; align-items: center; gap: var(--sp-6); font-weight: 400; font-size: var(--fs-ui); margin: 0; color: var(--muted); }
 tr.is-clickable { cursor: pointer; }
 
