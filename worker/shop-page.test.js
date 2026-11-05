@@ -79,6 +79,9 @@ const map = sitemapXml(shops[0]);
 assert.match(map, /<loc>https:\/\/a-comics\.com\/<\/loc>/);
 assert.match(map, /<loc>https:\/\/a-comics\.com\/terms\.html<\/loc>/);
 assert.doesNotMatch(map, /<loc>https:\/\/www\.|search\.html|account\.html/);
+const mapOff = sitemapXml(shops[0], ['faq', 'news', 'my-page']);
+assert.doesNotMatch(mapOff, /faq\.html|blog\.html/, 'switched-off pages are left out');
+assert.match(mapOff, /calendar\.html/);
 assert.equal(robotsTxt(shops[0], 'User-agent: *\nDisallow: /admin/\n'), 'User-agent: *\nDisallow: /admin/\n\nSitemap: https://a-comics.com/sitemap.xml\n');
 
 // Home banner
