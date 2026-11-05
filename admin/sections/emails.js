@@ -2,7 +2,7 @@
 // schedule, sender, and preview / test / send-now tools. Saves only its own
 // settings columns, so it never touches the Shop Settings fields.
 
-import { $, $$, esc, must, toast, setStatus, openDialog, makeEditor, setHtml, getHtml, imageField, settingsField, formReaders, fmtDateTime, debounce, friendlyError, setupTabs, fmtTime, toListTop } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, openDialog, makeEditor, setHtml, getHtml, imageField, settingsField, formReaders, fmtDateTime, debounce, friendlyError, setupTabs, fmtTime, toListTop, hintSlot } from '../lib.js';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const hourLabel = (h) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
@@ -23,6 +23,7 @@ export async function mount(el, { sb }) {
 
   el.innerHTML = `
     <h1>Emails</h1>
+    ${hintSlot()}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="settings">Email Settings</button>
       <button type="button" class="admin-tab" role="tab" data-tab="send">Send</button>
@@ -140,7 +141,11 @@ export async function mount(el, { sb }) {
     </section>
     </div>`;
 
-  const showTab = setupTabs(el, 'admin-emails-tab', 'settings');
+  const showTab = setupTabs(el, 'admin-emails-tab', 'settings', undefined, {
+    settings: 'How the shop’s emails look and when they go out: the signup form at the bottom of every page, the logo and colors, the weekly pull list email and the “your books are in” email. Open a section, change it, then save.',
+    send: 'Preview an email or send a test to yourself before customers get it, and send one now if you need to. Both emails also go out by themselves at the times set under Email Settings.',
+    log: 'Every email the site has sent, newest first: who it went to, which email, and whether it failed. Filter by type, search, or show only the failed ones.',
+  });
   const form = $('form', el);
   const emailLogo = imageField($('[data-email-logo]', el), { folder: 'brand', label: 'Logo', maxSize: 800, library: true });
   emailLogo.set(s.email_logo_url);

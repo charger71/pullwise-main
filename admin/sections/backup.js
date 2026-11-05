@@ -1,7 +1,7 @@
 // Backup (owners): the nightly backups (download any of them), or download everything in the shop's database now as one
 // file. Restoring is the Restore screen. See BACKUPS.md.
 
-import { $, esc, setStatus, fmtDate, fmtDateTime, solidIcon, friendlyError, downloadCsv, setupTabs, loadRunLog } from '../lib.js';
+import { $, esc, setStatus, fmtDate, fmtDateTime, solidIcon, friendlyError, downloadCsv, setupTabs, loadRunLog, hintSlot } from '../lib.js';
 
 const LOG_NAMES = { backup: 'Backup', backup_file: 'Nightly backup downloaded', export: 'Customer export' };
 import { buildBackup, lastBackup, recordBackup, customerRows, CUSTOMER_HEADER, nightlyBackups, nightlyBackupFile } from '../backup.js';
@@ -11,6 +11,7 @@ export async function mount(el, ctx) {
   const { data: { user } } = await sb.auth.getUser();
   el.innerHTML = `
     <h1>Backup</h1>
+    ${hintSlot()}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="nightly">Nightly Backups</button>
       <button type="button" class="admin-tab" role="tab" data-tab="backup">Download Backup</button>
@@ -18,7 +19,6 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-tab="log">Backup Log</button>
     </div>
     <div data-tabpane="nightly">
-    <p>The shop is backed up automatically every night. Each day’s file is kept for 35 days, and the first of each month for about a year. To load one back, download it and choose it in <a href="#restore">Restore</a>.</p>
     <p class="field__hint">The files contain customer names, phone numbers and emails: don’t share them or email them. Each download is listed in the Backup Log.</p>
     <p class="admin-status" role="status" data-nightly-status></p>
     <div data-nightly><p class="card__meta">Loading the backups…</p></div>
@@ -47,11 +47,15 @@ export async function mount(el, ctx) {
     </section>
     </div>
     <div data-tabpane="log">
-    <p>Every backup (the nightly automatic ones and those downloaded here), every nightly file downloaded, and every customer list exported, newest first, with who did it.</p>
     <div data-log></div>
     </div>`;
   const log = () => loadRunLog(sb, $('[data-log]', el), { jobs: Object.keys(LOG_NAMES), name: (job) => LOG_NAMES[job] ?? job, by: true, limit: 50, empty: 'No backups or exports yet.' }).catch(() => {});
-  setupTabs(el, 'admin-backup-tab', 'nightly');
+  setupTabs(el, 'admin-backup-tab', 'nightly', undefined, {
+    nightly: 'The shop is backed up automatically every night. Each day’s file is kept for 35 days, and the first of each month for about a year. To load one back, download it and choose it in <a href="#restore">Restore</a>.',
+    backup: 'Download a copy of everything in the shop’s database right now: before a big change, or to keep a copy of your own somewhere safe.',
+    customers: 'A spreadsheet of just the customers’ contact details, for a mailing or your records. It is not a backup.',
+    log: 'Every backup (the nightly automatic ones and those downloaded here), every nightly file downloaded, and every customer list exported, newest first, with who did it.',
+  });
   log();
 
   const nightlyEl = $('[data-nightly]', el);

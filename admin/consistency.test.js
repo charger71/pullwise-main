@@ -345,6 +345,14 @@ check('screen tops: title row, How this works, tabs, then everything else', () =
   assert.equal(bad.length, 0, bad.join('\n'));
 });
 
+// Every screen explains itself: a How this works right under its title (hintFold, or the hintSlot setHint fills).
+check('every admin screen has a How this works under its title', () => {
+  const missing = Object.entries(sections)
+    .filter(([, t]) => ![...t.matchAll(/<h1\b/g)].some((m) => /\$\{hint(Fold\(|Slot\(\))/.test(t.slice(m.index, m.index + 1500))))
+    .map(([f]) => f);
+  assert.equal(missing.length, 0, `No How this works under the title: ${missing.join(', ')}`);
+});
+
 if (failures) {
   console.error(`\n${failures} admin consistency check${failures === 1 ? '' : 's'} failed`);
   process.exit(1);

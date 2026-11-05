@@ -6,7 +6,7 @@ import { tiersFrom } from '../../js/discount.js';
 import { SUPABASE_URL, APP_ENABLED } from '../../js/config.js';
 import { putMedia } from '../../js/media-store.js';
 import { contrast, colorVars, FONT_LIBRARY, FONT_SLOTS, SPACING, SIZES, letterSpacing, sizeScale, fontScale, isFontUpload } from '../../js/theme-vars.js';
-import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, uid, db, slugify, switchHtml } from '../lib.js';
+import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, uid, db, slugify, switchHtml, hintSlot } from '../lib.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
@@ -32,6 +32,7 @@ export async function mount(el, { sb }) {
 
   el.innerHTML = `
     <h1>Shop Settings</h1>
+    ${hintSlot()}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="shop">Shop</button>
       <button type="button" class="admin-tab" role="tab" data-tab="look">Logo, Colors &amp; Fonts</button>
@@ -166,7 +167,12 @@ export async function mount(el, { sb }) {
   appIcon?.set(s.app_icon_url);
   const appShots = APP_ENABLED ? $$('[data-app-shot]', el).map((box, i) => imageField(box, { folder: 'brand', label: `Screenshot ${i + 1}`, exact: [1080, 2340] })) : [];
   appShots.forEach((f, i) => f.set(s.app_screenshots?.[i]));
-  setupTabs(el, 'admin-settings-tab', 'shop');
+  setupTabs(el, 'admin-settings-tab', 'shop', undefined, {
+    shop: 'The shop’s name, contact details, address, opening hours and map, as customers see them on the website. The Admin Notice at the top is for staff only. Press Save settings when you’re done; it saves every tab.',
+    look: 'The logo, colors and fonts of the website. Text colors are checked so they stay readable. Press Save settings when you’re done.',
+    online: 'Links to the shop’s social media, Google Analytics, live chat and any extra code for the footer. Press Save settings when you’re done.',
+    stock: 'How pre-orders and stock work for customers, and the discount pull list customers get. Press Save settings when you’re done.',
+  });
 
   $('[data-link-auto]', form).addEventListener('change', (e) => ($('#c-link', form).disabled = e.target.checked));
 
