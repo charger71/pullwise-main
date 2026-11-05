@@ -178,7 +178,11 @@ a { color: var(--teal); }
    page's Directions button. js/site.js lists the off pages' slugs in <html data-off>. */
 [data-off~="about"] a[href="about.html"], [data-off~="visit"] a[href="contact.html"],
 [data-off~="we-buy-comics"] a[href="we-buy-comics.html"], [data-off~="gift-cards"] a[href="gift-cards.html"],
-[data-off~="how-to"] a[href="how-to.html"], [data-off~="faq"] a[href="faq.html"] { display: none; }
+[data-off~="how-to"] a[href="how-to.html"], [data-off~="faq"] a[href="faq.html"],
+[data-off~="calendar"] a[href="calendar.html"], [data-off~="calendar"] a[href^="event.html"],
+[data-off~="news"] a[href="blog.html"], [data-off~="news"] a[href^="post.html"],
+[data-off~="calendar"] .home-events, [data-off~="news"] .home-news,
+[data-off~="calendar"][data-off~="news"] .home-upcoming { display: none; }
 /* A link-button reads as a link, so it's underlined the same way. */
 a, .link-button { text-decoration-thickness: 2px; text-underline-offset: 5px; }
 a:hover { color: var(--teal-hover); }

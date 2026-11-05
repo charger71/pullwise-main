@@ -132,9 +132,9 @@ if (!q) {
   }
   hitList('pages', [...found.values()]);
   hitList('faq', off.has('faq.html') ? [] : faqs.filter((f) => matches(`${f.question} ${plain(f.answer_html)}`)).map((f) => ({ title: f.question, href: 'faq.html', text: plain(f.answer_html) })));
-  hitList('events', events.filter((e) => matches(`${e.title} ${e.location ?? ''} ${plain(e.description_html ?? e.description)}`)).map((e) => ({ title: `${e.title} · ${fmtDate(e.starts_at, { month: 'short', day: 'numeric' })}`, href: `event.html?id=${e.id}`, text: plain(e.description_html ?? e.description) })));
+  hitList('events', off.has('calendar.html') ? [] : events.filter((e) => matches(`${e.title} ${e.location ?? ''} ${plain(e.description_html ?? e.description)}`)).map((e) => ({ title: `${e.title} · ${fmtDate(e.starts_at, { month: 'short', day: 'numeric' })}`, href: `event.html?id=${e.id}`, text: plain(e.description_html ?? e.description) })));
 
-  const hits = posts.filter((p) => matches(`${p.title} ${p.excerpt ?? ''}`));
+  const hits = off.has('blog.html') ? [] : posts.filter((p) => matches(`${p.title} ${p.excerpt ?? ''}`));
   if (hits.length) {
     $('#news').hidden = false;
     $('#news-list').innerHTML = hits

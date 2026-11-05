@@ -4,7 +4,7 @@
 import { PAGE_BLOCKS } from '../../js/page-defaults.js';
 import { PLACEHOLDERS } from '../../js/content.js';
 import { OPTIONAL_PAGES } from '../../js/optional-pages.js';
-import { $, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, setupTabs, fmtTime, fmtDateTime, sortableTable, switchHtml } from '../lib.js';
+import { $, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, setupTabs, fmtTime, fmtDate, fmtDateTime, sortableTable, switchHtml } from '../lib.js';
 import { adminHash } from '../route.js';
 
 // Where each block shows on the public site, for the "View page" link.
@@ -70,7 +70,7 @@ async function showList(el, sb) {
       <h1>Pages</h1>
       <button class="btn btn--add" type="button" id="page-new">${solidIcon('add', 18)} New page</button>
     </div>
-    ${hintFold('Every page on the website. Sort by any column, and press Edit to change a page’s text. Switch a page off to take it off the site: its links leave the menu, footer and search, and its address shows “page not found”. Its text is kept for when you switch it back on. Home, Pre-Orders, New Arrivals, Calendar, News, Privacy and Terms are always on, because the shop runs on them.')}
+    ${hintFold('Every page on the website. Sort by any column, and open a page to change its text. Switch a page off to take it off the site: its links leave the menu, footer and search, and its address shows “page not found”. Its text is kept for when you switch it back on. Switching off Calendar or News also hides their events or posts and the home page’s block for them. Home, Pre-Orders, New Arrivals, Privacy and Terms are always on, because the shop runs on them.')}
     <div data-list><p class="card__meta">Loading the pages…</p></div>`;
   $('#page-new', el).addEventListener('click', () => newPage(el, sb));
   let saved = {};
@@ -84,19 +84,23 @@ async function showList(el, sb) {
     // the dates are a nicety; the list works without them
   }
   const list = $('[data-list]', el);
-  list.innerHTML = `<table class="admin-table cards">
-    <thead><tr><th scope="col" data-sort="text">Page</th><th scope="col" data-sort="text">Linked from</th><th scope="col" data-sort="text" data-first="desc">Last saved</th><th scope="col" data-sort="text">On the site</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead>
-    <tbody>${SCREENS.map((sc) => `<tr>
-      <td class="card-title"><strong>${esc(sc.label)}</strong>${sc.custom ? ' <span class="pill pill--accent">Added</span>' : ''}</td>
-      <td class="card__meta card-line card-label">${esc(linkedFrom(sc))}</td>
-      <td class="card__meta nowrap card-line card-label" data-sort="${saved[sc.key] ?? ''}">${saved[sc.key] ? esc(fmtDateTime(saved[sc.key])) : '—'}</td>
+  list.innerHTML = `<div class="admin-table-wrap"><table class="admin-table cards">
+    <thead><tr><th scope="col" data-sort="text">Page</th><th scope="col" data-sort="text">Linked from</th><th scope="col" data-sort="text" data-first="desc">Last saved</th><th scope="col" data-sort="text">On the site</th></tr></thead>
+    <tbody>${SCREENS.map((sc) => `<tr class="is-clickable" data-open="${esc(sc.key)}">
+      <td class="card-title"><a href="${adminHash('pages', sc.key)}"><strong>${esc(sc.label)}</strong></a>${sc.custom ? ' <span class="pill pill--accent">Added</span>' : ''}</td>
+      <td class="card-line card-label">${esc(linkedFrom(sc))}</td>
+      <td class="card__meta nowrap card-line card-label" data-sort="${saved[sc.key] ?? ''}">${saved[sc.key] ? esc(fmtDate(saved[sc.key])) : '—'}</td>
       <td class="card-wide" data-sort="${isOn(sc) ? 'on' : 'off'}">${canSwitch(sc)
         ? switchHtml(isOn(sc) ? 'On' : 'Off', { checked: isOn(sc), attrs: `data-switch="${esc(sc.blocks[0].slug)}" aria-label="${esc(sc.label)} on the site"` })
         : '<span class="card__meta">Always on</span>'}</td>
-      <td class="nowrap card-foot"><a class="btn btn--ghost btn--small" href="${adminHash('pages', sc.key)}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(sc.label)}</span></a></td>
     </tr>`).join('')}</tbody>
-  </table>`;
+  </table></div>`;
   sortableTable($('table', list));
+  // The whole row opens the page, as in every list; the switch and the link do their own thing.
+  list.addEventListener('click', (e) => {
+    const row = e.target.closest('tr[data-open]');
+    if (row && !e.target.closest('a, button, label, input')) location.hash = adminHash('pages', row.dataset.open);
+  });
   list.addEventListener('change', async (e) => {
     const box = e.target.closest('[data-switch]');
     if (!box) return;

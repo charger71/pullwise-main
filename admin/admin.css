@@ -196,6 +196,8 @@
 /* ---------- Filters & tables ---------- */
 .admin-filters { grid-template-columns: 1fr 1fr; }
 @media (min-width: 900px) { .admin-filters { grid-template-columns: 2fr repeat(4, 1fr); } }
+/* A switch in a table row (Pages) keeps the row as tall as its neighbours on a desktop; phones keep the 44px target. */
+@media (min-width: 900px) { .admin-table .switch { display: flex; min-height: 0; } }
 .admin-table-wrap { overflow-x: auto; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
 .admin-table { width: 100%; border-collapse: collapse; background: var(--surface); font-size: var(--fs-ui); }
 .admin-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; color: #fff; padding: var(--sp-10); background: var(--fold-head-bg); border-bottom: var(--border); } /* the same slate as the collapsible headers */
