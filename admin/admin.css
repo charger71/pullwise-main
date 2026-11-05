@@ -526,7 +526,14 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .cust-lines .cl-rm { width: 96px; }
 .cust-lines .select--small { width: 100%; min-width: 0; }
 .cust-lines td { overflow-wrap: anywhere; }
-.cust-lines__group th { background: var(--group-bg); color: var(--ink); font-size: var(--fs-xs); padding: var(--sp-6) var(--sp-10); }
+/* Group headings (Ready for pickup, Open & ordered, Not ordered, Past) in the accent color so they stand out going down the
+   list; each one folds its group. */
+.cust-lines__group th { background: var(--brand-accent); color: var(--on-accent); font-size: var(--fs-xs); padding: 0; }
+.cust-lines__toggle { display: flex; align-items: center; gap: var(--sp-6); width: 100%; min-height: 36px; padding: var(--sp-6) var(--sp-10); border: 0; background: none; color: inherit; font: inherit; font-weight: 700; text-transform: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; }
+.cust-lines__toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.cust-lines__chev { flex: none; fill: currentColor; }
+.cust-lines__toggle[aria-expanded='false'] .cust-lines__chev { transform: rotate(-90deg); }
+.cust-lines__body.is-folded > tr:not(.cust-lines__group) { display: none; }
 .cust-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6) var(--sp-8); margin: 0 0 var(--sp-12); }
 /* The panel and its children may shrink to the screen; the table scrolls or stacks inside. */
 .cust-main > * { min-width: 0; margin-bottom: 0; }
@@ -539,6 +546,8 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
   .cust-lines, .cust-lines tbody { display: block; }
   .cust-lines tr { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; grid-template-areas: "title title title" "qty status rm" "out by by"; gap: var(--sp-6) var(--sp-10); align-items: center; padding: var(--sp-10) var(--sp-12); border-bottom: var(--border); }
   .cust-lines tr.cust-lines__group { display: block; padding: 0; }
+  .cust-lines tr.cust-lines__group th { display: block; }
+  .cust-lines__toggle { min-height: var(--tap); }
   .cust-lines td { display: block; padding: 0; border: 0; width: auto; }
   .cust-lines .cl-title { grid-area: title; font-weight: 600; }
   .cust-lines .cl-qty { grid-area: qty; width: auto; text-align: left; }

@@ -30,12 +30,14 @@ const ICON = {
   noEmail: ['<path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM4 5.4 12 11l8-5.6v2L12 13 4 7.4z"/>', 'No email address', '', 'No email'],
   emailOff: ['<path d="M7.5 2h2v3h-2zM14.5 2h2v3h-2zM5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM5 9.5h14V11H5z"/>', 'Weekly email off', '', 'Weekly email off'],
   arrivalsOff: ['<path d="M12 3a6 6 0 0 0-6 6v5l-1.5 2.5h15L18 14V9a6 6 0 0 0-6-6zM9.5 18.5h5a2.5 2.5 0 0 1-5 0z"/>', 'Arrival emails off', '', 'Arrival email off'],
-  noName: ['<path d="M12 3a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM3 21c0-4.4 4-7 9-7s9 2.6 9 7zM9.5 5.5h5v1.6h-5z"/>', 'No name saved', '', 'No name'],
+  noName: ['<path d="M12 3a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM3 21c0-4.4 4-7 9-7s9 2.6 9 7zM9.5 5.5h5v1.6h-5z"/>', 'First or last name missing', '', 'Name missing'],
   noPhone: ['<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>', 'No phone number', '', 'No phone'],
   noLogin: ['<path d="M9 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM2 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5z"/><path class="cust-icon__stroke" d="m17.5 6.5 4 4m0-4-4 4"/>', 'No login (no online account)', ' is-minor', 'No login'],
 };
-/** Fix button for rows with an action-needed (red) icon; opens the customer to correct it. Minor issues (no login) don't get one. */
-const needsFix = (c) => statusKeys(c).some((k) => !ICON[k][2].includes('is-minor'));
+/** Problems fixed by editing the customer's details. Only these get a Fix button and put the customer under Needs Attention
+ *  (with unlinked guest orders); past pickup and emails switched off show their icon but aren't fixed here. */
+const FIXABLE = ['noAddress', 'noEmail', 'noName', 'noPhone'];
+const needsFix = (c) => statusKeys(c).some((k) => FIXABLE.includes(k));
 const iconHtml = (k) =>
   `<span class="cust-icon is-solid ${ICON[k][2].includes('is-minor') ? '' : 'is-alert'}${ICON[k][2]}" role="img" aria-label="${ICON[k][1]}" title="${ICON[k][1]}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k][0]}</svg></span>`;
 const statusKeys = (c) =>
@@ -44,8 +46,8 @@ const statusKeys = (c) =>
     c.ship_arrivals && !c.address1?.trim() && 'noAddress',
     !c.email ? 'noEmail' : !c.email_opt_in && 'emailOff',
     c.email && c.notify_arrivals === false && 'arrivalsOff',
-    !c.first_name?.trim() && !c.last_name?.trim() && 'noName',
-    !c.phone && 'noPhone',
+    (!c.first_name?.trim() || !c.last_name?.trim()) && 'noName',
+    !c.phone?.trim() && 'noPhone',
     !c.user_id && 'noLogin',
   ].filter(Boolean);
 const statusIcons = (c) => statusKeys(c).map(iconHtml).join('');
@@ -301,9 +303,10 @@ async function loadList(el) {
   if (match) q = q.or(match);
   if (state.location) q = q.eq('home_location_id', state.location);
   if (state.show === 'to_fix') {
-    // No name or email address saved, or earlier guest orders that match them and aren't linked yet.
+    // Everyone with a Fix button (FIXABLE: no email, a name missing, no phone, or arrivals shipped with no address), and
+    // earlier guest orders that match them and aren't linked yet.
     const ids = [...new Set((await findGuestMatches(sb)).map((m) => m.customer_id))];
-    const missing = 'email.is.null,first_name.is.null,first_name.eq.,last_name.is.null,last_name.eq.';
+    const missing = 'email.is.null,first_name.is.null,first_name.eq.,last_name.is.null,last_name.eq.,phone.is.null,phone.eq.,and(ship_arrivals.is.true,or(address1.is.null,address1.eq.))';
     q = q.or(ids.length ? `${missing},id.in.(${ids.join(',')})` : missing);
   }
   if (state.show === 'new_week') q = q.not('user_id', 'is', null).gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString());
@@ -608,9 +611,11 @@ async function loadOrders(el, c) {
       ${shown.length ? summaryChips(shown) : ''}
       ${shown.length ? `<div class="admin-table-wrap"><table class="admin-table cust-lines">
         <thead><tr><th scope="col">Title</th><th scope="col" class="cl-out">Out</th><th scope="col" class="cl-qty">Qty</th><th scope="col" class="cl-status">Status</th><th scope="col" class="cl-by">Added by</th><th scope="col" class="cl-rm"><span class="visually-hidden">Remove</span></th></tr></thead>
-        <tbody>${groupedRows(shown, c, staffNames)}</tbody></table></div>` : '<p class="empty">Nothing on this customer’s pull list yet.</p>'}`;
+        ${groupedRows(shown, c, staffNames)}</table></div>` : '<p class="empty">Nothing on this customer’s pull list yet.</p>'}`;
     box.onchange = (e) => editLine(el, c, lines, e);
     box.onclick = async (e) => {
+      const fold = e.target.closest('[data-fold-group]');
+      if (fold) return toggleGroup(fold);
       const rm = e.target.closest('[data-remove]');
       if (rm) return editLine(el, c, lines, { target: rm, remove: true });
       if (e.target.closest('[data-link]')) {
@@ -653,16 +658,45 @@ function summaryChips(lines) {
   return `<p class="cust-chips">${chips}${copies ? ` <span class="card__meta">${copies} ${copies === 1 ? 'copy' : 'copies'} active</span>` : ''}</p>`;
 }
 
-/** Rows grouped as Ready for pickup / Open & ordered / Not ordered / Past, with group headings when more than one group has titles. */
+// Folded pull list groups, remembered on this device; Past starts folded.
+const FOLD_KEY = 'admin-cust-folds';
+const FOLD_DEFAULT = { past: true };
+const foldedGroups = () => {
+  try {
+    return { ...FOLD_DEFAULT, ...JSON.parse(localStorage.getItem(FOLD_KEY) ?? '{}') };
+  } catch {
+    return { ...FOLD_DEFAULT };
+  }
+};
+/** Fold or open one group: its heading stays, the titles under it hide. */
+function toggleGroup(btn) {
+  const open = btn.getAttribute('aria-expanded') !== 'true';
+  btn.setAttribute('aria-expanded', String(open));
+  btn.closest('tbody').classList.toggle('is-folded', !open);
+  try {
+    localStorage.setItem(FOLD_KEY, JSON.stringify({ ...foldedGroups(), [btn.dataset.foldGroup]: !open }));
+  } catch {
+    /* remembering is optional */
+  }
+}
+
+/** Rows grouped as Ready for pickup / Open & ordered / Not ordered / Past, one <tbody> each. When more than one group has
+ *  titles each gets a heading in the accent color that folds it (Past starts folded). */
 function groupedRows(lines, c, staffNames) {
   const groups = [
-    ['Ready for pickup', (l) => l.status === 'arrived'],
-    ['Open & ordered', (l) => ['open', 'ordered', 'reordered'].includes(l.status)],
-    ['Not ordered', (l) => l.status === 'not_ordered'],
-    ['Past', (l) => !ACTIVE_STATUSES.includes(l.status) && l.status !== 'not_ordered'],
-  ].map(([title, fn]) => [title, lines.filter(fn)]).filter(([, rows]) => rows.length);
+    ['ready', 'Ready for pickup', (l) => l.status === 'arrived'],
+    ['open', 'Open & ordered', (l) => ['open', 'ordered', 'reordered'].includes(l.status)],
+    ['not_ordered', 'Not ordered', (l) => l.status === 'not_ordered'],
+    ['past', 'Past', (l) => !ACTIVE_STATUSES.includes(l.status) && l.status !== 'not_ordered'],
+  ].map(([key, title, fn]) => [key, title, lines.filter(fn)]).filter(([, , rows]) => rows.length);
+  const folded = foldedGroups();
+  const rowsOf = (rows) => rows.map((l, i) => lineRow(l, c, staffNames, i % 2 === 1)).join('');
+  if (groups.length < 2) return `<tbody>${rowsOf(groups[0]?.[2] ?? [])}</tbody>`;
   return groups
-    .map(([title, rows]) => `${groups.length > 1 ? `<tr class="cust-lines__group"><th colspan="6" scope="colgroup">${esc(title)} (${rows.length})</th></tr>` : ''}${rows.map((l, i) => lineRow(l, c, staffNames, i % 2 === 1)).join('')}`)
+    .map(([key, title, rows]) => {
+      const shut = !!folded[key];
+      return `<tbody class="cust-lines__body${shut ? ' is-folded' : ''}"><tr class="cust-lines__group"><th colspan="6" scope="colgroup"><button class="cust-lines__toggle" type="button" aria-expanded="${!shut}" data-fold-group="${key}"><svg class="cust-lines__chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M7 10l5 5 5-5z"/></svg>${esc(title)} (${rows.length})</button></th></tr>${rowsOf(rows)}</tbody>`;
+    })
     .join('');
 }
 
