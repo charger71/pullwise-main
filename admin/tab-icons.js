@@ -47,6 +47,7 @@ const SVG = {
   brush: '<path d="M18 3l3 3-9.5 9.5-3-3zM8.5 12.5C5.5 12.5 4 14 4 16.5c0 1.5-.5 2.5-1.5 3.5 3.5.5 7-1 7-4.2"/>',
   pin: '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
   dot: '<circle cx="12" cy="12" r="4"/>',
+  moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
 };
 
 // First match wins. Matched against the tab's label.
@@ -58,7 +59,7 @@ const BY_LABEL = [
   [/^library/i, 'image'], [/^upload/i, 'upload'],
   [/^import files/i, 'upload'], [/^always skip/i, 'ban'], [/^recent runs/i, 'history'],
   [/^email settings/i, 'gear'], [/^send$/i, 'send'], [/log$/i, 'log'],
-  [/^backup file/i, 'upload'], [/^tables to restore/i, 'log'],
+  [/^nightly backups/i, 'moon'], [/^choose backup/i, 'history'], [/^tables to restore/i, 'log'],
   [/^export customers/i, 'people'], [/^download backup/i, 'download'],
   [/^all customers/i, 'people'], [/^new this week/i, 'sparkle'], [/^needs attention/i, 'alert'],
   [/^pull list/i, 'bookmark'], [/^profile/i, 'user'], [/^messages/i, 'message'], [/^changes/i, 'history'],
