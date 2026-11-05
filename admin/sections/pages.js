@@ -1,8 +1,11 @@
-// Pages: each page's intro (lede) and, for the longer pages, body text.
+// Pages: a sortable list of every page (switch the optional ones off), and each page's intro (lede) and, for the
+// longer pages, body text. #pages is the list; #pages/<key> opens one page.
 
 import { PAGE_BLOCKS } from '../../js/page-defaults.js';
 import { PLACEHOLDERS } from '../../js/content.js';
-import { $, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, setupTabs, fmtTime, fmtDateTime } from '../lib.js';
+import { OPTIONAL_PAGES } from '../../js/optional-pages.js';
+import { $, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, setupTabs, fmtTime, fmtDateTime, sortableTable, switchHtml } from '../lib.js';
+import { adminHash } from '../route.js';
 
 // Where each block shows on the public site, for the "View page" link.
 const PAGE_URLS = {
@@ -29,81 +32,142 @@ const slugify = (t) => t.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]
 let dirty = false;
 let editors = {};
 let isOwner = false;
+let disabled = []; // settings.disabled_pages: the slugs of pages switched off
 export const hasUnsavedChanges = () => dirty;
 
-export async function mount(el, { sb, isOwner: owner }, selectKey) {
+// Where each built-in page is linked from on the site (js/site.js NAV and FOOTER_LINKS).
+const MENU = ['pre-orders', 'new-arrivals', 'we-buy-comics', 'calendar', 'news', 'visit'];
+const PLACES = { menu: 'Main menu', footer: 'Footer', hidden: 'Not linked' };
+const linkedFrom = (screen) => {
+  if (screen.custom) return PLACES[screen.place] ?? 'Footer';
+  if (screen.key === 'Home') return 'Home page';
+  return MENU.includes(screen.blocks[0].slug) ? 'Main menu' : 'Footer';
+};
+// Built-in pages the shop can switch off (js/optional-pages.js); staff-made pages always can.
+const canSwitch = (screen) => screen.custom || !!OPTIONAL_PAGES[screen.blocks[0].slug];
+const isOn = (screen) => !disabled.includes(screen.blocks[0].slug);
+
+export async function mount(el, { sb, isOwner: owner, arg }) {
   dirty = false;
   isOwner = owner;
+  let custom = [];
   try {
-    buildScreens(await must(sb.from('pages').select('slug,title').eq('custom', true).order('sort').order('title')));
+    custom = await must(sb.from('pages').select('slug,title,placement').eq('custom', true).order('sort').order('title'));
   } catch (err) {
     console.error(err); // before the custom-pages migration is applied
-    buildScreens([]);
   }
+  buildScreens(custom);
+  for (const r of custom) screenOf(r.slug).place = r.placement;
+  disabled = (await sb.from('settings').select('disabled_pages').eq('id', 1).maybeSingle()).data?.disabled_pages ?? [];
+  if (arg && screenOf(arg)) return showEditor(el, sb, arg);
+  await showList(el, sb);
+}
+
+// The list of every page: sortable, with an on/off switch where the page can be switched off.
+async function showList(el, sb) {
   el.innerHTML = `
     <div class="admin-title-row">
       <h1>Pages</h1>
       <button class="btn btn--add" type="button" id="page-new">${solidIcon('add', 18)} New page</button>
     </div>
-    ${hintFold(`Placeholders are filled in from shop settings: ${PLACEHOLDERS.map((p) => `<code>{${p}}</code>`).join(' ')}. The <strong>quote</strong> button makes a highlighted callout box.`)}
-    <div class="admin-toolbar">
-      <div class="field">
-        <label for="page-select">Page</label>
-        <select id="page-select">${SCREENS.map((s) => `<option value="${s.key}">${esc(s.label)}</option>`).join('')}</select>
+    ${hintFold('Every page on the website. Sort by any column, and press Edit to change a page’s text. Switch a page off to take it off the site: its links leave the menu, footer and search, and its address shows “page not found”. Its text is kept for when you switch it back on. Home, Pre-Orders, New Arrivals, Calendar, News, Privacy and Terms are always on, because the shop runs on them.')}
+    <div data-list><p class="card__meta">Loading the pages…</p></div>`;
+  $('#page-new', el).addEventListener('click', () => newPage(el, sb));
+  let saved = {};
+  try {
+    const rows = await must(sb.from('pages').select('slug,updated_at'));
+    for (const r of rows) {
+      const key = screenOfSlug(r.slug)?.key;
+      if (key && (!saved[key] || r.updated_at > saved[key])) saved[key] = r.updated_at;
+    }
+  } catch {
+    // the dates are a nicety; the list works without them
+  }
+  const list = $('[data-list]', el);
+  list.innerHTML = `<table class="admin-table cards">
+    <thead><tr><th scope="col" data-sort="text">Page</th><th scope="col" data-sort="text">Linked from</th><th scope="col" data-sort="text" data-first="desc">Last saved</th><th scope="col" data-sort="text">On the site</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead>
+    <tbody>${SCREENS.map((sc) => `<tr>
+      <td class="card-title"><strong>${esc(sc.label)}</strong>${sc.custom ? ' <span class="pill pill--accent">Added</span>' : ''}</td>
+      <td class="card__meta card-line card-label">${esc(linkedFrom(sc))}</td>
+      <td class="card__meta nowrap card-line card-label" data-sort="${saved[sc.key] ?? ''}">${saved[sc.key] ? esc(fmtDateTime(saved[sc.key])) : '—'}</td>
+      <td class="card-wide" data-sort="${isOn(sc) ? 'on' : 'off'}">${canSwitch(sc)
+        ? switchHtml(isOn(sc) ? 'On' : 'Off', { checked: isOn(sc), attrs: `data-switch="${esc(sc.blocks[0].slug)}" aria-label="${esc(sc.label)} on the site"` })
+        : '<span class="card__meta">Always on</span>'}</td>
+      <td class="nowrap card-foot"><a class="btn btn--ghost btn--small" href="${adminHash('pages', sc.key)}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(sc.label)}</span></a></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+  sortableTable($('table', list));
+  list.addEventListener('change', async (e) => {
+    const box = e.target.closest('[data-switch]');
+    if (!box) return;
+    const slug = box.dataset.switch;
+    const next = box.checked ? disabled.filter((x) => x !== slug) : [...new Set([...disabled, slug])];
+    box.disabled = true;
+    try {
+      await must(sb.from('settings').update({ disabled_pages: next }).eq('id', 1));
+      disabled = next;
+      box.closest('td').dataset.sort = box.checked ? 'on' : 'off';
+      box.closest('.switch').querySelector('.switch__text').textContent = box.checked ? 'On' : 'Off';
+      toast(`${screenOfSlug(slug).label} is ${box.checked ? 'back on the site' : 'off the site'}.`, 'ok');
+    } catch (err) {
+      box.checked = !box.checked;
+      toast(`Couldn’t change it: ${friendlyError(err)}`, 'error');
+    }
+    box.disabled = false;
+  });
+}
+
+async function newPage(el, sb) {
+  const title = prompt('Name of the new page:', '')?.trim();
+  if (!title) return;
+  const slug = slugify(title);
+  if (!slug) return toast('Use some letters or numbers in the name.', 'error');
+  try {
+    if (screenOf(slug) || PAGE_BLOCKS.some((b) => b.slug === slug) || (await must(sb.from('pages').select('slug').eq('slug', slug).maybeSingle()))) {
+      return toast('There’s already a page with that name.', 'error');
+    }
+    await must(sb.from('pages').insert({ slug, title, custom: true, placement: 'footer' }));
+  } catch (err) {
+    return toast(`Couldn’t create the page: ${friendlyError(err)}`, 'error');
+  }
+  location.hash = adminHash('pages', slug);
+}
+
+// One page's text, Google fields and (for pages staff added) its settings.
+async function showEditor(el, sb, key) {
+  const screen = screenOf(key);
+  el.innerHTML = `
+    <p><a class="btn btn--ghost btn--small" href="${adminHash('pages')}" data-back>← All pages</a></p>
+    <div class="admin-title-row">
+      <h1>${esc(screen.label)}</h1>
+      <div class="admin-actions">
+        <a id="page-view" class="btn btn--ghost" target="_blank" rel="noopener">View page ↗</a>
+        ${screen.custom && isOwner ? `<button class="btn btn--danger" type="button" id="page-delete">${solidIcon('trash', 16)} Delete</button>` : ''}
       </div>
-      <a id="page-view" class="btn btn--ghost" target="_blank" rel="noopener">View page ↗</a>
-      <button class="btn btn--danger" type="button" id="page-delete" hidden>${solidIcon('trash', 16)} Delete this page</button>
     </div>
+    ${hintFold(`Placeholders are filled in from shop settings: ${PLACEHOLDERS.map((p) => `<code>{${p}}</code>`).join(' ')}. The <strong>quote</strong> button makes a highlighted callout box.`)}
     <div id="page-editors"></div>
     <div class="admin-actions sticky-actions">
       <button class="btn btn--primary" type="button" id="page-save">Save</button>
       <span class="admin-status" id="page-status" role="status"></span>
     </div>`;
-
-  const select = $('#page-select', el);
-  if (selectKey && screenOf(selectKey)) select.value = selectKey;
-  let key = select.value;
-  select.addEventListener('change', async () => {
-    if (dirty && !confirm('You have unsaved changes on this page. Discard them?')) {
-      select.value = key;
-      return;
-    }
-    key = select.value;
-    await load(el, sb, key);
-  });
-  $('#page-new', el).addEventListener('click', async () => {
-    if (dirty && !confirm('You have unsaved changes on this page. Discard them?')) return;
-    const title = prompt('Name of the new page:', '')?.trim();
-    if (!title) return;
-    const slug = slugify(title);
-    if (!slug) return toast('Use some letters or numbers in the name.', 'error');
-    try {
-      if (screenOf(slug) || PAGE_BLOCKS.some((b) => b.slug === slug) || (await must(sb.from('pages').select('slug').eq('slug', slug).maybeSingle()))) {
-        return toast('There’s already a page with that name.', 'error');
-      }
-      await must(sb.from('pages').insert({ slug, title, custom: true, placement: 'footer' }));
-    } catch (err) {
-      return toast(`Couldn’t create the page: ${friendlyError(err)}`, 'error');
-    }
-    dirty = false;
-    await mount(el, { sb, isOwner: owner }, slug);
-  });
-  $('#page-delete', el).addEventListener('click', async () => {
-    const screen = screenOf(select.value);
+  $('#page-delete', el)?.addEventListener('click', async () => {
     if (!confirm(`Delete “${screen.label}”? Its text is removed for good and the page stops working.`)) return;
     try {
       await must(sb.from('pages').delete().eq('slug', screen.blocks[0].slug));
+      if (disabled.includes(screen.blocks[0].slug)) await sb.from('settings').update({ disabled_pages: disabled.filter((x) => x !== screen.blocks[0].slug) }).eq('id', 1);
     } catch (err) {
       return toast(`Couldn’t delete: ${friendlyError(err)}`, 'error');
     }
     dirty = false;
-    await mount(el, { sb, isOwner: owner });
+    location.hash = adminHash('pages');
   });
-  $('#page-save', el).addEventListener('click', () => save(el, sb, select.value));
+  $('#page-save', el).addEventListener('click', () => save(el, sb, key));
   await load(el, sb, key);
 }
 
 const screenOf = (key) => SCREENS.find((s) => s.key === key);
+const screenOfSlug = (slug) => SCREENS.find((s) => s.blocks.some((b) => b.slug === slug));
 // Home’s sections (Funko Pops etc.) have no page title of their own; only the page-level block does.
 const hasSeo = (block, screen) => screen.blocks.length === 1 || !block.fields.length;
 
@@ -113,7 +177,6 @@ async function load(el, sb, key) {
   setStatus(status, '');
   const first = screen.blocks[0];
   $('#page-view', el).href = screen.custom ? `../page.html?slug=${encodeURIComponent(first.slug)}` : `../${PAGE_URLS[first.slug]}`;
-  $('#page-delete', el).hidden = !screen.custom || !isOwner;
   let rows;
   try {
     rows = await must(sb.from('pages').select('slug,title,placement,lede_html,body_html,meta_title,meta_description,updated_at').in('slug', screen.blocks.map((b) => b.slug)));
@@ -169,7 +232,7 @@ async function load(el, sb, key) {
     if (hasSeo(block, screen) && !(multi && fields)) panels.push({ title: 'Google & Browser Tab', html: seoHtml(block, row) });
   }
   // One tab per section (page settings, each block's text, Google & browser tab); only shown when there is more than one.
-  wrap.innerHTML = `${panels.length > 1 ? `<div class="admin-tabs" role="tablist">${panels.map((p, i) => `<button type="button" class="admin-tab" role="tab" data-tab="p${i}">${esc(p.title)}</button>`).join('')}</div>` : ''}${panels
+  wrap.innerHTML = `${panels.length > 1 ? `<div class="admin-tabs" role="tablist">${panels.map((p, i) => `<button type="button" class="admin-tab" role="tab" data-tab="p${i}">${esc(p.title)}</button>`).join('')}</div>` : ''}${isOn(screen) ? '' : '<p class="admin-hint"><strong>This page is switched off.</strong> Customers can’t open it until you switch it back on in the <a href="#pages">list of pages</a>.</p>'}${panels
     .map((p, i) => `<div data-tabpane="p${i}"><section class="fold fold--compact fold--static"><div class="fold__head"><h2>${esc(p.title)}</h2></div><div class="fold__body">${p.html}</div></section></div>`)
     .join('')}`;
   for (const id of ['cp-title', 'cp-place']) $(`#${id}`, wrap)?.addEventListener('input', () => (dirty = true));
@@ -220,6 +283,10 @@ async function save(el, sb, key) {
           return false;
         }
         await must(sb.from('pages').update({ slug: newSlug }).eq('slug', screen.blocks[0].slug));
+        if (disabled.includes(screen.blocks[0].slug)) {
+          disabled = disabled.map((x) => (x === screen.blocks[0].slug ? newSlug : x));
+          await must(sb.from('settings').update({ disabled_pages: disabled }).eq('id', 1));
+        }
         // The row is at the new address now, so this screen is too: if saving the text below fails, a retry
         // saves it under the new address instead of trying to move the page again ("already a page with that address").
         const block = screen.blocks[0];
@@ -251,7 +318,8 @@ async function save(el, sb, key) {
     await must(sb.from('pages').upsert(rows, { onConflict: 'slug' }));
     dirty = false;
     if (screen.custom && newSlug !== screen.key) {
-      await mount(el, { sb, isOwner }, newSlug);
+      history.replaceState(null, '', adminHash('pages', newSlug));
+      await mount(el, { sb, isOwner, arg: newSlug });
       setStatus($('#page-status', el), `Saved ${fmtTime()} — the page is now at page.html?slug=${newSlug}.`, 'ok');
       return true;
     }

@@ -480,6 +480,20 @@ setHtml(quill, saved); … getHtml(quill)</pre>
             <li>Row colours paint the <code>&lt;tr&gt;</code>, never its cells, and live in one block of <code>admin.css</code> in priority order (stripe, hover, states, open). Add a new state there; no <code>!important</code>.</li>
           </ul>
           <div class="sg-item" data-code>
+            <h3>On / off switch in a row (Pages)</h3>
+            <p class="admin-hint">A row that can be switched on or off gets a <code>switchHtml()</code> in its own sortable column: its label says the state (On / Off), its <code>aria-label</code> names the row, and flipping it saves at once with a toast. Rows that can't be switched say why in plain text (“Always on”) instead of a disabled switch. Its <code>&lt;td&gt;</code> carries <code>data-sort="on"</code> / <code>"off"</code> so the column sorts by state.</p>
+            <div class="sg-demo sg-demo--flush">
+              <div class="admin-table-wrap"><table class="admin-table cards" data-sg-stack>
+                <thead><tr><th scope="col">Page</th><th scope="col">Linked from</th><th scope="col">On the site</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead>
+                <tbody>
+                  <tr><td class="card-title"><strong>Home</strong></td><td class="card__meta card-line card-label">Home page</td><td class="card-wide" data-sort="on"><span class="card__meta">Always on</span></td><td class="nowrap card-foot"><a class="btn btn--ghost btn--small" href="#tables">Edit</a></td></tr>
+                  <tr><td class="card-title"><strong>Visit Us</strong></td><td class="card__meta card-line card-label">Main menu</td><td class="card-wide" data-sort="on"><label class="switch"><input type="checkbox" role="switch" checked aria-label="Visit Us on the site"><span class="switch__track" aria-hidden="true"></span><span class="switch__text">On</span></label></td><td class="nowrap card-foot"><a class="btn btn--ghost btn--small" href="#tables">Edit</a></td></tr>
+                  <tr><td class="card-title"><strong>We Buy Comics</strong></td><td class="card__meta card-line card-label">Main menu</td><td class="card-wide" data-sort="off"><label class="switch"><input type="checkbox" role="switch" aria-label="We Buy Comics on the site"><span class="switch__track" aria-hidden="true"></span><span class="switch__text">Off</span></label></td><td class="nowrap card-foot"><a class="btn btn--ghost btn--small" href="#tables">Edit</a></td></tr>
+                </tbody>
+              </table></div>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
             <h3>Row states</h3>
             <div class="sg-demo sg-demo--flush">
               <div class="admin-table-wrap"><table class="admin-table">

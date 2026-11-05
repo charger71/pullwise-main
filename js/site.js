@@ -12,6 +12,7 @@ import { initCustomer } from './customer.js';
 import { readCache, writeCache, sameData } from './cache.js';
 import { esc, itemTitle, heroHeadlineHtml, sizedImage, LOGO_WIDTH, HERO_WIDTH, formatPhone, prefersReducedMotion, chatOn } from './util.js';
 import { ITEM_STATUS } from './labels.js';
+import { offHrefs, slugOfPage } from './optional-pages.js';
 import { localDate, addDays, todayIn, lastReserveDay } from './dates.js';
 
 export { esc, itemTitle, heroHeadlineHtml, sizedImage, HERO_WIDTH, localDate, addDays, lastReserveDay };
@@ -292,7 +293,7 @@ function renderAppHeader(s) {
     </div>`;
 }
 
-function renderHeader(s, page, extraNav = []) {
+function renderHeader(s, page, extraNav = [], off = new Set()) {
   const brand = brandHtml(s);
   $('#site-header').innerHTML = `
     <a class="skip-link" href="#main">Skip to content</a>
@@ -313,7 +314,7 @@ function renderHeader(s, page, extraNav = []) {
         <span class="nav-toggle__icon" aria-hidden="true"></span><span class="visually-hidden">Menu</span>
       </button>
       <nav id="site-nav" class="nav" aria-label="Main">
-        <ul>${[...NAV, ...extraNav].map(
+        <ul>${[...NAV, ...extraNav].filter((n) => !off.has(n.href)).map(
           // Custom pages' titles are staff text: escaped like everything else.
           (n) => `<li><a href="${esc(n.href)}"${n.page === page ? ' aria-current="page"' : ''}>${esc(n.label)}</a></li>`,
         ).join('')}</ul>
@@ -376,7 +377,7 @@ function loadNewsletterForm(embed) {
   watcher.observe(host);
 }
 
-function renderFooter(s, extraLinks = []) {
+function renderFooter(s, extraLinks = [], off = new Set()) {
   const addr = addressLines(s);
   // A shop with several locations lists each one's address, phone and hours.
   const multi = !!s.locations?.length;
@@ -411,7 +412,7 @@ function renderFooter(s, extraLinks = []) {
       </section>
       <section>
         <h2 class="footer__heading">More</h2>
-        <ul class="footer__links">${[...FOOTER_LINKS, ...(chatOn(s) ? [{ href: '#chat', label: 'Chat with us' }] : []), ...extraLinks].map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('')}</ul>
+        <ul class="footer__links">${[...FOOTER_LINKS, ...(chatOn(s) ? [{ href: '#chat', label: 'Chat with us' }] : []), ...extraLinks].filter((l) => !off.has(l.href)).map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('')}</ul>
       </section>
     </div>
     <p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)} · ${POWERED_BY}</p>`;
@@ -654,14 +655,20 @@ export async function initPage() {
   contentP.catch(() => {}); // reported below; this keeps an early exit from logging it twice
 
   const paint = (s, custom) => {
+    // Pages the shop switched off (Admin → Pages): this one shows the not-found page; links to them disappear.
+    const offList = s.disabled_pages ?? [];
+    const self = slugOfPage(document.body.dataset.page, location.search);
+    if (self && offList.includes(self)) return location.replace('404.html');
+    const off = offHrefs(offList);
+    document.documentElement.dataset.off = offList.join(' '); // css/site.css hides links to them in page text
     shopTimeZone = knownZone(s.timezone);
     // The built-in fallback has no colors or fonts: leave the Worker's theme alone until the real settings arrive.
     if (s !== FALLBACK_SETTINGS) applyTheme(s);
     if (app) renderAppHeader(s);
     else {
       const pageHref = (p) => `page.html?slug=${encodeURIComponent(p.slug)}`;
-      renderHeader(s, page, custom.filter((p) => p.placement === 'menu').map((p) => ({ page: `page:${p.slug}`, href: pageHref(p), label: p.title })));
-      renderFooter(s, custom.filter((p) => p.placement === 'footer').map((p) => ({ href: pageHref(p), label: p.title })));
+      renderHeader(s, page, custom.filter((p) => p.placement === 'menu').map((p) => ({ page: `page:${p.slug}`, href: pageHref(p), label: p.title })), off);
+      renderFooter(s, custom.filter((p) => p.placement === 'footer').map((p) => ({ href: pageHref(p), label: p.title })), off);
       loadNewsletterForm(s.newsletter_embed?.trim() ?? '');
     }
     fillSettings(s);

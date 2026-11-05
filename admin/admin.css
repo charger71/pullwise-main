@@ -62,8 +62,6 @@
 .admin-tab:focus-visible { outline: 3px solid var(--ink); outline-offset: -3px; }
 .admin-tab[aria-selected='true'] { background: var(--brand-primary); border-color: var(--brand-primary); color: #fff; cursor: default; margin-bottom: -3px; }
 
-.admin-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-12); margin-bottom: var(--sp-16); }
-.admin-toolbar .field { margin: 0; min-width: min(360px, 100%); }
 
 .editor-block { margin-bottom: var(--sp-24); }
 .editor-block > label { font-size: var(--fs-md); }
@@ -1241,8 +1239,6 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
   .chip { min-height: var(--tap); }
   .ql-snow.ql-toolbar .ql-formats { display: contents; } /* the buttons flow in even rows instead of wrapping group by group */
   /* Pages: the page chooser takes the row, View and Delete share the next one. */
-  .admin-toolbar .field { flex: 1 1 100%; min-width: 100%; }
-  .admin-toolbar > .btn { flex: 1 1 0; justify-content: center; }
   /* Media: the icon buttons (under each picture, and the Grid / List switch) are 44px targets. */
   .media-item__actions .icon-btn, .view-switch .icon-btn { width: var(--tap); height: var(--tap); }
   .media-toolbar .media-toolbar__sort { height: var(--tap); }
@@ -1309,7 +1305,6 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
   .sticky-actions .btn, .sticky-actions .btn--primary, .sticky-actions .btn--add { flex: 0 0 auto; }
   .sticky-actions .admin-status { flex: 1 1 0; order: 0; }
   .exclusions__form .btn, .import-actions .btn--primary { flex: 0 0 auto; }
-  .admin-toolbar > .btn { flex: 0 0 auto; }
   .cust-head-actions { flex-direction: row; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
   .cust-head-actions > .btn { width: auto; }
   .cust-profile form > .btn, [data-notes] > .btn { width: auto; display: inline-flex; }
@@ -1321,7 +1316,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
    Buttons in these places shrink to their label or share a row, so they drop the minimum width (see --btn-w at the top). */
 [data-move], .cust-email, .chat-compose { --btn-w: 0; --btn-w-sm: 0; }
 @media (max-width: 899px) {
-  .cards.is-stack > tbody > tr > td, .admin-pager, .titles-table .tt-edit, .admin-toolbar, .faq-item__actions, .qr-item__actions, .qr-item__downloads { --btn-w: 0; --btn-w-sm: 0; }
+  .cards.is-stack > tbody > tr > td, .admin-pager, .titles-table .tt-edit, .faq-item__actions, .qr-item__actions, .qr-item__downloads { --btn-w: 0; --btn-w-sm: 0; }
 }
 
 /* ---------- Live chat (sections/chat.js) ----------
