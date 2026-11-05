@@ -1,7 +1,8 @@
 // Built-in pages a shop can switch off (Admin → Pages; settings.disabled_pages). A page that is off leaves the menu,
 // footer and search, links to it in page text are hidden (css/site.css, [data-off]), and its address shows the
-// not-found page. The others (home, Pre-Orders, New Arrivals, Calendar, News, Privacy, Terms) are always on: the shop
-// runs on them. Staff-made pages can always be switched off.
+// not-found page. Calendar and News take their event and post pages with them (event.html and post.html share their
+// data-page), and the home page's events and news blocks. The others (home, Pre-Orders, New Arrivals, Privacy, Terms)
+// are always on: the shop runs on them. Staff-made pages can always be switched off.
 
 /** pages.slug → the page's file and its <body data-page>. */
 export const OPTIONAL_PAGES = {
@@ -11,6 +12,8 @@ export const OPTIONAL_PAGES = {
   'gift-cards': { href: 'gift-cards.html', page: 'giftcards' },
   'how-to': { href: 'how-to.html', page: 'how-to' },
   faq: { href: 'faq.html', page: 'faq' },
+  calendar: { href: 'calendar.html', page: 'calendar' },
+  news: { href: 'blog.html', page: 'blog' },
 };
 
 /** The address of a page by slug: a built-in one's file, or a staff-made page's page.html link. */
