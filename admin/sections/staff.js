@@ -63,8 +63,8 @@ function showPassword(title, email, password) {
   const d = openDialog(title, `
     <p>Share this with <strong>${esc(email)}</strong> privately (in person, or a message only they can see). It is shown only once.</p>
     <dl class="staff-cred"><dt>Sign in at</dt><dd>${esc(new URL('./', location.href).href)}</dd><dt>Email</dt><dd>${esc(email)}</dd><dt>Password</dt><dd><code>${esc(password)}</code></dd></dl>
-    <div class="admin-actions sticky-actions"><button class="btn btn--primary" type="button" data-copy>Copy email and password</button><button class="btn btn--ghost" type="button" data-done>Done</button></div>
-    <p class="field__hint">They can change it any time under Admin → Staff → My account.</p>`);
+    <p class="field__hint">They can change it any time: in the admin, the circle with their initial at the top right → My account.</p>
+    <div class="admin-actions sticky-actions"><button class="btn btn--primary" type="button" data-copy>Copy email and password</button><button class="btn btn--ghost" type="button" data-done>Done</button></div>`);
   $('[data-copy]', d).addEventListener('click', async (e) => {
     try {
       await navigator.clipboard.writeText(`Admin: ${new URL('./', location.href).href}\nEmail: ${email}\nPassword: ${password}`);
