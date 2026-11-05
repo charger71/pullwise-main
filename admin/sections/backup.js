@@ -3,6 +3,19 @@
 
 import { $, esc, setStatus, fmtDate, fmtDateTime, solidIcon, friendlyError, downloadCsv, setupTabs, loadRunLog, hintSlot } from '../lib.js';
 
+/** The nightly backup files as a table, with one button per file (`button(f)` returns its markup). Restore uses it too. */
+export const nightlyTable = (files, button) => files.length
+  ? `<div class="admin-table-wrap"><table class="admin-table cards">
+      <thead><tr><th scope="col">Backup</th><th scope="col">Kept until</th><th scope="col" class="center">Size</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+      <tbody>${files.map((f) => `<tr>
+        <td class="card-title"><strong>${esc(fmtDate(f.date, { weekday: 'short', month: 'short', day: 'numeric' }))}</strong>${f.kind === 'monthly' ? ' <span class="pill pill--accent">Monthly</span>' : ''}</td>
+        <td class="card__meta nowrap card-line card-label">${esc(fmtDate(f.keptUntil))}</td>
+        <td class="center nowrap card-key card-label">${(f.size / 1024 / 1024).toFixed(1)} MB</td>
+        <td class="card-foot">${button(f)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`
+  : '<p class="empty">No nightly backups yet. The first one is made tonight.</p>';
+
 const LOG_NAMES = { backup: 'Backup', backup_file: 'Nightly backup downloaded', export: 'Customer export' };
 import { buildBackup, lastBackup, recordBackup, customerRows, CUSTOMER_HEADER, nightlyBackups, nightlyBackupFile } from '../backup.js';
 
@@ -51,7 +64,7 @@ export async function mount(el, ctx) {
     </div>`;
   const log = () => loadRunLog(sb, $('[data-log]', el), { jobs: Object.keys(LOG_NAMES), name: (job) => LOG_NAMES[job] ?? job, by: true, limit: 50, empty: 'No backups or exports yet.' }).catch(() => {});
   setupTabs(el, 'admin-backup-tab', 'nightly', undefined, {
-    nightly: 'The shop is backed up automatically every night. Each day’s file is kept for 35 days, and the first of each month for about a year. To load one back, download it and choose it in <a href="#restore">Restore</a>.',
+    nightly: 'The shop is backed up automatically every night. Each day’s file is kept for 35 days, and the first of each month for about a year. To load one back, pick it in <a href="#restore">Restore</a>: there is no need to download it first.',
     backup: 'Download a copy of everything in the shop’s database right now: before a big change, or to keep a copy of your own somewhere safe.',
     customers: 'A spreadsheet of just the customers’ contact details, for a mailing or your records. It is not a backup.',
     log: 'Every backup (the nightly automatic ones and those downloaded here), every nightly file downloaded, and every customer list exported, newest first, with who did it.',
@@ -62,17 +75,7 @@ export async function mount(el, ctx) {
   const showNightly = async () => {
     try {
       const files = await nightlyBackups(sb);
-      nightlyEl.innerHTML = files.length
-        ? `<div class="admin-table-wrap"><table class="admin-table cards">
-            <thead><tr><th scope="col">Backup</th><th scope="col">Kept until</th><th scope="col" class="center">Size</th><th scope="col"><span class="visually-hidden">Download</span></th></tr></thead>
-            <tbody>${files.map((f) => `<tr>
-              <td class="card-title"><strong>${esc(fmtDate(f.date, { weekday: 'short', month: 'short', day: 'numeric' }))}</strong>${f.kind === 'monthly' ? ' <span class="pill pill--accent">Monthly</span>' : ''}</td>
-              <td class="card__meta nowrap card-line card-label">${esc(fmtDate(f.keptUntil))}</td>
-              <td class="center nowrap card-key card-label">${(f.size / 1024 / 1024).toFixed(1)} MB</td>
-              <td class="card-foot"><button type="button" class="btn btn--ghost btn--small" data-get="${esc(f.key)}">Download</button></td>
-            </tr>`).join('')}</tbody>
-          </table></div>`
-        : '<p class="empty">No nightly backups yet. The first one is made tonight.</p>';
+      nightlyEl.innerHTML = nightlyTable(files, (f) => `<button type="button" class="btn btn--ghost btn--small" data-get="${esc(f.key)}">Download</button>`);
     } catch (err) {
       nightlyEl.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
     }

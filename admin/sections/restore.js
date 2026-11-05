@@ -1,7 +1,8 @@
 // Restore (owners): load tables back from a backup file made on the Backup screen. See BACKUPS.md.
 
 import { $, $$, esc, setStatus, fmtDateTime, openDialog, toast, friendlyError, setupTabs, loadRunLog, hintSlot } from '../lib.js';
-import { buildBackup, parseBackup, currentCounts, restoreTables, replaceImpact, failedTable, restoreOrder, recordRestore, NOT_RESTORED } from '../backup.js';
+import { buildBackup, parseBackup, currentCounts, restoreTables, replaceImpact, failedTable, restoreOrder, recordRestore, NOT_RESTORED, nightlyBackups, nightlyBackupFile } from '../backup.js';
+import { nightlyTable } from './backup.js';
 
 const label = (n) => n.replace(/_/g, ' ');
 
@@ -18,14 +19,23 @@ export async function mount(el, ctx) {
     <h1>Restore</h1>
     ${hintSlot()}
     <div class="admin-tabs" role="tablist">
-      <button type="button" class="admin-tab" role="tab" data-tab="file">Backup File</button>
+      <button type="button" class="admin-tab" role="tab" data-tab="file">Choose Backup</button>
       <button type="button" class="admin-tab" role="tab" data-tab="tables" disabled title="Choose a backup file first">Tables to Restore</button>
       <button type="button" class="admin-tab" role="tab" data-tab="log">Restore Log</button>
     </div>
     <div data-tabpane="file">
     <p><strong>Nothing happens until you press Restore.</strong></p>
-    <div class="field"><label for="bk-file">Backup file</label><input id="bk-file" type="file" accept=".gz,.json,application/gzip,application/json"></div>
     <p class="admin-status" role="status" data-file-status></p>
+    <section class="fold fold--compact fold--static">
+      <div class="fold__head"><h2>Nightly Backups<span class="fold__note">Loads straight from the backup store</span></h2></div>
+      <div class="fold__body" data-nightly><p class="card__meta">Loading the backups…</p></div>
+    </section>
+    <section class="fold fold--compact fold--static">
+      <div class="fold__head"><h2>A File on This Computer</h2></div>
+      <div class="fold__body">
+        <div class="field"><label for="bk-file">Backup file</label><input id="bk-file" type="file" accept=".gz,.json,application/gzip,application/json"></div>
+      </div>
+    </section>
     </div>
     <div data-tabpane="tables">
     <div data-plan hidden></div>
@@ -35,7 +45,7 @@ export async function mount(el, ctx) {
     </div>`;
   const log = () => loadRunLog(sb, $('[data-log]', el), { jobs: ['restore'], name: (_, text) => (text.startsWith('replace') ? 'Replace' : 'Add missing rows'), detail: (text) => text.replace(/^(replace|add missing) — /, ''), by: true, limit: 50, empty: 'No restores yet.' }).catch(() => {});
   const showTab = setupTabs(el, 'admin-restore-tab', 'file', undefined, {
-    file: 'Load tables back from a backup file, for example after something was deleted by mistake. Pick the file (a nightly one from <a href="#backup">Backup</a>, or one you downloaded), then tick only the tables you need.',
+    file: 'Load tables back from a backup file, for example after something was deleted by mistake. Pick one of the nightly backups (it loads straight from the backup store; nothing is downloaded) or a backup file on this computer, then tick only the tables you need.',
     tables: 'Tick only the tables you need. <strong>Add missing rows</strong> puts back what was deleted and leaves everything else alone; <strong>Replace</strong> deletes every row in the table first and loads the backup’s, so changes made since the backup are lost.',
     log: 'Every restore, newest first: who ran it, how (add missing rows or replace), and what each table got. A failed restore changed nothing.',
   });
@@ -45,15 +55,41 @@ export async function mount(el, ctx) {
 
   const fileStatus = $('[data-file-status]', el);
   const plan = $('[data-plan]', el);
-  $('#bk-file', el).addEventListener('change', async (e) => {
+  const nightlyEl = $('[data-nightly]', el);
+  nightlyBackups(sb)
+    .then((files) => (nightlyEl.innerHTML = nightlyTable(files, (f) => `<button type="button" class="btn btn--ghost btn--small" data-pick="${esc(f.key)}">Choose</button>`)))
+    .catch((err) => (nightlyEl.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`));
+  nightlyEl.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-pick]');
+    if (!btn) return;
+    $('#bk-file', el).value = '';
+    $$('[data-pick]', nightlyEl).forEach((b) => (b.disabled = true));
+    await readBackup(async () => {
+      setStatus(fileStatus, 'Loading the backup…');
+      const { file, name } = await nightlyBackupFile(sb, btn.dataset.pick);
+      return new File([file], name);
+    });
+    $$('[data-pick]', nightlyEl).forEach((b) => (b.disabled = false));
+  });
+  $('#bk-file', el).addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      plan.hidden = true;
+      tablesTab.disabled = true;
+      return setStatus(fileStatus, '');
+    }
+    readBackup(async () => file);
+  });
+
+  // Read a backup (one of the nightly ones, or a file from this computer), then show its tables to pick from.
+  async function readBackup(getFile) {
     plan.hidden = true;
     plan.innerHTML = '';
     tablesTab.disabled = true;
     showTab('file', false);
-    const file = e.target.files[0];
-    if (!file) return setStatus(fileStatus, '');
-    setStatus(fileStatus, 'Reading the file…');
     try {
+      const file = await getFile();
+      setStatus(fileStatus, 'Reading the file…');
       const backup = await parseBackup(file);
       const meta = (await sb.rpc('backup_meta')).data;
       // Only tables the database has now and lets a restore write (not the staff list, audit trail or job log).
@@ -70,7 +106,7 @@ export async function mount(el, ctx) {
     } catch (err) {
       setStatus(fileStatus, friendlyError(err), 'error');
     }
-  });
+  }
 
   function showPlan(backup, names, counts, total, versionNote = '') {
     plan.hidden = false;

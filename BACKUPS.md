@@ -18,7 +18,7 @@ R2 deletes old files by itself (a lifecycle rule the script sets on each run). E
 fails, the run fails and GitHub emails you; the other shops are still backed up, and the failure is in that shop's log.
 
 - **Get a file:** **Admin → Backup → Nightly Backups** (owners only) lists the shop's files with how long each is kept;
-  press Download, then use Restore below as with any backup file. Each download is written to the Backup Log. The list
+  press Download to keep a copy. To load one back there is no need to download it: Restore lists the same files. Each download is written to the Backup Log. The list
   comes from the Worker (`GET /__backups`, `worker/backups.js`), which checks the caller is an owner of that shop and
   only ever shows that shop's own files. (Cloudflare dashboard → R2 → `pullwise-backups` also works.)
 - **Run it now:** GitHub → Actions → Automatic backup → Run workflow (leave Shop blank for every shop).
@@ -49,7 +49,8 @@ Not included:
 
 **In the admin: Admin → Restore** (owners only).
 
-1. Choose a backup file. It is read in your browser; nothing changes yet.
+1. Choose a backup: one of the nightly backups (**Choose** loads it straight from R2 through `/__backups`,
+   nothing is saved to your computer) or a backup file on this computer. It is read in your browser; nothing changes yet.
 2. Tick only the tables you need. The list shows how many rows each table has in the backup and how many it has now.
 3. Pick how to load them:
    - **Add missing rows only** (safe): rows that already exist are left as they are; only rows that are gone come back.
