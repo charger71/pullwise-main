@@ -209,6 +209,16 @@ export const switchHtml = (label, { name, checked = false, attrs = '' } = {}) =>
 
 /** Instructions that fold under "How this works". They start closed everywhere to save screen space. `html` is the text of the hint. */
 export const hintFold = (html) => `<details class="admin-hint-fold"><summary>${solidIcon('help', 18)} How this works</summary><p class="admin-hint">${html}</p></details>`;
+/** Where a screen's How this works goes: under the title row, above the tabs. Fill it with setHint (or setupTabs' hints). */
+export const hintSlot = () => '<div data-hint-slot></div>';
+/** Put How this works in the screen's slot (empty clears it). A fold staff opened stays open when the text changes with the tab. */
+export function setHint(from, html) {
+  const slot = (from.closest?.('#section') ?? from).querySelector('[data-hint-slot]');
+  if (!slot) return;
+  const open = !!slot.querySelector('details')?.open;
+  slot.innerHTML = html ? hintFold(html) : '';
+  if (open && html) slot.querySelector('details').open = true;
+}
 
 export const itemName = (i) => [i.title, i.issue_number && `#${i.issue_number}`].filter(Boolean).join(' ') + (i.variant ? ` · ${i.variant}` : '');
 
@@ -984,13 +994,14 @@ export async function loadSentMessages(sb, box, sum, { customerId = null, email 
  * kept (per `key`) across a refresh.
  * Returns show(id), which also takes effect when called from outside (e.g. a hand-off from the Dashboard).
  */
-export function setupTabs(el, key, fallback, onShow) {
+export function setupTabs(el, key, fallback, onShow, hints) {
   const buttons = $$('[data-tab]', el);
   const ids = buttons.map((b) => b.dataset.tab);
   const show = (tab, remember = true) => {
     if (!ids.includes(tab)) tab = fallback;
     buttons.forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === tab));
     $$('[data-tabpane]', el).forEach((p) => (p.hidden = p.dataset.tabpane !== tab));
+    if (hints) setHint(el, hints[tab] ?? ''); // each tab's How this works, in the slot above the tabs
     if (remember) {
       try {
         sessionStorage.setItem(key, tab);

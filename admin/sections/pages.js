@@ -45,6 +45,7 @@ export async function mount(el, { sb, isOwner: owner }, selectKey) {
       <h1>Pages</h1>
       <button class="btn btn--add" type="button" id="page-new">${solidIcon('add', 18)} New page</button>
     </div>
+    ${hintFold(`Placeholders are filled in from shop settings: ${PLACEHOLDERS.map((p) => `<code>{${p}}</code>`).join(' ')}. The <strong>quote</strong> button makes a highlighted callout box.`)}
     <div class="admin-toolbar">
       <div class="field">
         <label for="page-select">Page</label>
@@ -54,7 +55,6 @@ export async function mount(el, { sb, isOwner: owner }, selectKey) {
       <button class="btn btn--danger" type="button" id="page-delete" hidden>${solidIcon('trash', 16)} Delete this page</button>
     </div>
     <div id="page-editors"></div>
-    ${hintFold(`Placeholders are filled in from shop settings: ${PLACEHOLDERS.map((p) => `<code>{${p}}</code>`).join(' ')}. The <strong>quote</strong> button makes a highlighted callout box.`)}
     <div class="admin-actions sticky-actions">
       <button class="btn btn--primary" type="button" id="page-save">Save</button>
       <span class="admin-status" id="page-status" role="status"></span>

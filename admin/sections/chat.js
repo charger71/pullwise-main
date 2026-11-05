@@ -53,13 +53,13 @@ async function showList() {
   const on = !!settings?.chat_enabled;
   root.innerHTML = `
     <div class="admin-title-row"><h1>Chat</h1>${switchHtml(chatLabel(on), { checked: on, attrs: 'data-chat-switch' })}</div>
-    <p class="admin-hint" data-switch-hint></p>
-    <p class="admin-hint" data-chat-notify></p>
+    ${hintFold('Visitors start a chat from the button in the corner of every public page. This screen shows new messages as they arrive, so leave it open while you want to be reachable; if you are on another screen, a message pops up in the corner and the Chat menu item shows how many chats are waiting. Turn on chat notifications (the line under the switch) to get a notification on this phone or computer when a visitor writes, even with the admin closed; each staff member turns them on for each of their own devices. Reply here, close a chat when you are done, and delete the ones you no longer need (chats keep the visitor’s name and, if they gave it, their email). A visitor who writes again reopens a closed chat. A customer who is signed in (on the website or in the app) chats on their account: the chat says Customer and links to their account, and your replies reach their phone as an app notification if they turned those on. Use the switch at the top to turn chat on or off for visitors. The owner can remove the chat feature altogether in Shop Settings → Online.')}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-status="open">Open <span class="admin-tab__badge" data-unread hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-status="closed">Closed</button>
     </div>
-    ${hintFold('Visitors start a chat from the button in the corner of every public page. This screen shows new messages as they arrive, so leave it open while you want to be reachable; if you are on another screen, a message pops up in the corner and the Chat menu item shows how many chats are waiting. Turn on chat notifications (the line under the switch) to get a notification on this phone or computer when a visitor writes, even with the admin closed; each staff member turns them on for each of their own devices. Reply here, close a chat when you are done, and delete the ones you no longer need (chats keep the visitor’s name and, if they gave it, their email). A visitor who writes again reopens a closed chat. A customer who is signed in (on the website or in the app) chats on their account: the chat says Customer and links to their account, and your replies reach their phone as an app notification if they turned those on. Use the switch at the top to turn chat on or off for visitors. The owner can remove the chat feature altogether in Shop Settings → Online.')}
+    <p class="admin-hint" data-switch-hint></p>
+    <p class="admin-hint" data-chat-notify></p>
     <p class="admin-status" role="status" data-state></p>
     <div data-list></div>`;
   $$('[data-status]', root).forEach((b) =>

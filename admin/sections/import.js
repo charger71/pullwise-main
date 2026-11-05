@@ -6,7 +6,7 @@
 
 import { readWorkbook, parseSheet } from '../../js/import/distributors.js';
 import { planImport, applyImport, logImport } from '../../js/import/apply.js';
-import { $, esc, must, setStatus, toast, fmtDate, processImage, loadScript, solidIcon, friendlyError, setupTabs, hintFold, uid, downloadCsv, loadRunLog } from '../lib.js';
+import { $, esc, must, setStatus, toast, fmtDate, processImage, loadScript, solidIcon, friendlyError, setupTabs, hintFold, uid, downloadCsv, loadRunLog, hintSlot } from '../lib.js';
 import { tally } from '../../js/util.js';
 import { todayIn, addDays } from '../../js/dates.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../js/config.js';
@@ -40,13 +40,13 @@ export async function mount(el, ctx) {
   settings = await must(sb.from('settings').select('timezone').eq('id', 1).single());
   el.innerHTML = `
     <h1>Import Titles</h1>
+    ${hintSlot()}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="files">Import Files</button>
       <button type="button" class="admin-tab" role="tab" data-tab="skip">Always Skip</button>
       <button type="button" class="admin-tab" role="tab" data-tab="runs">Recent Runs</button>
     </div>
     <div data-tabpane="files">
-    ${hintFold(`Drop in this week's sheets as downloaded: Lunar or PRH FOC sheets, Lunar or PRH release sheets, or a Funko pre-order list. Any other spreadsheet (.xlsx, .xls or .csv) works too if it has a header row with a <strong>Title</strong> (or Name / Product) column and details such as Price, UPC, ISBN, SKU, Publisher, Release date or FOC date — pictures in the sheet become covers. You'll see what will change before anything is saved. New titles come in with their collector badges ticked when the title says so: <strong>First Issue</strong> (#1), <strong>One-Shot</strong>, <strong>Limited Series</strong> (“#2 (of 6)”), <strong>Facsimile</strong> and <strong>Blind Bag</strong>. Incentive covers and retailer bundles are always skipped, plus anything on the list below.`)}
     <label class="dropzone" for="import-files">
       <input id="import-files" type="file" accept=".xlsx,.xlsm,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" multiple class="visually-hidden">
       <strong>Choose spreadsheets</strong> or drop them here
@@ -86,7 +86,9 @@ export async function mount(el, ctx) {
     addFiles(el, e.dataTransfer.files);
   });
   $('[data-sample]', el).addEventListener('click', downloadSample);
-  setupTabs(el, 'admin-import-tab', 'files');
+  setupTabs(el, 'admin-import-tab', 'files', undefined, {
+    files: `Drop in this week's sheets as downloaded: Lunar or PRH FOC sheets, Lunar or PRH release sheets, or a Funko pre-order list. Any other spreadsheet (.xlsx, .xls or .csv) works too if it has a header row with a <strong>Title</strong> (or Name / Product) column and details such as Price, UPC, ISBN, SKU, Publisher, Release date or FOC date — pictures in the sheet become covers. You'll see what will change before anything is saved. New titles come in with their collector badges ticked when the title says so: <strong>First Issue</strong> (#1), <strong>One-Shot</strong>, <strong>Limited Series</strong> (“#2 (of 6)”), <strong>Facsimile</strong> and <strong>Blind Bag</strong>. Incentive covers and retailer bundles are always skipped, plus anything on the list below.`,
+  });
   mountExclusions(el);
   loadLog(el);
 }

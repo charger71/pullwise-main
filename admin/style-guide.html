@@ -604,6 +604,20 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
             </div>
           </div>
           <div class="sg-item" data-code>
+            <h3>Screen top: title row, How this works, tabs, then everything else</h3>
+            <p class="admin-hint">Every screen starts in this order. (1) The title row: the <code>h1</code> and at most two buttons on the right, like Titles. (2) “How this works”, right under the title and above the tabs. One hint for the whole screen is <code>${hintFold(…)}</code>. When each tab has its own, put <code>${hintSlot()}</code> there and pass the texts to <code>setupTabs(el, key, fallback, onShow, { tab: html })</code>, or call <code>setHint(el, html)</code> when a view draws itself. (3) The tabs. (4) Everything else (status lines, filters, announcements, export and print, more buttons) goes below the tabs. A form's own hint inside a fold can stay with its form. <code>consistency.test.js</code> checks the order and the two-button limit.</p>
+            <div class="sg-demo">
+              <div class="admin-title-row"><h1>Titles</h1><button class="btn btn--ghost" type="button">Button 1</button><button class="btn btn--add" type="button">Button 2</button></div>
+              <details class="admin-hint-fold"><summary><svg class="solid-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM11 6.5h2V11h4.5v2H13v4.5h-2V13H6.5v-2H11z"/></svg> How this works</summary><p class="admin-hint">What this screen is for and how to use it.</p></details>
+              <div class="admin-tabs" role="tablist">
+                <button type="button" class="admin-tab" role="tab" aria-selected="true">All</button>
+                <button type="button" class="admin-tab" role="tab" aria-selected="false">Tab</button>
+                <button type="button" class="admin-tab" role="tab" aria-selected="false">Tab</button>
+              </div>
+              <p class="admin-hint">Everything else goes here.</p>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
             <h3>Panel</h3>
             <div class="sg-demo"><section class="panel"><h2>Notes</h2><p class="admin-hint">Pickup preferences, anything worth remembering.</p></section></div>
           </div>
@@ -670,7 +684,7 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
           <div class="sg-item" data-code>
             <h3>“How this works” (hintFold)</h3>
             <div class="sg-demo">
-              <details class="admin-hint-fold"><summary><svg class="solid-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6.5c2.2 0 3.8 1.3 3.8 3.3 0 1.4-.7 2.2-1.7 3-.9.7-1.3 1.1-1.3 2v.3h-2v-.4c0-1.4.6-2.1 1.6-2.9.9-.7 1.3-1.1 1.3-1.9 0-.9-.7-1.5-1.7-1.5-1 0-1.7.7-1.8 1.7h-2C8.2 7.9 9.8 6.5 12 6.5zM13.2 17.4a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/></svg> How this works</summary><p class="admin-hint">Instructions that start closed on every screen size, to save space. Build it with <code>hintFold(html)</code> from <code>lib.js</code>. It goes at the top, above what it explains: first on a screen or tab, first inside a dialog's form.</p></details>
+              <details class="admin-hint-fold"><summary><svg class="solid-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6.5c2.2 0 3.8 1.3 3.8 3.3 0 1.4-.7 2.2-1.7 3-.9.7-1.3 1.1-1.3 2v.3h-2v-.4c0-1.4.6-2.1 1.6-2.9.9-.7 1.3-1.1 1.3-1.9 0-.9-.7-1.5-1.7-1.5-1 0-1.7.7-1.8 1.7h-2C8.2 7.9 9.8 6.5 12 6.5zM13.2 17.4a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/></svg> How this works</summary><p class="admin-hint">Instructions that start closed on every screen size, to save space. Build it with <code>hintFold(html)</code> from <code>lib.js</code>. On a screen it goes under the title row, above the tabs (see Screen top); inside a dialog it comes first in the form.</p></details>
             </div>
           </div>
           <div class="sg-item" data-code>

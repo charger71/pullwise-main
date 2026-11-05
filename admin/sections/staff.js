@@ -2,7 +2,7 @@
 // Account changes go through the staff-admin Edge Function; the staff table is read-only here.
 
 import { getTheme, saveTheme, COLOR_VARS, getColors, saveColors, currentMode } from '../theme.js';
-import { $, $$, esc, toast, setStatus, openDialog, fmtDateTime, solidIcon, friendlyError, setupTabs, sortableTable, hintFold } from '../lib.js';
+import { $, $$, esc, toast, setStatus, openDialog, fmtDateTime, solidIcon, friendlyError, setupTabs, sortableTable, hintFold, hintSlot } from '../lib.js';
 
 let sb;
 
@@ -91,6 +91,7 @@ export async function mount(el, ctx) {
 
   el.innerHTML = `
     <h1>Staff</h1>
+    ${hintSlot()}
     ${owner ? `<div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="me">My Account</button>
       <button type="button" class="admin-tab" role="tab" data-tab="access">Staff List</button>
@@ -137,7 +138,6 @@ export async function mount(el, ctx) {
     <section class="fold fold--compact fold--static">
       <div class="fold__head"><h2>Staff List</h2></div>
       <div class="fold__body">
-      ${hintFold('Staff can open every admin screen except the Utilities group (Import Titles, Settings, Locations, Backup and Restore); they reach their own My Account from the circle with their initial in the header. Owners can open all of them and also manage this list. Removing someone locks them out of the admin right away. A Super Admin can’t be removed, demoted or have their password reset by an owner.')}
       <div class="admin-table-wrap"><table class="admin-table staff-table cards">
         <thead><tr><th scope="col" data-sort="text">Name</th><th scope="col" data-sort="text">Role</th><th scope="col" data-sort="text" data-first="desc">Last Signed In</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
         <tbody>${rows.map((r) => {
@@ -175,7 +175,6 @@ export async function mount(el, ctx) {
     <section class="fold fold--compact fold--static" data-log-fold>
       <div class="fold__head"><h2>Change Log</h2></div>
       <div class="fold__body">
-      ${hintFold('Who changed what in the admin, newest first. Imports and bulk changes show as one line. Customer details list the fields changed, not their values.')}
       <div class="field"><label for="log-table">Show</label>
         <select id="log-table"><option value="">Everything</option>${Object.entries(LOG_TABLES).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select></div>
       <div data-log aria-live="polite"></div>
@@ -258,7 +257,10 @@ export async function mount(el, ctx) {
   if (!owner) return;
   const reload = () => mount(el, ctx);
 
-  setupTabs(el, 'admin-staff-tab', 'me', (tab) => tab === 'log' && !$('[data-log] table', el) && loadLog(el));
+  setupTabs(el, 'admin-staff-tab', 'me', (tab) => tab === 'log' && !$('[data-log] table', el) && loadLog(el), {
+    access: 'Staff can open every admin screen except the Utilities group (Import Titles, Settings, Locations, Backup and Restore); they reach their own My Account from the circle with their initial in the header. Owners can open all of them and also manage this list. Removing someone locks them out of the admin right away. A Super Admin can’t be removed, demoted or have their password reset by an owner.',
+    log: 'Who changed what in the admin, newest first. Imports and bulk changes show as one line. Customer details list the fields changed, not their values.',
+  });
   sortableTable($('.staff-table', el));
   $('#log-table', el).addEventListener('change', () => loadLog(el));
   const nameOf = (id) => rows.find((r) => r.user_id === id);

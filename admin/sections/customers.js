@@ -204,7 +204,8 @@ const listName = (c) => [c.last_name, c.first_name].filter(Boolean).join(', ') |
 
 function renderList(el) {
   state.customerId = null;
-  // On phones the export and print controls, the icon key and the help text fold away so the list is on the first screen.
+  // At most two buttons at the top (Scan pickup code, New customer); export and print go under the list. On phones they,
+  // the icon key and the help text fold away so the list is on the first screen.
   const phone = isPhone();
   const exportControls = `<label class="cust-export-opt" title="Also export picked-up, released and cancelled titles"><input type="checkbox" data-export-history> Include past titles</label>
         <button class="btn btn--ghost" type="button" data-export-all>Export all pull lists (CSV)</button>
@@ -213,7 +214,6 @@ function renderList(el) {
     <div class="admin-title-row">
       <h1>Customers</h1>
       <div class="admin-actions cust-head-actions">
-        ${phone ? `<details class="cust-more"><summary>Export &amp; print</summary><div class="cust-more__body">${exportControls}</div></details>` : exportControls}
         ${canScan() ? '<button class="btn btn--ghost" type="button" data-scan>Scan pickup code</button>' : ''}
         <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New customer</button>
       </div>
@@ -233,7 +233,8 @@ function renderList(el) {
       <thead><tr><th scope="col" class="col-cust-name" data-sort="name">Name</th><th scope="col" data-sort="phone">Phone</th><th scope="col" data-sort="email">Email</th><th scope="col" class="center" data-sort="ready">Ready</th><th scope="col" class="center" data-sort="active">Active</th><th scope="col" data-sort="updated">Updated</th><th scope="col" class="col-cust-status" data-sort="notes">Status</th></tr></thead>
       <tbody data-rows></tbody>
     </table></div>
-    <div class="admin-pager"><button class="btn btn--ghost" type="button" data-prev>← Previous</button><span data-page></span><button class="btn btn--ghost" type="button" data-next>Next →</button></div>`;
+    <div class="admin-pager"><button class="btn btn--ghost" type="button" data-prev>← Previous</button><span data-page></span><button class="btn btn--ghost" type="button" data-next>Next →</button></div>
+    <div class="admin-actions cust-export">${phone ? `<details class="cust-more"><summary>Export &amp; print</summary><div class="cust-more__body">${exportControls}</div></details>` : exportControls}</div>`;
   const form = $('form', el);
   const markShowTab = () => $$('[data-show]', el).forEach((b) => b.setAttribute('aria-selected', b.dataset.show === state.show));
   markShowTab();

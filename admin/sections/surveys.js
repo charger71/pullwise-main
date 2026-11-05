@@ -39,12 +39,12 @@ export async function mount(el, ctx) {
       <h1>Surveys</h1>
       <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New survey</button>
     </div>
+    ${hintFold('Customers answer without signing in, at the survey\'s link. Only an open survey can be answered. Link to it from a news post, the Dashboard announcement or a custom page.')}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-status="all">All</button>
       <button type="button" class="admin-tab" role="tab" data-status="open">Open <span class="admin-tab__badge" data-open-count hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-status="closed">Closed</button>
     </div>
-    ${hintFold('Customers answer without signing in, at the survey\'s link. Only an open survey can be answered. Link to it from a news post, the Dashboard announcement or a custom page.')}
     <div data-list></div>`;
   try {
     listTab = sessionStorage.getItem('admin-surveys-tab') || listTab;
