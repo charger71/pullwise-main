@@ -231,7 +231,7 @@ async function route() {
     arg = '';
     history.replaceState(null, '', '#dashboard');
   }
-  if (current && current.name !== name && current.module.hasUnsavedChanges?.() && !confirm('You have unsaved changes here. Leave anyway?')) {
+  if (current && (current.name !== name || adminHash(name, arg) !== lastHash) && current.module.hasUnsavedChanges?.() && !confirm('You have unsaved changes here. Leave anyway?')) {
     history.replaceState(null, '', lastHash || `#${current.name}`);
     return;
   }

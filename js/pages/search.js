@@ -1,6 +1,7 @@
 import { initPage, $, esc, fmtDate, openFocFrom } from '../site.js';
 import { getItems, getPosts, getSearchablePages, getFaqs, searchSeries, searchArtists, getEvents, getSettings } from '../data.js';
 import { PAGE_BLOCKS } from '../page-defaults.js';
+import { offHrefs } from '../optional-pages.js';
 import { squash, searchWords } from '../util.js';
 import { renderGrid, itemCard, enableReservations, seriesCards, enableSeriesFollow, artistRows, enableArtistFollow } from '../components.js';
 
@@ -118,7 +119,8 @@ if (!q) {
     load(false),
   ]);
 
-  // Pages: one hit per page, even when several blocks of it match.
+  // Pages: one hit per page, even when several blocks of it match. Pages the shop switched off are left out.
+  const off = offHrefs((await getSettings().catch(() => ({}))).disabled_pages ?? []);
   const labels = Object.fromEntries(PAGE_BLOCKS.map((b) => [b.slug, b.label]));
   const found = new Map();
   for (const p of pages) {
@@ -126,10 +128,10 @@ if (!q) {
     const named = p.custom ? p.title : (PAGE_LINKS[p.slug]?.[0] ?? (p.slug.startsWith('home') ? 'Home' : labels[p.slug]));
     if (!matches(`${named} ${text}`)) continue;
     const href = p.custom ? `page.html?slug=${encodeURIComponent(p.slug)}` : (PAGE_LINKS[p.slug]?.[1] ?? 'index.html');
-    if (!found.has(href)) found.set(href, { title: named, href, text });
+    if (!found.has(href) && !off.has(href)) found.set(href, { title: named, href, text });
   }
   hitList('pages', [...found.values()]);
-  hitList('faq', faqs.filter((f) => matches(`${f.question} ${plain(f.answer_html)}`)).map((f) => ({ title: f.question, href: 'faq.html', text: plain(f.answer_html) })));
+  hitList('faq', off.has('faq.html') ? [] : faqs.filter((f) => matches(`${f.question} ${plain(f.answer_html)}`)).map((f) => ({ title: f.question, href: 'faq.html', text: plain(f.answer_html) })));
   hitList('events', events.filter((e) => matches(`${e.title} ${e.location ?? ''} ${plain(e.description_html ?? e.description)}`)).map((e) => ({ title: `${e.title} · ${fmtDate(e.starts_at, { month: 'short', day: 'numeric' })}`, href: `event.html?id=${e.id}`, text: plain(e.description_html ?? e.description) })));
 
   const hits = posts.filter((p) => matches(`${p.title} ${p.excerpt ?? ''}`));
