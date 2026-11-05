@@ -51,6 +51,7 @@ export async function mount(el, ctx) {
         <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New title</button>
       </div>
     </div>
+    ${hintFold('Every comic, book and product the shop sells. <strong>All</strong> lists everything, the FOC tab shows titles whose final order cutoff is this week (or next week, once this week’s has passed), and <strong>Out This Week</strong> shows what releases this week. Search and filter to narrow the list, then open a title to change its price, status, category or badges. Most titles arrive by import; add one here for anything else. <strong>Clean up old titles</strong> removes old titles nobody has on order.')}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-weektab="all">All</button>
       <button type="button" class="admin-tab" role="tab" data-weektab="foc">${focTabLabel()}</button>

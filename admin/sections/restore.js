@@ -1,6 +1,6 @@
 // Restore (owners): load tables back from a backup file made on the Backup screen. See BACKUPS.md.
 
-import { $, $$, esc, setStatus, fmtDateTime, openDialog, toast, friendlyError, setupTabs, loadRunLog } from '../lib.js';
+import { $, $$, esc, setStatus, fmtDateTime, openDialog, toast, friendlyError, setupTabs, loadRunLog, hintSlot } from '../lib.js';
 import { buildBackup, parseBackup, currentCounts, restoreTables, replaceImpact, failedTable, restoreOrder, recordRestore, NOT_RESTORED } from '../backup.js';
 
 const label = (n) => n.replace(/_/g, ' ');
@@ -16,13 +16,14 @@ export async function mount(el, ctx) {
   const { data: { user } } = await sb.auth.getUser();
   el.innerHTML = `
     <h1>Restore</h1>
+    ${hintSlot()}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="file">Backup File</button>
       <button type="button" class="admin-tab" role="tab" data-tab="tables" disabled title="Choose a backup file first">Tables to Restore</button>
       <button type="button" class="admin-tab" role="tab" data-tab="log">Restore Log</button>
     </div>
     <div data-tabpane="file">
-    <p>Load tables back from a backup file, for example after something was deleted by mistake. Pick the file, then tick only the tables you need. <strong>Nothing happens until you press Restore.</strong></p>
+    <p><strong>Nothing happens until you press Restore.</strong></p>
     <div class="field"><label for="bk-file">Backup file</label><input id="bk-file" type="file" accept=".gz,.json,application/gzip,application/json"></div>
     <p class="admin-status" role="status" data-file-status></p>
     </div>
@@ -30,11 +31,14 @@ export async function mount(el, ctx) {
     <div data-plan hidden></div>
     </div>
     <div data-tabpane="log">
-    <p>Every restore, newest first: who ran it, how (add missing rows or replace), and what each table got. A failed restore changed nothing.</p>
     <div data-log></div>
     </div>`;
   const log = () => loadRunLog(sb, $('[data-log]', el), { jobs: ['restore'], name: (_, text) => (text.startsWith('replace') ? 'Replace' : 'Add missing rows'), detail: (text) => text.replace(/^(replace|add missing) — /, ''), by: true, limit: 50, empty: 'No restores yet.' }).catch(() => {});
-  const showTab = setupTabs(el, 'admin-restore-tab', 'file');
+  const showTab = setupTabs(el, 'admin-restore-tab', 'file', undefined, {
+    file: 'Load tables back from a backup file, for example after something was deleted by mistake. Pick the file (a nightly one from <a href="#backup">Backup</a>, or one you downloaded), then tick only the tables you need.',
+    tables: 'Tick only the tables you need. <strong>Add missing rows</strong> puts back what was deleted and leaves everything else alone; <strong>Replace</strong> deletes every row in the table first and loads the backup’s, so changes made since the backup are lost.',
+    log: 'Every restore, newest first: who ran it, how (add missing rows or replace), and what each table got. A failed restore changed nothing.',
+  });
   const tablesTab = $('[data-tab="tables"]', el);
   if (tablesTab.getAttribute('aria-selected') === 'true') showTab('file', false); // never reopen on the table list: it needs a file read first
   log();

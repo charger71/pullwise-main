@@ -1,7 +1,7 @@
 // Events: the Community Calendar (signings, release parties, tournaments…).
 
 import { refreshEventAlerts, newEventSignups } from '../event-alerts.js';
-import { $, esc, must, toast, openDialog, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, sortableTable, formatPhone, solidIcon, friendlyError, fetchAll, listLocations } from '../lib.js';
+import { $, esc, must, toast, openDialog, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, sortableTable, formatPhone, solidIcon, friendlyError, fetchAll, listLocations, hintFold } from '../lib.js';
 
 const TYPES = { release_party: 'Release party', signing: 'Signing', tournament: 'Tournament', livestream: 'Livestream', comic_con: 'Comic Con', sale: 'Sale', other: 'Other' };
 let sb;
@@ -27,6 +27,7 @@ function showList(el) {
       <h1>Events</h1>
       <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New event</button>
     </div>
+    ${hintFold('Events show on the website’s Events page. <strong>Upcoming</strong> lists what’s ahead and <strong>Past</strong> the ones that are over; open one to edit it. <strong>Event Signups</strong> lists everyone who signed up for an event, and new signups carry a badge until you’ve seen them.')}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-past="0">Upcoming</button>
       <button type="button" class="admin-tab" role="tab" data-past="1">Past</button>

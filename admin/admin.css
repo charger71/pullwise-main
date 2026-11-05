@@ -188,6 +188,8 @@
 .admin-title-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-10) var(--sp-16); margin-bottom: var(--sp-12); }
 .admin-title-row h1, .admin-title-row h2 { margin: 0; }
 .admin-title-row:has(> h1) { margin-bottom: calc(var(--fs-h1) * .5); } /* the same gap under a page title with or without buttons beside it */
+/* A page title with no buttons beside it takes the same height as a title row with them, so what follows starts at the same place. */
+.admin-section > h1 { display: flex; align-items: center; min-height: var(--tap); margin-bottom: calc(var(--fs-h1) * .5); }
 .btn svg, .icon-btn svg { flex: none; }
 .admin-table td > .btn { vertical-align: middle; }
 .fold .sticky-actions, .panel .sticky-actions { background: var(--surface); } /* a save bar inside a card matches the card, not the page */
@@ -1039,7 +1041,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 }
 
 /* ---------- Received tab on phones ---------- */
-.admin-hint-fold { margin-bottom: var(--sp-12); }
+.admin-hint-fold { margin-bottom: var(--sp-24); }
 .admin-hint-fold > summary { cursor: pointer; font-weight: 600; color: var(--muted); min-height: var(--tap); display: flex; align-items: center; }
 .admin-hint-fold > .admin-hint { margin: 0; padding: 0 var(--sp-16) var(--sp-14); } /* the text lines up with the heading above it, not the box edge */
 @media (max-width: 899px) {
@@ -1223,6 +1225,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .faq-item__move button { min-width: 0; }
 @media (max-width: 899px) {
   .btn { min-height: var(--tap-btn); } /* every button is a 48px tap target on a phone, small ones 44px */
+  .admin-section > h1 { min-height: var(--tap-btn); } /* a bare page title keeps pace with a title row's buttons */
   .btn.btn--small { min-height: var(--tap); }
   .sticky-actions[hidden] { display: none; }
   .fold .sticky-actions { background: var(--surface); }

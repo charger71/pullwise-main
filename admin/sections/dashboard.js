@@ -4,7 +4,7 @@
 // titles, titles needing attention) and how many customers use the pull list
 // app. Read-only; links out to the sections where things get changed.
 
-import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations, fmtTime, toListTop } from '../lib.js';
+import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations, fmtTime, toListTop, hintSlot } from '../lib.js';
 import { lastReserveDay } from '../../js/site.js';
 import { lastBackup } from '../backup.js';
 import { LINE_STATUS_SHORT } from '../../js/labels.js';
@@ -44,6 +44,7 @@ export async function mount(el, ctx) {
       <h1>Dashboard</h1>
       <p class="card__meta" data-asof></p>
     </div>
+    ${hintSlot()}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="today">Today</button>
       ${locations.map((l) => `<button type="button" class="admin-tab" role="tab" data-tab="loc-${l.id}" data-icon="pin">${esc(l.name)}</button>`).join('')}
@@ -174,11 +175,18 @@ export async function mount(el, ctx) {
     ]);
   };
   // A store's tab shows the Today panels for that store (the tab bar hides every other pane, so bring Today back).
+  const todayHint = 'The shop at a glance: today’s numbers, anything that needs fixing (lines at zero are hidden), the next order cutoff and the latest orders.';
+  const hints = {
+    today: todayHint,
+    ...Object.fromEntries(locations.map((l) => [`loc-${l.id}`, `${todayHint} This tab shows ${esc(l.name)} only.`])),
+    trends: `How the shop is doing: orders per day over the last ${DAYS} days, the most-reserved titles, and how many titles have each status.`,
+    system: 'Whether the shop’s scheduled jobs, such as the nightly backup and the weekly emails, are running on time.',
+  };
   setupTabs(el, 'admin-dashboard-tab', 'today', (tab) => {
     const location = tab.startsWith('loc-') ? tab.slice(4) : '';
     if (location) $('[data-tabpane="today"]', el).hidden = false;
     if (shown !== location && (tab === 'today' || location)) loadToday(location);
-  });
+  }, hints);
 
   await Promise.all([
     shown === null ? loadToday('') : null,

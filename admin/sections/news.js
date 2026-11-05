@@ -1,7 +1,7 @@
 // News: blog posts (new-release roundups, shop news). Drafts stay private
 // until published; a future publish time schedules the post.
 
-import { $, $$, esc, must, toast, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, slugify, sortableTable, solidIcon, friendlyError } from '../lib.js';
+import { $, $$, esc, must, toast, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, slugify, sortableTable, solidIcon, friendlyError, hintFold } from '../lib.js';
 
 let sb;
 let tab = 'all'; // all | published | scheduled | drafts
@@ -18,6 +18,7 @@ function showList(el) {
       <h1>News</h1>
       <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New post</button>
     </div>
+    ${hintFold('Posts show on the website’s News page, newest first. <strong>Published</strong> posts are live, <strong>Scheduled</strong> ones go live by themselves at their publish date and time, and <strong>Drafts</strong> have no publish date yet, so customers don’t see them. Open a post to edit it.')}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-news="all">All</button>
       <button type="button" class="admin-tab" role="tab" data-news="published">Published</button>

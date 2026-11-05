@@ -1,7 +1,7 @@
 // Locations: the shop's pickup locations (owners only). A shop with one location edits its address and hours in
 // Shop Settings, which keeps that location in step; once there are two or more, each is edited here.
 
-import { $, $$, esc, must, toast, setStatus, solidIcon, friendlyError, hintFold, isPhone, uid } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, solidIcon, friendlyError, hintSlot, setHint, isPhone, uid } from '../lib.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 
@@ -15,7 +15,7 @@ export async function mount(el, { sb }) {
       <h1>Locations</h1>
       <button class="btn btn--add" type="button" data-add>${solidIcon('add', 18)} Add a location</button>
     </div>
-    <div data-hint></div>
+    ${hintSlot()}
     <div data-list></div>`;
   const list = $('[data-list]', el);
   let rows;
@@ -26,7 +26,7 @@ export async function mount(el, { sb }) {
     return;
   }
   const shared = rows.length === 1; // a lone location mirrors Shop Settings
-  $('[data-hint]', el).innerHTML = hintFold(shared
+  setHint(el, shared
     ? 'This shop has one location, so its address and hours are edited in <a href="#settings">Shop Settings</a>. Add a second location and each one is edited here. Customers then choose which one they pick up at.'
     : 'Customers choose which location they pick up at. Their emails show that location’s address and hours.');
   rows.forEach((l) => addCard(sb, list, l, { locked: shared, remount: () => mount(el, { sb }) }));
