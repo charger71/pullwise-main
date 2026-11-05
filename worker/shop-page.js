@@ -3,6 +3,7 @@
 
 import { esc, sizedImage, heroHeadlineHtml, HERO_WIDTH, LOGO_WIDTH } from '../js/util.js';
 import { themeCss, fontPreloads } from '../js/theme-vars.js';
+import { offHrefs } from '../js/optional-pages.js';
 
 /** The shop whose domain this is, or null (then the site runs on the static js/config.js: demo mode). */
 export function findShop(shops, hostname) {
@@ -227,9 +228,10 @@ export function headTags(file, settings, supabaseUrl) {
 export const SITEMAP_PAGES = ['', 'pre-orders.html', 'new-arrivals.html', 'we-buy-comics.html', 'calendar.html', 'blog.html', 'contact.html',
   'about.html', 'gift-cards.html', 'how-to.html', 'faq.html', 'privacy.html', 'terms.html'];
 
-/** /sitemap.xml for one shop, on its main domain. */
-export function sitemapXml(shop) {
-  const urls = SITEMAP_PAGES.map((p) => `  <url><loc>${esc(`${siteUrl(shop)}/${p}`)}</loc></url>`);
+/** /sitemap.xml for one shop, on its main domain, without the pages it switched off (`off`: settings.disabled_pages). */
+export function sitemapXml(shop, off = []) {
+  const gone = offHrefs(off);
+  const urls = SITEMAP_PAGES.filter((p) => !gone.has(p)).map((p) => `  <url><loc>${esc(`${siteUrl(shop)}/${p}`)}</loc></url>`);
   return ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">', ...urls, '</urlset>', ''].join('\n');
 }
 

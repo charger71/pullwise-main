@@ -70,7 +70,7 @@ async function showList(el, sb) {
       <h1>Pages</h1>
       <button class="btn btn--add" type="button" id="page-new">${solidIcon('add', 18)} New page</button>
     </div>
-    ${hintFold('Every page on the website. Sort by any column, and open a page to change its text. Switch a page off to take it off the site: its links leave the menu, footer and search, and its address shows “page not found”. Its text is kept for when you switch it back on. Switching off Calendar or News also hides their events or posts and the home page’s block for them. Home, Pre-Orders, New Arrivals, Privacy and Terms are always on, because the shop runs on them.')}
+    ${hintFold(`Every page on the website. Sort by any column, and open a page to change its text. Switch a page off to take it off the site: its links leave the menu, footer and search, and its address shows “page not found”. Its text is kept for when you switch it back on. Switching off Calendar or News also hides their events or posts and the home page’s block for them. Home, Pre-Orders, New Arrivals, Privacy and Terms are always on, because the shop runs on them.${isOwner ? '' : ' Only an owner can switch pages on or off.'}`)}
     <div data-list><p class="card__meta">Loading the pages…</p></div>`;
   $('#page-new', el).addEventListener('click', () => newPage(el, sb));
   let saved = {};
@@ -90,9 +90,9 @@ async function showList(el, sb) {
       <td class="card-title"><a href="${adminHash('pages', sc.key)}"><strong>${esc(sc.label)}</strong></a>${sc.custom ? ' <span class="pill pill--accent">Added</span>' : ''}</td>
       <td class="card-line card-label">${esc(linkedFrom(sc))}</td>
       <td class="card__meta nowrap card-line card-label" data-sort="${saved[sc.key] ?? ''}">${saved[sc.key] ? esc(fmtDate(saved[sc.key])) : '—'}</td>
-      <td class="card-wide" data-sort="${isOn(sc) ? 'on' : 'off'}">${canSwitch(sc)
-        ? switchHtml(isOn(sc) ? 'On' : 'Off', { checked: isOn(sc), attrs: `data-switch="${esc(sc.blocks[0].slug)}" aria-label="${esc(sc.label)} on the site"` })
-        : '<span class="card__meta">Always on</span>'}</td>
+      <td class="card-wide" data-sort="${isOn(sc) ? 'on' : 'off'}">${!canSwitch(sc) ? '<span class="card__meta">Always on</span>'
+        : !isOwner ? (isOn(sc) ? 'On' : '<span class="pill">Off</span>')
+        : switchHtml(isOn(sc) ? 'On' : 'Off', { checked: isOn(sc), attrs: `data-switch="${esc(sc.blocks[0].slug)}" aria-label="${esc(sc.label)} on the site"` })}</td>
     </tr>`).join('')}</tbody>
   </table></div>`;
   sortableTable($('table', list));
@@ -281,6 +281,10 @@ async function save(el, sb, key) {
       return false;
     }
     if (newSlug !== screen.blocks[0].slug) {
+      if (!isOwner && disabled.includes(screen.blocks[0].slug)) {
+        setStatus(status, 'This page is switched off: only an owner can change its address.', 'error');
+        return false;
+      }
       try {
         if (PAGE_BLOCKS.some((b) => b.slug === newSlug) || (await must(sb.from('pages').select('slug').eq('slug', newSlug).maybeSingle()))) {
           setStatus(status, 'There’s already a page with that address.', 'error');

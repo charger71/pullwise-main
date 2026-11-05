@@ -44,7 +44,7 @@ export default {
       const links = assetLinks(shop);
       return links ? text(JSON.stringify(links), 'application/json', request) : new Response('Not found', { status: 404 });
     }
-    if (url.pathname === '/sitemap.xml') return text(sitemapXml(shop), 'application/xml', request);
+    if (url.pathname === '/sitemap.xml') return text(sitemapXml(shop, (await shopData(shop, ctx))?.settings?.disabled_pages ?? []), 'application/xml', request);
     if (url.pathname === '/robots.txt') {
       const res = await env.ASSETS.fetch(new Request(new URL('/robots.txt', url), { method: 'GET' }));
       return res.ok ? text(robotsTxt(shop, await res.text()), 'text/plain', request) : res;
@@ -127,7 +127,7 @@ async function shopData(shop, ctx) {
       return r.json();
     };
     const [settings, pages] = await Promise.all([
-      get('settings?select=shop_name,tagline,timezone,logo_url,favicon_url,app_icon_url,app_screenshots,hero_image_url,hero_headline,colors,fonts&id=eq.1'),
+      get('settings?select=shop_name,tagline,timezone,logo_url,favicon_url,app_icon_url,app_screenshots,hero_image_url,hero_headline,colors,fonts,disabled_pages&id=eq.1'),
       get('pages?select=slug,meta_title,meta_description'),
     ]);
     const data = { settings: settings[0] ?? {}, pages: Object.fromEntries(pages.map((p) => [p.slug, p])) };
