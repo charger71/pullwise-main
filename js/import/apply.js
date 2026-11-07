@@ -51,7 +51,7 @@ function initialStatus(item, today) {
 async function existingBySku(sb, distributor, skus) {
   const map = new Map();
   for (const batch of chunks(skus, 200)) {
-    const rows = await must(sb.from('items').select('sku,cover_url,status').eq('distributor', distributor).in('sku', batch));
+    const rows = await must(sb.from('items').select('sku,upc,cover_url,status').eq('distributor', distributor).in('sku', batch));
     rows.forEach((r) => map.set(r.sku, r));
   }
   return map;
@@ -62,17 +62,20 @@ async function existingBySku(sb, distributor, skus) {
  * already belongs to another title (e.g. a Penguin Random House sheet listing a
  * graphic novel that came in on a Lunar sheet) are left out as `duplicates`: the
  * database allows each UPC once, and the same book shouldn't be listed twice.
- * Whichever listing was imported first stays.
- * @returns {Promise<{ fresh: object[], known: object[], duplicates: object[], existing: Map }>}
+ * Whichever listing was imported first stays. A title already stored whose sheet row now gives a UPC another title
+ * holds (a mistake in the sheet, seen on Lunar) keeps its stored UPC and refreshes everything else: it comes back
+ * without `upc` in `known`, and is listed in `upcClashes` for someone to check.
+ * @returns {Promise<{ fresh: object[], known: object[], duplicates: object[], upcClashes: object[], existing: Map }>}
  */
 export async function planImport(sb, { distributor, items }) {
   const existing = await existingBySku(sb, distributor, items.map((i) => i.sku));
   const unseen = items.filter((i) => !existing.has(i.sku));
+  const moved = new Set(items.filter((i) => i.upc && existing.has(i.sku) && existing.get(i.sku).upc !== i.upc));
   const taken = new Map();
   for (const field of ['upc', 'isbn']) {
-    const values = [...new Set(unseen.map((i) => i[field]).filter(Boolean))];
+    const values = [...new Set([...unseen, ...(field === 'upc' ? moved : [])].map((i) => i[field]).filter(Boolean))];
     for (const batch of chunks(values, 200)) {
-      const rows = await must(sb.from('items').select(`id,${field},title,issue_number`).in(field, batch));
+      const rows = await must(sb.from('items').select(`id,${field},title,issue_number,variant`).in(field, batch));
       rows.forEach((r) => taken.set(`${field}:${r[field]}`, r));
     }
   }
@@ -87,7 +90,19 @@ export async function planImport(sb, { distributor, items }) {
       keys.forEach((k) => taken.set(k, i)); // a second row with the same UPC or ISBN in this sheet
     }
   }
-  return { existing, fresh, known: items.filter((i) => existing.has(i.sku)), duplicates };
+  const upcClashes = [];
+  const known = items.filter((i) => existing.has(i.sku)).map((i) => {
+    if (!moved.has(i)) return i;
+    const holder = taken.get(`upc:${i.upc}`);
+    if (!holder) {
+      taken.set(`upc:${i.upc}`, i);
+      return i;
+    }
+    upcClashes.push({ ...i, existingTitle: holder });
+    const { upc, ...rest } = i;
+    return rest;
+  });
+  return { existing, fresh, known, duplicates, upcClashes };
 }
 
 const isPng = (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
@@ -142,6 +157,12 @@ async function uploadCover(sb, distributor, item, ctx) {
   return { url, thumbUrl };
 }
 
+/** A UPC clash for the logs: which title kept its UPC, and who holds the one the sheet gave it. */
+export function upcClashLine(i) {
+  const name = (t) => [t.title, t.issue_number && `#${t.issue_number}`, t.variant].filter(Boolean).join(' ');
+  return `${i.sku} ${name(i)}: the sheet's UPC ${i.upc} is already on ${name(i.existingTitle)}`;
+}
+
 /**
  * Write a parsed sheet to the database.
  * @param sb        Supabase client allowed to write items and storage
@@ -149,7 +170,7 @@ async function uploadCover(sb, distributor, item, ctx) {
  * @param opts      { images, imagesByRow, fetchRemote, makeThumb, putMedia, today, onSale, onProgress }
  *                  makeThumb(bytes, type, item) → { bytes, type } | null makes the small card copy of a cover;
  *                  putMedia(sb, path, bytes, opts) → url stores a picture (default: media-store.js)
- * @returns summary { added, updated, skipped, covers, coversMissing, coverErrors }
+ * @returns summary { added, updated, skipped, duplicates, upcClashes (lines), arrived, covers, coversMissing, coverErrors }
  */
 export async function applyImport(sb, parsed, opts) {
   const { distributor, skipped } = parsed;
@@ -179,7 +200,7 @@ export async function applyImport(sb, parsed, opts) {
 
   // Plan again right before writing: fetching covers takes a while, and titles saved in the meantime (another
   // import in another tab, or by hand) are updated rather than inserted a second time.
-  const { existing, fresh, known, duplicates } = await planImport(sb, { distributor, items });
+  const { existing, fresh, known, duplicates, upcClashes } = await planImport(sb, { distributor, items });
   // A title that gained a cover in the meantime keeps it.
   for (const i of known) if (existing.get(i.sku)?.cover_url) (coverUrls.delete(i.sku), thumbUrls.delete(i.sku));
 
@@ -223,6 +244,7 @@ export async function applyImport(sb, parsed, opts) {
     updated: known.length,
     skipped: skipped.length,
     duplicates: duplicates.length,
+    upcClashes: upcClashes.map(upcClashLine),
     arrived: newRows.filter((r) => r.status !== 'pre_order').length,
     covers: coverUrls.size,
     coversMissing: Math.max(0, needCover.length - coverUrls.size),

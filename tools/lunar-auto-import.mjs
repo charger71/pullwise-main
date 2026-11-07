@@ -55,6 +55,8 @@ export function summary(results) {
   const read = results.filter((r) => !r.missing && !r.error);
   const sum = (k) => read.reduce((n, r) => n + (r[k] ?? 0), 0);
   const parts = [`${sum('added')} added`, `${sum('updated')} refreshed`, `${sum('unchanged')} unchanged`, `${sum('skipped')} skipped`];
+  const clashes = read.reduce((n, r) => n + (r.upcClashes?.length ?? 0), 0);
+  if (clashes) parts.push(`${clashes} kept their UPC (the sheet's is on another title)`);
   if (sum('covers')) parts.push(`${sum('covers')} covers`);
   if (sum('coversMissing')) parts.push(`${sum('coversMissing')} without a cover yet`);
   const notYet = results.filter((r) => r.missing).map((r) => r.sheet);
@@ -74,7 +76,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const XLSX = await import('xlsx');
     const JSZip = (await import('jszip')).default;
     const sharp = (await import('sharp')).default;
-    const { withoutUnchanged, planImport, applyImport } = await import('../js/import/apply.js');
+    const { withoutUnchanged, planImport, applyImport, upcClashLine } = await import('../js/import/apply.js');
     // The same sizes and quality as the Import page (processImage): covers 1000 px, card copies 560 px.
     const shrink = async (bytes, size, quality) => ({
       bytes: new Uint8Array(await sharp(bytes).rotate().resize(size, size, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality, mozjpeg: true }).toBuffer()),
@@ -107,8 +109,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         const todo = await withoutUnchanged(sb, parsed);
         if (dryRun) {
           const plan = await planImport(sb, todo);
-          results.push({ sheet: name, added: plan.fresh.length, updated: plan.known.length, unchanged: todo.unchanged, skipped: parsed.skipped.length });
+          const upcClashes = plan.upcClashes.map(upcClashLine);
+          results.push({ sheet: name, added: plan.fresh.length, updated: plan.known.length, unchanged: todo.unchanged, skipped: parsed.skipped.length, upcClashes });
           console.log(`${name}: ${plan.fresh.length} new, ${plan.known.length} to refresh, ${todo.unchanged} unchanged, ${parsed.skipped.length} skipped`);
+          upcClashes.forEach((c) => console.log(`  UPC: ${c}`));
           continue;
         }
         const result = await applyImport(sb, todo, {
@@ -125,6 +129,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         });
         results.push({ sheet: name, ...result, unchanged: todo.unchanged });
         console.log(`${name}: ${result.added} added, ${result.updated} refreshed, ${todo.unchanged} unchanged, ${result.skipped} skipped, ${result.covers} covers`);
+        result.upcClashes.forEach((c) => console.log(`  UPC: ${c}`));
         result.coverErrors.slice(0, 10).forEach((e) => console.log(`  cover: ${e}`));
       } catch (err) {
         results.push({ sheet: name, error: err.message });

@@ -27,4 +27,8 @@ assert.equal(summary([
   { sheet: 'Release Nov 11', error: 'timed out' },
 ]), 'Lunar, 2 of 4 sheets: 120 added, 16 refreshed, 700 unchanged, 55 skipped, 118 covers, 2 without a cover yet. not out yet: FOC Dec 28. failed: Release Nov 11: timed out');
 
+assert.equal(summary([
+  { sheet: 'Release Nov 18', added: 0, updated: 5, unchanged: 474, skipped: 84, upcClashes: ['one', 'two'] },
+]), "Lunar, 1 of 1 sheets: 0 added, 5 refreshed, 474 unchanged, 84 skipped, 2 kept their UPC (the sheet's is on another title)");
+
 console.log('lunar auto-import tests passed');

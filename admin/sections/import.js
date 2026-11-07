@@ -210,7 +210,7 @@ async function preview(el, card, name, parsed, book) {
   const today = shopToday();
   const render = async (onSale) => {
     const items = onSale ? parsed.items.map((i) => ({ ...i, release_date: onSale })) : parsed.items;
-    const { fresh, known, duplicates } = await planImport(sb, { ...parsed, items });
+    const { fresh, known, duplicates, upcClashes } = await planImport(sb, { ...parsed, items });
     const go = $('[data-go]', card);
     if (!go.disabled) go.textContent = `Import ${fresh.length + known.length} ${fresh.length + known.length === 1 ? 'title' : 'titles'}`;
     const released = fresh.filter((i) => i.release_date && i.release_date <= today).length;
@@ -221,6 +221,7 @@ async function preview(el, card, name, parsed, book) {
         <li><strong>${known.length}</strong> already imported (prices, dates and descriptions refreshed)</li>
         <li><strong>${parsed.skipped.length}</strong> skipped</li>
         ${duplicates.length ? `<li><strong>${duplicates.length}</strong> left out — UPC or ISBN already on another title</li>` : ''}
+        ${upcClashes.length ? `<li><strong>${upcClashes.length}</strong> keep their UPC — the sheet's is on another title</li>` : ''}
       </ul>
       ${duplicates.length ? `<details>
         <summary>${duplicates.length} already in the catalog under another listing</summary>
@@ -278,7 +279,7 @@ async function run(el, card, name, parsed, book, onSale) {
     result = { file: name, distributor: parsed.distributor, ...summary };
     setStatus(
       status,
-      `✓ Imported: ${summary.added} added, ${summary.updated} updated${summary.duplicates ? `, ${summary.duplicates} already in the catalog` : ''}${summary.arrived ? `, ${summary.arrived} straight to New Arrivals` : ''}. Covers: ${summary.covers} saved${summary.coversMissing ? `, ${summary.coversMissing} not available` : ''}.`,
+      `✓ Imported: ${summary.added} added, ${summary.updated} updated${summary.duplicates ? `, ${summary.duplicates} already in the catalog` : ''}${summary.upcClashes.length ? `, ${summary.upcClashes.length} kept their UPC (the sheet's is on another title)` : ''}${summary.arrived ? `, ${summary.arrived} straight to New Arrivals` : ''}. Covers: ${summary.covers} saved${summary.coversMissing ? `, ${summary.coversMissing} not available` : ''}.`,
       'ok',
     );
     go.textContent = 'Imported';
