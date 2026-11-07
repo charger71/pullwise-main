@@ -48,6 +48,7 @@ export async function fetchRecords(ranges, key, fetchJson) {
 export function summary(r) {
   const parts = [`${r.added} added`, `${r.updated} refreshed`, `${r.unchanged ?? 0} unchanged`, `${r.skipped} skipped`];
   if (r.duplicates) parts.push(`${r.duplicates} already in from another sheet`);
+  if (r.upcClashes?.length) parts.push(`${r.upcClashes.length} kept their UPC (the sheet's is on another title)`);
   if (r.covers) parts.push(`${r.covers} covers`);
   if (r.coversMissing) parts.push(`${r.coversMissing} without a cover yet`);
   return `PRH, next ${WEEKS} weeks: ${parts.join(', ')}`;
