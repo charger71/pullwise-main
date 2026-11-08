@@ -2,10 +2,10 @@
 // waiting to be ordered or picked up), the latest orders, a 30-day order
 // chart, product stats (titles by status, next order cutoff, most-reserved
 // titles, titles needing attention), estimated money and pickup follow-through,
-// how many customers use the pull list app and what people search for.
+// customers drifting away, how many use the pull list app and what people search for.
 // Read-only; links out to the sections where things get changed.
 
-import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations, fmtTime, toListTop, hintSlot } from '../lib.js';
+import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations, fmtTime, toListTop, hintSlot, formatPhone, openEmailDialog } from '../lib.js';
 import { lastReserveDay } from '../../js/site.js';
 import { lastBackup } from '../backup.js';
 import { moneySummary } from '../money.js';
@@ -17,6 +17,7 @@ const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
 const DAYS = 30;
 const SEARCH_DAYS = 90; // the database keeps searches this long (supabase/migrations/…_search_log.sql)
 const MONEY_WEEKS = 13;
+const DRIFT_DAYS = 60;
 const LINE_FIELDS = 'id,order_id,quantity,status,arrived_on,item:items(id,title,issue_number,variant,publisher,price,foc_date,release_date,cover_url)';
 let sb;
 let settings;
@@ -93,6 +94,11 @@ export async function mount(el, ctx) {
       <section class="dash-card dash-card--wide" aria-labelledby="dash-trend">
         <h2 id="dash-trend">Orders per Day · Last ${DAYS} days</h2>
         <div data-trend aria-busy="true"></div>
+      </section>
+      <section class="dash-card dash-card--wide" aria-labelledby="dash-drift">
+        <h2 id="dash-drift">Customers Drifting Away</h2>
+        <p class="admin-hint">Pull list customers with books in who haven’t picked up in ${DRIFT_DAYS} days, or who have books past the pickup window (red rows). Biggest value first.</p>
+        <div data-drift aria-busy="true"></div>
       </section>
       <div class="dash-stack">
       <section class="dash-card" aria-labelledby="dash-top">
@@ -204,7 +210,7 @@ export async function mount(el, ctx) {
   const hints = {
     today: todayHint,
     ...Object.fromEntries(locations.map((l) => [`loc-${l.id}`, `${todayHint} This tab shows ${esc(l.name)} only.`])),
-    trends: `How the shop is doing: orders per day over the last ${DAYS} days, the most-reserved titles, estimated money and how many held copies get picked up, how many titles have each status, and what people search for.`,
+    trends: `How the shop is doing: orders per day over the last ${DAYS} days, customers who may need a call, the most-reserved titles, estimated money and how many held copies get picked up, how many titles have each status, and what people search for.`,
     system: 'Whether the shop’s scheduled jobs, such as the nightly backup and the weekly emails, are running on time.',
   };
   setupTabs(el, 'admin-dashboard-tab', 'today', (tab) => {
@@ -219,6 +225,7 @@ export async function mount(el, ctx) {
     panel('[data-status]', renderStatus),
     APP_ENABLED ? panel('[data-app]', renderApp) : null, // only shops with the app (shops.json)
     panel('[data-top]', async (box) => renderTop(box, await lines)),
+    panel('[data-drift]', renderDrift),
     panel('[data-money]', async (box) => renderMoney(box, await lines)),
     panel('[data-top-searches]', renderTopSearches),
     panel('[data-latest-searches]', renderLatestSearches),
@@ -287,16 +294,49 @@ async function renderLatest(box, loc = null, stale = () => false) {
       .join('')}</tbody>
   </table></div>`;
   sortableTable($('table', box));
-  // The destination screens read these on load: a customer id for Customers, a guest order id for Reservations.
+  box.onclick = rememberLink;
+}
+
+/** The destination screens read these on load: a customer id for Customers, a guest order id for Reservations. */
+function rememberLink(e) {
+  const link = e.target.closest('[data-customer], [data-guest]');
+  if (!link) return;
+  try {
+    if (link.dataset.customer) sessionStorage.setItem('admin-open-customer', link.dataset.customer);
+    else sessionStorage.setItem('admin-open-guest', link.dataset.guest);
+  } catch {
+    /* the link still opens the screen */
+  }
+}
+
+/** Pull list customers worth a call: name, contact, last pickup, and what's waiting for them (drifting_customers in the database). */
+async function renderDrift(box) {
+  const rows = await must(sb.rpc('drifting_customers', { p_days: DRIFT_DAYS }));
+  if (!rows.length) {
+    box.innerHTML = '<p class="empty">Nobody right now. Everyone with books in has been by lately.</p>';
+    return;
+  }
+  box.innerHTML = `<div class="admin-table-wrap"><table class="admin-table cards">
+      <thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col">Last pickup</th><th scope="col">Waiting</th><th scope="col">Value</th></tr></thead>
+      <tbody></tbody></table></div>
+    ${PAGER_HTML}`;
+  setupPager(box, rows.length, (start, end) => {
+    $('tbody', box).innerHTML = rows
+      .slice(start, end)
+      .map((c) => `<tr${c.past_window ? ' class="is-overdue"' : ''}>
+        <td class="card-title"><a href="#customers" data-customer="${c.id}"><strong>${esc(c.name || c.email || '(no name)')}</strong></a></td>
+        <td class="nowrap">${esc(formatPhone(c.phone))}</td>
+        <td class="card-action">${c.email ? `<button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(c.email)}" aria-label="Email ${esc(c.name || c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email</button>` : ''}</td>
+        <td class="nowrap card-label">${c.last_pickup ? fmtDate(dayKey(c.last_pickup), { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'}</td>
+        <td class="center card-key card-label">${c.waiting.toLocaleString()}${c.past_window ? `<span class="card__meta"> (${c.past_window.toLocaleString()} past window)</span>` : ''}</td>
+        <td class="center card-label">${dollars(Number(c.waiting_value))}</td>
+      </tr>`)
+      .join('');
+  });
   box.onclick = (e) => {
-    const link = e.target.closest('[data-customer], [data-guest]');
-    if (!link) return;
-    try {
-      if (link.dataset.customer) sessionStorage.setItem('admin-open-customer', link.dataset.customer);
-      else sessionStorage.setItem('admin-open-guest', link.dataset.guest);
-    } catch {
-      /* the link still opens the screen */
-    }
+    const mail = e.target.closest('[data-email-to]');
+    if (mail) openEmailDialog({ to: mail.dataset.emailTo, name: mail.dataset.emailName, customerId: Number(mail.dataset.emailCustomer) });
+    else rememberLink(e);
   };
 }
 
