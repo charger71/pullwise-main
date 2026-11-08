@@ -1,5 +1,5 @@
 import { initPage, $, esc, fmtDate, openFocFrom } from '../site.js';
-import { getItems, getPosts, getSearchablePages, getFaqs, searchSeries, searchArtists, getEvents, getSettings } from '../data.js';
+import { getItems, getPosts, getSearchablePages, getFaqs, searchSeries, searchArtists, getEvents, getSettings, logSearch } from '../data.js';
 import { PAGE_BLOCKS } from '../page-defaults.js';
 import { offHrefs } from '../optional-pages.js';
 import { squash, searchWords } from '../util.js';
@@ -74,6 +74,7 @@ if (!q) {
       } else {
         items = rows;
         renderGrid(grid, items, { reservable: true }, `No titles match “${q}”.`);
+        logSearch(q, total);
       }
       count.textContent = `${total} ${total === 1 ? 'title' : 'titles'} for “${q}”`;
       const left = total - items.length;

@@ -4,7 +4,7 @@
 // button and links from outside (a notification) can open one. sw.js keeps the app opening without a connection.
 
 import { $, esc, announceIn, motionMs, sizedImage, addressLines, hoursList, mapsHref, telHref, socialIcons, linkify, locationAs, openFocFrom, addDays } from '../site.js';
-import { getSettings, getItems, rankByPulls } from '../data.js';
+import { getSettings, getItems, rankByPulls, logSearchWhenSettled, cancelSearchLog } from '../data.js';
 import { todayIn } from '../dates.js';
 import { itemCard, enableReservations } from '../components.js';
 import { loadFilters, filterControl, setupMulti, publisherFilter, categoryOptions, focFilter } from '../catalog.js';
@@ -302,6 +302,7 @@ async function showFound(q, query, describe, { more = false } = {}) {
   const first = found.items.length;
   found.items.push(...rows);
   found.total = count;
+  if (!more) logSearchWhenSettled(q, count);
   for (const i of rows) hotItems.set(i.id, i);
   const left = found.total - found.items.length;
   const cards = rows.map((i) => itemCard(i, { reservable: true })).join('');
@@ -412,6 +413,7 @@ function setupSearch() {
   };
   input.addEventListener('input', () => {
     clearTimeout(timer);
+    cancelSearchLog();
     timer = setTimeout(run, 350);
   });
   form.addEventListener('submit', (e) => {

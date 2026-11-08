@@ -343,6 +343,34 @@ export async function getPageContent(slugs) {
   return Object.fromEntries(rows.map((r) => [r.slug, r]));
 }
 
+/**
+ * Records what was searched and how many titles it found, for Dashboard → Trends. Never gets in the search's way.
+ * Reloading or coming back to the same results doesn't count again (remembered for this tab).
+ */
+export async function logSearch(term, titles) {
+  const words = term.trim();
+  if (DEMO || !words) return;
+  const key = 'pw-last-search';
+  const same = words.toLowerCase();
+  try {
+    if (sessionStorage.getItem(key) === same) return;
+    sessionStorage.setItem(key, same);
+  } catch { /* private window: it may count twice, which is fine */ }
+  try {
+    await (await supabase()).rpc('log_search', { p_term: words, p_titles: titles });
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+let settleTimer;
+/** For boxes that search as you type: logs only the words the customer stopped on. Call cancelSearchLog() on more typing. */
+export function logSearchWhenSettled(term, titles) {
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(() => logSearch(term, titles), 2000);
+}
+export const cancelSearchLog = () => clearTimeout(settleTimer);
+
 /** Series matching a search, for the site search: { key, label, issues, cover_url }. Needs the database. */
 export async function searchSeries(q) {
   if (DEMO) return [];
