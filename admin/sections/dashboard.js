@@ -90,11 +90,19 @@ export async function mount(el, ctx) {
         <h2 id="dash-trend">Orders per Day · Last ${DAYS} days</h2>
         <div data-trend aria-busy="true"></div>
       </section>
+      <div class="dash-stack">
       <section class="dash-card" aria-labelledby="dash-top">
         <h2 id="dash-top">Top 50</h2>
         <p class="admin-hint">Copies on open, ordered or arrived reservations.</p>
         <div data-top aria-busy="true"></div>
       </section>
+      <section class="dash-card" aria-labelledby="dash-top-searches">
+        <h2 id="dash-top-searches">Top Searches · Last ${SEARCH_DAYS} days</h2>
+        <p class="admin-hint">What people look for most in the shop’s search boxes and app. Red rows found no titles. Who searched isn’t recorded.</p>
+        <div data-top-searches aria-busy="true"></div>
+      </section>
+      </div>
+      <div class="dash-stack">
       ${APP_ENABLED ? `<section class="dash-card" aria-labelledby="dash-app">
         <h2 id="dash-app">Pull List App</h2>
         <p class="admin-hint">Customers signed in to the shop’s app (your website address + /app) on their phones.</p>
@@ -104,16 +112,12 @@ export async function mount(el, ctx) {
         <div class="admin-title-row"><h2 id="dash-status">Titles by Status</h2><a class="btn btn--small btn--green" href="#titles">Titles →</a></div>
         <div data-status aria-busy="true"></div>
       </section>
-      <section class="dash-card" aria-labelledby="dash-top-searches">
-        <h2 id="dash-top-searches">Top Searches · Last ${SEARCH_DAYS} days</h2>
-        <p class="admin-hint">What people look for most in the shop’s search boxes and app. Red rows found no titles. Who searched isn’t recorded.</p>
-        <div data-top-searches aria-busy="true"></div>
-      </section>
       <section class="dash-card" aria-labelledby="dash-latest-searches">
         <h2 id="dash-latest-searches">Search Log</h2>
         <p class="admin-hint">Every search, newest first. Red rows found no titles.</p>
         <div data-latest-searches aria-busy="true"></div>
       </section>
+      </div>
     </div>
     </div>
     <div data-tabpane="system">

@@ -790,6 +790,22 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
               </div>
             </div>
           </div>
+          <div class="sg-item" data-code>
+            <h3>Cards of different heights</h3>
+            <div class="sg-demo">
+              <div class="dash-grid">
+                <div class="dash-stack">
+                  <div class="dash-card"><h2>A tall list</h2><ul class="dash-facts"><li><strong>12</strong> Absolute Batman</li><li><strong>9</strong> Saga</li><li><strong>7</strong> Spawn</li></ul></div>
+                  <div class="dash-card"><h2>Below it</h2><p class="admin-hint">Starts right under the card above.</p></div>
+                </div>
+                <div class="dash-stack">
+                  <div class="dash-card"><h2>A short card</h2><p class="admin-hint">Keeps its own height.</p></div>
+                  <div class="dash-card"><h2>Below it</h2><p class="admin-hint">Doesn’t wait for the tall list.</p></div>
+                </div>
+              </div>
+            </div>
+            <p class="admin-hint mt-8">Inside <code>dash-grid</code>, wrap each column of cards in a <code>dash-stack</code> when their heights differ a lot (Dashboard → Trends). From 1200px the stacks sit side by side; below that they run one after the other. A <code>dash-card--wide</code> stays a direct child of the grid.</p>
+          </div>
           <p class="admin-hint">A fact at zero is muted (<code>is-zero</code>) and dropped on phones. Needs Attention is a to-do list, so it leaves rows at zero out at every width, and when nothing is left it shows one <code>empty</code> line, “Nothing needs attention. All caught up.” Each row links to the screen that handles it, already filtered: Fix for a problem, a ghost View for news (new survey responses, customers who signed up this week, new event signups, which opens Events → Event Signups).</p>
         </section>
 

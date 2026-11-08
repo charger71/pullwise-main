@@ -391,7 +391,9 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .dash-tile__note { font-size: var(--fs-sm); color: var(--muted); }
 
 .dash-grid { display: grid; gap: var(--sp-16); grid-template-columns: minmax(0, 1fr); }
-.dash-grid > * { margin-bottom: 0; }
+.dash-grid > *, .dash-stack > * { margin-bottom: 0; }
+/* One column of cards inside .dash-grid: each card keeps its own height, so a short one doesn't stretch to match a tall neighbour. */
+.dash-stack { display: grid; gap: var(--sp-16); grid-template-columns: minmax(0, 1fr); align-content: start; min-width: 0; }
 @media (min-width: 1200px) { .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dash-card--wide { grid-column: 1 / -1; } }
 .dash-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--sp-16); min-width: 0; }
 .dash-card h2 { font-size: var(--fs-card); margin: 0 0 var(--sp-8); }

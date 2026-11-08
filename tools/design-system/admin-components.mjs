@@ -401,6 +401,7 @@ Dashboard tiles and fact cards: the week at a glance, each linking to the list b
 
 - \`.dash-tiles\` of \`.dash-tile\`: a label, the number in \`admin-type-stat\`, and a note saying what to do. \`.dash-tile--alert\` marks a tile that needs action (it says so in words too). Four across from 1200px, one column under 380px.
 - \`.dash-card\`: a card with a title row (title and a small ghost "View all →") and \`.dash-facts\`: bold figure, then words. A zero fact (\`.is-zero\`) is muted.
+- \`.dash-grid\` holds the cards, two columns from 1200px; \`.dash-card--wide\` spans both. When heights differ a lot, wrap each column of cards in a \`.dash-stack\` so each keeps its own height.
 - Consumer provides: the figures and their links.`,
     html: page('AdminDashboard', `
 ${demo('<h3>Tiles'.slice(4))}
