@@ -501,7 +501,7 @@ setHtml(quill, saved); … getHtml(quill)</pre>
                 <tbody>
                   <tr><td>Normal (every other row is striped)</td><td><code>—</code></td></tr>
                   <tr><td>Striped</td><td><code>—</code></td></tr>
-                  <tr class="is-overdue"><td>Overdue, failed or blocked</td><td><code>tr.is-overdue</code></td></tr>
+                  <tr class="is-overdue"><td>Overdue, failed or blocked; a search that found nothing</td><td><code>tr.is-overdue</code></td></tr>
                   <tr class="is-hidden"><td>Hidden from customers, cancelled</td><td><code>tr.is-hidden</code></td></tr>
                   <tr class="is-open"><td>The open order (its View button has <code>aria-expanded</code>)</td><td><code>tr.is-open</code></td></tr>
                   <tr class="is-keep"><td>Series merge: the one to keep</td><td><code>tr.is-keep</code></td></tr>
@@ -863,6 +863,7 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
             <li><strong>Place Order, Past Orders, Received and Re-order: customers under a title</strong> (<code>tr.toorder__people</code>): click the Customers count (a <code>.link-button</code>) to open a striped row under the title listing who reserved it, in columns (<code>.toorder__list</code>); Past Orders and Received add where each line stands.</li>
             <li><strong>Re-order</strong> (<code>renderReorders</code> in <code>sections/reservations.js</code>): titles ordered after their cutoff, built from the same pieces as Place Order: a static fold to find any title (<code>.cust-search</code>, <code>.cust-results</code>) and who it's for, the distributor tools panel (<code>.order-tools</code>), then To Re-order and On Order folds (<code>.fold--compact</code>) with the Mark ordered button at the top. An order's kind pill: <code>pill--pull</code> Pull list, <code>pill--info</code> Re-order, <code>pill--off</code> Guest order.</li>
             <li><strong>Dashboard → Most Reserved</strong> (<code>.dash-top</code>): rank, a bigger cover, then title, Out date and copies; a grid card on phones.</li>
+            <li><strong>Dashboard → Top Searches and Search Log</strong> (<code>renderSearchRows</code> in <code>sections/dashboard.js</code>): plain <code>cards</code> tables with an <code>admin-pager</code>; a search that found no titles is a <code>tr.is-overdue</code> row.</li>
             <li><strong>Series merge</strong> (<code>sections/series.js</code>): tick series to merge and pick one to keep; rows show <code>is-merge</code> / <code>is-keep</code> (see <a href="#tables">Row states</a>).</li>
             <li><strong>QR codes</strong> (<code>sections/qr.js</code>, <code>.qr-item</code>): a fold per code with its form beside a 260px preview (<code>role="img"</code>); a code opened from a link (<code>#qr/&lt;slug&gt;</code>) flashes once.</li>
             <li><strong>Survey questions</strong> (<code>sections/surveys.js</code>, <code>.sq-head</code>): a fold per question with the answer type under the question in its header.</li>

@@ -1,7 +1,7 @@
 // Filterable, searchable item listing shared by Pre-Orders and New Arrivals.
 // Filter state is mirrored in the URL so filtered views can be shared/bookmarked.
 
-import { getItems, getCategories, getPublishers, getSettings, searchSeries, getFocDates } from './data.js';
+import { getItems, getCategories, getPublishers, getSettings, searchSeries, getFocDates, logSearchWhenSettled, cancelSearchLog } from './data.js';
 import { $, esc, STATUS, ITEM_BADGES, fmtDate, lastReserveDay } from './site.js';
 import { renderGrid, itemCard, enableReservations, seriesCards, enableSeriesFollow } from './components.js';
 
@@ -113,6 +113,7 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
       } else {
         items = rows;
         renderGrid(grid, items, { reservable, level: 2, followSeries }, 'No titles match those filters.');
+        logSearchWhenSettled(query.q, count);
       }
       countEl.textContent = `${total} ${total === 1 ? 'title' : 'titles'}`;
       const remaining = total - items.length;
@@ -134,6 +135,7 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
   form.addEventListener('input', (e) => {
     if (e.target.closest('.multi__search')) return; // filters the option list only
     clearTimeout(timer);
+    cancelSearchLog();
     more.disabled = true; // until the new results are in, "Show more" would add to the old list
     timer = setTimeout(load, e.target.type === 'search' ? 250 : 0);
   });

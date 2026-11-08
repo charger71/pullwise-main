@@ -1,8 +1,9 @@
 // Dashboard: the staff landing page. Reservation headlines (new orders, what's
 // waiting to be ordered or picked up), the latest orders, a 30-day order
 // chart, product stats (titles by status, next order cutoff, most-reserved
-// titles, titles needing attention) and how many customers use the pull list
-// app. Read-only; links out to the sections where things get changed.
+// titles, titles needing attention), how many customers use the pull list
+// app and what people search for. Read-only; links out to the sections where
+// things get changed.
 
 import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations, fmtTime, toListTop, hintSlot } from '../lib.js';
 import { lastReserveDay } from '../../js/site.js';
@@ -13,6 +14,7 @@ import { APP_ENABLED, IS_CATALOG } from '../../js/config.js';
 
 const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
 const DAYS = 30;
+const SEARCH_DAYS = 90; // the database keeps searches this long (supabase/migrations/…_search_log.sql)
 const LINE_FIELDS = 'id,order_id,quantity,status,arrived_on,item:items(id,title,issue_number,variant,publisher,foc_date,release_date,cover_url)';
 let sb;
 let settings;
@@ -102,6 +104,16 @@ export async function mount(el, ctx) {
         <div class="admin-title-row"><h2 id="dash-status">Titles by Status</h2><a class="btn btn--small btn--green" href="#titles">Titles →</a></div>
         <div data-status aria-busy="true"></div>
       </section>
+      <section class="dash-card" aria-labelledby="dash-top-searches">
+        <h2 id="dash-top-searches">Top Searches · Last ${SEARCH_DAYS} days</h2>
+        <p class="admin-hint">What people look for most in the shop’s search boxes and app. Red rows found no titles. Who searched isn’t recorded.</p>
+        <div data-top-searches aria-busy="true"></div>
+      </section>
+      <section class="dash-card" aria-labelledby="dash-latest-searches">
+        <h2 id="dash-latest-searches">Search Log</h2>
+        <p class="admin-hint">Every search, newest first. Red rows found no titles.</p>
+        <div data-latest-searches aria-busy="true"></div>
+      </section>
     </div>
     </div>
     <div data-tabpane="system">
@@ -179,7 +191,7 @@ export async function mount(el, ctx) {
   const hints = {
     today: todayHint,
     ...Object.fromEntries(locations.map((l) => [`loc-${l.id}`, `${todayHint} This tab shows ${esc(l.name)} only.`])),
-    trends: `How the shop is doing: orders per day over the last ${DAYS} days, the most-reserved titles, and how many titles have each status.`,
+    trends: `How the shop is doing: orders per day over the last ${DAYS} days, the most-reserved titles, how many titles have each status, and what people search for.`,
     system: 'Whether the shop’s scheduled jobs, such as the nightly backup and the weekly emails, are running on time.',
   };
   setupTabs(el, 'admin-dashboard-tab', 'today', (tab) => {
@@ -194,6 +206,8 @@ export async function mount(el, ctx) {
     panel('[data-status]', renderStatus),
     APP_ENABLED ? panel('[data-app]', renderApp) : null, // only shops with the app (shops.json)
     panel('[data-top]', async (box) => renderTop(box, await lines)),
+    panel('[data-top-searches]', renderTopSearches),
+    panel('[data-latest-searches]', renderLatestSearches),
     panel('[data-health]', renderHealth),
   ]);
 }
@@ -378,7 +392,28 @@ async function renderCutoff(box, lines, stale = () => false) {
 }
 
 const TOP_TOTAL = 50;
-const TOP_PAGE = 10;
+const LIST_PAGE = 10;
+const PAGER_HTML = '<div class="admin-pager"><button class="btn btn--ghost btn--small" type="button" data-prev>← Previous</button><span></span><button class="btn btn--ghost btn--small" type="button" data-next>Next →</button></div>';
+
+/** Works the PAGER_HTML in `box` for a list of `total` rows; drawRows(start, end) fills in a page. Returns a function that goes back to the first page. */
+function setupPager(box, total, drawRows) {
+  const pager = $('.admin-pager', box);
+  const pages = Math.ceil(total / LIST_PAGE);
+  pager.hidden = pages < 2;
+  let page = 0;
+  const draw = () => {
+    const start = page * LIST_PAGE;
+    drawRows(start, start + LIST_PAGE);
+    $('span', pager).textContent = `${start + 1}–${Math.min(start + LIST_PAGE, total)} of ${total}`;
+    $('[data-prev]', pager).disabled = page === 0;
+    $('[data-next]', pager).disabled = page >= pages - 1;
+  };
+  const turnPage = (step) => ((page += step), toListTop(box.closest('.dash-card') ?? box), draw());
+  $('[data-prev]', pager).addEventListener('click', () => turnPage(-1));
+  $('[data-next]', pager).addEventListener('click', () => turnPage(1));
+  draw();
+  return () => ((page = 0), draw());
+}
 
 /** Most Reserved: up to 50 titles with at least one copy reserved, numbered by rank (most copies first), sortable by any column, ten rows a page. */
 function renderTop(box, lines) {
@@ -398,8 +433,7 @@ function renderTop(box, lines) {
     box.innerHTML = '<p class="empty">No active reservations.</p>';
     return;
   }
-  const pages = Math.ceil(ranked.length / TOP_PAGE);
-  const state = { sort: 'rank', dir: 'asc', page: 0 };
+  const state = { sort: 'rank', dir: 'asc' };
   const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
   const SORTS = {
     rank: (a, b) => a.rank - b.rank,
@@ -411,17 +445,14 @@ function renderTop(box, lines) {
   box.innerHTML = `<div class="admin-table-wrap"><table class="admin-table dash-top">
       <thead><tr><th scope="col" data-sort="rank" aria-label="Rank">#</th><th scope="col" colspan="2" data-sort="title">Title</th><th scope="col" data-sort="release" data-first="asc">Out</th><th scope="col" data-sort="copies" data-first="desc">Copies</th></tr></thead>
       <tbody></tbody></table></div>
-    <div class="admin-pager" data-top-pager><button class="btn btn--ghost btn--small" type="button" data-top-prev>← Previous</button><span></span><button class="btn btn--ghost btn--small" type="button" data-top-next>Next →</button></div>`;
+    ${PAGER_HTML}`;
   const body = $('tbody', box);
-  const pager = $('[data-top-pager]', box);
-  pager.hidden = pages < 2;
 
-  const draw = () => {
+  const firstPage = setupPager(box, ranked.length, (start, end) => {
     const sign = state.dir === 'asc' ? 1 : -1;
     const rows = [...ranked].sort((a, b) => sign * SORTS[state.sort](a, b) || a.rank - b.rank);
-    const start = state.page * TOP_PAGE;
     body.innerHTML = rows
-      .slice(start, start + TOP_PAGE)
+      .slice(start, end)
       .map((r) => `<tr>
         <td class="dash-top__rank">${r.rank}</td>
         <td class="dash-top__cover">${r.item.cover_url ? `<img class="thumb thumb--sm" src="${esc(r.item.cover_url)}" alt="" loading="lazy">` : '<span class="thumb thumb--sm thumb--none" aria-hidden="true"></span>'}</td>
@@ -429,22 +460,55 @@ function renderTop(box, lines) {
         <td class="nowrap">${r.item.release_date ? fmtDate(r.item.release_date, { month: 'short', day: 'numeric' }) : ''}</td>
         <td class="dash-top__n">${r.copies}</td></tr>`)
       .join('');
-    $('span', pager).textContent = `${start + 1}–${Math.min(start + TOP_PAGE, ranked.length)} of ${ranked.length}`;
-    $('[data-top-prev]', pager).disabled = state.page === 0;
-    $('[data-top-next]', pager).disabled = state.page >= pages - 1;
-  };
+  });
   sortableTable($('table', box), {
     sort: state.sort,
     dir: state.dir,
     onSort: (key, dir) => {
-      Object.assign(state, { sort: key, dir, page: 0 });
-      draw();
+      Object.assign(state, { sort: key, dir });
+      firstPage();
     },
   });
-  const turnPage = (step) => ((state.page += step), toListTop(box.closest('.dash-card') ?? box), draw());
-  $('[data-top-prev]', pager).addEventListener('click', () => turnPage(-1));
-  $('[data-top-next]', pager).addEventListener('click', () => turnPage(1));
-  draw();
+}
+
+const SEARCH_LOG_MAX = 200;
+
+/** A list of searches, ten rows a page. `cols` is [heading, cell classes, row → text]; a search that found no titles is a red row. */
+function renderSearchRows(box, rows, cols) {
+  if (!rows.length) {
+    box.innerHTML = '<p class="empty">No searches yet.</p>';
+    return;
+  }
+  box.innerHTML = `<div class="admin-table-wrap"><table class="admin-table cards">
+      <thead><tr>${cols.map(([head]) => `<th scope="col">${head}</th>`).join('')}</tr></thead>
+      <tbody></tbody></table></div>
+    ${PAGER_HTML}`;
+  setupPager(box, rows.length, (start, end) => {
+    $('tbody', box).innerHTML = rows
+      .slice(start, end)
+      .map((r) => `<tr${r.titles ? '' : ' class="is-overdue"'}>${cols.map(([, cls, text]) => `<td class="${cls}">${esc(text(r))}</td>`).join('')}</tr>`)
+      .join('');
+  });
+}
+
+const SEARCH_TERM = ['Search', 'card-title', (r) => r.term];
+const SEARCH_TITLES = ['Titles found', 'center card-label', (r) => r.titles.toLocaleString()];
+
+async function renderTopSearches(box) {
+  renderSearchRows(box, await must(sb.rpc('search_log_top', { p_days: SEARCH_DAYS })), [
+    SEARCH_TERM,
+    ['Times', 'center card-key card-label', (r) => r.times.toLocaleString()],
+    SEARCH_TITLES,
+    ['Last searched', 'nowrap', (r) => fmtDateTime(r.last_at)],
+  ]);
+}
+
+async function renderLatestSearches(box) {
+  renderSearchRows(box, await must(sb.from('search_log').select('term,titles,searched_at').order('searched_at', { ascending: false }).limit(SEARCH_LOG_MAX)), [
+    SEARCH_TERM,
+    SEARCH_TITLES,
+    ['When', 'nowrap', (r) => fmtDateTime(r.searched_at)],
+  ]);
 }
 
 async function renderAttention(box, loc = null, stale = () => false) {
