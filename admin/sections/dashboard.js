@@ -1,13 +1,14 @@
 // Dashboard: the staff landing page. Reservation headlines (new orders, what's
 // waiting to be ordered or picked up), the latest orders, a 30-day order
 // chart, product stats (titles by status, next order cutoff, most-reserved
-// titles, titles needing attention), how many customers use the pull list
-// app and what people search for. Read-only; links out to the sections where
-// things get changed.
+// titles, titles needing attention), estimated money and pickup follow-through,
+// how many customers use the pull list app and what people search for.
+// Read-only; links out to the sections where things get changed.
 
 import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations, fmtTime, toListTop, hintSlot } from '../lib.js';
 import { lastReserveDay } from '../../js/site.js';
 import { lastBackup } from '../backup.js';
+import { moneySummary } from '../money.js';
 import { LINE_STATUS_SHORT } from '../../js/labels.js';
 import { addDays, todayIn, dayIn } from '../../js/dates.js';
 import { APP_ENABLED, IS_CATALOG } from '../../js/config.js';
@@ -15,7 +16,8 @@ import { APP_ENABLED, IS_CATALOG } from '../../js/config.js';
 const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
 const DAYS = 30;
 const SEARCH_DAYS = 90; // the database keeps searches this long (supabase/migrations/…_search_log.sql)
-const LINE_FIELDS = 'id,order_id,quantity,status,arrived_on,item:items(id,title,issue_number,variant,publisher,foc_date,release_date,cover_url)';
+const MONEY_WEEKS = 13;
+const LINE_FIELDS = 'id,order_id,quantity,status,arrived_on,item:items(id,title,issue_number,variant,publisher,price,foc_date,release_date,cover_url)';
 let sb;
 let settings;
 let isOwner = false;
@@ -23,6 +25,8 @@ let isOwner = false;
 const today = () => todayIn(settings.timezone);
 const dayKey = (iso) => dayIn(iso, settings.timezone);
 const plural = (n, one, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+const fact = (n, text, shown = n.toLocaleString()) => `<li${n ? '' : ' class="is-zero"'}><strong>${shown}</strong> ${text}</li>`;
+const dollars = (n) => `$${Math.round(n).toLocaleString()}`;
 
 /** All rows of a query, 1000 at a time. */
 async function all(makeQuery) {
@@ -103,6 +107,11 @@ export async function mount(el, ctx) {
       </section>
       </div>
       <div class="dash-stack">
+      <section class="dash-card" aria-labelledby="dash-money">
+        <h2 id="dash-money">Money · Last ${MONEY_WEEKS} weeks</h2>
+        <p class="admin-hint">Estimated at each title’s cover price, before pull list discounts. Customers pay in the store, so this isn’t sales.</p>
+        <div data-money aria-busy="true"></div>
+      </section>
       ${APP_ENABLED ? `<section class="dash-card" aria-labelledby="dash-app">
         <h2 id="dash-app">Pull List App</h2>
         <p class="admin-hint">Customers signed in to the shop’s app (your website address + /app) on their phones.</p>
@@ -195,7 +204,7 @@ export async function mount(el, ctx) {
   const hints = {
     today: todayHint,
     ...Object.fromEntries(locations.map((l) => [`loc-${l.id}`, `${todayHint} This tab shows ${esc(l.name)} only.`])),
-    trends: `How the shop is doing: orders per day over the last ${DAYS} days, the most-reserved titles, how many titles have each status, and what people search for.`,
+    trends: `How the shop is doing: orders per day over the last ${DAYS} days, the most-reserved titles, estimated money and how many held copies get picked up, how many titles have each status, and what people search for.`,
     system: 'Whether the shop’s scheduled jobs, such as the nightly backup and the weekly emails, are running on time.',
   };
   setupTabs(el, 'admin-dashboard-tab', 'today', (tab) => {
@@ -210,6 +219,7 @@ export async function mount(el, ctx) {
     panel('[data-status]', renderStatus),
     APP_ENABLED ? panel('[data-app]', renderApp) : null, // only shops with the app (shops.json)
     panel('[data-top]', async (box) => renderTop(box, await lines)),
+    panel('[data-money]', async (box) => renderMoney(box, await lines)),
     panel('[data-top-searches]', renderTopSearches),
     panel('[data-latest-searches]', renderLatestSearches),
     panel('[data-health]', renderHealth),
@@ -344,7 +354,6 @@ async function renderApp(box) {
     all(() => sb.from('push_subscriptions').select('customer_id').order('id')),
   ]);
   const notified = new Set(devices.map((d) => d.customer_id)).size;
-  const fact = (n, text) => `<li${n ? '' : ' class="is-zero"'}><strong>${n.toLocaleString()}</strong> ${text}</li>`;
   box.innerHTML = `
     <p class="dash-big">${users.toLocaleString()} <span>${users === 1 ? 'customer uses' : 'customers use'} the app</span></p>
     <ul class="dash-facts">
@@ -352,6 +361,35 @@ async function renderApp(box) {
       ${fact(month, 'opened it in the last 30 days')}
       ${fact(notified, `${notified === 1 ? 'gets' : 'get'} notifications (${plural(devices.length, 'phone')})`)}
     </ul>`;
+}
+
+/** Estimated dollars reserved, in progress and picked up, and how much of what's held for people gets picked up. */
+async function renderMoney(box, active) {
+  const since = addDays(today(), -(MONEY_WEEKS * 7 - 1));
+  const fields = 'id,order_id,quantity,status,arrived_on,created_at,updated_at,item:items(price),placed:reservation_orders(customer_id)';
+  const recent = await all(() => sb.from('reservations').select(fields).gte('updated_at', new Date(`${since}T00:00:00`).toISOString()).order('id'));
+  const m = moneySummary({ recent, active, since, weeks: MONEY_WEEKS, dayOf: dayKey });
+  const day = (d) => fmtDate(d, { month: 'short', day: 'numeric' });
+  box.innerHTML = `
+    <p class="dash-big">${dollars(m.reserved)} <span>reserved</span></p>
+    <ul class="dash-facts">
+      ${fact(m.ready, 'ready for pickup now', dollars(m.ready))}
+      ${fact(m.coming, 'reserved, not here yet', dollars(m.coming))}
+      ${fact(m.pickedUp, 'picked up', dollars(m.pickedUp))}
+      ${fact(m.perCustomer, `reserved per customer (${plural(m.customers, 'customer')})`, dollars(m.perCustomer))}
+    </ul>
+    ${m.pickupRate == null ? '<p class="empty">No held copies have been picked up or released yet.</p>' : `
+    <p class="dash-big">${m.pickupRate}% <span>of held copies picked up</span></p>
+    <ul class="dash-facts">
+      ${fact(m.pickedCopies, m.pickedCopies === 1 ? 'copy picked up' : 'copies picked up')}
+      ${fact(m.releasedCopies, m.releasedCopies === 1 ? 'copy released to the shelf' : 'copies released to the shelf')}
+      ${m.typicalWait == null ? '' : fact(m.typicalWait, `${m.typicalWait === 1 ? 'day' : 'days'} is the typical wait from arrival to pickup`)}
+    </ul>`}
+    ${m.unpriced ? `<p class="card__meta">${plural(m.unpriced, 'line')} with no cover price ${m.unpriced === 1 ? 'isn’t' : 'aren’t'} in these dollars.</p>` : ''}
+    <details class="dash-details"><summary>Show by week</summary>
+      <table class="admin-table"><thead><tr><th scope="col">Week starting</th><th scope="col">Reserved</th><th scope="col">Copies</th></tr></thead>
+      <tbody>${m.byWeek.slice().reverse().map((w) => `<tr><td>${day(w.start)}</td><td>${dollars(w.value)}</td><td>${w.copies.toLocaleString()}</td></tr>`).join('')}</tbody></table>
+    </details>`;
 }
 
 async function renderStatus(box) {
