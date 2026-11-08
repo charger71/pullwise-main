@@ -4,6 +4,18 @@ Ideas and next steps for the site, newest first. Move an item to "Done" when it 
 
 ## Next
 
+- **Move the Analytics counting into the database.** Orders per Day, Top 50, Money and Pull List App download raw rows
+  and add them up in the browser, which gets slower as a shop's history grows. Postgres functions (like
+  `drifting_customers`) would send back finished totals instead. Do this when a shop's Analytics screen actually gets
+  slow: nobody has reported it yet, and the speed gain hasn't been measured. Dashboard → Today downloads the same rows
+  for its tiles and order cutoff, so include it if the Dashboard is the slow screen.
+  - Tried once and backed out before shipping, because moving Money into SQL drops the unit tests in
+    `admin/money.test.js`. Add automated database tests in the same change (CI already installs a blank database).
+  - The tests need to cover: the shop's calendar day around midnight; "in progress" meaning the same in SQL and
+    JavaScript; the field names the cards read; Money's rules (cancelled and never-ordered lines aren't reserved, no
+    cover price adds $0, a customer counts once and each guest order is its own person, a blank pickup rate and typical
+    wait when there's nothing to measure); a row for every day in Orders per Day; signed-out visitors blocked.
+
 - **The pull list app on Google Play, then the App Store.** One listing per shop under the shop's own name (Powered by
   Pullwise is the limit), published from the shop's own developer accounts with Pullwise added as a team member: Apple
   only accepts apps built from a template like ours from the content owner's account (App Store guideline 4.2.6).

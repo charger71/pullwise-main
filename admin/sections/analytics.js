@@ -13,6 +13,8 @@ export const DAYS = 30;
 const SEARCH_DAYS = 90; // the database keeps searches this long (supabase/migrations/…_search_log.sql)
 const MONEY_WEEKS = 13;
 const DRIFT_DAYS = 60;
+const DEMAND_DAYS = 90;
+const GROWTH_MONTHS = 12;
 export const LINE_FIELDS = 'id,order_id,quantity,status,arrived_on,item:items(id,title,issue_number,variant,publisher,price,foc_date,release_date,cover_url)';
 let sb;
 let timezone;
@@ -89,10 +91,12 @@ export async function mount(el, ctx) {
       ${TREND_CARD}
       <div class="dash-stack">
       ${TOP_CARD}
+      ${card('dash-series', 'Most-Followed Series', 'data-series', { hint: `How many customers follow each series, the copies of each issue they ask for, and the follows added in the last ${DEMAND_DAYS} days.` })}
       </div>
       <div class="dash-stack">
       ${card('dash-money', `Money · Last ${MONEY_WEEKS} weeks`, 'data-money', { hint: 'Estimated at each title’s cover price, before pull list discounts. Customers pay in the store, so this isn’t sales.' })}
       ${card('dash-status', 'Titles by Status', 'data-status', { link: '<a class="btn btn--small btn--green" href="#titles">Titles →</a>' })}
+      ${card('dash-publishers', 'Demand by Publisher', 'data-publishers', { hint: 'Each publisher’s share of the copies on open, ordered or arrived reservations. Imprints and similar spellings count under one name.' })}
       </div>
     </div>
     </div>
@@ -100,19 +104,22 @@ export async function mount(el, ctx) {
     <div class="dash-grid">
       ${card('dash-drift', 'Customers Drifting Away', 'data-drift', { wide: true, hint: `Pull list customers with books in who haven’t picked up in ${DRIFT_DAYS} days, or who have books past the pickup window (red rows). Biggest value first.` })}
       ${APP_ENABLED ? card('dash-app', 'Pull List App', 'data-app', { hint: 'Customers signed in to the shop’s app (your website address + /app) on their phones.' }) : ''}
+      ${card('dash-growth', `Customer Growth · Last ${GROWTH_MONTHS} months`, 'data-growth', { hint: 'Customers added each month, by signing up or by staff, and how many orders came from customers rather than guests. This month is so far.' })}
     </div>
     </div>
     <div data-tabpane="searches">
     <div class="dash-grid">
       ${TOP_SEARCHES_CARD}
       ${card('dash-latest-searches', 'Search Log', 'data-latest-searches', { hint: 'Every search, newest first. Red rows found no titles.' })}
+      ${card('dash-no-results', `Searches That Found Nothing · Last ${SEARCH_DAYS} days`, 'data-no-results', { hint: 'Words that found no titles the last time. A search on one page, like Pre-Orders, only looks there, so the shop may carry some of these.' })}
+      ${card('dash-waiting', 'Waiting for Stock', 'data-waiting', { hint: 'Titles customers asked to hear about when they’re in. A title leaves this list once those customers have been told.' })}
     </div>
     </div>`;
   $('[data-asof]', el).textContent = `As of ${fmtDateTime(new Date().toISOString())}`;
   setupTabs(el, 'admin-analytics-tab', 'sales', null, {
-    sales: `What’s selling: orders per day over the last ${DAYS} days, the most-reserved titles, estimated money and how many held copies get picked up, and how many titles have each status.`,
-    customers: 'Who may need a call, and how many customers use the pull list app.',
-    searches: 'What people search for in the shop’s search boxes and app, and which searches found nothing.',
+    sales: `What’s selling: orders per day over the last ${DAYS} days, the most-reserved titles, estimated money and how many held copies get picked up, how many titles have each status, and demand by series and publisher.`,
+    customers: 'Who may need a call, how many customers use the pull list app, and how the customer base is growing.',
+    searches: 'What people search for in the shop’s search boxes and app, which searches found nothing, and the titles customers are waiting on.',
   });
 
   const panel = (sel, fn) => loadPanel(el, sel, fn);
@@ -126,10 +133,15 @@ export async function mount(el, ctx) {
     panel('[data-top]', async (box) => renderTop(box, await lines)),
     panel('[data-money]', async (box) => renderMoney(box, await lines)),
     panel('[data-status]', renderStatus),
+    panel('[data-series]', renderSeries),
+    panel('[data-publishers]', renderPublishers),
     panel('[data-drift]', renderDrift),
     APP_ENABLED ? panel('[data-app]', renderApp) : null, // only shops with the app (shops.json)
+    panel('[data-growth]', renderGrowth),
     panel('[data-top-searches]', renderTopSearches),
     panel('[data-latest-searches]', renderLatestSearches),
+    panel('[data-no-results]', renderNoResults),
+    panel('[data-waiting]', renderWaiting),
   ]);
 }
 
@@ -229,10 +241,10 @@ export function renderTop(box, lines) {
 
 const SEARCH_LOG_MAX = 200;
 
-/** A list of searches, ten rows a page. `cols` is [heading, cell classes, row → text]; a search that found no titles is a red row. */
-function renderSearchRows(box, rows, cols) {
+/** A list, ten rows a page. `cols` is [heading, cell classes, row → text]; a row whose search found no titles is red. */
+function renderRows(box, rows, cols, empty = 'No searches yet.') {
   if (!rows.length) {
-    box.innerHTML = '<p class="empty">No searches yet.</p>';
+    box.innerHTML = `<p class="empty">${empty}</p>`;
     return;
   }
   box.innerHTML = `<div class="admin-table-wrap"><table class="admin-table cards">
@@ -242,7 +254,7 @@ function renderSearchRows(box, rows, cols) {
   setupPager(box, rows.length, (start, end) => {
     $('tbody', box).innerHTML = rows
       .slice(start, end)
-      .map((r) => `<tr${r.titles ? '' : ' class="is-overdue"'}>${cols.map(([, cls, text]) => `<td class="${cls}">${esc(text(r))}</td>`).join('')}</tr>`)
+      .map((r) => `<tr${r.titles === 0 ? ' class="is-overdue"' : ''}>${cols.map(([, cls, text]) => `<td class="${cls}">${esc(text(r))}</td>`).join('')}</tr>`)
       .join('');
   });
 }
@@ -250,21 +262,100 @@ function renderSearchRows(box, rows, cols) {
 const SEARCH_TERM = ['Search', 'card-title', (r) => r.term];
 const SEARCH_TITLES = ['Titles found', 'center card-label', (r) => r.titles.toLocaleString()];
 
+const SEARCH_TIMES = ['Times', 'center card-key card-label', (r) => r.times.toLocaleString()];
+
 export async function renderTopSearches(box) {
-  renderSearchRows(box, await must(sb.rpc('search_log_top', { p_days: SEARCH_DAYS })), [
+  renderRows(box, await must(sb.rpc('search_log_top', { p_days: SEARCH_DAYS })), [
     SEARCH_TERM,
-    ['Times', 'center card-key card-label', (r) => r.times.toLocaleString()],
+    SEARCH_TIMES,
     SEARCH_TITLES,
     ['Last searched', 'nowrap', (r) => fmtDateTime(r.last_at)],
   ]);
 }
 
 async function renderLatestSearches(box) {
-  renderSearchRows(box, await must(sb.from('search_log').select('term,titles,searched_at').order('searched_at', { ascending: false }).limit(SEARCH_LOG_MAX)), [
+  renderRows(box, await must(sb.from('search_log').select('term,titles,searched_at').order('searched_at', { ascending: false }).limit(SEARCH_LOG_MAX)), [
     SEARCH_TERM,
     SEARCH_TITLES,
     ['When', 'nowrap', (r) => fmtDateTime(r.searched_at)],
   ]);
+}
+
+async function renderNoResults(box) {
+  renderRows(box, await must(sb.rpc('search_log_no_results', { p_days: SEARCH_DAYS })), [
+    SEARCH_TERM,
+    SEARCH_TIMES,
+    ['Last searched', 'nowrap', (r) => fmtDateTime(r.last_at)],
+  ], 'Every recent search found something.');
+}
+
+/** Titles with stock alerts: who is waiting now (analytics_stock_alert_titles in the database). */
+async function renderWaiting(box) {
+  renderRows(box, await must(sb.rpc('analytics_stock_alert_titles')), [
+    ['Title', 'card-title', itemName],
+    ['Waiting', 'center card-key card-label', (r) => r.waiting.toLocaleString()],
+    ['Last asked', 'nowrap', (r) => fmtDateTime(r.last_at)],
+  ], 'Nobody is waiting on a title.');
+}
+
+/** The most-followed series (analytics_series_demand in the database). */
+async function renderSeries(box) {
+  renderRows(box, await must(sb.rpc('analytics_series_demand', { p_days: DEMAND_DAYS })), [
+    ['Series', 'card-title', (r) => r.label],
+    ['Followers', 'center card-key card-label', (r) => r.followers.toLocaleString()],
+    ['Copies per issue', 'center card-label', (r) => r.copies.toLocaleString()],
+    [`New in ${DEMAND_DAYS} days`, 'center card-label', (r) => r.new_followers.toLocaleString()],
+  ], 'Nobody follows a series yet.');
+}
+
+const PUBLISHERS_SHOWN = 10;
+
+/** Each publisher's share of the copies on reservations still in progress (analytics_publisher_demand in the database). */
+async function renderPublishers(box) {
+  const rows = await must(sb.rpc('analytics_publisher_demand'));
+  if (!rows.length) {
+    box.innerHTML = '<p class="empty">No active reservations.</p>';
+    return;
+  }
+  const total = rows.reduce((n, r) => n + r.copies, 0);
+  const more = rows.length - PUBLISHERS_SHOWN;
+  box.innerHTML = `
+    <p class="dash-big">${total.toLocaleString()} <span>${total === 1 ? 'copy' : 'copies'} reserved</span></p>
+    <ul class="dash-bars">${rows
+      .slice(0, PUBLISHERS_SHOWN)
+      .map((r) => `<li>
+        <span class="dash-bars__label">${esc(r.publisher)}</span>
+        <span class="dash-bars__track"><span class="dash-bars__fill" style="width:${(r.copies / rows[0].copies) * 100}%"></span></span>
+        <span class="dash-bars__value">${Math.round((r.copies / total) * 100)}%</span>
+      </li>`)
+      .join('')}</ul>
+    ${more > 0 ? `<p class="card__meta">${plural(more, 'smaller publisher')} not shown.</p>` : ''}`;
+}
+
+/** New customers per month, and orders from customers versus guests (analytics_customer_growth in the database). */
+async function renderGrowth(box) {
+  const months = await must(sb.rpc('analytics_customer_growth', { p_months: GROWTH_MONTHS }));
+  const sum = (key) => months.reduce((n, m) => n + m[key], 0);
+  const [added, fromCustomers, fromGuests] = [sum('new_customers'), sum('customer_orders'), sum('guest_orders')];
+  const max = Math.max(1, ...months.map((m) => m.new_customers));
+  const month = (m) => fmtDate(m.month, { month: 'short', year: 'numeric' });
+  box.innerHTML = `
+    <p class="dash-big">${added.toLocaleString()} <span>new ${added === 1 ? 'customer' : 'customers'}</span></p>
+    <ul class="dash-facts">
+      ${fact(fromCustomers, `${fromCustomers === 1 ? 'order' : 'orders'} from customers`)}
+      ${fact(fromGuests, `guest ${fromGuests === 1 ? 'order' : 'orders'}`)}
+    </ul>
+    <ul class="dash-bars">${months
+      .map((m) => `<li>
+        <span class="dash-bars__label">${month(m)}</span>
+        <span class="dash-bars__track"><span class="dash-bars__fill" style="width:${(m.new_customers / max) * 100}%"></span></span>
+        <span class="dash-bars__value">${m.new_customers.toLocaleString()}</span>
+      </li>`)
+      .join('')}</ul>
+    <details class="dash-details"><summary>Show orders by month</summary>
+      <table class="admin-table"><thead><tr><th scope="col">Month</th><th scope="col">New customers</th><th scope="col">Customer orders</th><th scope="col">Guest orders</th></tr></thead>
+      <tbody>${months.map((m) => `<tr><td>${month(m)}</td><td>${m.new_customers.toLocaleString()}</td><td>${m.customer_orders.toLocaleString()}</td><td>${m.guest_orders.toLocaleString()}</td></tr>`).join('')}</tbody></table>
+    </details>`;
 }
 
 /** Pull list customers worth a call: name, contact, last pickup, and what's waiting for them (drifting_customers in the database). */
