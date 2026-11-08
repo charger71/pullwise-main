@@ -1,4 +1,4 @@
-// The figures on Dashboard → Trends → Money, worked out from reservation lines.
+// The figures on Analytics → Sales → Money, worked out from reservation lines.
 //
 // Dollars are estimates: a line doesn't save the price it was reserved at or its pull list discount, so each copy
 // counts at the title's cover price today. Customers pay in the store, so none of this is sales.

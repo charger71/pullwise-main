@@ -48,11 +48,13 @@ const SVG = {
   pin: '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
   dot: '<circle cx="12" cy="12" r="4"/>',
   moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.8-4.8"/>',
 };
 
 // First match wins. Matched against the tab's label.
 const BY_LABEL = [
   [/^today$/i, 'sun'], [/^trends$/i, 'chart'], [/^system$/i, 'pulse'],
+  [/^sales$/i, 'tag'], [/^customers$/i, 'people'], [/^searches$/i, 'search'],
   [/^details/i, 'info'], [/^questions/i, 'question'], [/^results/i, 'chart'], [/^share/i, 'share'], [/^open/i, 'check'], [/^closed/i, 'lock'],
   [/^page text/i, 'pencil'], [/^shelf intros/i, 'layers'], [/^page settings/i, 'gear'], [/^google/i, 'globe'],
   [/^published/i, 'check'], [/^scheduled/i, 'calendar'], [/^drafts?/i, 'pencil'],
