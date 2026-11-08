@@ -1,50 +1,26 @@
 // Dashboard: the staff landing page. Reservation headlines (new orders, what's
-// waiting to be ordered or picked up), the latest orders, a 30-day order
-// chart, product stats (titles by status, next order cutoff, most-reserved
-// titles, titles needing attention), estimated money and pickup follow-through,
-// customers drifting away, how many use the pull list app and what people search for.
+// waiting to be ordered or picked up), the latest orders, the next order cutoff,
+// titles needing attention, a quick look at trends (the full set is in Analytics)
+// and whether the scheduled jobs are running.
 // Read-only; links out to the sections where things get changed.
 
-import { $, $$, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, listLocations, fmtTime, toListTop, hintSlot, formatPhone, openEmailDialog } from '../lib.js';
+import { $, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, sortableTable, friendlyError, setupTabs, listLocations, fmtTime, hintSlot } from '../lib.js';
 import { lastReserveDay } from '../../js/site.js';
 import { lastBackup } from '../backup.js';
-import { moneySummary } from '../money.js';
 import { LINE_STATUS_SHORT } from '../../js/labels.js';
-import { addDays, todayIn, dayIn } from '../../js/dates.js';
-import { APP_ENABLED, IS_CATALOG } from '../../js/config.js';
+import { addDays } from '../../js/dates.js';
+import { IS_CATALOG } from '../../js/config.js';
+import { ACTIVE, DAYS, LINE_FIELDS, TREND_CARD, TOP_CARD, TOP_SEARCHES_CARD, useShop, today, dayKey, plural, all, count, items, loadPanel, activeLines, ordersSince, rememberLink, renderTrend, renderTop, renderTopSearches } from './analytics.js';
 
-const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
-const DAYS = 30;
-const SEARCH_DAYS = 90; // the database keeps searches this long (supabase/migrations/…_search_log.sql)
-const MONEY_WEEKS = 13;
-const DRIFT_DAYS = 60;
-const LINE_FIELDS = 'id,order_id,quantity,status,arrived_on,item:items(id,title,issue_number,variant,publisher,price,foc_date,release_date,cover_url)';
 let sb;
 let settings;
 let isOwner = false;
-
-const today = () => todayIn(settings.timezone);
-const dayKey = (iso) => dayIn(iso, settings.timezone);
-const plural = (n, one, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
-const fact = (n, text, shown = n.toLocaleString()) => `<li${n ? '' : ' class="is-zero"'}><strong>${shown}</strong> ${text}</li>`;
-const dollars = (n) => `$${Math.round(n).toLocaleString()}`;
-
-/** All rows of a query, 1000 at a time. */
-async function all(makeQuery) {
-  const rows = [];
-  for (let from = 0; ; from += 1000) {
-    const data = await must(makeQuery().range(from, from + 999));
-    rows.push(...data);
-    if (data.length < 1000) return rows;
-  }
-}
-const count = (q) => must(q);
-const items = () => sb.from('items').select('id', { count: 'exact', head: true });
 
 export async function mount(el, ctx) {
   isOwner = ctx.isOwner === true;
   sb = ctx.sb;
   settings = await must(sb.from('settings').select('hold_days,timezone,announcement,pull_list_email_enabled,pull_list_email_day,pull_list_email_hour,pull_list_email_last_sent,arrival_email_enabled').eq('id', 1).single());
+  useShop(sb, settings.timezone);
   const locations = await listLocations(sb); // [] unless the shop has 2+ locations: then each gets its own tab
   el.innerHTML = `
     <div class="admin-title-row">
@@ -91,48 +67,9 @@ export async function mount(el, ctx) {
     </div>
     <div data-tabpane="trends">
     <div class="dash-grid">
-      <section class="dash-card dash-card--wide" aria-labelledby="dash-trend">
-        <h2 id="dash-trend">Orders per Day · Last ${DAYS} days</h2>
-        <div data-trend aria-busy="true"></div>
-      </section>
-      <section class="dash-card dash-card--wide" aria-labelledby="dash-drift">
-        <h2 id="dash-drift">Customers Drifting Away</h2>
-        <p class="admin-hint">Pull list customers with books in who haven’t picked up in ${DRIFT_DAYS} days, or who have books past the pickup window (red rows). Biggest value first.</p>
-        <div data-drift aria-busy="true"></div>
-      </section>
-      <div class="dash-stack">
-      <section class="dash-card" aria-labelledby="dash-top">
-        <h2 id="dash-top">Top 50</h2>
-        <p class="admin-hint">Copies on open, ordered or arrived reservations.</p>
-        <div data-top aria-busy="true"></div>
-      </section>
-      <section class="dash-card" aria-labelledby="dash-top-searches">
-        <h2 id="dash-top-searches">Top Searches · Last ${SEARCH_DAYS} days</h2>
-        <p class="admin-hint">What people look for most in the shop’s search boxes and app. Red rows found no titles. Who searched isn’t recorded.</p>
-        <div data-top-searches aria-busy="true"></div>
-      </section>
-      </div>
-      <div class="dash-stack">
-      <section class="dash-card" aria-labelledby="dash-money">
-        <h2 id="dash-money">Money · Last ${MONEY_WEEKS} weeks</h2>
-        <p class="admin-hint">Estimated at each title’s cover price, before pull list discounts. Customers pay in the store, so this isn’t sales.</p>
-        <div data-money aria-busy="true"></div>
-      </section>
-      ${APP_ENABLED ? `<section class="dash-card" aria-labelledby="dash-app">
-        <h2 id="dash-app">Pull List App</h2>
-        <p class="admin-hint">Customers signed in to the shop’s app (your website address + /app) on their phones.</p>
-        <div data-app aria-busy="true"></div>
-      </section>` : ''}
-      <section class="dash-card" aria-labelledby="dash-status">
-        <div class="admin-title-row"><h2 id="dash-status">Titles by Status</h2><a class="btn btn--small btn--green" href="#titles">Titles →</a></div>
-        <div data-status aria-busy="true"></div>
-      </section>
-      <section class="dash-card" aria-labelledby="dash-latest-searches">
-        <h2 id="dash-latest-searches">Search Log</h2>
-        <p class="admin-hint">Every search, newest first. Red rows found no titles.</p>
-        <div data-latest-searches aria-busy="true"></div>
-      </section>
-      </div>
+      ${TREND_CARD}
+      ${TOP_CARD}
+      ${TOP_SEARCHES_CARD}
     </div>
     </div>
     <div data-tabpane="system">
@@ -162,20 +99,10 @@ export async function mount(el, ctx) {
   });
   $('[data-asof]', el).textContent = `As of ${fmtDateTime(new Date().toISOString())}`;
 
-  // Each panel loads on its own so one slow or failing query doesn't blank the page.
-  const panel = async (sel, fn) => {
-    const box = $(sel, el);
-    try {
-      await fn(box);
-    } catch (err) {
-      console.error(err);
-      box.innerHTML = `<p class="form-error">Couldn’t load: ${esc(friendlyError(err))}</p>`;
-    }
-    box.removeAttribute('aria-busy');
-  };
-  const lines = all(() => sb.from('reservations').select(LINE_FIELDS).in('status', ACTIVE).order('id'));
+  const panel = (sel, fn) => loadPanel(el, sel, fn);
+  const lines = activeLines();
   const since = addDays(today(), -(DAYS - 1));
-  const recent = all(() => sb.from('reservation_orders').select('id,created_at').gte('created_at', new Date(`${since}T00:00:00`).toISOString()).order('id'));
+  const recent = ordersSince(since);
   lines.catch(() => {});
   recent.catch(() => {});
 
@@ -210,7 +137,7 @@ export async function mount(el, ctx) {
   const hints = {
     today: todayHint,
     ...Object.fromEntries(locations.map((l) => [`loc-${l.id}`, `${todayHint} This tab shows ${esc(l.name)} only.`])),
-    trends: `How the shop is doing: orders per day over the last ${DAYS} days, customers who may need a call, the most-reserved titles, estimated money and how many held copies get picked up, how many titles have each status, and what people search for.`,
+    trends: `A quick look: orders per day over the last ${DAYS} days, the most-reserved titles and what people search for most. Analytics has the full picture.`,
     system: 'Whether the shop’s scheduled jobs, such as the nightly backup and the weekly emails, are running on time.',
   };
   setupTabs(el, 'admin-dashboard-tab', 'today', (tab) => {
@@ -222,13 +149,8 @@ export async function mount(el, ctx) {
   await Promise.all([
     shown === null ? loadToday('') : null,
     panel('[data-trend]', async (box) => renderTrend(box, await recent, since)),
-    panel('[data-status]', renderStatus),
-    APP_ENABLED ? panel('[data-app]', renderApp) : null, // only shops with the app (shops.json)
     panel('[data-top]', async (box) => renderTop(box, await lines)),
-    panel('[data-drift]', renderDrift),
-    panel('[data-money]', async (box) => renderMoney(box, await lines)),
     panel('[data-top-searches]', renderTopSearches),
-    panel('[data-latest-searches]', renderLatestSearches),
     panel('[data-health]', renderHealth),
   ]);
 }
@@ -297,156 +219,6 @@ async function renderLatest(box, loc = null, stale = () => false) {
   box.onclick = rememberLink;
 }
 
-/** The destination screens read these on load: a customer id for Customers, a guest order id for Reservations. */
-function rememberLink(e) {
-  const link = e.target.closest('[data-customer], [data-guest]');
-  if (!link) return;
-  try {
-    if (link.dataset.customer) sessionStorage.setItem('admin-open-customer', link.dataset.customer);
-    else sessionStorage.setItem('admin-open-guest', link.dataset.guest);
-  } catch {
-    /* the link still opens the screen */
-  }
-}
-
-/** Pull list customers worth a call: name, contact, last pickup, and what's waiting for them (drifting_customers in the database). */
-async function renderDrift(box) {
-  const rows = await must(sb.rpc('drifting_customers', { p_days: DRIFT_DAYS }));
-  if (!rows.length) {
-    box.innerHTML = '<p class="empty">Nobody right now. Everyone with books in has been by lately.</p>';
-    return;
-  }
-  box.innerHTML = `<div class="admin-table-wrap"><table class="admin-table cards">
-      <thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col">Last pickup</th><th scope="col">Waiting</th><th scope="col">Value</th></tr></thead>
-      <tbody></tbody></table></div>
-    ${PAGER_HTML}`;
-  setupPager(box, rows.length, (start, end) => {
-    $('tbody', box).innerHTML = rows
-      .slice(start, end)
-      .map((c) => `<tr${c.past_window ? ' class="is-overdue"' : ''}>
-        <td class="card-title"><a href="#customers" data-customer="${c.id}"><strong>${esc(c.name || c.email || '(no name)')}</strong></a></td>
-        <td class="nowrap">${esc(formatPhone(c.phone))}</td>
-        <td class="card-action">${c.email ? `<button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(c.email)}" aria-label="Email ${esc(c.name || c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email</button>` : ''}</td>
-        <td class="nowrap card-label">${c.last_pickup ? fmtDate(dayKey(c.last_pickup), { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'}</td>
-        <td class="center card-key card-label">${c.waiting.toLocaleString()}${c.past_window ? `<span class="card__meta"> (${c.past_window.toLocaleString()} past window)</span>` : ''}</td>
-        <td class="center card-label">${dollars(Number(c.waiting_value))}</td>
-      </tr>`)
-      .join('');
-  });
-  box.onclick = (e) => {
-    const mail = e.target.closest('[data-email-to]');
-    if (mail) openEmailDialog({ to: mail.dataset.emailTo, name: mail.dataset.emailName, customerId: Number(mail.dataset.emailCustomer) });
-    else rememberLink(e);
-  };
-}
-
-function renderTrend(box, recent, since) {
-  const perDay = new Map();
-  for (let i = 0; i < DAYS; i++) perDay.set(addDays(since, i), 0);
-  for (const o of recent) {
-    const k = dayKey(o.created_at);
-    if (perDay.has(k)) perDay.set(k, perDay.get(k) + 1);
-  }
-  const days = [...perDay];
-  const max = Math.max(1, ...days.map(([, n]) => n));
-  const total = days.reduce((n, [, c]) => n + c, 0);
-  const label = ([d, n]) => `${fmtDate(d, { weekday: 'short', month: 'short', day: 'numeric' })}: ${plural(n, 'order')}`;
-  // Gridline at a round number near the top so the bars have a scale.
-  const step = max <= 5 ? 1 : max <= 10 ? 2 : max <= 25 ? 5 : 10;
-  const top = Math.ceil(max / step) * step;
-  const t = today();
-  box.innerHTML = `
-    <p class="card__meta">${plural(total, 'order')} in the last ${DAYS} days · busiest day ${esc(label(days.reduce((a, b) => (b[1] > a[1] ? b : a))))}</p>
-    <div class="dash-chart" role="img" aria-label="Bar chart of orders per day, ${plural(total, 'order')} in total. The table below has each day’s count.">
-      <div class="dash-chart__axis" aria-hidden="true"><span>${top}</span><span>${top / 2 === Math.round(top / 2) ? top / 2 : ''}</span><span>0</span></div>
-      <div class="dash-chart__plot">
-        ${days.map(([d, n]) => `<div class="dash-chart__col" data-tip="${esc(label([d, n]))}"><span class="dash-chart__bar${d === t ? ' is-today' : ''}" style="height:${(n / top) * 100}%"></span></div>`).join('')}
-      </div>
-      <div class="dash-chart__tip" hidden></div>
-    </div>
-    <div class="dash-chart__x" aria-hidden="true"><span>${fmtDate(days[0][0], { month: 'short', day: 'numeric' })}</span><span>Today</span></div>
-    <details class="dash-details"><summary>Show as table</summary>
-      <table class="admin-table"><thead><tr><th scope="col">Day</th><th scope="col">Orders</th></tr></thead>
-      <tbody>${days.slice().reverse().map(([d, n]) => `<tr><td>${fmtDate(d, { weekday: 'short', month: 'short', day: 'numeric' })}</td><td>${n}</td></tr>`).join('')}</tbody></table>
-    </details>`;
-
-  const chart = $('.dash-chart', box);
-  const tip = $('.dash-chart__tip', box);
-  $$('.dash-chart__col', box).forEach((col) => {
-    col.addEventListener('pointerenter', () => {
-      tip.textContent = col.dataset.tip;
-      tip.hidden = false;
-      const c = chart.getBoundingClientRect(), r = col.getBoundingClientRect();
-      tip.style.left = `${Math.min(Math.max(r.left - c.left + r.width / 2, 70), c.width - 70)}px`;
-    });
-    col.addEventListener('pointerleave', () => (tip.hidden = true));
-  });
-}
-
-/** How many customers use the app, lately, and with notifications on (app_visits, push_subscriptions). */
-async function renderApp(box) {
-  const ago = (days) => new Date(Date.now() - days * 86400000).toISOString();
-  const visits = () => sb.from('app_visits').select('customer_id', { count: 'exact', head: true });
-  const [users, week, month, devices] = await Promise.all([
-    count(visits()),
-    count(visits().gte('last_seen_at', ago(7))),
-    count(visits().gte('last_seen_at', ago(30))),
-    all(() => sb.from('push_subscriptions').select('customer_id').order('id')),
-  ]);
-  const notified = new Set(devices.map((d) => d.customer_id)).size;
-  box.innerHTML = `
-    <p class="dash-big">${users.toLocaleString()} <span>${users === 1 ? 'customer uses' : 'customers use'} the app</span></p>
-    <ul class="dash-facts">
-      ${fact(week, 'opened it in the last 7 days')}
-      ${fact(month, 'opened it in the last 30 days')}
-      ${fact(notified, `${notified === 1 ? 'gets' : 'get'} notifications (${plural(devices.length, 'phone')})`)}
-    </ul>`;
-}
-
-/** Estimated dollars reserved, in progress and picked up, and how much of what's held for people gets picked up. */
-async function renderMoney(box, active) {
-  const since = addDays(today(), -(MONEY_WEEKS * 7 - 1));
-  const fields = 'id,order_id,quantity,status,arrived_on,created_at,updated_at,item:items(price),placed:reservation_orders(customer_id)';
-  const recent = await all(() => sb.from('reservations').select(fields).gte('updated_at', new Date(`${since}T00:00:00`).toISOString()).order('id'));
-  const m = moneySummary({ recent, active, since, weeks: MONEY_WEEKS, dayOf: dayKey });
-  const day = (d) => fmtDate(d, { month: 'short', day: 'numeric' });
-  box.innerHTML = `
-    <p class="dash-big">${dollars(m.reserved)} <span>reserved</span></p>
-    <ul class="dash-facts">
-      ${fact(m.ready, 'ready for pickup now', dollars(m.ready))}
-      ${fact(m.coming, 'reserved, not here yet', dollars(m.coming))}
-      ${fact(m.pickedUp, 'picked up', dollars(m.pickedUp))}
-      ${fact(m.perCustomer, `reserved per customer (${plural(m.customers, 'customer')})`, dollars(m.perCustomer))}
-    </ul>
-    ${m.pickupRate == null ? '<p class="empty">No held copies have been picked up or released yet.</p>' : `
-    <p class="dash-big">${m.pickupRate}% <span>of held copies picked up</span></p>
-    <ul class="dash-facts">
-      ${fact(m.pickedCopies, m.pickedCopies === 1 ? 'copy picked up' : 'copies picked up')}
-      ${fact(m.releasedCopies, m.releasedCopies === 1 ? 'copy released to the shelf' : 'copies released to the shelf')}
-      ${m.typicalWait == null ? '' : fact(m.typicalWait, `${m.typicalWait === 1 ? 'day' : 'days'} is the typical wait from arrival to pickup`)}
-    </ul>`}
-    ${m.unpriced ? `<p class="card__meta">${plural(m.unpriced, 'line')} with no cover price ${m.unpriced === 1 ? 'isn’t' : 'aren’t'} in these dollars.</p>` : ''}
-    <details class="dash-details"><summary>Show by week</summary>
-      <table class="admin-table"><thead><tr><th scope="col">Week starting</th><th scope="col">Reserved</th><th scope="col">Copies</th></tr></thead>
-      <tbody>${m.byWeek.slice().reverse().map((w) => `<tr><td>${day(w.start)}</td><td>${dollars(w.value)}</td><td>${w.copies.toLocaleString()}</td></tr>`).join('')}</tbody></table>
-    </details>`;
-}
-
-async function renderStatus(box) {
-  const statuses = Object.keys(STATUS_LABELS);
-  const [total, ...counts] = await Promise.all([count(items()), ...statuses.map((s) => count(items().eq('status', s)))]);
-  const max = Math.max(1, ...counts);
-  box.innerHTML = `
-    <p class="dash-big">${total.toLocaleString()} <span>titles</span></p>
-    <ul class="dash-bars">${statuses
-      .map((s, i) => `<li>
-        <span class="dash-bars__label"><span class="pill pill--${s}">${STATUS_LABELS[s]}</span></span>
-        <span class="dash-bars__track"><span class="dash-bars__fill" style="width:${(counts[i] / max) * 100}%"></span></span>
-        <span class="dash-bars__value">${counts[i].toLocaleString()}</span>
-      </li>`)
-      .join('')}</ul>`;
-}
-
 // Titles not out yet: pre-orders, and Coming Soon once customers can no longer add them (the shop orders until FOC).
 const UPCOMING = ['pre_order', 'coming_soon'];
 
@@ -471,126 +243,6 @@ async function renderCutoff(box, lines, stale = () => false) {
       <li><strong>${titles.toLocaleString()}</strong> pre-order ${titles === 1 ? 'title' : 'titles'} on this cutoff</li>
       <li><strong>${copies.toLocaleString()}</strong> reserved ${copies === 1 ? 'copy' : 'copies'} to order, for ${plural(new Set(onFoc.map((l) => l.order_id)).size, 'customer')}</li>
     </ul>`;
-}
-
-const TOP_TOTAL = 50;
-const LIST_PAGE = 10;
-const PAGER_HTML = '<div class="admin-pager"><button class="btn btn--ghost btn--small" type="button" data-prev>← Previous</button><span></span><button class="btn btn--ghost btn--small" type="button" data-next>Next →</button></div>';
-
-/** Works the PAGER_HTML in `box` for a list of `total` rows; drawRows(start, end) fills in a page. Returns a function that goes back to the first page. */
-function setupPager(box, total, drawRows) {
-  const pager = $('.admin-pager', box);
-  const pages = Math.ceil(total / LIST_PAGE);
-  pager.hidden = pages < 2;
-  let page = 0;
-  const draw = () => {
-    const start = page * LIST_PAGE;
-    drawRows(start, start + LIST_PAGE);
-    $('span', pager).textContent = `${start + 1}–${Math.min(start + LIST_PAGE, total)} of ${total}`;
-    $('[data-prev]', pager).disabled = page === 0;
-    $('[data-next]', pager).disabled = page >= pages - 1;
-  };
-  const turnPage = (step) => ((page += step), toListTop(box.closest('.dash-card') ?? box), draw());
-  $('[data-prev]', pager).addEventListener('click', () => turnPage(-1));
-  $('[data-next]', pager).addEventListener('click', () => turnPage(1));
-  draw();
-  return () => ((page = 0), draw());
-}
-
-/** Most Reserved: up to 50 titles with at least one copy reserved, numbered by rank (most copies first), sortable by any column, ten rows a page. */
-function renderTop(box, lines) {
-  const byItem = new Map();
-  for (const l of lines) {
-    if (!l.item) continue;
-    const row = byItem.get(l.item.id) ?? { item: l.item, copies: 0 };
-    row.copies += l.quantity;
-    byItem.set(l.item.id, row);
-  }
-  const ranked = [...byItem.values()]
-    .filter((r) => r.copies > 0)
-    .sort((a, b) => b.copies - a.copies || itemName(a.item).localeCompare(itemName(b.item)))
-    .slice(0, TOP_TOTAL)
-    .map((r, i) => ({ ...r, rank: i + 1 }));
-  if (!ranked.length) {
-    box.innerHTML = '<p class="empty">No active reservations.</p>';
-    return;
-  }
-  const state = { sort: 'rank', dir: 'asc' };
-  const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-  const SORTS = {
-    rank: (a, b) => a.rank - b.rank,
-    title: (a, b) => collator.compare(itemName(a.item), itemName(b.item)),
-    release: (a, b) => (!a.item.release_date !== !b.item.release_date ? (a.item.release_date ? -1 : 1) : (a.item.release_date ?? '').localeCompare(b.item.release_date ?? '')),
-    copies: (a, b) => a.copies - b.copies,
-  };
-
-  box.innerHTML = `<div class="admin-table-wrap"><table class="admin-table dash-top">
-      <thead><tr><th scope="col" data-sort="rank" aria-label="Rank">#</th><th scope="col" colspan="2" data-sort="title">Title</th><th scope="col" data-sort="release" data-first="asc">Out</th><th scope="col" data-sort="copies" data-first="desc">Copies</th></tr></thead>
-      <tbody></tbody></table></div>
-    ${PAGER_HTML}`;
-  const body = $('tbody', box);
-
-  const firstPage = setupPager(box, ranked.length, (start, end) => {
-    const sign = state.dir === 'asc' ? 1 : -1;
-    const rows = [...ranked].sort((a, b) => sign * SORTS[state.sort](a, b) || a.rank - b.rank);
-    body.innerHTML = rows
-      .slice(start, end)
-      .map((r) => `<tr>
-        <td class="dash-top__rank">${r.rank}</td>
-        <td class="dash-top__cover">${r.item.cover_url ? `<img class="thumb thumb--sm" src="${esc(r.item.cover_url)}" alt="" loading="lazy">` : '<span class="thumb thumb--sm thumb--none" aria-hidden="true"></span>'}</td>
-        <td><strong>${esc(itemName(r.item))}</strong>${r.item.publisher ? `<br><span class="card__meta">${esc(r.item.publisher)}</span>` : ''}</td>
-        <td class="nowrap">${r.item.release_date ? fmtDate(r.item.release_date, { month: 'short', day: 'numeric' }) : ''}</td>
-        <td class="dash-top__n">${r.copies}</td></tr>`)
-      .join('');
-  });
-  sortableTable($('table', box), {
-    sort: state.sort,
-    dir: state.dir,
-    onSort: (key, dir) => {
-      Object.assign(state, { sort: key, dir });
-      firstPage();
-    },
-  });
-}
-
-const SEARCH_LOG_MAX = 200;
-
-/** A list of searches, ten rows a page. `cols` is [heading, cell classes, row → text]; a search that found no titles is a red row. */
-function renderSearchRows(box, rows, cols) {
-  if (!rows.length) {
-    box.innerHTML = '<p class="empty">No searches yet.</p>';
-    return;
-  }
-  box.innerHTML = `<div class="admin-table-wrap"><table class="admin-table cards">
-      <thead><tr>${cols.map(([head]) => `<th scope="col">${head}</th>`).join('')}</tr></thead>
-      <tbody></tbody></table></div>
-    ${PAGER_HTML}`;
-  setupPager(box, rows.length, (start, end) => {
-    $('tbody', box).innerHTML = rows
-      .slice(start, end)
-      .map((r) => `<tr${r.titles ? '' : ' class="is-overdue"'}>${cols.map(([, cls, text]) => `<td class="${cls}">${esc(text(r))}</td>`).join('')}</tr>`)
-      .join('');
-  });
-}
-
-const SEARCH_TERM = ['Search', 'card-title', (r) => r.term];
-const SEARCH_TITLES = ['Titles found', 'center card-label', (r) => r.titles.toLocaleString()];
-
-async function renderTopSearches(box) {
-  renderSearchRows(box, await must(sb.rpc('search_log_top', { p_days: SEARCH_DAYS })), [
-    SEARCH_TERM,
-    ['Times', 'center card-key card-label', (r) => r.times.toLocaleString()],
-    SEARCH_TITLES,
-    ['Last searched', 'nowrap', (r) => fmtDateTime(r.last_at)],
-  ]);
-}
-
-async function renderLatestSearches(box) {
-  renderSearchRows(box, await must(sb.from('search_log').select('term,titles,searched_at').order('searched_at', { ascending: false }).limit(SEARCH_LOG_MAX)), [
-    SEARCH_TERM,
-    SEARCH_TITLES,
-    ['When', 'nowrap', (r) => fmtDateTime(r.searched_at)],
-  ]);
 }
 
 async function renderAttention(box, loc = null, stale = () => false) {
