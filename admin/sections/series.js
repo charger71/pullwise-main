@@ -24,6 +24,7 @@ export async function mount(el, ctx) {
     <section class="fold fold--compact fold--static series-add">
       <div class="fold__head"><h2 id="series-add-h">Add Active Series</h2></div>
       <div class="fold__body">
+      <p class="results-count" role="status" data-count></p>
       <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="sa-file">CSV file</label><input id="sa-file" type="file" accept=".csv,text/csv"></div>
         <div class="field span-2"><label for="sa-text">Or paste series names, one per line</label><textarea id="sa-text" rows="5" placeholder="Absolute Batman&#10;Ultimate Spider-Man"></textarea></div>
@@ -62,7 +63,7 @@ export async function mount(el, ctx) {
   let artists = null; // loads the Creatives tab; set once the tab's code is mounted
   setupTabs(el, 'admin-series-tab', 'list', (tab) => tab === 'artists' && artists?.(), {
     list: `Find series that are really the same book, tick them, pick which one to keep, and merge. Every series is listed; type part of a title or publisher to narrow the list.`,
-    add: `Customers can only follow a series that is in the system, and a series appears when one of its issues is imported. Add the ongoing series here so they can be followed right away; each issue is added to followers’ pull lists as it is imported later. Upload a CSV with a <strong>Series</strong> column (optional <strong>Publisher</strong> and <strong>Cover URL</strong>, an https:// link to the cover image) or paste one series per line. Series already in the system are left alone, except that a Cover URL sets their cover. To remove one, find it below and press Delete (only series with no imported titles can be deleted). <span data-count></span>`,
+    add: `Customers can only follow a series that is in the system, and a series appears when one of its issues is imported. Add the ongoing series here so they can be followed right away; each issue is added to followers’ pull lists as it is imported later. Upload a CSV with a <strong>Series</strong> column (optional <strong>Publisher</strong> and <strong>Cover URL</strong>, an https:// link to the cover image) or paste one series per line. Series already in the system are left alone, except that a Cover URL sets their cover. To remove one, find it below and press Delete (only series with no imported titles can be deleted).`,
     artists: `The list of writers, artists, colorists, editors and other creatives, and what the artist search on the site checks. Everyone credited on an imported title is added automatically. Add a cover artist who only appears in cover text (for example “CVR A PEACH MOMOKO”) so the search finds that exact name. Block a name that keeps showing up as a creative but isn’t one (for example a series); blocked names are never offered to customers. Use Edit in the list below to fix a spelling.`,
   });
   const form = $('[data-tabpane=list] form[role=search]', el);

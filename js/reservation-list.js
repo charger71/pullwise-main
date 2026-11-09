@@ -41,9 +41,10 @@ export const count = () => lines.length;
 export const has = (id) => lines.some((l) => l.item.id === id);
 export const onChange = (fn) => listeners.add(fn);
 
-export function add(item, quantity = 1) {
+/** `search` is the search this title was added after, credited in Analytics if the order goes through. */
+export function add(item, quantity = 1, search = null) {
   if (has(item.id)) return;
-  lines = [...lines, { item: Object.fromEntries(SNAPSHOT.map((k) => [k, item[k] ?? null])), quantity }];
+  lines = [...lines, { item: Object.fromEntries(SNAPSHOT.map((k) => [k, item[k] ?? null])), quantity, search }];
   save();
 }
 
