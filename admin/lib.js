@@ -860,8 +860,11 @@ export function openEmailDialog({ to, name = '', customerId = null }) {
   return d;
 }
 
-/** CSV download from rows (arrays). */
-export function downloadCsv(filename, header, rows) {
+/**
+ * CSV download from rows (arrays). Columns named in textColumns are written as ="…" so a spreadsheet keeps them exactly
+ * as text: a 17-digit UPC isn't rounded, a leading zero stays and issue -1 needs no apostrophe.
+ */
+export function downloadCsv(filename, header, rows, { textColumns = [] } = {}) {
   const cell = (v) => {
     let s = v == null ? '' : String(v);
     // Spreadsheet formula injection: text a customer typed (a name like =HYPERLINK(...)) must never be run as a
@@ -869,7 +872,9 @@ export function downloadCsv(filename, header, rows) {
     if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const csv = [header, ...rows].map((r) => r.map(cell).join(',')).join('\r\n');
+  const asText = textColumns.map((name) => header.indexOf(name));
+  const dataCell = (v, i) => (asText.includes(i) && v != null && v !== '' ? `"=""${String(v).replace(/"/g, '""""')}"""` : cell(v));
+  const csv = [header.map((h) => cell(h)).join(','), ...rows.map((r) => r.map(dataCell).join(','))].join('\r\n');
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })), download: filename });
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);

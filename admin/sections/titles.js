@@ -294,7 +294,8 @@ function filteredTitles(columns, options) {
     : q.order(SORT_COLUMN[state.sort] ?? 'updated_at', { ascending: asc, nullsFirst: false });
 }
 
-// The first columns use the Import screen's header names (js/import/distributors.js), so the file can be imported elsewhere.
+// The first columns use the Import screen's header names (js/import/distributors.js). ComicStore's Import also reads
+// Distributor and Hidden, so its existing titles match on distributor + SKU instead of being added again.
 const EXPORT_HEADER = ['Title', 'Issue', 'Variant', 'Publisher', 'Category', 'Price', 'FOC Date', 'Release Date', 'UPC', 'ISBN', 'SKU', 'Creators', 'Description', 'Mature', 'Cover URL', 'Status', 'Distributor', 'Hidden'];
 const EXPORT_COLUMNS = 'title,issue_number,variant,publisher,category_id,price,foc_date,release_date,upc,isbn,sku,creators,description,mature,cover_url,status,distributor,hidden';
 const yesNo = (v) => (v ? 'Y' : 'N');
@@ -308,7 +309,7 @@ async function exportTitles(btn) {
     const names = new Map(categories.map((c) => [c.id, c.name]));
     const items = await fetchAll(() => filteredTitles(EXPORT_COLUMNS).order('id'));
     if (!items.length) return toast('No titles match, so there is nothing to export.', 'error');
-    downloadCsv(`titles-${localToday()}.csv`, EXPORT_HEADER, items.map((i) => [i.title, i.issue_number, i.variant, i.publisher, names.get(i.category_id), i.price, i.foc_date, i.release_date, i.upc, i.isbn, i.sku, i.creators, i.description, yesNo(i.mature), i.cover_url, STATUS_LABELS[i.status] ?? i.status, i.distributor, yesNo(i.hidden)]));
+    downloadCsv(`titles-${localToday()}.csv`, EXPORT_HEADER, items.map((i) => [i.title, i.issue_number, i.variant, i.publisher, names.get(i.category_id), i.price, i.foc_date, i.release_date, i.upc, i.isbn, i.sku, i.creators, i.description, yesNo(i.mature), i.cover_url, STATUS_LABELS[i.status] ?? i.status, i.distributor, yesNo(i.hidden)]), { textColumns: ['Issue', 'UPC', 'ISBN', 'SKU'] });
     toast(`Exported ${items.length.toLocaleString()} ${items.length === 1 ? 'title' : 'titles'}.`);
   } catch (err) {
     toast(`Export failed: ${friendlyError(err)}`, 'error');
