@@ -2,7 +2,7 @@
 // changes in the list (status, staff pick, hidden), a read-only info view (click
 // the name), a full edit form, and who ordered each title.
 
-import { $, $$, esc, must, toast, isPhone, openDialog, imageField, uploadImage, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold, fetchAll, fmtDateTime, formatPhone, itemName, withCustomers, listLocations, toListTop } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, openDialog, imageField, uploadImage, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold, fetchAll, fmtDateTime, formatPhone, itemName, withCustomers, downloadCsv, listLocations, toListTop } from '../lib.js';
 import { ITEM_BADGES, price } from '../../js/site.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, weekStart } from '../../js/dates.js';
@@ -51,7 +51,7 @@ export async function mount(el, ctx) {
         <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New title</button>
       </div>
     </div>
-    ${hintFold('Every comic, book and product the shop sells. <strong>All</strong> lists everything, the FOC tab shows titles whose final order cutoff is this week (or next week, once this week’s has passed), and <strong>Out This Week</strong> shows what releases this week. Search and filter to narrow the list, then open a title to change its price, status, category or badges. Most titles arrive by import; add one here for anything else. <strong>Clean up old titles</strong> removes old titles nobody has on order.')}
+    ${hintFold(`Every comic, book and product the shop sells. <strong>All</strong> lists everything, the FOC tab shows titles whose final order cutoff is this week (or next week, once this week’s has passed), and <strong>Out This Week</strong> shows what releases this week. Search and filter to narrow the list, then open a title to change its price, status, category or badges. Most titles arrive by import; add one here for anything else. <strong>Clean up old titles</strong> removes old titles nobody has on order.${IS_CATALOG ? ' <strong>Export CSV</strong> saves every title the tab and filters are showing, across all pages, in the order shown.' : ''}`)}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-weektab="all">All</button>
       <button type="button" class="admin-tab" role="tab" data-weektab="foc">${focTabLabel()}</button>
@@ -90,6 +90,7 @@ export async function mount(el, ctx) {
       <div class="field"><label for="t-foc">FOC week</label><select id="t-foc" name="foc"><option value="">All weeks</option></select></div>
       <div class="field"><label for="t-release">Out week</label><select id="t-release" name="release"><option value="">All weeks</option></select></div>
       ${phone ? '</div></details>' : ''}
+      ${IS_CATALOG ? '<div class="field"><button class="btn btn--ghost" type="button" data-export>Export CSV</button></div>' : ''}
     </form>
     <p class="results-count" role="status" data-count></p>
     <div class="admin-table-wrap"><table class="admin-table titles-table">
@@ -148,6 +149,7 @@ export async function mount(el, ctx) {
   $('[data-next]', el).addEventListener('click', () => turnPage(state.offset + PAGE));
   $('[data-new]', el).addEventListener('click', () => edit(el, null));
   $('[data-cleanup]', el).addEventListener('click', () => cleanUp(el));
+  $('[data-export]', el)?.addEventListener('click', (e) => exportTitles(e.currentTarget));
 
   // Quick changes straight from the list.
   $('tbody', el).addEventListener('change', async (e) => {
@@ -269,10 +271,9 @@ function syncDateSelects(el) {
   }
 }
 
-async function load(el) {
-  const tbody = $('tbody', el);
-  tbody.setAttribute('aria-busy', 'true');
-  let q = sb.from('items').select('id,title,issue_number,variant,publisher,upc,isbn,status,foc_date,release_date,staff_pick,featured,hidden,cover_url,sku,distributor,category_id', { count: 'exact' });
+/** The items query for the tab, filters and sort now chosen, so the list and its export always agree. */
+function filteredTitles(columns, options) {
+  let q = sb.from('items').select(columns, options);
   // Same matching as the site search ("spiderman 7" finds SPIDER-MAN #7), plus SKU, UPC and ISBN as typed.
   const match = titleFilter(state.q, { codes: true });
   if (match) q = q.or(match);
@@ -289,9 +290,38 @@ async function load(el) {
   if (state.flag === 'no_price') q = q.is('price', null);
   if (state.visibility === 'visible') q = q.eq('hidden', false);
   const asc = state.dir === 'asc';
-  q =
-    state.sort === 'title' ? q.order('title', { ascending: asc }).order('issue_number', { ascending: asc }).order('variant', { ascending: asc, nullsFirst: asc })
+  return state.sort === 'title' ? q.order('title', { ascending: asc }).order('issue_number', { ascending: asc }).order('variant', { ascending: asc, nullsFirst: asc })
     : q.order(SORT_COLUMN[state.sort] ?? 'updated_at', { ascending: asc, nullsFirst: false });
+}
+
+// The first columns use the Import screen's header names (js/import/distributors.js), so the file can be imported elsewhere.
+const EXPORT_HEADER = ['Title', 'Issue', 'Variant', 'Publisher', 'Category', 'Price', 'FOC Date', 'Release Date', 'UPC', 'ISBN', 'SKU', 'Creators', 'Description', 'Mature', 'Cover URL', 'Status', 'Distributor', 'Hidden'];
+const EXPORT_COLUMNS = 'title,issue_number,variant,publisher,category_id,price,foc_date,release_date,upc,isbn,sku,creators,description,mature,cover_url,status,distributor,hidden';
+const yesNo = (v) => (v ? 'Y' : 'N');
+
+/** Master catalog only: download every title the current tab and filters match, on all pages, in the list's order. */
+async function exportTitles(btn) {
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Exporting…';
+  try {
+    const names = new Map(categories.map((c) => [c.id, c.name]));
+    const items = await fetchAll(() => filteredTitles(EXPORT_COLUMNS).order('id'));
+    if (!items.length) return toast('No titles match, so there is nothing to export.', 'error');
+    downloadCsv(`titles-${localToday()}.csv`, EXPORT_HEADER, items.map((i) => [i.title, i.issue_number, i.variant, i.publisher, names.get(i.category_id), i.price, i.foc_date, i.release_date, i.upc, i.isbn, i.sku, i.creators, i.description, yesNo(i.mature), i.cover_url, STATUS_LABELS[i.status] ?? i.status, i.distributor, yesNo(i.hidden)]));
+    toast(`Exported ${items.length.toLocaleString()} ${items.length === 1 ? 'title' : 'titles'}.`);
+  } catch (err) {
+    toast(`Export failed: ${friendlyError(err)}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+}
+
+async function load(el) {
+  const tbody = $('tbody', el);
+  tbody.setAttribute('aria-busy', 'true');
+  const q = filteredTitles('id,title,issue_number,variant,publisher,upc,isbn,status,foc_date,release_date,staff_pick,featured,hidden,cover_url,sku,distributor,category_id', { count: 'exact' });
   const { data, count, error } = await q.order('id').range(state.offset, state.offset + PAGE - 1);
   tbody.removeAttribute('aria-busy');
   if (error) {
