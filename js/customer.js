@@ -3,7 +3,7 @@
 // guest reservation list in reservation-list.js. All writes go through the
 // pull_list_* database functions, which enforce cutoffs and copy limits.
 
-import { DEMO, supabase } from './data.js';
+import { DEMO, supabase, recentSearchId, creditSearch } from './data.js';
 import { nameKey } from './util.js';
 import { friendlyError } from './errors.js';
 
@@ -205,6 +205,7 @@ export async function add(itemId, quantity = 1) {
   notify();
   const { sb, data: id } = await changeOrUndo('pull_list_add', { p_item_id: itemId, p_quantity: quantity }, () => undo(itemId, before));
   if (id) lines.set(itemId, { id, quantity, status: 'open', source: 'manual', created_at: new Date().toISOString() });
+  if (id && !before) creditSearch(recentSearchId());
   await softRefresh(sb);
 }
 
@@ -239,6 +240,7 @@ export async function reorder(itemId, quantity = 1) {
   const { data: id, error } = await sb.rpc('pull_list_reorder', { p_item_id: itemId, p_quantity: quantity });
   if (error) fail(error);
   if (id) lines.set(itemId, { id, quantity, status: 'open', source: 'manual', created_at: new Date().toISOString() });
+  if (id) creditSearch(recentSearchId());
   await softRefresh(sb);
 }
 
@@ -247,6 +249,7 @@ export async function addVariants(itemId, quantity = 1) {
   const sb = await supabase();
   const { data, error } = await sb.rpc('pull_list_add_variants', { p_item_id: itemId, p_quantity: quantity });
   if (error) fail(error);
+  creditSearch(recentSearchId(), data?.added);
   await softRefresh(sb);
   return data;
 }

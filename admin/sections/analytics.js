@@ -112,6 +112,7 @@ export async function mount(el, ctx) {
       ${TOP_SEARCHES_CARD}
       ${card('dash-latest-searches', 'Search Log', 'data-latest-searches', { hint: 'Every search, newest first. Red rows found no titles.' })}
       ${card('dash-no-results', `Searches That Found Nothing · Last ${SEARCH_DAYS} days`, 'data-no-results', { hint: 'Words that found no titles the last time. A search on one page, like Pre-Orders, only looks there, so the shop may carry some of these.' })}
+      ${card('dash-led', `Searches That Led to a Reservation · Last ${SEARCH_DAYS} days`, 'data-led', { hint: 'A title counts when it’s added within 30 minutes of a search, in the same browser tab, and a guest’s order goes through. It isn’t taken off if the title is removed later.' })}
       ${card('dash-waiting', 'Waiting for Stock', 'data-waiting', { hint: 'Titles customers asked to hear about when they’re in. A title leaves this list once those customers have been told.' })}
     </div>
     </div>`;
@@ -119,7 +120,7 @@ export async function mount(el, ctx) {
   setupTabs(el, 'admin-analytics-tab', 'sales', null, {
     sales: `What’s selling: orders per day over the last ${DAYS} days, the most-reserved titles, estimated money and how many held copies get picked up, how many titles have each status, and demand by series and publisher.`,
     customers: 'Who may need a call, how many customers use the pull list app, and how the customer base is growing.',
-    searches: 'What people search for in the shop’s search boxes and app, which searches found nothing, and the titles customers are waiting on.',
+    searches: 'What people search for in the shop’s search boxes and app, which searches found nothing, which led to a reservation, and the titles customers are waiting on.',
   });
 
   const panel = (sel, fn) => loadPanel(el, sel, fn);
@@ -141,6 +142,7 @@ export async function mount(el, ctx) {
     panel('[data-top-searches]', renderTopSearches),
     panel('[data-latest-searches]', renderLatestSearches),
     panel('[data-no-results]', renderNoResults),
+    panel('[data-led]', renderLed),
     panel('[data-waiting]', renderWaiting),
   ]);
 }
@@ -287,6 +289,24 @@ async function renderNoResults(box) {
     SEARCH_TIMES,
     ['Last searched', 'nowrap', (r) => fmtDateTime(r.last_at)],
   ], 'Every recent search found something.');
+}
+
+/** How many searches end in a reservation, and the words behind them (search_log_reservations in the database). */
+async function renderLed(box) {
+  const rows = await must(sb.rpc('search_log_reservations', { p_days: SEARCH_DAYS }));
+  if (!rows.length) return renderRows(box, rows, [], 'No reservations have followed a search yet.');
+  const { found_searches: found, led_searches: led } = rows[0];
+  box.innerHTML = `
+    <p class="dash-big">${Math.round((led / found) * 100)}% <span>of searches that found titles led to a reservation</span></p>
+    <ul class="dash-facts"><li>${led.toLocaleString()} of ${found.toLocaleString()} searches</li></ul>
+    <div data-led-rows></div>`;
+  renderRows($('[data-led-rows]', box), rows, [
+    SEARCH_TERM,
+    SEARCH_TIMES,
+    ['Led to a reservation', 'center card-label', (r) => r.led.toLocaleString()],
+    ['Titles reserved', 'center card-label', (r) => r.reserved.toLocaleString()],
+    ['Last searched', 'nowrap', (r) => fmtDateTime(r.last_at)],
+  ]);
 }
 
 /** Titles with stock alerts: who is waiting now (analytics_stock_alert_titles in the database). */

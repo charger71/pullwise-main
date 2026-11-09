@@ -2,7 +2,7 @@
 // dialog. Customers add any number of pre-order titles to their pull list; guests
 // submit them together as one order, signed-in customers keep a standing list.
 
-import { reserve, getSettings, coverArtists } from './data.js';
+import { reserve, getSettings, coverArtists, recentSearchId, creditSearches } from './data.js';
 import { $, esc, announceIn, focusBackOnClose, badge, ITEM_BADGES, cover, price, fmtDate, daysUntil, lastReserveDay, cutoffPassed, itemTitle, itemFullTitle } from './site.js';
 import { thumbOf, thumbFallback, formatPhone, nameKey, artistMeta, btnIcon } from './util.js';
 import * as list from './reservation-list.js';
@@ -319,7 +319,7 @@ export function enableReservations(root, lookup) {
       list.remove(item.id);
       announce(`Removed ${itemFullTitle(item)} from your pull list.`);
     } else {
-      list.add(item);
+      list.add(item, 1, recentSearchId());
       announce(`Added ${itemFullTitle(item)}. ${list.count()} ${list.count() === 1 ? 'title' : 'titles'} on your pull list.`);
     }
     btn.focus();
@@ -670,6 +670,7 @@ function createDialog() {
     submit.textContent = 'Saving…';
     try {
       await reserve(data);
+      creditSearches(lines.map((l) => l.search));
       form.hidden = true;
       $('.confirm__text', d).textContent = `Pull list saved for ${data.name}.${data.email ? ` A confirmation is on its way to ${data.email}.` : ''}`;
       $('.confirm__lines', d).innerHTML = lines.map((l) => `<li>${l.quantity} × ${esc(itemFullTitle(l.item))}</li>`).join('');

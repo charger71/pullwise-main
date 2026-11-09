@@ -353,14 +353,54 @@ export async function logSearch(term, titles) {
   const key = 'pw-last-search';
   const same = words.toLowerCase();
   try {
-    if (sessionStorage.getItem(key) === same) return;
+    if (sessionStorage.getItem(key) === same) return rememberSearch(recentSearchId());
     sessionStorage.setItem(key, same);
   } catch { /* private window: it may count twice, which is fine */ }
   try {
-    await (await supabase()).rpc('log_search', { p_term: words, p_titles: titles });
+    const { data: id } = await (await supabase()).rpc('log_search', { p_term: words, p_titles: titles });
+    rememberSearch(titles > 0 ? id : null); // nothing can be reserved from a search that found nothing
   } catch (err) {
     console.warn(err);
   }
+}
+
+// So Analytics can tell which searches lead to a reservation: this tab remembers the log row of its latest search for
+// a while. Only that number is kept, and the log itself never says who searched.
+const SEARCH_MEMO = 'pw-search-memo';
+const SEARCH_CREDIT_MS = 30 * 60 * 1000;
+
+function rememberSearch(id) {
+  try {
+    if (id) sessionStorage.setItem(SEARCH_MEMO, JSON.stringify({ id, at: Date.now() }));
+    else sessionStorage.removeItem(SEARCH_MEMO);
+  } catch { /* the reservation just isn't credited to a search */ }
+}
+
+/** The log row of this tab's search in the last 30 minutes, or null. */
+export function recentSearchId() {
+  try {
+    const memo = JSON.parse(sessionStorage.getItem(SEARCH_MEMO) ?? 'null');
+    return memo && Date.now() - memo.at < SEARCH_CREDIT_MS ? memo.id : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Adds reserved titles to that search's count. Never gets in the reservation's way. */
+export async function creditSearch(id, titles = 1) {
+  if (DEMO || !id || !titles) return;
+  try {
+    await (await supabase()).rpc('log_search_reserved', { p_id: id, p_titles: titles });
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+/** One log row number per title on a guest's order (null for a title that didn't follow a search). */
+export function creditSearches(ids) {
+  const titles = new Map();
+  for (const id of ids) if (id) titles.set(id, (titles.get(id) ?? 0) + 1);
+  titles.forEach((n, id) => creditSearch(id, n));
 }
 
 let settleTimer;
