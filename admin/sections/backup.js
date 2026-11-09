@@ -92,7 +92,7 @@ export async function mount(el, ctx) {
       const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(file), download: name });
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      await sb.from('job_log').insert({ job: 'backup_file', ok: true, message: `${user.email}: ${name}` }).catch(() => {});
+      await sb.from('job_log').insert({ job: 'backup_file', ok: true, message: `${user.email}: ${name}` });
       setStatus(status, `Saved ${name}. Keep it somewhere safe.`, 'ok');
       log();
     } catch (err) {
