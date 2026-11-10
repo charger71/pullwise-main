@@ -21,3 +21,8 @@ npm run demo-data -- --reset --yes # wipe the customer side and rebuild (without
   sign-ups and survey answers, and zeroes QR scans. It keeps staff (and the super admin), the catalog, series, events,
   news, pages, FAQs, surveys, settings, and any customer linked to a login. It runs in the same transaction as the
   rebuild (about 50 customers over 100 days, 45 days of orders, receiving and email history, then everything `refresh.sql` makes), so a failure changes nothing.
+- It also covers the newer features: Admin > Chat (answered chats and one open and waiting), search history for
+  Analytics (including searches with no results and searches that led to a reservation), customer re-orders and
+  shelf re-orders on the Re-order tab, app users, stock alerts, customers who never collected their copies (Customers
+  Drifting Away), staff notes on customers, and the unread badges on surveys and event sign-ups. Re-order lines staff
+  entered by hand are never changed.

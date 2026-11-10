@@ -7,6 +7,10 @@
 --   * open and ordered copies have no arrival date; arrived and picked-up copies always do
 --   * a line never predates its order, nothing is dated in the future, no email failed
 --   * this week's titles are ordered and waiting to be received (Admin > Ordering > Received)
+--   * a copy added on the site or the pull list is added before its cutoff closes (the Saturday on or before the FOC
+--     date); later ones are re-orders. Re-order lines (reorder = true) are never moved by the lifecycle below,
+--     except the demo's own customer re-orders (source 'manual'), which staff order and then receive
+--   * chats, searches, app visits, stock alerts and shelf re-orders are dated between a customer joining and now
 -- Shop time is America/New_York; the database runs in UTC, so "today" is always computed in shop time.
 -- Customers are @example.com with email opt-in off, so nothing here can send real mail.
 begin;
@@ -23,6 +27,18 @@ select d as today,
        case when current_setting('demo.hold_week', true) = 'on' then d - extract(dow from d)::int else d end as hold_from,
        coalesce(current_setting('demo.seed', true), '') = 'on' as seed
 from (select (now() at time zone 'America/New_York')::date d) x;
+
+-- 0. A customer can't add a copy after its cutoff closes (reservations_close_through: the Saturday on or before the
+-- FOC date); drop the old ones that did. Orders left empty go too and the day-filler below writes valid ones.
+create temp table late_lines on commit drop as
+select r.id from public.reservations r
+join public.items i on i.id = r.item_id
+cross join lateral (select (r.created_at at time zone 'America/New_York')::date d) c
+where not r.reorder and i.foc_date is not null
+  and ((r.source = 'manual' and c.d + ((6 - extract(dow from c.d)::int) % 7) >= i.foc_date) or (r.source = 'series' and c.d > i.foc_date));
+update public.pull_list_log set reservation_id = null where reservation_id in (select id from late_lines);
+delete from public.reservations where id in (select id from late_lines);
+delete from public.reservation_orders o where o.kind = 'order' and not exists (select 1 from public.reservations r where r.order_id = o.id);
 
 -- 1. New customers: about one every three days since the last one (a fresh seed: about 55 over 100 days), each with
 -- a pull list, follows and lines.
@@ -98,7 +114,7 @@ with gaps as (
   select g::date as dy from demo_clock, generate_series(today - 44, today, interval '1 day') g
   where not exists (select 1 from public.reservation_orders o where o.kind = 'order' and (o.created_at at time zone 'America/New_York')::date = g::date)
 ), slots as (
-  select g.dy, k, (g.dy + make_interval(hours => 9 + abs(hashtext(g.dy::text || k)) % 11, mins => abs(hashtext('m' || g.dy::text || k)) % 60)) at time zone 'America/New_York' as ts
+  select g.dy, k, least((g.dy + make_interval(hours => 9 + abs(hashtext(g.dy::text || k)) % 11, mins => abs(hashtext('m' || g.dy::text || k)) % 60)) at time zone 'America/New_York', now() - k * interval '20 minutes') as ts
   from gaps g cross join lateral generate_series(1, 1 + abs(hashtext(g.dy::text)) % 3) k
 ), ins as (
   insert into public.reservation_orders (name, phone, email, customer_id, kind, created_at)
@@ -122,6 +138,7 @@ join lateral (
   select t.id, row_number() over (order by t.h) rn from (
     select x.id, md5('i' || o.id::text || x.id::text) h from public.items x
     where x.cover_url is not null and x.release_date between ((o.created_at at time zone 'America/New_York')::date + 6) and ((o.created_at at time zone 'America/New_York')::date + 60) and not x.hidden
+      and ((o.created_at at time zone 'America/New_York')::date + ((6 - extract(dow from o.created_at at time zone 'America/New_York')::int) % 7)) < x.foc_date
     order by h limit 3) t
 ) i on i.rn <= k.n;
 delete from public.reservation_orders where id in (select o.id from gap_orders o where not exists (select 1 from public.reservations r where r.order_id = o.id));
@@ -147,14 +164,14 @@ on conflict (order_id, item_id) do nothing;
 update public.reservations r set status = 'ordered', arrived_on = null, arrival_notified_at = null,
        updated_at = least(greatest(r.created_at, i.foc_date + time '16:00'), now())
 from public.items i, demo_clock d
-where i.id = r.item_id and r.status in ('arrived', 'picked_up') and i.release_date >= d.hold_from;
+where i.id = r.item_id and not r.reorder and r.status in ('arrived', 'picked_up') and i.release_date >= d.hold_from;
 update public.reservations r set status = 'open', arrived_on = null
 from public.items i, demo_clock d
-where i.id = r.item_id and r.status = 'ordered' and i.foc_date > d.today;
+where i.id = r.item_id and not r.reorder and r.status = 'ordered' and i.foc_date > d.today;
 update public.reservations r set status = 'ordered'
 from public.items i, demo_clock d
-where i.id = r.item_id and r.status = 'open' and i.foc_date < d.today - 3;
-update public.reservations set arrived_on = null where status in ('open', 'ordered', 'reordered') and arrived_on is not null;
+where i.id = r.item_id and not r.reorder and r.status = 'open' and i.foc_date < d.today - 3;
+update public.reservations set arrived_on = null where not reorder and status in ('open', 'ordered', 'reordered') and arrived_on is not null;
 -- 4b. Ordered copies of released titles arrive on the release day; recent ones wait on the shelf, older ones were picked up.
 update public.reservations r set
   status = case when d.today - i.release_date <= 6 then (case when abs(hashtext(r.id::text)) % 10 < 3 then 'picked_up' else 'arrived' end)
@@ -164,14 +181,92 @@ update public.reservations r set
   updated_via = 'staff',
   updated_by = (select user_id from demo_staff where n = abs(hashtext('s' || r.id)) % greatest((select count(*) from demo_staff), 1))
 from public.items i, demo_clock d
-where i.id = r.item_id and r.status in ('open', 'ordered', 'reordered') and i.release_date < d.hold_from and i.foc_date < d.today - 3;
+where i.id = r.item_id and not r.reorder and r.status in ('open', 'ordered', 'reordered') and i.release_date < d.hold_from and i.foc_date < d.today - 3;
 -- 4c. Repairs: arrival dates inside [release, today]; lines don't predate their order.
 update public.reservations r set arrived_on = greatest(i.release_date, least(coalesce(r.arrived_on, i.release_date), d.today))
 from public.items i, demo_clock d
-where i.id = r.item_id and r.status in ('arrived', 'picked_up') and (r.arrived_on is null or r.arrived_on < i.release_date or r.arrived_on > d.today);
+where i.id = r.item_id and not r.reorder and r.status in ('arrived', 'picked_up') and (r.arrived_on is null or r.arrived_on < i.release_date or r.arrived_on > d.today);
 update public.reservations r set created_at = o.created_at
 from public.reservation_orders o where o.id = r.order_id and r.created_at < o.created_at - interval '1 minute';
 update public.reservations set updated_at = least(greatest(updated_at, created_at), now());
+
+
+-- 4d. Re-orders (Titles > a released trade or omnibus > Order a copy, and the Re-order tab): customers ask for a copy
+-- of a title whose cutoff is long past; staff order it the next day and it arrives 3-4 days later. Only the demo's
+-- own (source 'manual', @example.com) lines move; re-orders staff entered by hand are left alone.
+create temp table ro_pick on commit drop as
+select s.ts, c.id customer_id, i.id item_id, case when abs(hashtext('rq' || s.ts)) % 8 = 0 then 2 else 1 end qty
+from (
+  select (g::date + make_interval(hours => 10 + abs(hashtext('rh' || g::date || k)) % 9, mins => abs(hashtext('rm' || g::date || k)) % 60)) at time zone 'America/New_York' ts, g::date dy, k
+  from demo_clock, generate_series(today - 44, today, interval '1 day') g, generate_series(1, 2) k
+  where abs(hashtext('ro' || g::date || k)) % 5 < 2
+) s
+join lateral (select x.id, x.created_at from public.customers x where x.email like '%@example.com' and x.created_at < s.ts - interval '1 day'
+              and nullif(trim(x.phone), '') is not null order by md5(x.id::text || s.ts) limit 1) c on true
+join lateral (select y.id from public.items y join public.categories k on k.id = y.category_id
+              where k.slug in ('trades', 'omnibuses') and not y.hidden and y.status <> 'pre_order' and y.cover_url is not null
+                and y.release_date <= s.dy - 7 and (y.foc_date is null or y.foc_date <= s.dy) order by md5(y.id::text || s.ts) limit 1) i on true
+where s.ts <= now()
+  and not exists (select 1 from public.reservations r join public.reservation_orders o on o.id = r.order_id
+                  where o.customer_id = c.id and r.item_id = i.id and r.status in ('open', 'ordered', 'reordered', 'arrived'));
+create temp table ro_orders (id bigint, customer_id bigint, created_at timestamptz) on commit drop;
+with ins as (
+  insert into public.reservation_orders (name, phone, email, customer_id, kind, created_at)
+  select c.name, c.phone, c.email, c.id, 'reorder', p.ts from ro_pick p join public.customers c on c.id = p.customer_id
+  returning id, customer_id, created_at
+)
+insert into ro_orders select * from ins;
+with ins as (
+  insert into public.reservations (order_id, item_id, quantity, status, source, reorder, created_at, updated_at, updated_via)
+  select o.id, p.item_id, p.qty, 'open', 'manual', true, o.created_at, o.created_at, 'customer'
+  from ro_orders o join ro_pick p on p.customer_id = o.customer_id and p.ts = o.created_at
+  returning id, order_id, item_id, created_at
+)
+insert into public.pull_list_log (customer_id, reservation_id, staff_user, action, detail, created_at)
+select o.customer_id, i.id, null, 'added',
+       'Re-order: ' || it.title || coalesce(' #' || it.issue_number, '') || coalesce(' · ' || it.variant, ''), i.created_at
+from ins i join ro_orders o on o.id = i.order_id join public.items it on it.id = i.item_id;
+
+create temp table ro_lines on commit drop as
+select r.id from public.reservations r join public.reservation_orders o on o.id = r.order_id join public.customers c on c.id = o.customer_id
+where r.reorder and r.source = 'manual' and c.email like '%@example.com';
+update public.reservations r set status = 'ordered', updated_via = 'staff',
+  updated_at = least(now(), ((r.created_at at time zone 'America/New_York')::date + 1 + time '11:00') at time zone 'America/New_York'),
+  updated_by = (select user_id from demo_staff where n = abs(hashtext('rs' || r.id)) % greatest((select count(*) from demo_staff), 1))
+from demo_clock d
+where r.id in (select id from ro_lines) and r.status = 'open' and (r.created_at at time zone 'America/New_York')::date <= d.today - 1;
+update public.reservations r set status = 'arrived', updated_via = 'staff',
+  arrived_on = (r.created_at at time zone 'America/New_York')::date + 3 + abs(hashtext('ra' || r.id)) % 2,
+  updated_at = least(now(), (((r.created_at at time zone 'America/New_York')::date + 3 + abs(hashtext('ra' || r.id)) % 2) + time '11:30') at time zone 'America/New_York'),
+  updated_by = (select user_id from demo_staff where n = abs(hashtext('rs' || r.id)) % greatest((select count(*) from demo_staff), 1))
+from demo_clock d
+where r.id in (select id from ro_lines) and r.status = 'ordered' and (r.created_at at time zone 'America/New_York')::date + 4 <= d.today;
+update public.reservations r set status = 'picked_up', updated_via = 'staff',
+  updated_at = least(now(), greatest(r.updated_at, ((r.arrived_on + 1 + abs(hashtext('rp' || r.id)) % 4) + time '15:00') at time zone 'America/New_York'))
+from demo_clock d
+where r.id in (select id from ro_lines) and r.status = 'arrived' and r.arrived_on + 5 <= d.today and abs(hashtext('rk' || r.id)) % 10 < 7;
+
+-- 4e. Customers who stopped coming: some picked-up copies from 31-44 days ago were never collected, so they sit
+-- past the 30-day hold (Dashboard > Trends > Customers Drifting Away), with both pickup reminders sent.
+update public.reservations r set status = 'arrived', pickup_reminders = 2, updated_via = 'staff',
+  updated_at = least(now(), ((r.arrived_on + 2) + time '12:00') at time zone 'America/New_York'),
+  updated_by = (select user_id from demo_staff where n = abs(hashtext('rs' || r.id)) % greatest((select count(*) from demo_staff), 1))
+from (
+  select r2.id, o.customer_id, row_number() over (partition by o.customer_id order by r2.arrived_on, r2.id) rn
+  from public.reservations r2
+  join public.reservation_orders o on o.id = r2.order_id
+  join public.customers c on c.id = o.customer_id and c.email like '%@example.com',
+  demo_clock d, public.settings st
+  where st.id = 1 and not r2.reorder and r2.status = 'picked_up' and r2.arrived_on between d.today - 44 and d.today - st.hold_days - 1
+    and abs(hashtext('dr' || o.customer_id)) % 100 < 10
+) pick, demo_clock d, public.settings st
+where st.id = 1 and r.id = pick.id and pick.rn <= 2
+  and (select count(*) from public.reservations x join public.reservation_orders ox on ox.id = x.order_id
+       where ox.customer_id = pick.customer_id and x.status = 'arrived' and x.arrived_on < d.today - st.hold_days) < 2;
+-- Reminders for anything waiting more than a week (the first goes out at a week, the second 2 days before the hold ends).
+update public.reservations r set pickup_reminders = case when r.arrived_on >= d.today - (st.hold_days - 2) then 1 else 2 end
+from demo_clock d, public.settings st
+where st.id = 1 and r.status = 'arrived' and not r.reorder and r.arrived_on <= d.today - 7 and r.pickup_reminders = 0;
 
 alter table public.reservations enable trigger reservations_stamp;
 
@@ -243,7 +338,7 @@ select s.id, jsonb_build_object('visit', (array['Every week','A few times a mont
 from public.surveys s
 cross join lateral (
   select ts from (select (d + make_interval(hours => 10 + abs(hashtext('sh' || d)) % 9)) at time zone 'America/New_York' ts
-                  from demo_clock, generate_series(today - 44, today, interval '1 day') d where abs(hashtext('sv' || d)) % 3 = 0) q
+                  from demo_clock, generate_series(today - 44, today, interval '1 day') d where abs(hashtext('sv' || d)) % 3 = 0 or d::date >= today - 1) q
   where ts <= now()
 ) g
 where s.slug = 'customer-feedback' and not exists (select 1 from public.survey_responses r where r.survey_id = s.id and r.created_at::date = g.ts::date);
@@ -263,5 +358,121 @@ where last_scan_at < now() - interval '2 days';
 insert into public.pull_list_seen (customer_id, seen_at)
 select c.id, now() - (abs(hashtext('sn' || c.id)) % 60 || ' hours')::interval from public.customers c where c.email like '%@example.com' and c.id % 4 <> 0
 on conflict (customer_id) do update set seen_at = excluded.seen_at;
+
+-- 9. Live chat (Admin > Chat): about one chat every three days, the last two days always; answered by staff within
+-- minutes and closed, except today's, which is open and waiting. The push triggers are off so no device is pinged.
+alter table public.chat_messages disable trigger chat_messages_push;
+alter table public.chat_messages disable trigger chat_messages_reply_push;
+create temp table chat_plan on commit drop as
+select g::date dy, md5('chat' || g::date)::uuid token, 1 + abs(hashtext('ct' || g::date)) % 10 topic,
+       least((g::date + make_interval(hours => 9 + abs(hashtext('chh' || g::date)) % 12, mins => abs(hashtext('chm' || g::date)) % 60)) at time zone 'America/New_York',
+             now() - (case when g::date = d.today then interval '40 minutes' else interval '0' end)) ts,
+       abs(hashtext('cc' || g::date)) % 2 = 0 as linked
+from demo_clock d, generate_series(d.today - 44, d.today, interval '1 day') g
+where abs(hashtext('ch' || g::date)) % 3 = 0 or g::date >= d.today - 1;
+create temp table chat_new (id bigint, token uuid) on commit drop;
+with ins as (
+  insert into public.chat_conversations (visitor_token, name, email, customer_id, status, unread_staff, last_message_at, created_at)
+  select p.token,
+         coalesce(c.name, (array['Jordan P.','Alex M.','Sam R.','Taylor K.','Chris L.','Morgan D.','Riley S.','Casey B.'])[1 + abs(hashtext('cn' || p.dy)) % 8]),
+         case when c.id is not null then c.email when abs(hashtext('ce' || p.dy)) % 2 = 0 then 'visitor' || abs(hashtext('cv' || p.dy)) % 900 || '@example.com' end,
+         c.id, 'open', 0, p.ts, p.ts
+  from chat_plan p
+  left join lateral (select x.* from public.customers x where p.linked and x.email like '%@example.com' and x.created_at < p.ts - interval '1 hour'
+                     order by md5(x.id::text || p.dy) limit 1) c on true
+  where not exists (select 1 from public.chat_conversations v where v.visitor_token = p.token)
+  returning id, visitor_token
+)
+insert into chat_new select * from ins;
+insert into public.chat_messages (conversation_id, from_staff, body, sent_by, created_at)
+select m.cid, m.from_staff, m.body, m.sent_by, m.ts
+from (
+  select n.id cid, false from_staff, null::text sent_by, p.ts,
+    (array['Hi! Do you have Absolute Batman #1 in stock?','What time do you open on Wednesday for new comics?','Can I add a series to my pull list from my phone?','Is my order ready for pickup yet?','Do you buy used comics or trade paperbacks?','Will there be a sale around the holidays?','Can someone else pick up my comics for me?','Do you sell gift cards?','My pull list says a title is not ordered. Why?','Do you carry manga box sets?'])[p.topic] body
+  from chat_new n join chat_plan p on p.token = n.token
+  union all
+  select n.id, true, (select s.name from public.staff s join demo_staff d on d.user_id = s.user_id where d.n = abs(hashtext('cs' || p.dy)) % greatest((select count(*) from demo_staff), 1)),
+    p.ts + (3 + abs(hashtext('cd' || p.dy)) % 20) * interval '1 minute',
+    (array['Hi! We have a few second printings behind the counter. Want us to set one aside under your name?','We open at 10am every Wednesday and the new releases are on the shelves by then.','Yes! Sign in, open a title and tap Add to my pull list. It follows every new issue.','Anything marked Ready on your pull list is on the hold shelf for 30 days.','We do! Bring them in any day before closing and we will make you an offer on the spot.','Yes, check the Calendar page for the sale dates and deals.','Sure, just have them give us your name and phone number at the counter.','We do, in any amount. Stop by or call and we will set one up.','That means the order cutoff has not passed yet. We place the order after the cutoff and it moves to Ordered.','We carry a good selection. Search the Titles page or tell us the series and we will check.'])[p.topic]
+  from chat_new n join chat_plan p on p.token = n.token
+  where p.ts + (3 + abs(hashtext('cd' || p.dy)) % 20) * interval '1 minute' < now() - interval '5 minutes'
+  union all
+  select n.id, false, null, p.ts + (3 + abs(hashtext('cd' || p.dy)) % 20 + 2) * interval '1 minute',
+    (array['Thank you so much!','Perfect, thanks!','Great, see you soon.'])[1 + abs(hashtext('ck' || p.dy)) % 3]
+  from chat_new n join chat_plan p on p.token = n.token
+  where abs(hashtext('ct2' || p.dy)) % 5 < 3 and p.ts + (3 + abs(hashtext('cd' || p.dy)) % 20 + 2) * interval '1 minute' < now() - interval '3 minutes'
+) m
+order by m.ts, m.from_staff;
+update public.chat_conversations set status = 'closed', unread_staff = 0
+where id in (select id from chat_new) and created_at < now() - interval '30 hours';
+alter table public.chat_messages enable trigger chat_messages_push;
+alter table public.chat_messages enable trigger chat_messages_reply_push;
+
+-- 10. What people search for (Dashboard, Analytics): 5-12 searches a day for the last 45 days. Some find nothing
+-- (unmet demand) and some lead to a reservation. Days that already have searches are left alone.
+insert into public.search_log (term, titles, searched_at, reserved)
+select t.term, t.titles,
+       least((s.dy + make_interval(hours => 9 + abs(hashtext('sh' || s.dy || s.k)) % 14, mins => abs(hashtext('sm' || s.dy || s.k)) % 60)) at time zone 'America/New_York', now()),
+       case when t.titles > 0 and abs(hashtext('sr' || s.dy || s.k)) % 100 < 22 then 1 + abs(hashtext('sq' || s.dy || s.k)) % 3 else 0 end
+from (select g::date dy, k from demo_clock d, generate_series(d.today - 44, d.today, interval '1 day') g,
+        lateral generate_series(1, 5 + abs(hashtext('sn' || g::date)) % 8) k
+      where not exists (select 1 from public.search_log l where (l.searched_at at time zone 'America/New_York')::date = g::date)) s
+join (select row_number() over () rn, v.term, case when v.found then 1 + abs(hashtext(v.term)) % 14 else 0 end titles
+      from (values ('absolute batman', true), ('one piece', true), ('spider-man', true), ('saga', true), ('x-men', true), ('invincible', true),
+                   ('chainsaw man', true), ('dungeons and dragons', false), ('batman', true), ('funko pop', false), ('spawn', true),
+                   ('magic the gathering', false), ('monstress', true), ('berserk', true), ('hellboy', true), ('omnibus', true),
+                   ('jujutsu kaisen', true), ('sandman', true), ('gift card', false), ('walking dead', true), ('vinyl records', false),
+                   ('star wars', true), ('ultimate spider-man', true), ('pokemon cards', false), ('dragon ball', true), ('blacksad', true)) v(term, found)) t
+  on t.rn = 1 + (abs(hashtext('s1' || s.dy || s.k)) % 100) * (abs(hashtext('s2' || s.dy || s.k)) % 100) * 26 / 10000
+where s.dy is not null;
+delete from public.search_log where searched_at < now() - interval '90 days';
+
+-- 11. Shelf re-orders staff placed (Re-order tab, Order for the shelf): about two a week, received 4-5 days later.
+insert into public.stock_reorders (item_id, quantity, status, created_by, created_at, ordered_at, received_at)
+select i.id, 2 + abs(hashtext('sq' || s.dy)) % 5,
+       case when s.ts + interval '5 days' <= now() then 'received' when s.ts + interval '1 day' <= now() then 'ordered' else 'open' end,
+       (select user_id from demo_staff where n = abs(hashtext('ss' || s.dy)) % greatest((select count(*) from demo_staff), 1)),
+       s.ts,
+       case when s.ts + interval '1 day' <= now() then s.ts + interval '1 day' end,
+       case when s.ts + interval '5 days' <= now() then s.ts + interval '5 days' end
+from (select g::date dy, least((g::date + make_interval(hours => 10 + abs(hashtext('s3' || g::date)) % 8)) at time zone 'America/New_York', now()) ts
+      from demo_clock d, generate_series(d.today - 44, d.today, interval '1 day') g where abs(hashtext('sr' || g::date)) % 4 = 0) s
+join lateral (select y.id from public.items y join public.categories k on k.id = y.category_id
+              where k.slug in ('trades', 'omnibuses') and not y.hidden and y.status <> 'pre_order' and y.release_date <= s.dy - 14
+                and (y.foc_date is null or y.foc_date <= s.dy) order by md5(y.id::text || s.dy) limit 1) i on true
+where not exists (select 1 from public.stock_reorders x where (x.created_at at time zone 'America/New_York')::date = s.dy);
+
+-- 12. Stock alerts ("tell me when it's back"), app users, staff notes on customers.
+insert into public.stock_alerts (customer_id, item_id, created_at)
+select c.id, i.id, least(greatest(c.created_at, now() - (1 + abs(hashtext('al' || c.id || i.id)) % 40) * interval '1 day'), now())
+from public.customers c
+join lateral (select y.id from public.items y where y.status in ('sold_out', 'backorder', 'coming_soon') and not y.hidden and y.cover_url is not null
+              order by md5(y.id::text || c.id) limit 2) i on true
+where c.email like '%@example.com' and abs(hashtext('sa' || c.id)) % 100 < 30
+on conflict (customer_id, item_id) do nothing;
+
+insert into public.app_visits (customer_id, first_seen_at, last_seen_at)
+select c.id, least(c.created_at + (abs(hashtext('fv' || c.id)) % 72) * interval '1 hour', now() - interval '2 hours'), now() - interval '2 hours'
+from public.customers c
+where c.email like '%@example.com' and abs(hashtext('av' || c.id)) % 100 < 65
+on conflict (customer_id) do nothing;
+update public.app_visits v set last_seen_at = least(now(), greatest(v.first_seen_at, now() - (abs(hashtext('lv' || v.customer_id || (select today from demo_clock))) % 240) * interval '1 hour'))
+where v.customer_id in (select id from public.customers where email like '%@example.com');
+
+insert into public.customer_notes (customer_id, notes, updated_at, updated_by)
+select c.id, (array['Prefers variant covers when we have them.','Collects Batman and Spider-Man; usually picks up on Wednesdays.','A friend picks up for them; the friend knows the name.','Asked us to call when new manga volumes arrive.','Gifts comics to a nephew; likes all-ages titles.','Wants to hear about signings before the newsletter goes out.'])[1 + abs(hashtext('nn' || c.id)) % 6],
+       least(greatest(c.created_at, now() - (abs(hashtext('nd' || c.id)) % 30) * interval '1 day'), now()),
+       (select user_id from demo_staff where n = abs(hashtext('nu' || c.id)) % greatest((select count(*) from demo_staff), 1))
+from public.customers c
+where c.email like '%@example.com' and abs(hashtext('nt' || c.id)) % 9 = 0
+  and not exists (select 1 from public.customer_notes n where n.customer_id = c.id);
+
+-- 13. New-response badges: answers and sign-ups from the last 3 days are unread; older ones were seen. Chat on, email colors set.
+update public.survey_responses set seen = true where not seen and created_at < now() - interval '3 days';
+update public.event_signups set seen = true where not seen and created_at < now() - interval '3 days';
+update public.settings set chat_enabled = true, chat_available = true,
+  chat_greeting = coalesce(chat_greeting, 'Hi! Ask us about your pull list, new releases or store hours.'),
+  email_page_color = coalesce(email_page_color, '#f4f1fa'), email_body_color = coalesce(email_body_color, '#ffffff')
+where id = 1;
 
 commit;

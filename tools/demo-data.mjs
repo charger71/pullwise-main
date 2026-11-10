@@ -92,7 +92,17 @@ if (!args.includes('--check')) {
       union all select 'info: ordered, waiting to be received', count(*) from public.reservations where status = 'ordered'
       union all select 'info: arrived, waiting for pickup', count(*) from public.reservations where status = 'arrived'
       union all select 'info: picked up', count(*) from public.reservations where status = 'picked_up'
-      union all select 'info: emails', count(*) from public.email_log`;
+      union all select 'info: emails', count(*) from public.email_log
+      union all select 'info: chats (open, unread)', count(*) from public.chat_conversations where status = 'open' and unread_staff > 0
+      union all select 'info: chats', count(*) from public.chat_conversations
+      union all select 'info: searches (no results)', count(*) from public.search_log where titles = 0
+      union all select 'info: searches', count(*) from public.search_log
+      union all select 'info: customer re-orders', count(*) from public.reservations where reorder
+      union all select 'info: shelf re-orders', count(*) from public.stock_reorders
+      union all select 'info: stock alerts', count(*) from public.stock_alerts
+      union all select 'info: app users', count(*) from public.app_visits
+      union all select 'info: uncollected past the hold', count(*) from public.reservations r, public.settings s where s.id = 1 and r.status = 'arrived' and r.arrived_on < (now() at time zone 'America/New_York')::date - s.hold_days
+      union all select 'info: unread survey answers and sign-ups', (select count(*) from public.survey_responses where not seen) + (select count(*) from public.event_signups where not seen)`;
     const check = readFileSync(join(root, 'tools/demo-data/check.sql'), 'utf8').trim();
     const rows = query(sql.replace(/commit;\s*$/, `${check}\n${summary};`));
     console.log('DRY RUN: nothing was changed.');
