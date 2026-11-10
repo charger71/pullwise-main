@@ -129,6 +129,19 @@ An on/off switch for a setting that is either on or off. Build it with \`switchH
     html: page('AdminSwitch', demo('On/off switch')),
   },
   {
+    name: 'AdminChoiceList', group: G('Forms'), height: 216,
+    readme: `# AdminChoiceList
+
+One question with a few answers picked by radio button, each answer a whole line: Import → Pull lists uses it for a title that needs a look (pick a series or skip it).
+
+- A \`fieldset.choice-list\` (\`admin-surface\`, a \`--border\` edge, \`admin-radius\`) with the question as its bold \`legend\`, and one \`label.choice-list__option\` per answer, each a 44px (\`admin-tap\`) row with the radio first. A score or hint after the answer is \`card__meta\`.
+- Always end with the way out ("Skip this title").
+- Picking an answer saves it straight away, so there's no Save button under it; while it saves the fieldset carries \`aria-busy="true"\` and fades.
+- For two or three short options side by side (Small / Medium / Large), use the radios in AdminShopLook's font picker instead.
+- Consumer provides: the question, the answers and what saving one does.`,
+    html: page('AdminChoiceList', demo('Choice list')),
+  },
+  {
     name: 'AdminDropzone', group: G('Forms'), height: 141,
     readme: `# AdminDropzone
 

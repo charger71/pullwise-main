@@ -161,6 +161,7 @@ Layouts that belong to one screen, built from the components; reuse the componen
 - **Customer pull list** (\`.cust-lines\`): grouped Ready / Open & ordered / Past with group header rows; stripes from \`tr.is-alt\`; stacks below 1200px.
 - **Reservations:** an order opens under its row (\`tr.is-open\` + \`tr.order-expand\` holding \`.order--inline\`).
 - **Place Order:** one \`.fold--compact[data-foc]\` per order cutoff, its count in the header note and "Mark ordered" at the top of the body.
+- **Pull list import review** (a tab of Import): a summary, then a \`fold--compact\` per customer (New / In Pullwise / No email or phone pills) holding Needs a look and Not found as AdminChoiceLists with a series search (\`.pull-find__form\`) under each line, and Matched as a closed \`details.pull-matched\` with a card table; Save in the save bar, disabled until every line is decided.
 - **Dashboard → Most Reserved** (\`.dash-top\`), **Series merge**, **QR codes** (\`.qr-item\`), **Survey questions** (\`.sq-head\`).
 
 ## Icons
