@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { gunzipSync } from 'node:zlib';
 import fs from 'node:fs';
-import { backupKeys, backupShops, backupBucket, LIFECYCLE } from './backup-shops.mjs';
+import { backupKeys, backupShops, backupBucket, isMediaDay, LIFECYCLE } from './backup-shops.mjs';
 
 // The script writes to the bucket the Worker reads (wrangler.jsonc's BACKUPS binding).
 assert.equal(backupBucket(fs.readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8')), 'pullwise-backups');
@@ -12,7 +12,7 @@ assert.throws(() => backupBucket('{}'), /BACKUPS R2 bucket/);
 assert.deepEqual(backupKeys('demo', new Date('2026-11-04T08:00:00Z')), ['daily/demo/shop-backup-2026-11-04.json.gz']);
 assert.deepEqual(backupKeys('demo', new Date('2026-12-01T08:00:00Z')), ['daily/demo/shop-backup-2026-12-01.json.gz', 'monthly/demo/shop-backup-2026-12-01.json.gz']);
 // R2 cleans up each prefix on its own; daily outlasts a month so the 1st is never the only copy.
-assert.deepEqual(LIFECYCLE.rules.map((r) => [r.conditions.prefix, r.deleteObjectsTransition.condition.maxAge / 86400]), [['daily/', 35], ['monthly/', 400]]);
+assert.deepEqual(LIFECYCLE.rules.map((r) => [r.conditions.prefix, r.deleteObjectsTransition.condition.maxAge / 86400]), [['daily/', 35], ['monthly/', 400], ['weekly/', 35]]);
 
 // A fake shop database: backup_meta / backup_page, and the job log.
 function fakeShop(id, { broken = false } = {}) {
@@ -58,3 +58,36 @@ assert.deepEqual([shops.b.logged[0].job, shops.b.logged[0].ok], ['backup', false
 assert.match(shops.b.logged[0].message, /Automatic nightly backup failed/);
 
 console.log('backup-shops tests passed');
+
+// Sundays (UTC) also save every picture, as .zip archives under weekly/; other days don't. A failure there is reported
+// but the database backup is still saved.
+assert.equal(isMediaDay(new Date('2026-11-08T08:00:00Z')), true);
+assert.equal(isMediaDay(new Date('2026-11-04T08:00:00Z')), false);
+{
+  const mediaShop = (fail) => {
+    const s = fakeShop('m');
+    s.sb.storage = { from: () => ({
+      list: async (folder) => ({ data: folder === '' ? [{ name: 'a.jpg', id: '1', metadata: { size: 3 } }] : [], error: null }),
+      download: async () => (fail ? { data: null, error: new Error('gone') } : { data: new Blob(['AAA']), error: null }),
+    }) };
+    return s;
+  };
+  for (const [day, expectMedia] of [['2026-11-08', true], ['2026-11-04', false]]) {
+    const m = mediaShop(false);
+    const kept = {};
+    const out = await backupShops([{ id: 'm' }], { clientFor: async () => m.sb, store: async (k, b) => { kept[k] = b; }, now: () => new Date(`${day}T08:00:00Z`), log: () => {} });
+    assert.equal(out[0].ok, true);
+    assert.equal(Object.keys(kept).some((k) => k.startsWith('weekly/m/shop-media-') && k.endsWith('.zip')), expectMedia, day);
+    assert.equal(m.logged.some((r) => r.job === 'media_backup' && r.ok), expectMedia);
+  }
+  const forced = mediaShop(false);
+  const kept = {};
+  await backupShops([{ id: 'm' }], { clientFor: async () => forced.sb, store: async (k, b) => { kept[k] = b; }, now: () => new Date('2026-11-04T08:00:00Z'), log: () => {}, media: true });
+  assert.ok(Object.keys(kept).some((k) => k.startsWith('weekly/m/')));
+  const bad = mediaShop(true);
+  const keptBad = {};
+  const outBad = await backupShops([{ id: 'm' }], { clientFor: async () => bad.sb, store: async (k, b) => { keptBad[k] = b; }, now: () => new Date('2026-11-08T08:00:00Z'), log: () => {} });
+  assert.equal(outBad[0].ok, false);
+  assert.ok(Object.keys(keptBad).some((k) => k.startsWith('daily/m/')), 'the database backup is still saved');
+  assert.ok(bad.logged.some((r) => r.job === 'media_backup' && r.ok === false));
+}

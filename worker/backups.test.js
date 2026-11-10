@@ -5,6 +5,9 @@ import { backupFiles, backupKey } from './backups.js';
 // Keys: only this shop's daily/monthly backup files.
 assert.deepEqual(backupKey('daily/demo/shop-backup-2026-11-04.json.gz', 'demo'), { key: 'daily/demo/shop-backup-2026-11-04.json.gz', kind: 'daily', date: '2026-11-04' });
 assert.equal(backupKey('monthly/demo/shop-backup-2026-11-01.json.gz', 'demo').kind, 'monthly');
+assert.deepEqual(backupKey('weekly/demo/shop-media-2026-11-08-part2of3.zip', 'demo'), { key: 'weekly/demo/shop-media-2026-11-08-part2of3.zip', kind: 'weekly', date: '2026-11-08', part: 2, parts: 3 });
+assert.deepEqual(backupKey('weekly/demo/shop-media-2026-11-08.zip', 'demo'), { key: 'weekly/demo/shop-media-2026-11-08.zip', kind: 'weekly', date: '2026-11-08' });
+assert.equal(backupKey('weekly/demo2/shop-media-2026-11-08.zip', 'demo'), null);
 for (const k of ['daily/demo2/shop-backup-2026-11-04.json.gz', 'daily/demo/../demo2/shop-backup-2026-11-04.json.gz', 'daily/demo/x.json.gz',
   'weekly/demo/shop-backup-2026-11-04.json.gz', 'demo/covers/a.jpg', '', null]) {
   assert.equal(backupKey(k, 'demo'), null, String(k));
@@ -15,6 +18,7 @@ const objects = {
   'daily/demo/shop-backup-2026-11-03.json.gz': 1000, 'daily/demo/shop-backup-2026-11-04.json.gz': 1100,
   'monthly/demo/shop-backup-2026-11-01.json.gz': 900, 'daily/demo/shop-backup-2026-11-01.json.gz': 900,
   'daily/demo2/shop-backup-2026-11-04.json.gz': 5000, 'daily/demo/stray.txt': 1,
+  'weekly/demo/shop-media-2026-11-01-part1of2.zip': 700, 'weekly/demo/shop-media-2026-11-01-part2of2.zip': 300,
 };
 const listed = [];
 const BACKUPS = {
@@ -42,14 +46,16 @@ let res = await call(req());
 assert.equal(res.status, 200);
 assert.equal(res.headers.get('Cache-Control'), 'no-store');
 assert.deepEqual((await res.json()).files.map((f) => [f.kind, f.date, f.size]), [
-  ['daily', '2026-11-04', 1100], ['daily', '2026-11-03', 1000], ['daily', '2026-11-01', 900], ['monthly', '2026-11-01', 900]]);
-assert.deepEqual([...new Set(listed)], ['daily/demo/', 'monthly/demo/']);
+  ['daily', '2026-11-04', 1100], ['daily', '2026-11-03', 1000], ['daily', '2026-11-01', 900], ['monthly', '2026-11-01', 900], ['weekly', '2026-11-01', 700], ['weekly', '2026-11-01', 300]]);
+assert.deepEqual([...new Set(listed)], ['daily/demo/', 'monthly/demo/', 'weekly/demo/']);
 
 // A download.
 res = await call(req('?file=' + encodeURIComponent('daily/demo/shop-backup-2026-11-04.json.gz')));
 assert.equal(res.status, 200);
 assert.equal(res.headers.get('Content-Disposition'), 'attachment; filename="shop-backup-2026-11-04.json.gz"');
 assert.equal((await res.arrayBuffer()).byteLength, 1100);
+res = await call(req('?file=' + encodeURIComponent('weekly/demo/shop-media-2026-11-01-part1of2.zip')));
+assert.equal(res.headers.get('Content-Type'), 'application/zip');
 
 // Refusals.
 assert.equal((await call(req('?file=' + encodeURIComponent('daily/demo2/shop-backup-2026-11-04.json.gz')))).status, 400, 'another shop’s file');

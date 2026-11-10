@@ -2,6 +2,8 @@
 # into the private R2 bucket pullwise-backups (tools/backup-shops.mjs). Daily files are kept 35 days, the 1st of each
 # month 400 days. Each backup shows in that shop's Backup → Backup Log. A failed shop fails the run, so GitHub emails.
 #
+# On Sundays (UTC) the shop's uploaded pictures are saved too, as .zip archives under weekly/ (kept 35 days).
+#
 # Run by hand: Actions → Automatic backup → Run workflow (optionally one shop).
 # Needs SUPABASE_ACCESS_TOKEN, CLOUDFLARE_API_TOKEN (with R2 edit) and CLOUDFLARE_ACCOUNT_ID (already used by Deploy).
 name: Automatic backup
@@ -15,6 +17,11 @@ on:
         description: Shop id from shops.json (blank = every shop)
         required: false
         type: string
+      media:
+        description: Include the pictures even if it isn't Sunday
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -42,6 +49,10 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           SHOP: ${{ inputs.shop }}
+          MEDIA: ${{ inputs.media }}
         run: |
           set -euo pipefail
-          if [ -n "$SHOP" ]; then node tools/backup-shops.mjs --shop "$SHOP"; else node tools/backup-shops.mjs; fi
+          args=()
+          if [ -n "$SHOP" ]; then args+=(--shop "$SHOP"); fi
+          if [ "$MEDIA" = "true" ]; then args+=(--media); fi
+          node tools/backup-shops.mjs "${args[@]}"
