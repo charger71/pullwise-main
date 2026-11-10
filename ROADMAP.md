@@ -80,6 +80,12 @@ Ideas and next steps for the site, newest first. Move an item to "Done" when it 
 
 ## Done
 
+- **Customer pull list import** (Admin → Import → Pull Lists): a shop moving to Pullwise uploads one spreadsheet of
+  customers and their pull lists (three layouts), checks the columns, and reviews every line: titles matched to series
+  in the database (staff corrections, then exact names, then the five closest by similarity), customers matched by
+  email then phone. Drafts can be resumed; Save is one customer at a time, retryable, sends no email, and leaves
+  existing customers' details and follows alone. Corrections are kept as import aliases for next time. Next: matching
+  by AI for what's still not found, and an optional invite email to imported customers.
 - **Automatic daily Lunar import into the master catalog** (`tools/lunar-auto-import.mjs`, GitHub Action): the FOC
   sheets for the next 8 Mondays and release sheets for this week and the next 4 Wednesdays, through the same code as
   Admin → Import. Lunar's hi-res covers (up to 18 MB) are shrunk with sharp to 1000 px plus a 560 px card copy and
