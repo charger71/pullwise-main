@@ -998,21 +998,21 @@ function setListView(table, view) {
 function listToolbar(table, ths, choose, current) {
   const wrap = table.closest('.admin-table-wrap') ?? table;
   if (wrap.previousElementSibling?.matches('.list-toolbar')) wrap.previousElementSibling.remove();
-  if (!table.classList.contains('cards') || table.closest('.fold, .panel, .dash-card, dialog, .qr-item') || !ths.length) return () => {};
+  if (!table.matches('.cards, .titles-table') || table.closest('.fold, .panel, .dash-card, dialog, .qr-item') || !ths.length) return () => {};
   const id = uid('list-sort');
   const cols = ths.map((th) => ({ th, label: th.textContent.trim(), num: th.dataset.sort === 'num' })).filter((c) => c.label);
   const bar = document.createElement('div');
   bar.className = 'list-toolbar';
-  bar.innerHTML = `<label class="visually-hidden" for="${id}">Sort list</label>
+  bar.innerHTML = `${table.dataset.sortElsewhere !== undefined ? '' : `<label class="visually-hidden" for="${id}">Sort list</label>
     <select id="${id}" class="select--small media-toolbar__sort"><option value="" disabled>Sort by…</option>${cols
       .map((c, i) => ['asc', 'desc'].map((d) => `<option value="${i}|${d}">${esc(c.label)} ${d === 'asc' ? '↑' : '↓'}</option>`).join(''))
-      .join('')}</select>
+      .join('')}</select>`}
     <div class="view-switch" role="group" aria-label="Show list as">
       <button class="icon-btn" type="button" data-view="grid" aria-pressed="false" aria-label="Grid" title="Grid">${solidIcon('grid', 20)}</button>
       <button class="icon-btn" type="button" data-view="list" aria-pressed="false" aria-label="List" title="List">${solidIcon('list', 20)}</button>
     </div>`;
   wrap.before(bar);
-  const select = $('select', bar);
+  const select = $('select', bar) ?? document.createElement('select'); // Titles sorts in its own filters
   select.addEventListener('change', () => {
     const [i, d] = select.value.split('|');
     choose(cols[Number(i)].th, d);

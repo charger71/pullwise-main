@@ -57,6 +57,8 @@ const RULES = {
   settings_copyright_text_check: 'The copyright text is too long (200 characters at most).',
   settings_email_button_color_check: 'The email button color must look like #c8102e.',
   settings_email_header_color_check: 'The email header color must look like #c8102e.',
+  settings_email_page_color_check: 'The email page background color must look like #f4f1ea.',
+  settings_email_body_color_check: 'The email body background color must look like #ffffff.',
   settings_email_logo_url_check: 'The email logo link must start with https://',
   settings_arrival_email_after_hour_check: 'The sending hours need a start between 0 and 23.',
   settings_arrival_email_before_hour_check: 'The sending hours need an end between 1 and 24.',

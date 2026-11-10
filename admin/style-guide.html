@@ -464,6 +464,7 @@ setHtml(quill, saved); … getHtml(quill)</pre>
             <h3>Pager</h3>
             <div class="sg-demo"><div class="admin-pager"><button class="btn btn--ghost" type="button">← Previous</button><span>1–25 of 120</span><button class="btn btn--ghost" type="button">Next →</button></div></div>
             <p class="admin-hint">Previous and Next call <code>toListTop()</code> on the list's top (its results count, or the card or fold it sits in): when that has scrolled out of sight the page jumps back to it, clear of the sticky header, so the new page starts at its first row. Give the target a <code>scroll-margin-top</code> in <code>admin.css</code>.</p>
+            <p class="admin-hint mt-8">A list that takes a moment to load shows its own spinner over the list area: set <code>data-loading</code> on the table’s <code>admin-table-wrap</code> while loading and delete it after (Titles does), and put “Loading…” in the results count for screen readers. The page-wide spinner still covers anything marked <code>aria-busy</code>. Titles’ column headings are sticky: they stay under the admin header while the list scrolls (900px and wider).</p>
           </div>
         </section>
         <!-- ===================================================== -->
@@ -777,7 +778,7 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
                 <button class="btn btn--primary" type="submit">Send</button>
               </form>
             </div>
-            <p class="admin-hint mt-8">The visitor’s messages sit on the left in the surface color; staff replies sit on the right in the selected tint. The Chat screen has an <a href="#forms">on/off switch</a> beside its title that turns chat on or off for visitors, lists chats in a <a href="#tables">card-list table</a> with a <code>pill--new</code> count of unread messages, and shows new messages live. The owner can remove the whole feature, and this screen with it, in Shop Settings → Online.</p>
+            <p class="admin-hint mt-8">The visitor’s messages sit on the left in the surface color; staff replies sit on the right in the selected tint. The Chat screen has an <a href="#forms">on/off switch</a> beside its title that turns chat on or off for visitors, lists chats in a <a href="#tables">card-list table</a> with a <code>pill--new</code> count of unread messages, and shows new messages live. The owner can remove the whole feature, and this screen with it, in Shop Settings → Online. A customer’s <strong>Messages</strong> tab shows their chats (started while signed in, or with the same email) in an <code>aside.cust-chat</code> beside the emails sent to them, using the same <code>chat-msg</code> bubbles; under 900px it sits below.</p>
           </div>
         </section>
 

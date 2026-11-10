@@ -8,6 +8,7 @@ import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemN
 import { cutoffPassed } from '../../js/site.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { todayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
+import { adminHash } from '../route.js';
 
 const SOURCE = { manual: 'Customer', variant: 'Customer (all covers)', series: 'Series follow', artist: 'Artist follow', staff: 'Staff' };
 const ITEM_FIELDS = 'id,title,issue_number,variant,publisher,price,series_key,foc_date,release_date,status';
@@ -425,6 +426,8 @@ async function renderCustomer(el) {
         </form></div>
         </section>
       ${isNew ? '</div>' : `
+        </div>
+        <div data-pane="pull">
         <section class="fold fold--compact fold--static">
           <div class="fold__head"><h2 id="cu-notes">Notes<span class="fold__note">Private to staff. Customers never see these.</span></h2></div>
           <div class="fold__body"><form data-notes>
@@ -435,8 +438,6 @@ async function renderCustomer(el) {
             <span class="card__meta" data-notes-meta></span>
           </form></div>
         </section>
-        </div>
-        <div data-pane="pull">
         <section class="fold fold--compact fold--static">
           <div class="fold__head"><h2 id="cu-list">Pull List<span class="fold__note" data-list-count></span></h2>
             <label class="cust-toggle"><input type="checkbox" data-cancelled${state.showCancelled ? ' checked' : ''}> Show cancelled</label>
@@ -471,7 +472,8 @@ async function renderCustomer(el) {
           </div>
         </section>
         </div>
-        <div data-pane="messages">
+        <div data-pane="messages" class="cust-pane--split">
+        <div class="cust-msgs__main">
         <section class="fold fold--compact fold--static">
           <div class="fold__head"><h2>Email Customer</h2><span class="fold__note">${c.email ? esc(c.email) : 'No email address saved'}</span></div>
           <div class="fold__body" data-compose>${c.email ? '' : '<p class="admin-hint">Add an email address on the Profile tab to email this customer.</p>'}</div>
@@ -480,6 +482,13 @@ async function renderCustomer(el) {
           <div class="fold__head"><h2 id="cu-messages">Messages Sent</h2><span class="card__meta cust-profile__sum" data-messages-sum></span></div>
           <div class="fold__body" data-messages></div>
         </section>
+        </div>
+        <aside class="cust-chat" aria-labelledby="cu-chat">
+        <section class="fold fold--compact fold--static">
+          <div class="fold__head"><h2 id="cu-chat">Chat</h2><span class="card__meta cust-profile__sum" data-chat-sum></span></div>
+          <div class="fold__body" data-chats aria-busy="true"></div>
+        </section>
+        </aside>
         </div>
         <div data-pane="changes">
         <section class="fold fold--compact fold--static cust-profile cust-log">
@@ -556,6 +565,7 @@ async function renderCustomer(el) {
 
   loadNotes(el, c);
   loadMessages(el, c);
+  loadChats(el, c);
   $('[data-search]', el).addEventListener('input', debounce((e) => searchTitles(el, c, e.target.value), 300));
   $('[data-search]', el).addEventListener('submit', (e) => e.preventDefault());
   $('[data-results]', el).addEventListener('click', (e) => addFromResult(el, c, e));
@@ -800,6 +810,27 @@ async function addFromResult(el, c, e) {
   toast(`Added ${added} ${added === 1 ? 'title' : 'titles'}${skipped ? ` (${skipped} already on the list)` : ''}${closed ? ` — ${closed} past the order cutoff, check with the distributor order` : ''}`, closed ? 'error' : 'ok');
   loadOrders(el, c);
   loadLog(el, c);
+}
+
+/** Chats this customer had on the site or in the app: ones started while signed in to their account, or with their email address. */
+async function loadChats(el, c) {
+  const box = $('[data-chats]', el);
+  const sum = $('[data-chat-sum]', el);
+  try {
+    const filter = anyOf(`customer_id.eq.${Number(c.id)}`, emailMatch('email', c.email));
+    const chats = await must(sb.from('chat_conversations').select('id,status,created_at').or(filter).order('last_message_at', { ascending: false }).limit(10));
+    const msgs = chats.length ? await must(sb.from('chat_messages').select('id,conversation_id,from_staff,body,sent_by,created_at').in('conversation_id', chats.map((x) => x.id)).order('id').limit(500)) : [];
+    sum.textContent = chats.length ? `${chats.length} chat${chats.length === 1 ? '' : 's'}` : '';
+    box.innerHTML = chats.length
+      ? chats.map((chat) => `<div class="cust-chat__conv">
+          <p class="card__meta"><a href="${adminHash('chat', chat.id)}">${esc(fmtDate(chat.created_at))} · ${chat.status === 'closed' ? 'Closed' : 'Open'}<span class="visually-hidden">: open this chat</span></a></p>
+          <div class="chat-thread cust-chat__thread">${msgs.filter((m) => m.conversation_id === chat.id).map((m) => `<div class="chat-msg${m.from_staff ? ' chat-msg--staff' : ''}"><p>${esc(m.body)}</p><span class="chat-msg__meta">${m.from_staff ? esc(m.sent_by || 'Staff') : esc(c.first_name || 'Customer')} · ${esc(fmtDateTime(m.created_at))}</span></div>`).join('')}</div>
+        </div>`).join('')
+      : '<p class="empty">No chats from this customer. Chats started while signed in, or with their email address, show here.</p>';
+  } catch (err) {
+    box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
+  }
+  box.removeAttribute('aria-busy');
 }
 
 let messagesSentHandler = null;
