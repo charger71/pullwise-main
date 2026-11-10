@@ -215,6 +215,7 @@ export const switchHtml = (label, { name, checked = false, attrs = '' } = {}) =>
 export const hintFold = (html) => `<template data-hint>${html}</template>`;
 /** Where a screen's How this works is filled in (setHint / setupTabs' hints); the button itself sits in the title. */
 export const hintSlot = () => '<div data-hint-slot hidden></div>';
+const HINT_ICON = '<svg class="solid-icon hint-icon" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M12 6.5c2.2 0 3.8 1.3 3.8 3.3 0 1.4-.7 2.2-1.7 3-.9.7-1.3 1.1-1.3 2v.3h-2v-.4c0-1.4.6-2.1 1.6-2.9.9-.7 1.3-1.1 1.3-1.9 0-.9-.7-1.5-1.7-1.5-1 0-1.7.7-1.8 1.7h-2C8.2 7.9 9.8 6.5 12 6.5zM13.2 17.4a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/></svg>';
 const HINT_TEXT = new WeakMap();
 const hintTitle = (from) => from.closest?.('dialog')?.querySelector('.dialog__head h2') ?? (from.closest?.('#section') ?? document).querySelector('h1');
 function hintButton(title, html) {
@@ -225,7 +226,7 @@ function hintButton(title, html) {
     btn.className = 'icon-btn icon-btn--hint';
     btn.setAttribute('aria-label', 'How this works');
     btn.title = 'How this works';
-    btn.textContent = '?';
+    btn.innerHTML = HINT_ICON;
     btn.addEventListener('click', () => openDialog('How this works', `<p class="admin-hint">${HINT_TEXT.get(btn).join('</p><p class="admin-hint">')}</p>`));
     title.append(' ', btn);
     HINT_TEXT.set(btn, []);
@@ -235,9 +236,17 @@ function hintButton(title, html) {
 }
 /** Turn every hint template under `root` into the "?" in its title. Safe to call again. */
 export function hintsInto(root) {
-  root.querySelectorAll?.('template[data-hint]').forEach((t) => {
-    const title = hintTitle(t);
-    if (title) hintButton(title, t.innerHTML);
+  [...(root.matches?.('template[data-hint]') ? [root] : []), ...(root.querySelectorAll?.('template[data-hint]') ?? [])].forEach((t) => {
+    if (t.closest('.fold') && !t.closest('dialog')) {
+      // A hint for one form inside a fold: its own ? where it was written, not in the screen's title.
+      const span = document.createElement('p');
+      span.className = 'hint-inline';
+      t.before(span);
+      hintButton(span, t.innerHTML);
+    } else {
+      const title = hintTitle(t);
+      if (title) hintButton(title, t.innerHTML);
+    }
     t.remove();
   });
 }
