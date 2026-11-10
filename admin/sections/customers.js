@@ -812,21 +812,30 @@ async function addFromResult(el, c, e) {
   loadLog(el, c);
 }
 
-/** Chats this customer had on the site or in the app: ones started while signed in to their account, or with their email address. */
-async function loadChats(el, c) {
+const CHAT_PAGE = 5;
+/** Chats this customer had on the site or in the app (started while signed in to their account, or with their email address), newest first, a page at a time; each one folds. */
+async function loadChats(el, c, offset = 0) {
   const box = $('[data-chats]', el);
   const sum = $('[data-chat-sum]', el);
+  box.setAttribute('aria-busy', 'true');
   try {
     const filter = anyOf(`customer_id.eq.${Number(c.id)}`, emailMatch('email', c.email));
-    const chats = await must(sb.from('chat_conversations').select('id,status,created_at').or(filter).order('last_message_at', { ascending: false }).limit(10));
-    const msgs = chats.length ? await must(sb.from('chat_messages').select('id,conversation_id,from_staff,body,sent_by,created_at').in('conversation_id', chats.map((x) => x.id)).order('id').limit(500)) : [];
-    sum.textContent = chats.length ? `${chats.length} chat${chats.length === 1 ? '' : 's'}` : '';
+    const { data: chats, count, error } = await sb.from('chat_conversations').select('id,status,created_at', { count: 'exact' }).or(filter).order('last_message_at', { ascending: false }).range(offset, offset + CHAT_PAGE - 1);
+    if (error) throw error;
+    const msgs = chats.length ? await must(sb.from('chat_messages').select('id,conversation_id,from_staff,body,sent_by,created_at').in('conversation_id', chats.map((x) => x.id)).order('id').limit(1000)) : [];
+    sum.textContent = count ? `${count} chat${count === 1 ? '' : 's'}` : '';
+    const thread = (chat) => msgs.filter((m) => m.conversation_id === chat.id);
     box.innerHTML = chats.length
-      ? chats.map((chat) => `<div class="cust-chat__conv">
-          <p class="card__meta"><a href="${adminHash('chat', chat.id)}">${esc(fmtDate(chat.created_at))} · ${chat.status === 'closed' ? 'Closed' : 'Open'}<span class="visually-hidden">: open this chat</span></a></p>
-          <div class="chat-thread cust-chat__thread">${msgs.filter((m) => m.conversation_id === chat.id).map((m) => `<div class="chat-msg${m.from_staff ? ' chat-msg--staff' : ''}"><p>${esc(m.body)}</p><span class="chat-msg__meta">${m.from_staff ? esc(m.sent_by || 'Staff') : esc(c.first_name || 'Customer')} · ${esc(fmtDateTime(m.created_at))}</span></div>`).join('')}</div>
-        </div>`).join('')
+      ? `${chats.map((chat, i) => `<details class="fold fold--compact cust-chat__conv"${i === 0 ? ' open' : ''}>
+          <summary class="fold__head"><h3>${esc(fmtDate(chat.created_at))}<span class="fold__note">${chat.status === 'closed' ? 'Closed' : 'Open'} · ${thread(chat).length} message${thread(chat).length === 1 ? '' : 's'}</span></h3></summary>
+          <div class="fold__body">
+            <div class="chat-thread cust-chat__thread">${thread(chat).map((m) => `<div class="chat-msg${m.from_staff ? ' chat-msg--staff' : ''}"><p>${esc(m.body)}</p><span class="chat-msg__meta">${m.from_staff ? esc(m.sent_by || 'Staff') : esc(c.first_name || 'Customer')} · ${esc(fmtDateTime(m.created_at))}</span></div>`).join('')}</div>
+            <p class="card__meta"><a href="${adminHash('chat', chat.id)}">Open this chat</a></p>
+          </div></details>`).join('')}
+        ${count > CHAT_PAGE ? `<div class="admin-pager"><button class="btn btn--ghost btn--small" type="button" data-chat-prev${offset === 0 ? ' disabled' : ''}>← Newer</button><span>${offset + 1}–${Math.min(offset + CHAT_PAGE, count)} of ${count}</span><button class="btn btn--ghost btn--small" type="button" data-chat-next${offset + CHAT_PAGE >= count ? ' disabled' : ''}>Older →</button></div>` : ''}`
       : '<p class="empty">No chats from this customer. Chats started while signed in, or with their email address, show here.</p>';
+    $('[data-chat-prev]', box)?.addEventListener('click', () => loadChats(el, c, Math.max(0, offset - CHAT_PAGE)));
+    $('[data-chat-next]', box)?.addEventListener('click', () => loadChats(el, c, offset + CHAT_PAGE));
   } catch (err) {
     box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
   }

@@ -2,7 +2,7 @@
 
 .admin-header { background: var(--header-bg); color: var(--header-fg); position: sticky; top: 0; z-index: var(--z-header); }
 .admin-header__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: var(--header-h); }
-.admin-header .brand__name { }
+.admin-header .brand__name { color: var(--brand-accent); }
 .admin-header__user { display: flex; align-items: center; gap: var(--sp-12); font-size: var(--fs-ui); }
 /* Account menu: the name, then a circle with its first letter that opens My account and Sign out. */
 .account__name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22ch; }
@@ -544,8 +544,9 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .cust-main > .cust-pane--split { grid-template-columns: minmax(0, 1fr); align-items: start; }
 .cust-msgs__main { display: grid; gap: var(--sp-16); min-width: 0; }
 .cust-chat { min-width: 0; }
-.cust-chat__conv + .cust-chat__conv { margin-top: var(--sp-16); }
-.cust-chat__conv > p { margin: 0 0 var(--sp-4); }
+.cust-chat__conv + .cust-chat__conv { margin-top: var(--sp-8); }
+.cust-chat__conv .card__meta { margin: var(--sp-8) 0 0; }
+.cust-chat .admin-pager { margin-top: var(--sp-12); }
 .cust-chat__thread { max-height: 24rem; margin-bottom: 0; }
 .cust-chat .chat-msg { max-width: 92%; }
 @media (min-width: 900px) { .cust-main > .cust-pane--split:not([hidden]) { grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); } }
