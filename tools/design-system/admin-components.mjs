@@ -179,7 +179,7 @@ One row of opening hours: day chips with a tick box inside, open and close times
     html: page('AdminHoursRow', demo('Opening hours row')),
   },
   {
-    name: 'AdminMediaGrid', group: G('Forms'), height: 207,
+    name: 'AdminMediaGrid', group: G('Forms'), height: 552,
     readme: `# AdminMediaGrid
 
 The media library: a grid of pictures, each with its name, size and actions.
@@ -202,7 +202,7 @@ A row of tabs that switches the view inside a screen, each with an icon in front
     html: page('AdminTabs', `<div class="admin-tabs" role="tablist">${tab('All customers', 'people', true)}${tab('New this week', 'sparkle', false)}${tab('Needs attention', 'alert', false, 3)}${tab('Pull list', 'bookmark', false)}</div>`),
   },
   {
-    name: 'AdminNavBadge', group: G('Navigation'), height: 96, width: 420,
+    name: 'AdminNavBadge', group: G('Navigation'), height: 120, width: 420,
     readme: `# AdminNavBadge
 
 A count on a menu item for work waiting on staff, shown on every screen.
@@ -350,7 +350,7 @@ ${demo('Static fold (always open, not clickable)')}
 ${demo('Fold with a count and an action at the top (Place Order cutoff)')}`),
   },
   {
-    name: 'AdminHintFold', group: G('Containers'), height: 105,
+    name: 'AdminHintFold', group: G('Containers'), height: 117,
     readme: `# AdminHintFold
 
 "How this works": instructions that start closed on every screen size, to save space.
