@@ -125,7 +125,7 @@ export async function mount(el, ctx) {
       <summary class="fold__head"><h2>Admin Colors<span class="fold__note">Your own colors for the admin</span></h2></summary>
       <div class="fold__body">
       <form class="admin-form" data-colors>
-        ${hintFold('Pick your own colors for the admin. They apply to the <strong data-colors-mode></strong> theme you are using now (switch Appearance above to set the other one), for you only, on every device you sign in from.')}
+        ${hintFold('Pick your own colors for the admin. They apply to the theme you are using now, light or dark (switch Appearance above to set the other one), for you only, on every device you sign in from.')}
         <div class="form-grid form-grid--pairs color-grid">${COLOR_VARS.map(([v, label, hint], i) => `<div class="field"><label for="st-c${i}">${label}</label><input id="st-c${i}" data-var="${v}" type="color"><p class="field__hint">${hint}</p></div>`).join('')}</div>
         <div class="admin-form__actions"><button class="btn btn--primary" type="submit">Save colors</button> <button class="btn btn--ghost" type="button" data-colors-reset>Back to standard colors (both themes)</button></div>
         <p class="admin-status" role="status" data-colors-status></p>
@@ -197,7 +197,6 @@ export async function mount(el, ctx) {
   const standard = {};
   const fillColors = () => {
     const mode = currentMode();
-    $('[data-colors-mode]', el).textContent = mode;
     const root = document.documentElement.style;
     const mine = getColors()[mode] ?? {};
     const saved = COLOR_VARS.map(([v]) => [v, root.getPropertyValue(v)]);

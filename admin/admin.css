@@ -2,7 +2,7 @@
 
 .admin-header { background: var(--header-bg); color: var(--header-fg); position: sticky; top: 0; z-index: var(--z-header); }
 .admin-header__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: var(--header-h); }
-.admin-header .brand__name { color: var(--brand-accent); }
+.admin-header .brand__name { }
 .admin-header__user { display: flex; align-items: center; gap: var(--sp-12); font-size: var(--fs-ui); }
 /* Account menu: the name, then a circle with its first letter that opens My account and Sign out. */
 .account__name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22ch; }
@@ -1070,9 +1070,14 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 }
 
 /* ---------- Received tab on phones ---------- */
-.icon-btn--hint { width: 28px; height: 28px; margin-inline-start: var(--sp-4); border-radius: 50%; background: var(--brand-accent); color: var(--on-accent); font: 700 var(--fs-ui)/1 inherit; vertical-align: middle; } /* How this works: the round accent ? at the end of a title */
-.icon-btn--hint:hover { background: var(--brand-accent); filter: brightness(1.06); }
-@media (max-width: 899px) { .icon-btn--hint { width: var(--tap); height: var(--tap); } }
+/* How this works: the accent help icon at the end of a title (an accent disc with the ? in --on-accent) */
+.icon-btn--hint { width: 32px; height: 32px; margin-inline-start: var(--sp-4); vertical-align: middle; }
+.icon-btn--hint svg { width: 28px; height: 28px; }
+.icon-btn--hint svg circle { fill: var(--brand-accent); }
+.icon-btn--hint svg path { fill: var(--on-accent); }
+.hint-inline { margin: 0 0 var(--sp-8); text-align: right; }
+.icon-btn--hint:hover { filter: brightness(1.06); }
+@media (max-width: 899px) { .icon-btn--hint { width: var(--tap); height: var(--tap); } .icon-btn--hint svg { width: 32px; height: 32px; } }
 .admin-hint-fold { margin-bottom: var(--sp-24); }
 .admin-hint-fold > summary { cursor: pointer; font-weight: 600; color: var(--muted); min-height: var(--tap); display: flex; align-items: center; }
 .admin-hint-fold > .admin-hint { margin: 0; padding: 0 var(--sp-16) var(--sp-14); } /* the text lines up with the heading above it, not the box edge */
