@@ -2,7 +2,7 @@
 // database now as one file, load tables back from a backup file, and export the customers. One Log tab. See BACKUPS.md.
 
 import { $, $$, esc, setStatus, fmtDate, fmtDateTime, solidIcon, friendlyError, downloadCsv, setupTabs, loadRunLog, hintSlot, openDialog, toast } from '../lib.js';
-import { buildBackup, lastBackup, recordBackup, customerRows, CUSTOMER_HEADER, nightlyBackups, nightlyBackupFile, parseBackup, currentCounts, restoreTables, replaceImpact, failedTable, restoreOrder, recordRestore, NOT_RESTORED } from '../backup.js';
+import { buildBackup, buildMediaBackup, recordMediaBackup, readMediaArchives, restoreMedia, recordMediaRestore, lastBackup, recordBackup, customerRows, CUSTOMER_HEADER, nightlyBackups, nightlyBackupFile, parseBackup, currentCounts, restoreTables, replaceImpact, failedTable, restoreOrder, recordRestore, NOT_RESTORED } from '../backup.js';
 
 const label = (n) => n.replace(/_/g, ' ');
 
@@ -19,7 +19,7 @@ const nightlyTable = (files, buttons) => files.length
     </table></div>`
   : '<p class="empty">No nightly backups yet. The first one is made tonight.</p>';
 
-const LOG_NAMES = { backup: 'Backup', backup_file: 'Nightly backup downloaded', export: 'Customer export' };
+const LOG_NAMES = { backup: 'Backup', backup_file: 'Nightly backup downloaded', export: 'Customer export', media_backup: 'Media backup', media_restore: 'Media restore' };
 
 const download = (built) => {
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(built.file), download: built.name });
@@ -41,33 +41,42 @@ export async function mount(el, ctx) {
     </div>
     <div data-tabpane="backups">
     <section class="fold fold--compact fold--static">
-    <div class="fold__head"><h2>Nightly Backups<span class="fold__note">Download one, or restore straight from it</span></h2></div>
+    <div class="fold__head"><h2>Download a Backup Now</h2></div>
     <div class="fold__body">
-    <p class="field__hint">The files contain customer names, phone numbers and emails: don’t share them or email them. <strong>Nothing is restored until you confirm on the Restore tab.</strong></p>
-    <p class="admin-status" role="status" data-nightly-status></p>
-    <div data-nightly><p class="card__meta">Loading the backups…</p></div>
+    <p data-last class="card__meta">Checking the last backup…</p>
+    <p class="admin-status" role="status" data-status></p>
+    <div class="admin-actions">
+    <button class="btn btn--primary" type="button" data-backup>${solidIcon('download', 16)} Download database backup</button>
+    <button class="btn btn--ghost" type="button" data-media>${solidIcon('download', 16)} Download media backup (.zip)</button>
+    </div>
     </div>
     </section>
     <section class="fold fold--compact fold--static">
-    <div class="fold__head"><h2>Download a Backup Now</h2></div>
+    <div class="fold__head"><h2>Nightly Backups<span class="fold__note">Download one, or restore straight from it</span></h2></div>
     <div class="fold__body">
-    <p>Downloads one file with <strong>everything in the shop’s database</strong>: titles, customers, pull lists and reservations, orders, events, news, page text, settings and the change log. The shop is also backed up automatically every night; download one yourself before a big change, or to keep a copy of your own somewhere safe, such as Dropbox.</p>
-    <p class="field__hint">The file contains customer names, phone numbers and emails: don’t share it or email it. Uploaded pictures (Media) are not in it, and neither are distributor cover images, which a re-import brings back.</p>
-    <p data-last class="card__meta">Checking the last backup…</p>
-    <p class="admin-status" role="status" data-status></p>
-    <button class="btn btn--primary" type="button" data-backup>${solidIcon('download', 16)} Download backup</button>
+    <p class="admin-status" role="status" data-nightly-status></p>
+    <div data-nightly><p class="card__meta">Loading the backups…</p></div>
     </div>
     </section>
     </div>
     <div data-tabpane="restore">
     <section class="fold fold--compact fold--static">
-    <div class="fold__head"><h2>Restore from a File on This Computer</h2></div>
+    <div class="fold__head"><h2>Restore the Database from a File on This Computer</h2></div>
     <div class="fold__body">
       <div class="field"><label for="bk-file">Backup file</label><input id="bk-file" type="file" accept=".gz,.json,application/gzip,application/json"></div>
       <p class="admin-status" role="status" data-file-status></p>
     </div>
     </section>
     <div data-plan hidden></div>
+    <section class="fold fold--compact fold--static">
+    <div class="fold__head"><h2>Restore Pictures from a Media Backup</h2></div>
+    <div class="fold__body">
+      <p class="field__hint">Pick every .zip from a media backup (all the parts). Pictures go back under their original names; nothing changes until you confirm.</p>
+      <div class="field"><label for="bk-media">Media backup files</label><input id="bk-media" type="file" accept=".zip,application/zip" multiple></div>
+      <p class="admin-status" role="status" data-media-status></p>
+      <div data-media-plan hidden></div>
+    </div>
+    </section>
     </div>
     <div data-tabpane="customers">
     <section class="fold fold--compact fold--static">
@@ -85,13 +94,13 @@ export async function mount(el, ctx) {
     </div>`;
   const log = () => loadRunLog(sb, $('[data-log]', el), {
     jobs: [...Object.keys(LOG_NAMES), 'restore'],
-    name: (job, text) => (job === 'restore' ? (text.startsWith('replace') ? 'Restore: replace' : 'Restore: add missing rows') : LOG_NAMES[job] ?? job),
+    name: (job, text) => (job === 'restore' || job === 'media_restore' ? `${job === 'restore' ? 'Restore' : 'Media restore'}: ${text.startsWith('replace') ? 'replace' : 'add missing'}` : LOG_NAMES[job] ?? job),
     detail: (text) => text.replace(/^(replace|add missing) — /, ''),
     by: true, limit: 50, empty: 'No backups, restores or exports yet.',
   }).catch(() => {});
   const showTab = setupTabs(el, 'admin-backup-tab', 'backups', undefined, {
-    backups: 'The shop is backed up automatically every night. Each day’s file is kept for 35 days, and the first of each month for about a year. <strong>Download</strong> saves a nightly file; <strong>Restore</strong> loads tables back from it (nothing is downloaded, and nothing changes until you confirm). You can also download a fresh backup now, or restore from a file on this computer.',
-    restore: 'Pick a backup file on this computer, or press Restore on a nightly backup. Then tick only the tables you need. <strong>Add missing rows</strong> puts back what was deleted and leaves everything else alone; <strong>Replace</strong> deletes every row in the table first and loads the backup’s, so changes made since the backup are lost.',
+    backups: 'The shop is backed up automatically every night. Each day’s file is kept for 35 days, and the first of each month for about a year. <strong>Download a backup now</strong> before a big change, or to keep a copy of your own somewhere safe, such as Dropbox: the <strong>database backup</strong> is one file with everything in the shop’s database (titles, customers, pull lists, orders, events, news, page text, settings and the change log); the <strong>media backup</strong> is every uploaded picture, as one or more .zip files. Distributor cover images are in neither (a re-import brings them back). In the nightly list, <strong>Download</strong> saves a file and <strong>Restore</strong> loads tables back from it (nothing is downloaded, and nothing changes until you confirm). The files contain customer names, phone numbers and emails: don’t share them or email them. Pictures are put back on the Restore tab. A big library is split into several .zip files of about 250 MB; your browser may ask to allow multiple downloads.',
+    restore: 'Pick a database backup file on this computer, or press Restore on a nightly backup, then tick only the tables you need. To put uploaded pictures back, pick the .zip files of a media backup at the bottom. <strong>Add missing rows</strong> puts back what was deleted and leaves everything else alone; <strong>Replace</strong> deletes every row in the table first and loads the backup’s, so changes made since the backup are lost.',
     customers: 'A spreadsheet of just the customers’ contact details, for a mailing or your records. It is not a backup.',
     log: 'Every backup (the nightly automatic ones and those downloaded here), every nightly file downloaded, every restore (who ran it, how, and what each table got; a failed restore changed nothing) and every customer list exported, newest first, with who did it.',
   });
@@ -171,6 +180,81 @@ export async function mount(el, ctx) {
     }
     btn.disabled = false;
   });
+
+  $('[data-media]', el).addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const status = $('[data-status]', el);
+    btn.disabled = true;
+    try {
+      const saved = [];
+      const built = await buildMediaBackup(sb, (t) => setStatus(status, t), async (part) => {
+        download(part);
+        saved.push(part.name);
+        await new Promise((r) => setTimeout(r, 1500)); // let the browser start this download before the next archive is built
+      });
+      await recordMediaBackup(sb, user.email, built).catch(() => {});
+      setStatus(status, `Saved ${built.files.toLocaleString()} pictures (${(built.bytes / 1024 / 1024).toFixed(1)} MB) in ${built.parts} ${built.parts === 1 ? 'file' : 'files'}: ${saved.join(', ')}.${built.failed ? ` ${built.failed} could not be read: try again.` : ' Move them somewhere safe.'}`, built.failed ? 'error' : 'ok');
+      log();
+    } catch (err) {
+      setStatus(status, `Media backup failed: ${friendlyError(err)}`, 'error');
+    }
+    btn.disabled = false;
+  });
+
+  // Restore pictures: read the picked archives, show what they hold, then confirm.
+  const mediaStatus = $('[data-media-status]', el);
+  const mediaPlan = $('[data-media-plan]', el);
+  $('#bk-media', el).addEventListener('change', async (e) => {
+    const picked = [...e.target.files];
+    mediaPlan.hidden = true;
+    mediaPlan.innerHTML = '';
+    if (!picked.length) return setStatus(mediaStatus, '');
+    setStatus(mediaStatus, 'Reading the files…');
+    try {
+      const entries = await readMediaArchives(picked);
+      if (!entries.length) return setStatus(mediaStatus, 'No pictures found in those files.', 'error');
+      setStatus(mediaStatus, '');
+      const mb = (entries.reduce((n, x) => n + x.size, 0) / 1024 / 1024).toFixed(1);
+      mediaPlan.hidden = false;
+      mediaPlan.innerHTML = `
+        <p><strong>${entries.length.toLocaleString()} pictures</strong> (${mb} MB) in ${picked.length} ${picked.length === 1 ? 'file' : 'files'}.</p>
+        <fieldset class="field">
+          <legend>How to load them</legend>
+          <div class="field field--check"><input id="bm-add" type="radio" name="mmode" value="add" checked><label for="bm-add"><strong>Add missing pictures only</strong> (safe): pictures that are still there are left as they are.</label></div>
+          <div class="field field--check"><input id="bm-rep" type="radio" name="mmode" value="replace"><label for="bm-rep"><strong>Replace pictures with the backup’s</strong>: a picture that is still there is overwritten with the backup’s copy.</label></div>
+        </fieldset>
+        <button class="btn btn--danger" type="button" data-media-restore>Restore the pictures…</button>`;
+      $('[data-media-restore]', mediaPlan).addEventListener('click', () => confirmMedia(entries));
+    } catch (err) {
+      setStatus(mediaStatus, friendlyError(err), 'error');
+    }
+  });
+
+  function confirmMedia(entries) {
+    const overwrite = $('input[name=mmode]:checked', mediaPlan).value === 'replace';
+    const d = openDialog(overwrite ? 'Replace pictures from the backup?' : 'Add missing pictures from the backup?', `
+      <p>${overwrite
+        ? `<strong>Every picture in the backup is uploaded, and any picture with the same name that is there now is overwritten.</strong> ${entries.length.toLocaleString()} pictures.`
+        : `Pictures that are already there are left alone; only missing ones are added. Up to ${entries.length.toLocaleString()} pictures.`}</p>
+      ${overwrite ? '<div class="field"><label for="bm-type">Type RESTORE to confirm</label><input id="bm-type" autocomplete="off"></div>' : ''}
+      <div class="admin-actions"><button class="btn btn--danger" type="button" data-go ${overwrite ? 'disabled' : ''}>${overwrite ? 'Replace' : 'Add missing pictures'}</button><button class="btn btn--ghost" type="button" data-cancel>Cancel</button></div>`);
+    $('[data-cancel]', d).addEventListener('click', () => d.close());
+    $('#bm-type', d)?.addEventListener('input', () => ($('[data-go]', d).disabled = $('#bm-type', d).value.trim() !== 'RESTORE'));
+    $('[data-go]', d).addEventListener('click', async () => {
+      d.close();
+      const btn = $('[data-media-restore]', mediaPlan);
+      btn.disabled = true;
+      try {
+        const r = await restoreMedia(sb, entries, { overwrite, onProgress: (t) => setStatus(mediaStatus, t) });
+        await recordMediaRestore(sb, user.email, overwrite ? 'replace' : 'add missing', r).catch(() => {});
+        setStatus(mediaStatus, `Done: ${r.uploaded.toLocaleString()} pictures loaded${r.skipped ? `, ${r.skipped.toLocaleString()} already there` : ''}.${r.failed.length ? ` ${r.failed.length} failed (${r.failed.slice(0, 3).join(', ')}${r.failed.length > 3 ? ', …' : ''}): try again.` : ''}`, r.failed.length ? 'error' : 'ok');
+        log();
+      } catch (err) {
+        setStatus(mediaStatus, `Restore didn’t finish: ${friendlyError(err)}`, 'error');
+      }
+      btn.disabled = false;
+    });
+  }
 
   $('[data-customers]', el).addEventListener('click', async (e) => {
     const btn = e.currentTarget;
