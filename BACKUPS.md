@@ -37,6 +37,10 @@ as in Dropbox. The Dashboard's Needs Attention list shows a **Back up** reminder
 
 The file holds customer names, phone numbers and emails: don't share or email it, and never commit it to git.
 
+**Download media backup (.zip)** on the same box saves every uploaded picture (the whole `media` storage bucket: the Media Library and the covers added by hand) with the same folder names as in storage. A big library is split into several archives of about 250 MB (`shop-media-YYYY-MM-DD-part1of3.zip`, …; a small one is a single `shop-media-YYYY-MM-DD.zip`); each is built and saved in turn so the browser never holds them all, and it may ask to allow multiple downloads. Pictures are not in the database backup. Each media backup is written to the Log.
+
+**Restore pictures:** Backup & Restore → Restore → *Restore Pictures from a Media Backup*. Pick all the .zip parts (a zip re-made by Finder or Explorer works too). *Add missing pictures only* uploads just the ones no longer in storage; *Replace* overwrites same-named pictures (type RESTORE). Each run is written to the Log. Pictures use their original paths, so every link to them works again.
+
 Included: titles, customers, pull lists and reservations, orders, events, news, page text, FAQ, surveys, settings, the
 series list, the staff list, logs and the change log, plus the sign-in list for reference (no passwords).
 Not included:

@@ -2,6 +2,7 @@
 // file in the browser. tools/restore.mjs turns that file back into SQL (see BACKUPS.md).
 
 import { must } from '../js/util.js';
+import { ZipBuilder, readZip } from './zip.js';
 
 const PAGE = 1000;
 export const FORMAT = 'shop-backup-1';
@@ -40,6 +41,119 @@ export async function buildBackup(sb, onProgress = () => {}) {
   const gz = new Response(new Blob([JSON.stringify(out)]).stream().pipeThrough(new CompressionStream('gzip')));
   const day = new Date().toLocaleDateString('en-CA');
   return { file: await gz.blob(), tables: list.length, rows: total, name: `shop-backup-${day}.json.gz` };
+}
+
+/** Every file in a storage bucket, folders included: [{ path, size }]. */
+export async function listBucketFiles(sb, bucket, folder = '') {
+  const out = [];
+  const entries = [];
+  for (let offset = 0; ; offset += 1000) {
+    const page = await must(sb.storage.from(bucket).list(folder, { limit: 1000, offset }));
+    entries.push(...page);
+    if (page.length < 1000) break;
+  }
+  for (const e of entries) {
+    const path = folder ? `${folder}/${e.name}` : e.name;
+    if (e.id) out.push({ path, size: e.metadata?.size ?? 0 });
+    else out.push(...(await listBucketFiles(sb, bucket, path))); // an entry with no id is a folder
+  }
+  return out;
+}
+
+/** About how much goes in one media archive: small enough to build and save in the browser without running out of memory. */
+export const MEDIA_PART_BYTES = 250 * 1024 * 1024;
+
+/** Splits the files (by the sizes storage lists) into archives of about `limit` bytes each; a file bigger than that gets its own. */
+export function planMediaParts(files, limit = MEDIA_PART_BYTES) {
+  const parts = [];
+  let cur = [];
+  let size = 0;
+  for (const f of files) {
+    if (cur.length && size + f.size > limit) (parts.push(cur), (cur = []), (size = 0));
+    cur.push(f);
+    size += f.size;
+  }
+  if (cur.length) parts.push(cur);
+  return parts;
+}
+
+/**
+ * Every uploaded picture (the Media bucket) as one or more .zip archives, same folder names as in storage. Each archive
+ * is built, handed to `onPart({ file, name, index, count, files })` to save, then dropped before the next is built, so a
+ * big library never sits in memory all at once. Files that fail to download are counted, not hidden.
+ * Returns { files, failed, parts, bytes }.
+ */
+export async function buildMediaBackup(sb, onProgress = () => {}, onPart = async () => {}, limit = MEDIA_PART_BYTES) {
+  const listed = await listBucketFiles(sb, 'media');
+  const plan = planMediaParts(listed, limit);
+  const day = new Date().toLocaleDateString('en-CA');
+  let done = 0;
+  let failed = 0;
+  let bytes = 0;
+  for (const [i, group] of plan.entries()) {
+    const zip = new ZipBuilder();
+    const queue = [...group];
+    let inPart = 0;
+    await Promise.all(Array.from({ length: 6 }, async () => {
+      for (let f = queue.shift(); f; f = queue.shift()) {
+        const { data, error } = await sb.storage.from('media').download(f.path);
+        if (error || !data) failed++;
+        else {
+          const buf = new Uint8Array(await data.arrayBuffer());
+          zip.add(f.path, buf);
+          bytes += buf.length;
+          inPart++;
+        }
+        onProgress(`Reading pictures: ${++done} of ${listed.length}${plan.length > 1 ? ` (archive ${i + 1} of ${plan.length})` : ''}`);
+      }
+    }));
+    const name = plan.length > 1 ? `shop-media-${day}-part${i + 1}of${plan.length}.zip` : `shop-media-${day}.zip`;
+    await onPart({ file: zip.finish(), name, index: i + 1, count: plan.length, files: inPart });
+  }
+  return { files: listed.length - failed, failed, parts: plan.length, bytes };
+}
+
+const IMAGE_TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', avif: 'image/avif' };
+
+/** The pictures in the picked media archives: [{ path, size, read }], skipping folders, Mac metadata and unsafe paths. */
+export async function readMediaArchives(files) {
+  const out = [];
+  for (const file of files) {
+    for (const e of await readZip(file)) {
+      const path = e.name.replace(/^\.?\//, '');
+      if (!path || path.endsWith('/') || path.startsWith('__MACOSX/') || /(^|\/)(\.DS_Store|\._[^/]*)$/.test(path)) continue;
+      if (path.includes('\\') || path.split('/').some((seg) => seg === '..' || seg === '')) continue;
+      out.push({ path, size: e.size, read: e.read });
+    }
+  }
+  return out;
+}
+
+/**
+ * Uploads the pictures back to the media bucket under their original paths. `overwrite` false leaves any picture that is
+ * already there alone (only the missing ones come back). Returns { uploaded, skipped, failed: [path] }.
+ */
+export async function restoreMedia(sb, entries, { overwrite = false, onProgress = () => {} } = {}) {
+  const have = overwrite ? new Set() : new Set((await listBucketFiles(sb, 'media')).map((f) => f.path));
+  const todo = entries.filter((e) => !have.has(e.path));
+  const result = { uploaded: 0, skipped: entries.length - todo.length, failed: [] };
+  const queue = [...todo];
+  let done = 0;
+  await Promise.all(Array.from({ length: 4 }, async () => {
+    for (let e = queue.shift(); e; e = queue.shift()) {
+      try {
+        const bytes = await e.read();
+        const type = IMAGE_TYPES[e.path.split('.').pop().toLowerCase()] ?? 'application/octet-stream';
+        const { error } = await sb.storage.from('media').upload(e.path, new Blob([bytes], { type }), { upsert: overwrite, contentType: type, cacheControl: '31536000' });
+        if (error) throw error;
+        result.uploaded++;
+      } catch {
+        result.failed.push(e.path);
+      }
+      onProgress(`Restoring pictures: ${++done} of ${todo.length}`);
+    }
+  }));
+  return result;
 }
 
 /** Days since the last recorded backup download, or null if there never was one. */
@@ -183,4 +297,12 @@ export async function customerRows(sb) {
       c.first_name ?? (c.last_name ? '' : c.name ?? ''), c.last_name ?? '', c.email ?? '', c.phone ?? '', c.address1 ?? '', c.city ?? '', c.state ?? '', c.zip ?? '',
       yes(c.email_opt_in), yes(c.notify_arrivals), yes(c.ship_arrivals), yes(c.user_id), (c.created_at ?? '').slice(0, 10), c.last_emailed_on ?? '',
     ]);
+}
+
+export async function recordMediaBackup(sb, who, built) {
+  await sb.from('job_log').insert({ job: 'media_backup', ok: built.failed === 0, message: `${who}: ${built.files.toLocaleString()} pictures in ${built.parts} ${built.parts === 1 ? 'file' : 'files'} (${(built.bytes / 1024 / 1024).toFixed(1)} MB)${built.failed ? `, ${built.failed} could not be read` : ''}` });
+}
+
+export async function recordMediaRestore(sb, who, mode, r) {
+  await sb.from('job_log').insert({ job: 'media_restore', ok: r.failed.length === 0, message: `${who}: ${mode} — ${r.uploaded.toLocaleString()} pictures loaded, ${r.skipped.toLocaleString()} already there${r.failed.length ? `, ${r.failed.length} FAILED (${r.failed.slice(0, 3).join(', ')}${r.failed.length > 3 ? ', …' : ''})` : ''}` });
 }

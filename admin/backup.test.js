@@ -103,3 +103,85 @@ console.log('backup tests passed');
   await assert.rejects(nightlyBackups(nsb, async () => Response.json({ error: 'Only an owner can see the backups.' }, { status: 403 })), /Only an owner/);
   await assert.rejects(nightlyBackups(nsb, async () => new Response('<html>', { status: 404 })), /only on the live site/);
 }
+
+// Media backup: every file in the bucket (folders too) goes into a valid .zip, with the same paths as in storage.
+{
+  const { buildMediaBackup, listBucketFiles } = await import('./backup.js');
+  const { crc32 } = await import('./zip.js');
+  assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
+  const tree = {
+    '': [{ name: 'library', id: null }, { name: 'covers', id: null }],
+    library: [{ name: 'a.jpg', id: '1', metadata: { size: 3 } }, { name: 'b-sm.jpg', id: '2', metadata: { size: 2 } }],
+    covers: [{ name: 'manual', id: null }],
+    'covers/manual': [{ name: 'cover 1.jpg', id: '3', metadata: { size: 4 } }, { name: 'bad.jpg', id: '4', metadata: { size: 1 } }],
+  };
+  const bytesOf = { 'library/a.jpg': 'AAA', 'library/b-sm.jpg': 'BB', 'covers/manual/cover 1.jpg': 'CCCC' };
+  const msb = { storage: { from: () => ({
+    list: async (folder) => ({ data: tree[folder] ?? [], error: null }),
+    download: async (path) => (bytesOf[path] ? { data: new Blob([bytesOf[path]]), error: null } : { data: null, error: new Error('gone') }),
+  }) } };
+  assert.deepEqual((await listBucketFiles(msb, 'media')).map((f) => f.path).sort(), ['covers/manual/bad.jpg', 'covers/manual/cover 1.jpg', 'library/a.jpg', 'library/b-sm.jpg']);
+  const parts = [];
+  const built = await buildMediaBackup(msb, () => {}, async (p) => parts.push(p));
+  assert.equal(built.files, 3);
+  assert.equal(built.failed, 1);
+  assert.equal(built.parts, 1);
+  assert.match(parts[0].name, /^shop-media-\d{4}-\d\d-\d\d\.zip$/);
+  const built2 = await buildMediaBackup(msb, () => {}, async (p) => parts.push(p), 4); // a tiny limit splits it
+  assert.ok(built2.parts >= 3);
+  assert.match(parts.at(-1).name, /-part\d+of\d+\.zip$/);
+  const { planMediaParts } = await import('./backup.js');
+  assert.deepEqual(planMediaParts([{ path: 'a', size: 5 }, { path: 'b', size: 5 }, { path: 'c', size: 1 }], 8).map((g) => g.map((f) => f.path)), [['a'], ['b', 'c']]);
+  const zipBlob = parts[0].file;
+  const { writeFileSync } = await import('node:fs');
+  const { execFileSync } = await import('node:child_process');
+  const { mkdtempSync } = await import('node:fs');
+  const dir = mkdtempSync(`${process.env.TMPDIR ?? '/tmp'}/media-zip-`);
+  writeFileSync(`${dir}/m.zip`, Buffer.from(await zipBlob.arrayBuffer()));
+  try {
+    const listing = execFileSync('unzip', ['-Z1', `${dir}/m.zip`], { encoding: 'utf8' });
+    assert.deepEqual(listing.trim().split('\n').sort(), ['covers/manual/cover 1.jpg', 'library/a.jpg', 'library/b-sm.jpg']);
+    execFileSync('unzip', ['-tq', `${dir}/m.zip`]);
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err; // no unzip on this machine: the structure checks above still ran
+  }
+}
+
+// Media restore: reads the archive back (ours and a deflated one), then uploads under the same paths.
+{
+  const { readMediaArchives, restoreMedia, buildMediaBackup } = await import('./backup.js');
+  const store = {};
+  const tree = { '': [{ name: 'library', id: null }], library: [{ name: 'a.jpg', id: '1', metadata: { size: 3 } }, { name: 'b.png', id: '2', metadata: { size: 2 } }] };
+  const src = { storage: { from: () => ({
+    list: async (f) => ({ data: tree[f] ?? [], error: null }),
+    download: async (p) => ({ data: new Blob([p === 'library/a.jpg' ? 'AAA' : 'BB']), error: null }),
+  }) } };
+  const made = [];
+  await buildMediaBackup(src, () => {}, async (p) => made.push(p.file));
+  const entries = await readMediaArchives(made);
+  assert.deepEqual(entries.map((e) => e.path), ['library/a.jpg', 'library/b.png']);
+  assert.equal(new TextDecoder().decode(await entries[0].read()), 'AAA');
+  // a deflated archive (made by Finder, say) reads too
+  const raw = new TextEncoder().encode('hello hello hello');
+  const def = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
+  const { crc32 } = await import('./zip.js');
+  const nm = new TextEncoder().encode('library/c.jpg');
+  const lh = new DataView(new ArrayBuffer(30)); lh.setUint32(0, 0x04034b50, true); lh.setUint16(8, 8, true); lh.setUint32(14, crc32(raw), true); lh.setUint32(18, def.length, true); lh.setUint32(22, raw.length, true); lh.setUint16(26, nm.length, true);
+  const ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(10, 8, true); ch.setUint32(16, crc32(raw), true); ch.setUint32(20, def.length, true); ch.setUint32(24, raw.length, true); ch.setUint16(28, nm.length, true);
+  const cdStart = 30 + nm.length + def.length;
+  const eo = new DataView(new ArrayBuffer(22)); eo.setUint32(0, 0x06054b50, true); eo.setUint16(8, 1, true); eo.setUint16(10, 1, true); eo.setUint32(12, 46 + nm.length, true); eo.setUint32(16, cdStart, true);
+  const deflated = await readMediaArchives([new Blob([lh.buffer, nm, def, ch.buffer, nm, eo.buffer])]);
+  assert.equal(new TextDecoder().decode(await deflated[0].read()), 'hello hello hello');
+  // unsafe or junk entries are skipped
+  assert.deepEqual((await readMediaArchives([new Blob([])]).catch(() => 'bad')), 'bad');
+  const dst = { storage: { from: () => ({
+    list: async (f) => ({ data: f === '' ? [{ name: 'library', id: null }] : f === 'library' ? [{ name: 'a.jpg', id: '1', metadata: { size: 3 } }] : [], error: null }),
+    upload: async (p, blob, opts) => (p.endsWith('.png') && opts.upsert === undefined ? { error: new Error('x') } : (store[p] = opts, { error: null })),
+  }) } };
+  const r = await restoreMedia(dst, entries);
+  assert.deepEqual([r.uploaded, r.skipped, r.failed.length], [1, 1, 0]); // a.jpg was already there
+  assert.equal(store['library/b.png'].contentType, 'image/png');
+  const r2 = await restoreMedia(dst, entries, { overwrite: true });
+  assert.deepEqual([r2.uploaded, r2.skipped], [2, 0]);
+  assert.equal(store['library/a.jpg'].upsert, true);
+}
