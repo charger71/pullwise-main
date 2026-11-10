@@ -725,7 +725,7 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
               </ul>
             </div>
             <p class="admin-hint mt-8">A striped list of dated entries: a customer's Changes, Staff → Change Log. Time first, then who or what, then the detail.</p>
-            <p class="admin-hint mt-8">Runs from the job log (Import → Recent Runs, Backup → Backup Log, Restore → Restore Log) are a sortable card table instead, built by <code>loadRunLog(sb, box, { jobs, name, by })</code> from <code>lib.js</code>: When, Run, By (with <code>by: true</code>, the staff email split off the message), an OK / Failed pill, and the details; a failed run is an <code>is-overdue</code> row. Don't build a run log by hand.</p>
+            <p class="admin-hint mt-8">Runs from the job log (Import → Recent Runs, Backup & Restore → Log) are a sortable card table instead, built by <code>loadRunLog(sb, box, { jobs, name, by })</code> from <code>lib.js</code>: When, Run, By (with <code>by: true</code>, the staff email split off the message), an OK / Failed pill, and the details; a failed run is an <code>is-overdue</code> row. Don't build a run log by hand.</p>
           </div>
           <p class="sg-dont"><strong>Don’t</strong> put buttons inside a clickable header. Put them in the body, beside the header (like the FAQ arrows), or use a static fold.</p>
         </section>

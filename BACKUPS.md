@@ -14,11 +14,11 @@ shop's service key. Files go to the **private** R2 bucket `pullwise-backups` (bo
 - `monthly/<shop>/shop-backup-YYYY-MM-01.json.gz`, the 1st of each month, kept 400 days.
 
 R2 deletes old files by itself (a lifecycle rule the script sets on each run). Each backup is written to that shop's
-**Backup → Backup Log** as "Automatic nightly backup", which also keeps the Dashboard's Back up reminder quiet. If a shop
+**Backup & Restore → Log** as "Automatic nightly backup", which also keeps the Dashboard's Back up reminder quiet. If a shop
 fails, the run fails and GitHub emails you; the other shops are still backed up, and the failure is in that shop's log.
 
-- **Get a file:** **Admin → Backup → Nightly Backups** (owners only) lists the shop's files with how long each is kept;
-  press Download to keep a copy. To load one back there is no need to download it: Restore lists the same files. Each download is written to the Backup Log. The list
+- **Get a file:** **Admin → Backup & Restore → Backups** (owners only) lists the shop's files with how long each is kept;
+  press Download to keep a copy, or Restore to load tables back from it without downloading it. Each download is written to the Log. The list
   comes from the Worker (`GET /__backups`, `worker/backups.js`), which checks the caller is an owner of that shop and
   only ever shows that shop's own files. (Cloudflare dashboard → R2 → `pullwise-backups` also works.)
 - **Run it now:** GitHub → Actions → Automatic backup → Run workflow (leave Shop blank for every shop).
@@ -30,10 +30,10 @@ The files hold customer data, so leave the bucket private: never connect a custo
 
 ## Make a backup by hand
 
-**Admin → Backup → Download backup** (owners only). It reads every table (about 20,000 rows) and saves one file,
+**Admin → Backup & Restore → Backups → Download a Backup Now** (owners only). It reads every table (about 20,000 rows) and saves one file,
 `shop-backup-YYYY-MM-DD.json.gz` (about 1.5 MB). Use it before a big change, or to keep a copy outside Cloudflare, such
 as in Dropbox. The Dashboard's Needs Attention list shows a **Back up** reminder to owners when the last backup
-(automatic or downloaded) is over 7 days old, which with nightly backups running means they have stopped. **Backup → Backup Log** lists every backup downloaded and customer list exported, with who did it.
+(automatic or downloaded) is over 7 days old, which with nightly backups running means they have stopped. **Backup & Restore → Log** lists every backup downloaded, restore run and customer list exported, with who did it.
 
 The file holds customer names, phone numbers and emails: don't share or email it, and never commit it to git.
 
@@ -47,9 +47,9 @@ Not included:
 
 ## Restore
 
-**In the admin: Admin → Restore** (owners only).
+**In the admin: Admin → Backup & Restore** (owners only).
 
-1. Choose a backup: one of the nightly backups (**Choose** loads it straight from R2 through `/__backups`,
+1. Choose a backup: one of the nightly backups (**Restore** on its row loads it straight from R2 through `/__backups`,
    nothing is saved to your computer) or a backup file on this computer. It is read in your browser; nothing changes yet.
 2. Tick only the tables you need. The list shows how many rows each table has in the backup and how many it has now.
 3. Pick how to load them:
@@ -65,7 +65,7 @@ Not included:
    is in neither the database nor the backup (a backup taken while someone was ordering) are skipped and counted. A table
    whose parent rows are missing from a table you didn't tick is refused (tick the parent table too). A very large restore
    can hit the database's time limit; restore fewer tables at a time if it says so. Every restore is recorded in the job
-   log and listed under **Restore → Restore Log** (who, add or replace, what each table got, or which table failed).
+   log and listed under **Backup & Restore → Log** (who, add or replace, what each table got, or which table failed).
 
 Not restored: the staff list (add people under Admin → Staff), the staff change log and the job log (kept as the record of
 what was done), and customers' sign-ins (they sign up again with the same email and are matched back to their customer

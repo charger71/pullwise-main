@@ -7,7 +7,7 @@
 //   monthly/<shop>/shop-backup-YYYY-MM-01.json.gz   the first backup of each month, kept 400 days
 //
 // R2 deletes old files by itself (a lifecycle rule this script sets on every run). Each backup is recorded in the
-// shop's job log, so it shows in Backup → Backup Log and clears the Dashboard's "Back up" reminder.
+// shop's job log, so it shows in Backup & Restore → Log and clears the Dashboard's "Back up" reminder.
 //
 //   node tools/backup-shops.mjs                # every shop
 //   node tools/backup-shops.mjs --shop demo    # one shop
