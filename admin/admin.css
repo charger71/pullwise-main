@@ -291,6 +291,17 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .job-log__when { color: var(--muted); }
 .job-log__msg { color: var(--muted); word-break: break-word; }
 
+/* Choice list: one question as a legend, its answers as radio rows (Import -> Pull lists: pick a series or skip) */
+.choice-list { margin: 0; padding: var(--sp-8) var(--sp-12) var(--sp-10); border: var(--border); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.choice-list legend { padding: 0 var(--sp-4); font-weight: 700; }
+.choice-list__option { display: flex; align-items: center; gap: var(--sp-8); min-height: var(--tap); margin: 0; font-weight: 400; cursor: pointer; }
+.choice-list[aria-busy="true"] { opacity: .6; }
+
+/* Pull list import review (sections/import-pull-lists.js): a fold per customer, the series search under a line */
+.pull-matched > summary { cursor: pointer; font-weight: 700; min-height: var(--tap); display: flex; align-items: center; }
+.pull-find__form { display: flex; flex-wrap: wrap; gap: var(--sp-8); align-items: center; margin-top: var(--sp-8); }
+.pull-find__form input { flex: 1 1 14rem; min-width: 0; }
+
 /* ---------- Reservations ---------- */
 /* ---------- Panels ----------
    .panel is a white card (base.css). .fold is the collapsible card: a <details> with a slate header band
@@ -1318,7 +1329,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 
 /* ---------- Natural-width buttons ----------
    Buttons in these places shrink to their label or share a row, so they drop the minimum width (see --btn-w at the top). */
-[data-move], .cust-email, .chat-compose { --btn-w: 0; --btn-w-sm: 0; }
+[data-move], .cust-email, .chat-compose, .pull-find__form { --btn-w: 0; --btn-w-sm: 0; }
 @media (max-width: 899px) {
   .cards.is-stack > tbody > tr > td, .admin-pager, .titles-table .tt-edit, .faq-item__actions, .qr-item__actions, .qr-item__downloads { --btn-w: 0; --btn-w-sm: 0; }
 }

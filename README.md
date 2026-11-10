@@ -107,7 +107,7 @@ logic in `js/import/apply.js`.
 | Reservations | Orders with per-title status (open → ordered → ready → picked up / released / cancelled), past-pickup highlighting, customer lookup, CSV export; **To order** totals reserved copies per title for each order cutoff, with CSV and "mark ordered" |
 | Customers | Find a customer, edit their profile and pull list (staff can add titles past the cutoff), see the change log, export one list as a PDF or every list as a CSV |
 | Series | Merge series that distributors name two ways, set series covers (upload or Media Library link), and mark which series are comics |
-| Import | Drop Lunar/PRH FOC or release sheets, Funko lists, or any spreadsheet with recognisable column headers (shows which columns it used), preview, import (same rules as the command-line importer); history of imports and daily status runs, failures highlighted |
+| Import | Drop Lunar/PRH FOC or release sheets, Funko lists, or any spreadsheet with recognisable column headers (shows which columns it used), preview, import (same rules as the command-line importer); history of imports and daily status runs, failures highlighted; Pull Lists: a moving shop's customers and pull lists from one spreadsheet, titles matched to series, every line reviewed before Save |
 | Events / News | Community calendar events and blog posts with the WYSIWYG editor and images; posts can be drafts or scheduled |
 | Media | Upload several images at once (resized, optional crop), copy links, replace; owners can delete (it first shows where the image is used) |
 | Pages / FAQ | Each page's intro and body text (all homepage sections on one screen); add or delete your own pages (they live at `page.html?slug=…` and link from the menu or footer); the FAQ list |
