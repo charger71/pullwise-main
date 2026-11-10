@@ -356,14 +356,16 @@ const crumbHeading = () => {
   const h1 = $('h1', section);
   const tab = $('.admin-tabs [aria-selected="true"]', section);
   if (!h1 || !h1.closest('#section')) return;
-  if (h1.dataset.base === undefined || (h1.textContent !== h1.dataset.shown)) h1.dataset.base = h1.textContent;
+  const words = h1.firstChild?.nodeType === Node.TEXT_NODE ? h1.firstChild : null; // the title's words; the help icon after it stays
+  if (!words) return;
+  if (h1.dataset.base === undefined || (words.data !== h1.dataset.shown)) h1.dataset.base = words.data;
   let text = h1.dataset.base;
   if (tab) {
     const clone = tab.cloneNode(true);
     clone.querySelectorAll('.admin-tab__badge').forEach((n) => n.remove());
     text = `${h1.dataset.base} > ${clone.textContent.trim()}`;
   }
-  if (h1.textContent !== text) h1.textContent = text;
+  if (words.data !== text) words.data = text;
   h1.dataset.shown = text;
 };
 $('#section').addEventListener('keydown', tabKeys);
