@@ -1,2 +1,2 @@
 // Written by tools/stamp-version.js on commit; don't edit by hand.
-export const VERSION = 'v2026.11.10 · 7ce0a71';
+export const VERSION = 'v2026.11.10 · d378624';
