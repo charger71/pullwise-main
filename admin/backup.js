@@ -1,5 +1,5 @@
-// Admin -> Staff -> Backup (owners): reads every table through backup_meta / backup_page and builds ONE gzipped
-// file in the browser. tools/restore.mjs turns that file back into SQL (see BACKUPS.md).
+// Admin -> Backup (owners): reads every table through backup_meta / backup_page and builds ONE gzipped
+// file in the browser. The pseudo-table auth_users is the customers' sign-ins (with password hashes), restored first. tools/restore.mjs turns that file back into SQL (see BACKUPS.md).
 
 import { must } from '../js/util.js';
 import { ZipBuilder, readZip } from './zip.js';
@@ -173,7 +173,7 @@ export async function recordBackup(sb, who, built) {
 
 export const BACKUPS_URL = '/__backups';
 /** How long R2 keeps each kind of file (tools/backup-shops.mjs → LIFECYCLE). */
-export const KEPT_DAYS = { daily: 35, monthly: 400 };
+export const KEPT_DAYS = { daily: 35, monthly: 400, weekly: 35 };
 
 async function backupsFetch(sb, query, fetchFn) {
   const { data } = await sb.auth.getSession();
@@ -204,13 +204,13 @@ export async function nightlyBackupFile(sb, key, fetchFn = fetch) {
 // ---------------------------------------------------------------------------------------------------------
 
 /**
- * Tables a restore never writes: the staff list (re-add people under Staff), the sign-in list (reference only), and
+ * Tables a restore never writes: the staff list (re-add people under Staff), and
  * the audit trail and job log (so a restore can't rewrite the record of who did what). They are still backed up.
  */
-export const NOT_RESTORED = ['staff', 'auth_users', 'staff_audit', 'job_log', 'restore_stage'];
+export const NOT_RESTORED = ['staff', 'staff_audit', 'job_log', 'restore_stage'];
 const CHUNK = 400;
 // Parents before children, for showing the list (the server works out the real load order from the foreign keys).
-const FIRST = ['settings', 'locations', 'categories', 'customers', 'items', 'pages', 'events', 'posts', 'surveys', 'reservation_orders', 'reservations'];
+const FIRST = ['auth_users', 'settings', 'locations', 'categories', 'customers', 'items', 'pages', 'events', 'posts', 'surveys', 'reservation_orders', 'reservations'];
 
 export const restoreOrder = (names) => [...names].sort((a, b) => (FIRST.indexOf(a) + 1 || 99) - (FIRST.indexOf(b) + 1 || 99) || a.localeCompare(b));
 
@@ -297,6 +297,46 @@ export async function customerRows(sb) {
       c.first_name ?? (c.last_name ? '' : c.name ?? ''), c.last_name ?? '', c.email ?? '', c.phone ?? '', c.address1 ?? '', c.city ?? '', c.state ?? '', c.zip ?? '',
       yes(c.email_opt_in), yes(c.notify_arrivals), yes(c.ship_arrivals), yes(c.user_id), (c.created_at ?? '').slice(0, 10), c.last_emailed_on ?? '',
     ]);
+}
+
+export const PULL_HEADER = ['First name', 'Last name', 'Email', 'Phone', 'Kind', 'Title or series', 'Issue', 'Variant', 'Publisher', 'Quantity', 'Status', 'Release date', 'Added'];
+const STATUS_WORDS = { open: 'Open', ordered: 'Ordered', reordered: 'Reordered', not_ordered: 'Not ordered', arrived: 'Arrived' };
+const IN_PLAY = Object.keys(STATUS_WORDS);
+
+async function allRows(query) {
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const data = await must(query().range(from, from + 999));
+    rows.push(...data);
+    if (data.length < 1000) return rows;
+  }
+}
+
+/**
+ * Every customer's current pull list for taking away: one row per title still in play (open, ordered, arrived) and one
+ * per series or creator they follow (new issues are added to their list automatically). Customers with nothing on
+ * their list still get a row, so the file is also the full customer list. Orders not linked to a customer are left out.
+ */
+export async function pullListRows(sb) {
+  const customers = await allRows(() => sb.from('customers').select('id,first_name,last_name,name,email,phone').order('id'));
+  const lines = await allRows(() => sb.from('reservations').select('id,quantity,status,created_at,item:items(title,issue_number,variant,publisher,release_date),order:reservation_orders!inner(customer_id)').in('status', IN_PLAY).order('id'));
+  const follows = await allRows(() => sb.from('subscriptions').select('id,customer_id,kind,label,role,quantity,created_at').order('id'));
+  const byCustomer = new Map(customers.map((c) => [c.id, []]));
+  for (const l of lines) {
+    const mine = byCustomer.get(l.order?.customer_id);
+    if (mine) mine.push(['Title on pull list', l.item?.title ?? '', l.item?.issue_number ?? '', l.item?.variant ?? '', l.item?.publisher ?? '', l.quantity, STATUS_WORDS[l.status] ?? l.status, l.item?.release_date ?? '', (l.created_at ?? '').slice(0, 10)]);
+  }
+  for (const f of follows) {
+    const mine = byCustomer.get(f.customer_id);
+    if (mine) mine.push([f.kind === 'series' ? 'Follows series' : `Follows ${f.role === 'cover' ? 'cover artist' : 'creator'}`, f.label ?? '', '', '', '', f.quantity, '', '', (f.created_at ?? '').slice(0, 10)]);
+  }
+  return customers
+    .sort((a, b) => `${a.last_name ?? ''} ${a.first_name ?? ''}`.localeCompare(`${b.last_name ?? ''} ${b.first_name ?? ''}`, undefined, { sensitivity: 'base' }))
+    .flatMap((c) => {
+      const who = [c.first_name ?? (c.last_name ? '' : c.name ?? ''), c.last_name ?? '', c.email ?? '', c.phone ?? ''];
+      const mine = byCustomer.get(c.id);
+      return mine.length ? mine.map((m) => [...who, ...m]) : [[...who, '', '', '', '', '', '', '', '', '']];
+    });
 }
 
 export async function recordMediaBackup(sb, who, built) {

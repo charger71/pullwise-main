@@ -62,7 +62,7 @@ const BY_LABEL = [
   [/^import files/i, 'upload'], [/^always skip/i, 'ban'], [/^recent runs/i, 'history'],
   [/^email settings/i, 'gear'], [/^send$/i, 'send'], [/log$/i, 'log'],
   [/^backups$/i, 'moon'], [/^restore$/i, 'history'],
-  [/^export customers/i, 'people'],
+  [/^customers$/i, 'people'],
   [/^all customers/i, 'people'], [/^new this week/i, 'sparkle'], [/^needs attention/i, 'alert'],
   [/^pull list/i, 'bookmark'], [/^profile/i, 'user'], [/^messages/i, 'message'], [/^changes/i, 'history'],
   [/^upcoming/i, 'calendar'], [/^past/i, 'clock'], [/signups/i, 'clipboard'],

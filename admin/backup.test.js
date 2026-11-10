@@ -1,7 +1,7 @@
 // Run: node admin/backup.test.js
 import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
-import { buildBackup, parseBackup, restoreOrder, restoreTables, stageTable, replaceImpact, failedTable, NOT_RESTORED, customerRows, CUSTOMER_HEADER, FORMAT } from './backup.js';
+import { buildBackup, parseBackup, restoreOrder, restoreTables, stageTable, replaceImpact, failedTable, NOT_RESTORED, customerRows, CUSTOMER_HEADER, PULL_HEADER, pullListRows, FORMAT } from './backup.js';
 
 // Parents load before children (foreign keys stay on during a restore).
 const order = restoreOrder(['reservations', 'customer_messages', 'item_creators', 'customers', 'items', 'reservation_orders', 'pull_list_log', 'settings']);
@@ -49,7 +49,9 @@ assert.deepEqual(await replaceImpact(isb, ['customers']), impact);
 assert.deepEqual(calls.at(-1), ['restore_replace_impact', { p_tables: ['customers'] }]);
 
 // The audit trail and job log are backed up but never offered for restore.
-for (const t of ['staff', 'auth_users', 'staff_audit', 'job_log']) assert.ok(NOT_RESTORED.includes(t), t);
+for (const t of ['staff', 'staff_audit', 'job_log']) assert.ok(NOT_RESTORED.includes(t), t);
+assert.ok(!NOT_RESTORED.includes('auth_users')); // customers' sign-ins are restored (first, with their passwords)
+assert.equal(restoreOrder(['customers', 'auth_users', 'items'])[0], 'auth_users');
 assert.ok(!NOT_RESTORED.includes('email_log'));
 
 // Download backup reads the tables in the order backup_meta gives (children before parents), then the sign-in list.
@@ -184,4 +186,24 @@ console.log('backup tests passed');
   const r2 = await restoreMedia(dst, entries, { overwrite: true });
   assert.deepEqual([r2.uploaded, r2.skipped], [2, 0]);
   assert.equal(store['library/a.jpg'].upsert, true);
+}
+
+// Customers and pull lists: one row per title in play or follow, a row for a customer with nothing, no orphan orders.
+{
+  const tables = {
+    customers: [{ id: 1, first_name: 'Zed', last_name: 'Adams', email: 'z@x.com', phone: '1' }, { id: 2, first_name: 'Amy', last_name: 'Zimmer', email: 'a@x.com', phone: null }],
+    reservations: [
+      { id: 1, quantity: 2, status: 'ordered', created_at: '2026-10-01T00:00:00Z', item: { title: 'Batman', issue_number: '5', variant: null, publisher: 'DC', release_date: '2026-11-12' }, order: { customer_id: 1 } },
+      { id: 2, quantity: 1, status: 'open', created_at: '2026-10-02T00:00:00Z', item: { title: 'Guest Book' }, order: { customer_id: null } },
+    ],
+    subscriptions: [{ id: 1, customer_id: 1, kind: 'artist', role: 'cover', label: 'Jock', quantity: 1, created_at: '2026-09-01T00:00:00Z' }],
+  };
+  const psb = { from: (t) => { const o = { select: () => o, order: () => o, in: () => o, range: () => ({ then: (r) => r({ data: tables[t], error: null }) }) }; return o; } };
+  const out = await pullListRows(psb);
+  assert.equal(out.length, 3); // Adams: 1 title + 1 follow; Zimmer: none; the unlinked order is left out
+  assert.ok(out.every((r) => r.length === PULL_HEADER.length));
+  assert.deepEqual(out[0].slice(4, 11), ['Title on pull list', 'Batman', '5', '', 'DC', 2, 'Ordered']);
+  assert.equal(out[1][4], 'Follows cover artist');
+  assert.equal(out[2][1], 'Zimmer');
+  assert.equal(out[2][4], '');
 }

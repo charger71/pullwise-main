@@ -1,17 +1,17 @@
-// Backup & Restore (owners): the nightly backups (download or restore any of them), download everything in the shop's
+// Backup (owners): the nightly backups (download or restore any of them), download everything in the shop's
 // database now as one file, load tables back from a backup file, and export the customers. One Log tab. See BACKUPS.md.
 
 import { $, $$, esc, setStatus, fmtDate, fmtDateTime, solidIcon, friendlyError, downloadCsv, setupTabs, loadRunLog, hintSlot, openDialog, toast } from '../lib.js';
-import { buildBackup, buildMediaBackup, recordMediaBackup, readMediaArchives, restoreMedia, recordMediaRestore, lastBackup, recordBackup, customerRows, CUSTOMER_HEADER, nightlyBackups, nightlyBackupFile, parseBackup, currentCounts, restoreTables, replaceImpact, failedTable, restoreOrder, recordRestore, NOT_RESTORED } from '../backup.js';
+import { buildBackup, buildMediaBackup, recordMediaBackup, readMediaArchives, restoreMedia, recordMediaRestore, lastBackup, recordBackup, customerRows, CUSTOMER_HEADER, pullListRows, PULL_HEADER, nightlyBackups, nightlyBackupFile, parseBackup, currentCounts, restoreTables, replaceImpact, failedTable, restoreOrder, recordRestore, NOT_RESTORED } from '../backup.js';
 
-const label = (n) => n.replace(/_/g, ' ');
+const label = (n) => (n === 'auth_users' ? 'customer sign-ins' : n.replace(/_/g, ' '));
 
 /** The nightly backup files as a table, with the buttons for each file (`buttons(f)` returns their markup). */
 const nightlyTable = (files, buttons) => files.length
   ? `<div class="admin-table-wrap"><table class="admin-table cards">
       <thead><tr><th scope="col">Backup</th><th scope="col">Kept until</th><th scope="col" class="center">Size</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
       <tbody>${files.map((f) => `<tr>
-        <td class="card-title"><strong>${esc(fmtDate(f.date, { weekday: 'short', month: 'short', day: 'numeric' }))}</strong>${f.kind === 'monthly' ? ' <span class="pill pill--accent">Monthly</span>' : ''}</td>
+        <td class="card-title"><strong>${esc(fmtDate(f.date, { weekday: 'short', month: 'short', day: 'numeric' }))}</strong>${f.kind === 'monthly' ? ' <span class="pill pill--accent">Monthly</span>' : ''}${f.kind === 'weekly' ? ` <span class="pill pill--info">Pictures${f.parts ? `: part ${f.part} of ${f.parts}` : ''}</span>` : ''}</td>
         <td class="card__meta nowrap card-line card-label">${esc(fmtDate(f.keptUntil))}</td>
         <td class="center nowrap card-key card-label">${(f.size / 1024 / 1024).toFixed(1)} MB</td>
         <td class="card-foot">${buttons(f)}</td>
@@ -31,12 +31,12 @@ export async function mount(el, ctx) {
   const sb = ctx.sb;
   const { data: { user } } = await sb.auth.getUser();
   el.innerHTML = `
-    <h1>Backup &amp; Restore</h1>
+    <h1>Backup</h1>
     ${hintSlot()}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="backups">Backups</button>
       <button type="button" class="admin-tab" role="tab" data-tab="restore">Restore</button>
-      <button type="button" class="admin-tab" role="tab" data-tab="customers">Export Customers</button>
+      <button type="button" class="admin-tab" role="tab" data-tab="customers">Customers</button>
       <button type="button" class="admin-tab" role="tab" data-tab="log">Log</button>
     </div>
     <div data-tabpane="backups">
@@ -52,7 +52,7 @@ export async function mount(el, ctx) {
     </div>
     </section>
     <section class="fold fold--compact fold--static">
-    <div class="fold__head"><h2>Nightly Backups<span class="fold__note">Download one, or restore straight from it</span></h2></div>
+    <div class="fold__head"><h2>Automatic Backups<span class="fold__note">Every night, and pictures every Sunday</span></h2></div>
     <div class="fold__body">
     <p class="admin-status" role="status" data-nightly-status></p>
     <div data-nightly><p class="card__meta">Loading the backups…</p></div>
@@ -80,12 +80,15 @@ export async function mount(el, ctx) {
     </div>
     <div data-tabpane="customers">
     <section class="fold fold--compact fold--static">
-    <div class="fold__head"><h2>Export Customers</h2></div>
+    <div class="fold__head"><h2>Customers</h2></div>
     <div class="fold__body">
-    <p>A spreadsheet (CSV) of just the customers: name, email, phone, address, whether they get the weekly pull list email and the “your books are in” email, whether they have a website login, and when they joined. It is a contact list, not a backup: pull lists and reservations are not in it.</p>
-    <p class="field__hint">It contains personal details: don’t share it or email it. If you use it to send mail, leave out anyone marked “No” under the email columns.</p>
+    <p><strong>Customers</strong> is a spreadsheet (CSV) of just the customers: name, email, phone, address, whether they get the weekly pull list email and the “your books are in” email, whether they have a website login, and when they joined. <strong>Customers and pull lists</strong> adds what is on each customer’s pull list right now (titles still open, ordered or arrived, and the series and creators they follow), one row per entry. Take them with you if you ever leave Pullwise. Neither is a backup: use the backups for that.</p>
+    <p class="field__hint">They contain personal details: don’t share them or email them. If you use one to send mail, leave out anyone marked “No” under the email columns. Orders that aren’t linked to a customer are left out of the pull list file.</p>
     <p class="admin-status" role="status" data-cust-status></p>
-    <button class="btn btn--ghost" type="button" data-customers>${solidIcon('download', 16)} Export customers (CSV)</button>
+    <div class="admin-actions">
+    <button class="btn btn--ghost" type="button" data-customers>${solidIcon('download', 16)} Customers (CSV)</button>
+    <button class="btn btn--ghost" type="button" data-pulllists>${solidIcon('download', 16)} Customers and pull lists (CSV)</button>
+    </div>
     </div>
     </section>
     </div>
@@ -99,7 +102,7 @@ export async function mount(el, ctx) {
     by: true, limit: 50, empty: 'No backups, restores or exports yet.',
   }).catch(() => {});
   const showTab = setupTabs(el, 'admin-backup-tab', 'backups', undefined, {
-    backups: 'The shop is backed up automatically every night. Each day’s file is kept for 35 days, and the first of each month for about a year. <strong>Download a backup now</strong> before a big change, or to keep a copy of your own somewhere safe, such as Dropbox: the <strong>database backup</strong> is one file with everything in the shop’s database (titles, customers, pull lists, orders, events, news, page text, settings and the change log); the <strong>media backup</strong> is every uploaded picture, as one or more .zip files. Distributor cover images are in neither (a re-import brings them back). In the nightly list, <strong>Download</strong> saves a file and <strong>Restore</strong> loads tables back from it (nothing is downloaded, and nothing changes until you confirm). The files contain customer names, phone numbers and emails: don’t share them or email them. Pictures are put back on the Restore tab. A big library is split into several .zip files of about 250 MB; your browser may ask to allow multiple downloads.',
+    backups: 'The shop is backed up automatically every night. Each day’s file is kept for 35 days, and the first of each month for about a year. Every Sunday the uploaded pictures are saved too, as .zip files (listed as Pictures, kept 35 days: download all the parts of a week, then restore them from the Restore tab). <strong>Download a backup now</strong> before a big change, or to keep a copy of your own somewhere safe, such as Dropbox: the <strong>database backup</strong> is one file with everything in the shop’s database (titles, customers, pull lists, orders, events, news, page text, settings and the change log); the <strong>media backup</strong> is every uploaded picture, as one or more .zip files. Distributor cover images are in neither (a re-import brings them back). In the nightly list, <strong>Download</strong> saves a file and <strong>Restore</strong> loads tables back from it (nothing is downloaded, and nothing changes until you confirm). The files contain customer names, phone numbers, emails and password hashes: don’t share them or email them. Pictures are put back on the Restore tab. A big library is split into several .zip files of about 250 MB; your browser may ask to allow multiple downloads.',
     restore: 'Pick a database backup file on this computer, or press Restore on a nightly backup, then tick only the tables you need. To put uploaded pictures back, pick the .zip files of a media backup at the bottom. <strong>Add missing rows</strong> puts back what was deleted and leaves everything else alone; <strong>Replace</strong> deletes every row in the table first and loads the backup’s, so changes made since the backup are lost.',
     customers: 'A spreadsheet of just the customers’ contact details, for a mailing or your records. It is not a backup.',
     log: 'Every backup (the nightly automatic ones and those downloaded here), every nightly file downloaded, every restore (who ran it, how, and what each table got; a failed restore changed nothing) and every customer list exported, newest first, with who did it.',
@@ -113,7 +116,7 @@ export async function mount(el, ctx) {
   const showNightly = async () => {
     try {
       const files = await nightlyBackups(sb);
-      nightlyEl.innerHTML = nightlyTable(files, (f) => `<button type="button" class="btn btn--ghost btn--small" data-get="${esc(f.key)}">Download</button> <button type="button" class="btn btn--ghost btn--small" data-pick="${esc(f.key)}">Restore</button>`);
+      nightlyEl.innerHTML = nightlyTable(files, (f) => `<button type="button" class="btn btn--small" data-get="${esc(f.key)}">Download</button>${f.kind === 'weekly' ? '' : ` <button type="button" class="btn btn--ghost btn--small" data-pick="${esc(f.key)}">Restore</button>`}`);
     } catch (err) {
       nightlyEl.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
     }
@@ -256,6 +259,23 @@ export async function mount(el, ctx) {
     });
   }
 
+  $('[data-pulllists]', el).addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const status = $('[data-cust-status]', el);
+    btn.disabled = true;
+    setStatus(status, 'Reading the customers and their pull lists…');
+    try {
+      const rows = await pullListRows(sb);
+      downloadCsv(`shop-customers-pull-lists-${new Date().toLocaleDateString('en-CA')}.csv`, PULL_HEADER, rows);
+      await sb.from('job_log').insert({ job: 'export', ok: true, message: `${user.email}: customers and pull lists, ${rows.length.toLocaleString()} rows` });
+      setStatus(status, `Saved the customers and pull lists: ${rows.length.toLocaleString()} rows.`, 'ok');
+      log();
+    } catch (err) {
+      setStatus(status, `Export failed: ${friendlyError(err)}`, 'error');
+    }
+    btn.disabled = false;
+  });
+
   $('[data-customers]', el).addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     const status = $('[data-cust-status]', el);
@@ -284,7 +304,7 @@ export async function mount(el, ctx) {
       const meta = (await sb.rpc('backup_meta')).data;
       // Only tables the database has now and lets a restore write (not the staff list, audit trail or job log).
       const restorable = meta ? new Set(meta.tables.filter((t) => t.restorable !== false).map((t) => t.name)) : null;
-      const names = restoreOrder(Object.keys(backup.tables).filter((n) => !NOT_RESTORED.includes(n) && (!restorable || restorable.has(n))));
+      const names = restoreOrder(Object.keys(backup.tables).filter((n) => !NOT_RESTORED.includes(n) && (!restorable || restorable.has(n) || n === 'auth_users')));
       const counts = await currentCounts(sb, names).catch(() => ({}));
       const total = names.reduce((n, t) => n + backup.tables[t].rows.length, 0);
       setStatus(statusEl, '');
@@ -301,6 +321,7 @@ export async function mount(el, ctx) {
   function showPlan(backup, names, counts, total, versionNote = '') {
     plan.hidden = false;
     showTab('restore', false);
+    const hasPasswords = (backup.tables.auth_users?.rows ?? []).some((r) => r.encrypted_password);
     plan.innerHTML = `
       <p><strong>Backup taken ${esc(fmtDateTime(backup.taken_at))}</strong>: ${total.toLocaleString()} rows in ${names.length} tables.</p>
       ${versionNote ? `<p class="field__hint">${esc(versionNote)}</p>` : ''}
@@ -314,12 +335,13 @@ export async function mount(el, ctx) {
         <tbody>${names.map((n) => `<tr>
           <td class="card-lead"><input type="checkbox" data-table="${esc(n)}" aria-label="Restore ${esc(n)}">
           </td>
-          <td class="card-title">${esc(n.replace(/_/g, ' '))}</td>
+          <td class="card-title">${esc(label(n))}</td>
           <td class="num card-key card-label">${backup.tables[n].rows.length.toLocaleString()}</td>
           <td class="num card-key card-label">${counts[n] == null ? '' : counts[n].toLocaleString()}</td>
           </tr>`).join('')}</tbody>
       </table></div>
-      <p class="field__hint">Not restored here: the staff list (add people under Staff), customers’ sign-ins (they sign up again with the same email and are matched back to their pull list), and the change log and job log. The ticked tables are loaded together, parents first: if any of them fails, none of them is changed. Foreign keys stay enforced, so a table whose parent rows are missing is refused unless you tick the parent table too.</p>
+      ${names.includes('auth_users') ? `<p class="field__hint"><strong>Customer sign-ins</strong> bring customers’ accounts and passwords back, so they don’t have to sign up again. Tick them together with customers. They are only ever added: an account that exists already is never changed, even in Replace.${hasPasswords ? '' : ' This backup was made before backups carried passwords, so each restored customer uses “Forgot password” once.'}</p>` : ''}
+      <p class="field__hint">Not restored here: the staff list (add people under Staff) and the change log and job log. The ticked tables are loaded together, parents first: if any of them fails, none of them is changed. Foreign keys stay enforced, so a table whose parent rows are missing is refused unless you tick the parent table too.</p>
       <p class="admin-status" role="status" data-restore-status></p>
       <ul class="restore-results" data-results></ul>
       <button class="btn btn--danger" type="button" data-restore disabled>Restore the ticked tables…</button>`;
@@ -344,7 +366,7 @@ export async function mount(el, ctx) {
       const status = $('[data-restore-status]', plan);
       setStatus(status, 'Checking which other tables would be affected…');
       try {
-        impact = await replaceImpact(sb, picked);
+        impact = await replaceImpact(sb, picked.filter((n) => n !== 'auth_users')); // sign-ins are only ever added, never replaced
         setStatus(status, '');
       } catch (err) {
         return setStatus(status, `Couldn’t check the other tables: ${friendlyError(err)}`, 'error');

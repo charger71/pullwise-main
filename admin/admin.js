@@ -225,7 +225,7 @@ const setTitle = () => {
 
 let lastHash = location.hash;
 async function route() {
-  if (location.hash === '#restore') history.replaceState(null, '', '#backup'); // Restore is now part of Backup & Restore
+  if (location.hash === '#restore') history.replaceState(null, '', '#backup'); // Restore is now part of Backup
   let { name, arg } = parseAdminHash(location.hash, SECTIONS);
   if ((OWNER_ONLY.includes(name) && !isOwner) || (name === 'chat' && !chatAvailable)) {
     name = 'dashboard';

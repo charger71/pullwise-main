@@ -5,12 +5,14 @@
 //
 //   daily/<shop>/shop-backup-YYYY-MM-DD.json.gz     kept 35 days
 //   monthly/<shop>/shop-backup-YYYY-MM-01.json.gz   the first backup of each month, kept 400 days
+//   weekly/<shop>/shop-media-YYYY-MM-DD[-partNofM].zip   every uploaded picture, on Sundays (UTC) or with --media, kept 35 days
 //
 // R2 deletes old files by itself (a lifecycle rule this script sets on every run). Each backup is recorded in the
-// shop's job log, so it shows in Backup & Restore → Log and clears the Dashboard's "Back up" reminder.
+// shop's job log, so it shows in Backup → Log and clears the Dashboard's "Back up" reminder.
 //
 //   node tools/backup-shops.mjs                # every shop
 //   node tools/backup-shops.mjs --shop demo    # one shop
+//   node tools/backup-shops.mjs --media        # include the pictures even if it isn't Sunday
 //
 // Needs SUPABASE_ACCESS_TOKEN, CLOUDFLARE_API_TOKEN (with R2 edit) and CLOUDFLARE_ACCOUNT_ID, plus
 // @supabase/supabase-js (the workflow installs it). BACKUP_BUCKET overrides the bucket name.
@@ -18,7 +20,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildBackup, recordBackup } from '../admin/backup.js';
+import { buildBackup, recordBackup, buildMediaBackup, recordMediaBackup } from '../admin/backup.js';
 import { env, serviceClient } from './catalog-job.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,6 +36,7 @@ export const LIFECYCLE = {
   rules: [
     { id: 'daily-backups', enabled: true, conditions: { prefix: 'daily/' }, deleteObjectsTransition: { condition: { type: 'Age', maxAge: 35 * DAY } } },
     { id: 'monthly-backups', enabled: true, conditions: { prefix: 'monthly/' }, deleteObjectsTransition: { condition: { type: 'Age', maxAge: 400 * DAY } } },
+    { id: 'weekly-media', enabled: true, conditions: { prefix: 'weekly/' }, deleteObjectsTransition: { condition: { type: 'Age', maxAge: 35 * DAY } } },
   ],
 };
 
@@ -43,6 +46,10 @@ export function backupKeys(shopId, now = new Date()) {
   const name = `shop-backup-${day}.json.gz`;
   return [`daily/${shopId}/${name}`, ...(day.endsWith('-01') ? [`monthly/${shopId}/${name}`] : [])];
 }
+
+/** Pictures are backed up on Sundays (UTC), in archives small enough for one R2 upload each. */
+export const isMediaDay = (now) => now.getUTCDay() === 0;
+export const MEDIA_PART_BYTES = 90 * 1024 * 1024;
 
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -70,14 +77,14 @@ function r2(account, token) {
       if (!rule?.ok) await fail(`Couldn't set ${bucket}'s clean-up rule`, rule);
     },
     async put(bucket, key, bytes) {
-      const res = await call(`${base}/${bucket}/objects/${key.split('/').map(encodeURIComponent).join('/')}`, { method: 'PUT', headers: { 'Content-Type': 'application/gzip' }, body: bytes });
+      const res = await call(`${base}/${bucket}/objects/${key.split('/').map(encodeURIComponent).join('/')}`, { method: 'PUT', headers: { 'Content-Type': key.endsWith('.zip') ? 'application/zip' : 'application/gzip' }, body: bytes });
       if (!res?.ok) await fail(`Couldn't save ${key} to R2`, res);
     },
   };
 }
 
 /** Back up the shops one at a time. A shop that fails is logged and the rest still run. Returns [{ shop, ok, message }]. */
-export async function backupShops(shops, { clientFor, store, now = () => new Date(), log = console.log }) {
+export async function backupShops(shops, { clientFor, store, now = () => new Date(), log = console.log, media = false }) {
   const results = [];
   for (const shop of shops) {
     let sb = null;
@@ -88,9 +95,29 @@ export async function backupShops(shops, { clientFor, store, now = () => new Dat
       const keys = backupKeys(shop.id, now());
       for (const key of keys) await store(key, bytes);
       await recordBackup(sb, 'Automatic nightly backup', built);
-      const message = `${built.rows.toLocaleString('en-US')} rows in ${built.tables} tables (${(bytes.length / 1024 / 1024).toFixed(1)} MB) → ${keys.join(', ')}`;
-      log(`✓ ${shop.id}: ${message}`);
-      results.push({ shop: shop.id, ok: true, message });
+      let message = `${built.rows.toLocaleString('en-US')} rows in ${built.tables} tables (${(bytes.length / 1024 / 1024).toFixed(1)} MB) → ${keys.join(', ')}`;
+      let ok = true;
+      if (media || isMediaDay(now())) {
+        // The pictures too, once a week. The database backup above is already saved and logged if this fails.
+        try {
+          const saved = [];
+          const pics = await buildMediaBackup(sb, () => {}, async (part) => {
+            const key = `weekly/${shop.id}/${part.name}`;
+            await store(key, new Uint8Array(await part.file.arrayBuffer()));
+            saved.push(key);
+          }, MEDIA_PART_BYTES);
+          await recordMediaBackup(sb, 'Automatic weekly backup', pics);
+          message += `; ${pics.files.toLocaleString('en-US')} pictures (${(pics.bytes / 1024 / 1024).toFixed(1)} MB) → ${saved.join(', ')}${pics.failed ? ` (${pics.failed} could not be read)` : ''}`;
+          if (pics.failed) ok = false;
+        } catch (err) {
+          const why = String(err?.raw ?? err?.message ?? err);
+          await sb.from('job_log').insert({ job: 'media_backup', ok: false, message: `Automatic weekly backup failed: ${why}`.slice(0, 900) }).catch(() => {});
+          message += `; the pictures failed: ${why}`;
+          ok = false;
+        }
+      }
+      log(`${ok ? '✓' : '✗'} ${shop.id}: ${message}`);
+      results.push({ shop: shop.id, ok, message });
     } catch (err) {
       const message = String(err?.raw ?? err?.message ?? err);
       log(`✗ ${shop.id}: ${message}`);
@@ -111,7 +138,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const store = r2(env('CLOUDFLARE_ACCOUNT_ID'), env('CLOUDFLARE_API_TOKEN'));
   env('SUPABASE_ACCESS_TOKEN');
   await store.prepare(bucket);
-  const results = await backupShops(shops, { clientFor: serviceClient, store: (key, bytes) => store.put(bucket, key, bytes) });
+  const results = await backupShops(shops, { clientFor: serviceClient, store: (key, bytes) => store.put(bucket, key, bytes), media: args.includes('--media') });
   if (process.env.GITHUB_STEP_SUMMARY) {
     fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Automatic backup → R2 ${bucket}\n${results.map((r) => `- ${r.ok ? '✅' : '❌'} **${r.shop}**: ${r.message}`).join('\n')}\n`);
   }
