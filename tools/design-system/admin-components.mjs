@@ -250,7 +250,7 @@ Every admin list: a striped table under the slate header band, with sortable col
 - Sortable columns put \`data-sort\` on the \`<th>\`; \`sortableTable()\` adds the buttons and arrows. \`.center\` for numbers, \`.nowrap\` for dates, phones and ids.
 - **Row states** paint the \`<tr>\`, never its cells: \`tr.is-overdue\` (\`admin-danger-soft\`: overdue, failed, blocked), \`tr.is-hidden\` (muted text, faded pictures), \`tr.is-merge\` / \`tr.is-keep\` (Series merge), \`tr.is-open\` (\`admin-select-bg\`: the open order; \`aria-expanded\` goes on its View button). New states join the one row-colour block in admin.css, in priority order, without \`!important\`.
 - A status changed right in a row uses \`.select--small\`, which grows to 44px on phones.
-- On phones a \`cards\` table becomes AdminCardList.`,
+- Above a \`cards\` table on a screen sits \`.list-toolbar\`: a sort select (every sortable column, up or down) and the Grid / List \`view-switch\`. Grid (900px and wider) shows each row as a bordered card (\`.is-grid\`); Titles lays its cards out like its phone cards. A loading list shows a spinner over its wrap (\`data-loading\`), and Titles' headings stay sticky under the header.\n- On phones a \`cards\` table becomes AdminCardList.`,
     html: page('AdminTable', `
 ${demo('<h3>List table'.slice(4))}
 ${h('Row states')}
@@ -353,10 +353,10 @@ ${demo('Fold with a count and an action at the top (Place Order cutoff)')}`),
     name: 'AdminHintFold', group: G('Containers'), height: 117,
     readme: `# AdminHintFold
 
-"How this works": instructions that start closed on every screen size, to save space.
+"How this works": a round accent help icon (\`.icon-btn--hint\`: an \`admin-brand-accent\` disc with the ? in \`admin-on-accent\`) at the end of a screen's title, with no words beside it. It opens the text in a dialog.
 
-- \`<details class="admin-hint-fold">\` with the help icon and "How this works" in the summary; the text is \`.admin-hint\`, lined up with the heading above it.
-- Build it with \`hintFold(html)\` from lib.js; don't hand-write it.`,
+- Build it with \`hintFold(html)\` from lib.js (it writes a template that \`hintsInto\` moves into the title) or \`setHint(el, html)\` for a tab's own text; don't hand-write it. Inside a dialog it goes into the dialog's title.
+- 28px (32px target) on desktop, 44px on phones; \`aria-label\` and \`title\` say "How this works".`,
     html: page('AdminHintFold', demo('(hintFold)')),
   },
   {
