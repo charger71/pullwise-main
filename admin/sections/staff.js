@@ -258,7 +258,7 @@ export async function mount(el, ctx) {
   const reload = () => mount(el, ctx);
 
   setupTabs(el, 'admin-staff-tab', 'me', (tab) => tab === 'log' && !$('[data-log] table', el) && loadLog(el), {
-    access: 'Staff can open every admin screen except the Utilities group (Import, Settings, Locations, Backup and Restore); they reach their own My Account from the circle with their initial in the header. Owners can open all of them and also manage this list. Removing someone locks them out of the admin right away. A Super Admin can’t be removed, demoted or have their password reset by an owner.',
+    access: 'Staff can open every admin screen except the Utilities group (Import, Settings, Locations, Backup & Restore); they reach their own My Account from the circle with their initial in the header. Owners can open all of them and also manage this list. Removing someone locks them out of the admin right away. A Super Admin can’t be removed, demoted or have their password reset by an owner.',
     log: 'Who changed what in the admin, newest first. Imports and bulk changes show as one line. Customer details list the fields changed, not their values.',
   });
   sortableTable($('.staff-table', el));

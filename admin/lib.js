@@ -939,7 +939,7 @@ export const splitWho = (message = '') => {
  * Fill `box` with the latest job_log runs, newest first, as a sortable table: When, Run, (By), Result, Details.
  * `jobs` limits it to those job names; `name(job, text)` labels each run and `detail(text)` trims what the Details
  * column shows; `by` splits "who: …" off the message into its own column (Backup and Restore write the staff email
- * first). Import → Recent Runs, Backup Log, Restore Log.
+ * first). Import → Recent Runs, Backup & Restore → Log.
  */
 export async function loadRunLog(sb, box, { jobs = null, name = (job) => job, detail = (text) => text, by = false, limit = 15, empty = 'No runs yet.' } = {}) {
   let q = sb.from('job_log').select('id,job,ok,message,created_at').order('id', { ascending: false }).limit(limit);
