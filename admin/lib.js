@@ -207,18 +207,48 @@ export const isPhone = (max = 899) => window.matchMedia(`(max-width: ${max}px)`)
 export const switchHtml = (label, { name, checked = false, attrs = '' } = {}) =>
   `<label class="switch"><input type="checkbox" role="switch"${name ? ` name="${esc(name)}"` : ''}${checked ? ' checked' : ''}${attrs ? ` ${attrs}` : ''}><span class="switch__track" aria-hidden="true"></span><span class="switch__text">${esc(label)}</span></label>`;
 
-/** Instructions that fold under "How this works". They start closed everywhere to save screen space. `html` is the text of the hint. */
-export const hintFold = (html) => `<details class="admin-hint-fold"><summary>${solidIcon('help', 18)} How this works</summary><p class="admin-hint">${html}</p></details>`;
-/** Where a screen's How this works goes: under the title row, above the tabs. Fill it with setHint (or setupTabs' hints). */
-export const hintSlot = () => '<div data-hint-slot></div>';
-/** Put How this works in the screen's slot (empty clears it). A fold staff opened stays open when the text changes with the tab. */
-export function setHint(from, html) {
-  const slot = (from.closest?.('#section') ?? from).querySelector('[data-hint-slot]');
-  if (!slot) return;
-  const open = !!slot.querySelector('details')?.open;
-  slot.innerHTML = html ? hintFold(html) : '';
-  if (open && html) slot.querySelector('details').open = true;
+/**
+ * "How this works": a round accent "?" at the end of the screen's title (or a dialog's title) that opens the text in a dialog.
+ * hintFold writes an inert <template>; hintsInto (run when the screen draws) moves it into the title as the button.
+ * `html` is the text of the hint.
+ */
+export const hintFold = (html) => `<template data-hint>${html}</template>`;
+/** Where a screen's How this works is filled in (setHint / setupTabs' hints); the button itself sits in the title. */
+export const hintSlot = () => '<div data-hint-slot hidden></div>';
+const HINT_TEXT = new WeakMap();
+const hintTitle = (from) => from.closest?.('dialog')?.querySelector('.dialog__head h2') ?? (from.closest?.('#section') ?? document).querySelector('h1');
+function hintButton(title, html) {
+  let btn = title.querySelector(':scope > .icon-btn--hint');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'icon-btn icon-btn--hint';
+    btn.setAttribute('aria-label', 'How this works');
+    btn.title = 'How this works';
+    btn.textContent = '?';
+    btn.addEventListener('click', () => openDialog('How this works', `<p class="admin-hint">${HINT_TEXT.get(btn).join('</p><p class="admin-hint">')}</p>`));
+    title.append(' ', btn);
+    HINT_TEXT.set(btn, []);
+  }
+  HINT_TEXT.get(btn).push(html);
+  return btn;
 }
+/** Turn every hint template under `root` into the "?" in its title. Safe to call again. */
+export function hintsInto(root) {
+  root.querySelectorAll?.('template[data-hint]').forEach((t) => {
+    const title = hintTitle(t);
+    if (title) hintButton(title, t.innerHTML);
+    t.remove();
+  });
+}
+/** Put How this works in the screen's title (empty clears it). The text changes with the tab. */
+export function setHint(from, html) {
+  const title = hintTitle(from);
+  if (!title) return;
+  title.querySelector(':scope > .icon-btn--hint')?.remove();
+  if (html) hintButton(title, html);
+}
+new MutationObserver((list) => list.forEach((m) => m.addedNodes.forEach((n) => n.nodeType === 1 && hintsInto(n)))).observe(document.body, { childList: true, subtree: true });
 
 export const itemName = (i) => [i.title, i.issue_number && `#${i.issue_number}`].filter(Boolean).join(' ') + (i.variant ? ` · ${i.variant}` : '');
 
@@ -912,21 +942,98 @@ export function sortableTable(table, { sort = null, dir = 'asc', onSort = null }
     }
   };
   let current = { key: sort, dir };
+  let syncSelect = () => {};
+  const choose = (th, d) => {
+    current = { key: th.dataset.key, dir: d };
+    mark(current.key, d);
+    syncSelect();
+    if (onSort) onSort(th.dataset.key, d);
+    else sortRows(th, d);
+  };
   for (const th of ths) {
     th.dataset.key = onSort ? th.dataset.sort : String(th.cellIndex);
     const btn = Object.assign(document.createElement('button'), { type: 'button', className: 'sort-btn', innerHTML: th.innerHTML });
     th.replaceChildren(btn);
     btn.addEventListener('click', () => {
       const first = th.dataset.first === 'desc' ? 'desc' : 'asc';
-      const d = current.key === th.dataset.key ? (current.dir === 'asc' ? 'desc' : 'asc') : first;
-      current = { key: th.dataset.key, dir: d };
-      mark(current.key, d);
-      if (onSort) onSort(th.dataset.key, d);
-      else sortRows(th, d);
+      choose(th, current.key === th.dataset.key ? (current.dir === 'asc' ? 'desc' : 'asc') : first);
     });
   }
   mark(sort, dir);
-  return { set: (key, d) => ((current = { key, dir: d }), mark(key, d)) };
+  syncSelect = listToolbar(table, ths, choose, () => current);
+  syncSelect();
+  return {
+    set: (key, d) => {
+      current = { key, dir: d };
+      mark(key, d);
+      syncSelect();
+    },
+  };
+}
+
+/** Where a screen's list view (List or Grid) is remembered: per screen, on this device. */
+const listViewKey = () => `admin-list-view:${location.hash.slice(1).split(/[?/]/)[0]}`;
+/** Show a `cards` table as the usual table (List) or as a grid of cards (Grid, 900px and wider; phones always show cards). */
+function setListView(table, view) {
+  table.classList.toggle('is-grid', view === 'grid');
+  if (view === 'grid') {
+    const heads = [...table.querySelectorAll('thead tr:last-child th')].map((th) => th.textContent.trim());
+    table.querySelectorAll('tbody tr').forEach((tr) => [...tr.children].forEach((td, i) => td.dataset.label ??= heads[i] ?? ''));
+  }
+}
+/**
+ * Above a list screen's table: a sort select (every sortable column, both ways) and the List / Grid switch, like the
+ * Media Library's. Only for `cards` tables that sit on the screen itself (not in a fold, panel, card or dialog).
+ * Returns a function that makes the select show the table's current sort.
+ */
+function listToolbar(table, ths, choose, current) {
+  const wrap = table.closest('.admin-table-wrap') ?? table;
+  if (wrap.previousElementSibling?.matches('.list-toolbar')) wrap.previousElementSibling.remove();
+  if (!table.classList.contains('cards') || table.closest('.fold, .panel, .dash-card, dialog, .qr-item') || !ths.length) return () => {};
+  const id = uid('list-sort');
+  const cols = ths.map((th) => ({ th, label: th.textContent.trim(), num: th.dataset.sort === 'num' })).filter((c) => c.label);
+  const bar = document.createElement('div');
+  bar.className = 'list-toolbar';
+  bar.innerHTML = `<label class="visually-hidden" for="${id}">Sort list</label>
+    <select id="${id}" class="select--small media-toolbar__sort"><option value="" disabled>Sort by…</option>${cols
+      .map((c, i) => ['asc', 'desc'].map((d) => `<option value="${i}|${d}">${esc(c.label)} ${d === 'asc' ? '↑' : '↓'}</option>`).join(''))
+      .join('')}</select>
+    <div class="view-switch" role="group" aria-label="Show list as">
+      <button class="icon-btn" type="button" data-view="grid" aria-pressed="false" aria-label="Grid" title="Grid">${solidIcon('grid', 20)}</button>
+      <button class="icon-btn" type="button" data-view="list" aria-pressed="false" aria-label="List" title="List">${solidIcon('list', 20)}</button>
+    </div>`;
+  wrap.before(bar);
+  const select = $('select', bar);
+  select.addEventListener('change', () => {
+    const [i, d] = select.value.split('|');
+    choose(cols[Number(i)].th, d);
+  });
+  const view = (v) => {
+    setListView(table, v);
+    bar.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === v)));
+  };
+  let saved = 'list';
+  try {
+    saved = localStorage.getItem(listViewKey()) === 'grid' ? 'grid' : 'list';
+  } catch {
+    /* start on the list */
+  }
+  view(saved);
+  bar.querySelectorAll('[data-view]').forEach((b) =>
+    b.addEventListener('click', () => {
+      view(b.dataset.view);
+      try {
+        localStorage.setItem(listViewKey(), b.dataset.view);
+      } catch {
+        /* remembering the view is optional */
+      }
+    }),
+  );
+  return () => {
+    const c = current();
+    const i = cols.findIndex((x) => x.th.dataset.key === c.key);
+    select.value = i < 0 ? '' : `${i}|${c.dir}`;
+  };
 }
 
 /** A job_log message written as "who@example.com: what happened" → { who, text }; other messages have no who. */
