@@ -192,3 +192,20 @@ console.log('claim tests passed');
   assert.equal(multi.shop_name, 'Area71 Comics & Toys : Elizabethtown');
   assert.equal(withLocation(multi, { name: 'Camp Taylor' }, { multi: true }).shop_name, 'Area71 Comics & Toys : Camp Taylor');
 }
+
+// Background colors: standard warm gray page and white body, or the shop's own; light text on a dark body.
+{
+  const std = emailLook({ colors: {} });
+  assert.equal(std.page, '#f4f1ea');
+  assert.equal(std.body, '#ffffff');
+  assert.equal(std.text, '#161616');
+  const dark = emailLook({ colors: {}, email_page_color: '#000000', email_body_color: '#1b1b1b' });
+  assert.equal(dark.page, '#000000');
+  assert.equal(dark.text, '#ffffff', 'light text on a dark body');
+  assert.notEqual(dark.muted, '#5b5b5b');
+  assert.equal(emailLook({ colors: {}, email_body_color: 'nope' }).body, '#ffffff', 'junk colors are ignored');
+  const mail = buildMessage({ shop: { shop_name: 'S', colors: {}, email_page_color: '#102030', email_body_color: '#203040' }, message: 'Hi', to: 'a@b.c' });
+  assert.match(mail.html, /background:#102030/);
+  assert.match(mail.html, /background:#203040/);
+}
+console.log('email background color tests passed');

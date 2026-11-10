@@ -8,6 +8,8 @@ const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 const hourLabel = (h) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
 
 const SITE_COLOR_FALLBACK = '#982c21';
+const EMAIL_PAGE_DEFAULT = '#f4f1ea'; // the email's standard backdrop and panel (supabase/functions/weekly-pull-list/email.js)
+const EMAIL_BODY_DEFAULT = '#ffffff';
 
 let dirty = false; // email settings changed (the preview and send buttons use the saved ones)
 let textDirty = false; // signup text changed
@@ -43,14 +45,15 @@ export async function mount(el, { sb }) {
       </div></details>
 
       <details class="fold fold--compact"><summary class="fold__head"><h2>Look (Both Emails)<span class="fold__note">Logo and colors</span></h2></summary><div class="fold__body">
-        <p class="field__hint">The logo and colors at the top of the weekly and “your books are in” emails. Anything left on “match the site” follows the Shop Settings logo and main color. Text colors are picked automatically so they stay readable.</p>
+        <p class="field__hint">The logo and colors of the weekly and “your books are in” emails. Header and button left on “match the site” follow the Shop Settings logo and main color; the two backgrounds left on “standard” stay warm gray and white. Text colors are picked automatically so they stay readable.</p>
         <div data-email-logo></div>
         <p class="field__hint">Leave empty to use the site logo. A square image works best; it is shown small, on the header color below.</p>
         <div class="form-grid color-grid">
-          ${[['email_header_color', 'Header color', 'The band behind the logo and shop name.'], ['email_button_color', 'Button color', 'The “Log in” / “View my pull list” button and the section titles.']]
-            .map(([k, label, hint]) => `<div class="field"><label for="e-${k}">${label}</label>
-              <div class="color-row"><input id="e-${k}" name="${k}" type="color" value="${esc(s[k] ?? s.colors?.primary ?? SITE_COLOR_FALLBACK)}"${s[k] ? '' : ' disabled'}>
-              <label class="color-row__match"><input type="checkbox" data-match="${k}"${s[k] ? '' : ' checked'}> Match the site</label></div>
+          ${[['email_header_color', 'Header color', 'The band behind the logo and shop name.'], ['email_button_color', 'Button color', 'The “Log in” / “View my pull list” button and the section titles.'],
+            ['email_page_color', 'Page background color', 'The backdrop behind the whole email.', EMAIL_PAGE_DEFAULT], ['email_body_color', 'Body background color', 'The panel the email’s text sits on.', EMAIL_BODY_DEFAULT]]
+            .map(([k, label, hint, standard]) => `<div class="field"><label for="e-${k}">${label}</label>
+              <div class="color-row"><input id="e-${k}" name="${k}" type="color" value="${esc(s[k] ?? standard ?? s.colors?.primary ?? SITE_COLOR_FALLBACK)}"${s[k] ? '' : ' disabled'}>
+              <label class="color-row__match"><input type="checkbox" data-match="${k}"${s[k] ? '' : ' checked'}> ${standard ? 'Standard' : 'Match the site'}</label></div>
               <p class="field__hint">${hint}</p></div>`).join('')}
         </div>
         <p class="field__hint">Save, then use Preview or “Send a test to me” below to see how it looks.</p>
@@ -175,7 +178,7 @@ export async function mount(el, { sb }) {
     if (int('arrival_email_after_hour', 12) >= int('arrival_email_before_hour', 20)) return setStatus(status, 'The “your books are in” sending hours need to end after they start.', 'error');
     const row = {
       pull_list_email_enabled: f.has('pull_list_email_enabled'), pull_list_email_day: int('pull_list_email_day', 4), pull_list_email_hour: int('pull_list_email_hour', 9), pull_list_email_from: text('pull_list_email_from'),
-      email_logo_url: emailLogo.get(), email_header_color: text('email_header_color'), email_button_color: text('email_button_color'), // disabled colors aren't in the form data → null
+      email_logo_url: emailLogo.get(), email_header_color: text('email_header_color'), email_button_color: text('email_button_color'), email_page_color: text('email_page_color'), email_body_color: text('email_body_color'), // disabled colors aren't in the form data → null
       arrival_email_enabled: f.has('arrival_email_enabled'), arrival_email_after_hour: int('arrival_email_after_hour', 12), arrival_email_before_hour: int('arrival_email_before_hour', 20),
     };
     const embed = text('newsletter_embed');

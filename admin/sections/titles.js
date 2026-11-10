@@ -42,7 +42,7 @@ export async function mount(el, ctx) {
   categories = await must(sb.from('categories').select('id,name,slug').order('sort'));
   // On phones the less-used filters fold under "More filters" (open when one of them is set), so the list is on the first screen.
   const phone = isPhone();
-  const moreOpen = ['flag', 'visibility', 'foc', 'release'].some((k) => state[k]) || (state.sort && state.sort !== 'updated');
+  const moreOpen = ['flag', 'foc', 'release'].some((k) => state[k]) || (state.sort && state.sort !== 'updated');
   el.innerHTML = `
     <div class="admin-title-row">
       <h1>Titles</h1>
@@ -74,13 +74,13 @@ export async function mount(el, ctx) {
           <option value="no_price">No price</option>
           </select>
         </div>
-      <div class="field"><label for="t-vis">Visibility</label><select id="t-vis" name="visibility"><option value="">Visible and hidden</option><option value="visible">Visible to customers</option></select></div>
       <div class="field"><label for="t-sort">Sort</label>
         <select id="t-sort" name="sort">
         <option value="updated">Recently changed</option>
         <option value="foc">Order cutoff</option>
         <option value="release">Release date</option>
         <option value="title">Title</option>
+        <option value="publisher">Publisher</option>
         <option value="status">Status</option>
         <option value="staff_pick">Staff pick</option>
         <option value="featured">On homepage</option>
@@ -93,12 +93,12 @@ export async function mount(el, ctx) {
       ${IS_CATALOG ? '<div class="field"><button class="btn btn--ghost" type="button" data-export>Export CSV</button></div>' : ''}
     </form>
     <p class="results-count" role="status" data-count></p>
-    <div class="admin-table-wrap"><table class="admin-table titles-table">
+    <div class="admin-table-wrap"><table class="admin-table titles-table" data-sort-elsewhere>
       <thead>
         <tr>
         <th scope="col" colspan="2" data-sort="title">Title</th>
         <th scope="col" data-sort="status">Status</th>
-        <th scope="col" data-sort="foc">Cutoff / Out</th>
+        <th scope="col" data-sort="foc">Dates</th>
         <th scope="col" data-sort="staff_pick" data-first="desc">Staff</th>
         <th scope="col" data-sort="featured" data-first="desc">Home</th>
         <th scope="col" data-sort="hidden" data-first="desc">Hide</th>
@@ -290,7 +290,8 @@ function filteredTitles(columns, options) {
   if (state.flag === 'no_price') q = q.is('price', null);
   if (state.visibility === 'visible') q = q.eq('hidden', false);
   const asc = state.dir === 'asc';
-  return state.sort === 'title' ? q.order('title', { ascending: asc }).order('issue_number', { ascending: asc }).order('variant', { ascending: asc, nullsFirst: asc })
+  return state.sort === 'publisher' ? q.order('publisher', { ascending: asc, nullsFirst: false }).order('title', { ascending: true }).order('issue_number', { ascending: true }).order('variant', { ascending: true, nullsFirst: true })
+    : state.sort === 'title' ? q.order('title', { ascending: asc }).order('issue_number', { ascending: asc }).order('variant', { ascending: asc, nullsFirst: asc })
     : q.order(SORT_COLUMN[state.sort] ?? 'updated_at', { ascending: asc, nullsFirst: false });
 }
 
@@ -321,11 +322,14 @@ async function exportTitles(btn) {
 
 async function load(el) {
   const tbody = $('tbody', el);
-  tbody.setAttribute('aria-busy', 'true');
+  const wrap = tbody.closest('.admin-table-wrap');
+  wrap.dataset.loading = ''; // the spinner over the list (see .admin-table-wrap[data-loading])
+  $('[data-count]', el).textContent = 'Loading titles…';
   const q = filteredTitles('id,title,issue_number,variant,publisher,upc,isbn,status,foc_date,release_date,staff_pick,featured,hidden,cover_url,sku,distributor,category_id', { count: 'exact' });
   const { data, count, error } = await q.order('id').range(state.offset, state.offset + PAGE - 1);
-  tbody.removeAttribute('aria-busy');
+  delete wrap.dataset.loading;
   if (error) {
+    $('[data-count]', el).textContent = '';
     tbody.innerHTML = `<tr><td colspan="8" class="form-error">${esc(friendlyError(error))}</td></tr>`;
     return;
   }

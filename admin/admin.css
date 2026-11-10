@@ -385,16 +385,16 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .list-toolbar .media-toolbar__sort { flex: none; width: auto; min-width: 0; }
 @media (max-width: 899px) { .list-toolbar .view-switch { display: none; } .list-toolbar .media-toolbar__sort { height: var(--tap); } } /* phones always show cards */
 @media (min-width: 900px) {
-  .admin-table-wrap:has(.is-grid) { overflow: visible; background: none; box-shadow: none; }
-  .admin-table.is-grid, .admin-table.is-grid > tbody { display: block; width: 100%; }
-  .admin-table.is-grid > thead { display: none; }
-  .admin-table.is-grid > tbody { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: var(--sp-12); }
-  .admin-table.is-grid > tbody > tr { display: flex; flex-direction: column; gap: var(--sp-4); padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
-  .admin-table.is-grid > tbody > tr > td { display: block; padding: 0; border: 0; white-space: normal; overflow-wrap: anywhere; text-align: left; }
-  .admin-table.is-grid > tbody > tr > td:empty { display: none; }
-  .admin-table.is-grid > tbody > tr > td.card-title { font-weight: 700; font-size: var(--fs-md); }
-  .admin-table.is-grid > tbody > tr > td:not(.card-title):not([data-label=""])::before { content: attr(data-label) ' '; font-size: var(--fs-sm); color: var(--muted); }
-  .admin-table.is-grid > tbody > tr > td:has(> :is(.btn, .icon-btn, input))::before { content: none; }
+  .admin-table-wrap:has(.is-grid:not(.titles-table)) { overflow: visible; background: none; box-shadow: none; }
+  .admin-table.is-grid:not(.titles-table), .admin-table.is-grid:not(.titles-table) > tbody { display: block; width: 100%; }
+  .admin-table.is-grid:not(.titles-table) > thead { display: none; }
+  .admin-table.is-grid:not(.titles-table) > tbody { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: var(--sp-12); }
+  .admin-table.is-grid:not(.titles-table) > tbody > tr { display: flex; flex-direction: column; gap: var(--sp-4); padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .admin-table.is-grid:not(.titles-table) > tbody > tr > td { display: block; padding: 0; border: 0; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+  .admin-table.is-grid:not(.titles-table) > tbody > tr > td:empty { display: none; }
+  .admin-table.is-grid:not(.titles-table) > tbody > tr > td.card-title { font-weight: 700; font-size: var(--fs-md); }
+  .admin-table.is-grid:not(.titles-table) > tbody > tr > td:not(.card-title):not([data-label=""])::before { content: attr(data-label) ' '; font-size: var(--fs-sm); color: var(--muted); }
+  .admin-table.is-grid:not(.titles-table) > tbody > tr > td:has(> :is(.btn, .icon-btn, input))::before { content: none; }
 }
 .view-switch { display: inline-flex; gap: var(--sp-2); }
 .view-switch .icon-btn[aria-pressed='true'] { background: var(--brand-primary); color: #fff; }
@@ -540,6 +540,15 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .cust-main { display: grid; gap: var(--sp-16); min-width: 0; }
 .cust-main > [data-pane] { display: grid; gap: var(--sp-16); min-width: 0; }
 .cust-main > [data-pane][hidden] { display: none; }
+/* Messages tab: what staff emailed, with the customer's chats in a sidebar (under it on narrow screens). */
+.cust-main > .cust-pane--split { grid-template-columns: minmax(0, 1fr); align-items: start; }
+.cust-msgs__main { display: grid; gap: var(--sp-16); min-width: 0; }
+.cust-chat { min-width: 0; }
+.cust-chat__conv + .cust-chat__conv { margin-top: var(--sp-16); }
+.cust-chat__conv > p { margin: 0 0 var(--sp-4); }
+.cust-chat__thread { max-height: 24rem; margin-bottom: 0; }
+.cust-chat .chat-msg { max-width: 92%; }
+@media (min-width: 900px) { .cust-main > .cust-pane--split:not([hidden]) { grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); } }
 .cust-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12); }
 .cust-qty { width: 72px; height: 38px; }
 .cust-toggle { font-weight: 400; display: flex; align-items: center; gap: var(--sp-6); margin: 0; }
@@ -621,6 +630,22 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .cust-export-opt { display: inline-flex; align-items: center; gap: var(--sp-6); font-weight: 400; font-size: var(--fs-ui); margin: 0; color: var(--muted); }
 tr.is-clickable { cursor: pointer; }
 
+/* A list that is loading: a spinner over its area (not the page-wide one). Set data-loading on the table's wrap. */
+.admin-table-wrap[data-loading] { position: relative; min-height: 8rem; }
+.admin-table-wrap[data-loading]::before { content: ""; position: absolute; inset: 0; z-index: var(--z-raised); background: var(--surface); opacity: .65; pointer-events: none; }
+.admin-table-wrap[data-loading]::after {
+  content: ""; position: absolute; top: var(--sp-40); left: 50%; z-index: var(--z-raised); width: 28px; height: 28px; margin-left: -14px; box-sizing: border-box;
+  border: 3px solid var(--line); border-top-color: var(--brand-primary); border-radius: 50%; pointer-events: none;
+  animation: spin var(--dur-spin) linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .admin-table-wrap[data-loading]::after { animation-duration: var(--dur-spin-calm); } }
+
+/* Titles: the column headings stay in view under the sticky header while the list scrolls. */
+@media (min-width: 900px) {
+  .admin-table-wrap:has(.titles-table) { overflow: visible; }
+  .titles-table thead th { position: sticky; top: var(--header-h); z-index: var(--z-sticky); }
+}
+
 /* ---------- Titles: stacked rows on phones so Edit and the flags stay on screen ---------- */
 .tt-dates span { display: block; }
 @media (max-width: 899px) {
@@ -642,6 +667,31 @@ tr.is-clickable { cursor: pointer; }
   .titles-table .tt-flag--1 { grid-column: 2; }
   .titles-table .tt-flag--2 { grid-column: 3; }
   .titles-table .tt-flag--3 { grid-column: 4; }
+}
+
+/* Titles as a grid of cards on desktop (the List / Grid switch); the same card as the phone layout above. */
+@media (min-width: 900px) {
+  .admin-table-wrap:has(.titles-table.is-grid) { overflow: visible; background: none; box-shadow: none; }
+  .titles-table.is-grid thead { display: none; }
+  .titles-table.is-grid, .titles-table.is-grid > tbody { display: block; width: 100%; }
+  .titles-table.is-grid > tbody { display: grid; grid-template-columns: repeat(auto-fill, minmax(24rem, 1fr)); gap: var(--sp-12); }
+  .titles-table.is-grid tr { display: grid; grid-template-columns: 96px max-content max-content max-content; gap: var(--sp-6) var(--sp-8); justify-content: start; align-items: center; padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .titles-table.is-grid td { display: block; padding: 0; border: 0; }
+  .titles-table.is-grid .tt-thumb { grid-column: 1; grid-row: 1 / span 3; align-self: start; }
+  .titles-table.is-grid .tt-title { grid-column: 2 / -1; grid-row: 1; }
+  .titles-table.is-grid .tt-dates { grid-column: 2 / -1; grid-row: 2; font-size: var(--fs-sm); color: var(--muted); }
+  .titles-table.is-grid .tt-dates span { display: inline; }
+  .titles-table.is-grid .tt-dates span + span::before { content: ' · '; }
+  .titles-table.is-grid .tt-status { grid-column: 2 / 4; grid-row: 3; }
+  .titles-table.is-grid .tt-edit { grid-column: 4; grid-row: 3; justify-self: end; }
+  .titles-table.is-grid .tt-flag { grid-row: 4; display: flex; align-items: center; gap: var(--sp-4); text-align: left; font-size: var(--fs-xs); min-height: 36px; white-space: nowrap; }
+  /* Long titles wrap inside the row instead of widening the grid columns. */
+  .titles-table.is-grid .tt-title, .titles-table.is-grid .tt-dates { contain: inline-size; overflow-wrap: anywhere; }
+  .titles-table.is-grid .tt-flag::after { content: attr(data-label); }
+  .titles-table.is-grid .tt-flag--1 { grid-column: 2; }
+  .titles-table.is-grid .tt-flag--2 { grid-column: 3; }
+  .titles-table.is-grid .tt-flag--3 { grid-column: 4; 
+}
 }
 
 /* ---------- Phones and tablets: `cards` tables stack into one card per row ----------
