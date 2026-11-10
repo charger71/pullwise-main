@@ -50,7 +50,7 @@ Not included:
 **In the admin: Admin → Backup & Restore** (owners only).
 
 1. Choose a backup: one of the nightly backups (**Restore** on its row loads it straight from R2 through `/__backups`,
-   nothing is saved to your computer) or a backup file on this computer. It is read in your browser; nothing changes yet.
+   nothing is saved to your computer) or a backup file on this computer (picked on the **Restore** tab). It is read in your browser; nothing changes yet.
 2. Tick only the tables you need. The list shows how many rows each table has in the backup and how many it has now.
 3. Pick how to load them:
    - **Add missing rows only** (safe): rows that already exist are left as they are; only rows that are gone come back.

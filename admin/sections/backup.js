@@ -35,7 +35,7 @@ export async function mount(el, ctx) {
     ${hintSlot()}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="backups">Backups</button>
-      <button type="button" class="admin-tab" role="tab" data-tab="tables" disabled title="Choose a backup to restore first">Tables to Restore</button>
+      <button type="button" class="admin-tab" role="tab" data-tab="restore">Restore</button>
       <button type="button" class="admin-tab" role="tab" data-tab="customers">Export Customers</button>
       <button type="button" class="admin-tab" role="tab" data-tab="log">Log</button>
     </div>
@@ -43,7 +43,7 @@ export async function mount(el, ctx) {
     <section class="fold fold--compact fold--static">
     <div class="fold__head"><h2>Nightly Backups<span class="fold__note">Download one, or restore straight from it</span></h2></div>
     <div class="fold__body">
-    <p class="field__hint">The files contain customer names, phone numbers and emails: don’t share them or email them. <strong>Nothing is restored until you press Restore on the next screen.</strong></p>
+    <p class="field__hint">The files contain customer names, phone numbers and emails: don’t share them or email them. <strong>Nothing is restored until you confirm on the Restore tab.</strong></p>
     <p class="admin-status" role="status" data-nightly-status></p>
     <div data-nightly><p class="card__meta">Loading the backups…</p></div>
     </div>
@@ -58,6 +58,8 @@ export async function mount(el, ctx) {
     <button class="btn btn--primary" type="button" data-backup>${solidIcon('download', 16)} Download backup</button>
     </div>
     </section>
+    </div>
+    <div data-tabpane="restore">
     <section class="fold fold--compact fold--static">
     <div class="fold__head"><h2>Restore from a File on This Computer</h2></div>
     <div class="fold__body">
@@ -65,8 +67,6 @@ export async function mount(el, ctx) {
       <p class="admin-status" role="status" data-file-status></p>
     </div>
     </section>
-    </div>
-    <div data-tabpane="tables">
     <div data-plan hidden></div>
     </div>
     <div data-tabpane="customers">
@@ -91,12 +91,10 @@ export async function mount(el, ctx) {
   }).catch(() => {});
   const showTab = setupTabs(el, 'admin-backup-tab', 'backups', undefined, {
     backups: 'The shop is backed up automatically every night. Each day’s file is kept for 35 days, and the first of each month for about a year. <strong>Download</strong> saves a nightly file; <strong>Restore</strong> loads tables back from it (nothing is downloaded, and nothing changes until you confirm). You can also download a fresh backup now, or restore from a file on this computer.',
-    tables: 'Tick only the tables you need. <strong>Add missing rows</strong> puts back what was deleted and leaves everything else alone; <strong>Replace</strong> deletes every row in the table first and loads the backup’s, so changes made since the backup are lost.',
+    restore: 'Pick a backup file on this computer, or press Restore on a nightly backup. Then tick only the tables you need. <strong>Add missing rows</strong> puts back what was deleted and leaves everything else alone; <strong>Replace</strong> deletes every row in the table first and loads the backup’s, so changes made since the backup are lost.',
     customers: 'A spreadsheet of just the customers’ contact details, for a mailing or your records. It is not a backup.',
     log: 'Every backup (the nightly automatic ones and those downloaded here), every nightly file downloaded, every restore (who ran it, how, and what each table got; a failed restore changed nothing) and every customer list exported, newest first, with who did it.',
   });
-  const tablesTab = $('[data-tab="tables"]', el);
-  if (tablesTab.getAttribute('aria-selected') === 'true') showTab('backups', false); // never reopen on the table list: it needs a file read first
   log();
 
   const nightlyEl = $('[data-nightly]', el);
@@ -143,7 +141,6 @@ export async function mount(el, ctx) {
     const file = e.target.files[0];
     if (!file) {
       plan.hidden = true;
-      tablesTab.disabled = true;
       return setStatus(fileStatus, '');
     }
     readBackup(fileStatus, async () => file);
@@ -196,8 +193,6 @@ export async function mount(el, ctx) {
   async function readBackup(statusEl, getFile) {
     plan.hidden = true;
     plan.innerHTML = '';
-    tablesTab.disabled = true;
-    showTab('backups', false);
     try {
       const file = await getFile();
       setStatus(statusEl, 'Reading the file…');
@@ -221,8 +216,7 @@ export async function mount(el, ctx) {
 
   function showPlan(backup, names, counts, total, versionNote = '') {
     plan.hidden = false;
-    tablesTab.disabled = false;
-    showTab('tables', false);
+    showTab('restore', false);
     plan.innerHTML = `
       <p><strong>Backup taken ${esc(fmtDateTime(backup.taken_at))}</strong>: ${total.toLocaleString()} rows in ${names.length} tables.</p>
       ${versionNote ? `<p class="field__hint">${esc(versionNote)}</p>` : ''}
