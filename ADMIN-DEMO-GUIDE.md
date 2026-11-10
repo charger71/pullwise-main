@@ -41,7 +41,7 @@ A script for a **25-30 minute** walk through the admin. It follows a shop's week
 **Point:** The catalog fills itself. A shop doesn't have to import anything.
 
 - **Dashboard → System → catalog-sync**: titles arrive hourly from the Pullwise master catalog (Lunar, PRH and Funko sheets are imported once for every shop). The demo shop has 6,000+ titles and has never run an import. Your shop price, status, category, staff picks and hidden flags are never overwritten by the sync.
-- **Import Titles → Import Files**: for things the catalog doesn't carry, a shop can still drop in its own sheet (Lunar, PRH or Funko, or any spreadsheet with a Title column) and sees what will change before anything is saved. Don't upload a file on the demo shop.
+- **Import → Import Files**: for things the catalog doesn't carry, a shop can still drop in its own sheet (Lunar, PRH or Funko, or any spreadsheet with a Title column) and sees what will change before anything is saved. Don't upload a file on the demo shop.
 - **Always Skip**: publishers, series and words you never carry. "Set once, never see them again." Incentive and "N COPY" covers are never added.
 - **Titles → All**: search, filter, change status, mark a **Staff Pick**, fix a cover or price, add a title by hand. Click **Hide** (staff can hide; only owners delete).
 - **FOC This Week / Out This Week**: on Wednesday FOC becomes **FOC Next Week**. "This is the screen you stare at at the cutoff."

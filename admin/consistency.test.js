@@ -221,7 +221,7 @@ check('the style guide shows every shared component', () => {
   const COMPONENTS = ['btn--primary', 'btn--ghost', 'btn--green', 'btn--blue', 'btn--danger', 'btn--add', 'btn--small', 'icon-btn', 'icon-btn--info', 'admin-tab', 'admin-tab__badge', 'admin-nav__badge', 'view-switch', 'account-menu', 'chip',
     'admin-table', 'cards', 'card-title', 'card-key', 'card-wide', 'card-foot', 'pill', 'fold', 'fold--static', 'admin-hint-fold', 'panel', 'dash-tile', 'dash-card', 'dialog__head',
     'toast', 'toast__link', 'notice', 'dropzone', 'sticky-actions', 'form-grid--pairs', 'field--check', 'admin-pager', 'admin-status', 'admin-hint', 'empty', 'form-error',
-    'select--small', 'cust-export-opt', 'color-grid', 'color-row', 'font-pick', 'font-preview', 'hours-row', 'media-grid', 'media-item', 'thumb', 'thumb--fix', 'thumb--sm', 'thumb--lg', 'info-list', 'job-log', 'faq-item__move', 'is-hidden', 'is-overdue', 'chat-thread', 'chat-msg', 'chat-msg--staff', 'chat-msg__meta', 'chat-compose', 'switch', 'switch__track', 'switch__text'];
+    'select--small', 'cust-export-opt', 'color-grid', 'color-row', 'font-pick', 'font-preview', 'hours-row', 'media-grid', 'media-item', 'thumb', 'thumb--fix', 'thumb--sm', 'thumb--lg', 'info-list', 'job-log', 'faq-item__move', 'is-hidden', 'is-overdue', 'chat-thread', 'chat-msg', 'chat-msg--staff', 'chat-msg__meta', 'chat-compose', 'switch', 'switch__track', 'switch__text', 'choice-list', 'choice-list__option'];
   const hasClass = (c) => [...guide.matchAll(/class="([^"]*)"/g)].some((m) => m[1].split(/\s+/).includes(c));
   const missing = COMPONENTS.filter((c) => !hasClass(c));
   assert.equal(missing.length, 0, `style-guide.html has no example of: ${missing.join(', ')}.\nAdd it to the guide in the same change.`);
@@ -347,7 +347,9 @@ check('screen tops: title row, How this works, tabs, then everything else', () =
 
 // Every screen explains itself: a How this works right under its title (hintFold, or the hintSlot setHint fills).
 check('every admin screen has a How this works under its title', () => {
+  // A screen exports mount(); a tab another screen mounts (import-pull-lists.js) sits under that screen's title.
   const missing = Object.entries(sections)
+    .filter(([, t]) => /export (async )?function mount\(/.test(t))
     .filter(([, t]) => ![...t.matchAll(/<h1\b/g)].some((m) => /\$\{hint(Fold\(|Slot\(\))/.test(t.slice(m.index, m.index + 1500))))
     .map(([f]) => f);
   assert.equal(missing.length, 0, `No How this works under the title: ${missing.join(', ')}`);

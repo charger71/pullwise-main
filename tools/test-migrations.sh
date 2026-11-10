@@ -41,7 +41,7 @@ echo "$out" | grep -qi 'up to date' || { echo "Second push wasn't a no-op"; exit
 
 jobs=$(as_admin -Atc "select string_agg(jobname, ',' order by jobname) from cron.job")
 echo "Scheduled jobs: $jobs"
-for j in apply-subscriptions arrival-email flip-item-statuses weekly-pull-list; do
+for j in apply-subscriptions arrival-email flip-item-statuses pull-import-cleanup weekly-pull-list; do
   [[ ",$jobs," == *",$j,"* ]] || { echo "Missing scheduled job: $j"; exit 1; }
 done
 rm -rf supabase/.temp

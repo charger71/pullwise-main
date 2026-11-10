@@ -129,6 +129,19 @@ An on/off switch for a setting that is either on or off. Build it with \`switchH
     html: page('AdminSwitch', demo('On/off switch')),
   },
   {
+    name: 'AdminChoiceList', group: G('Forms'), height: 216,
+    readme: `# AdminChoiceList
+
+One question with a few answers picked by radio button, each answer a whole line: Import → Pull lists uses it for a title that needs a look (pick a series or skip it).
+
+- A \`fieldset.choice-list\` (\`admin-surface\`, a \`--border\` edge, \`admin-radius\`) with the question as its bold \`legend\`, and one \`label.choice-list__option\` per answer, each a 44px (\`admin-tap\`) row with the radio first. A score or hint after the answer is \`card__meta\`.
+- Always end with the way out ("Skip this title").
+- Picking an answer saves it straight away, so there's no Save button under it; while it saves the fieldset carries \`aria-busy="true"\` and fades.
+- For two or three short options side by side (Small / Medium / Large), use the radios in AdminShopLook's font picker instead.
+- Consumer provides: the question, the answers and what saving one does.`,
+    html: page('AdminChoiceList', demo('Choice list')),
+  },
+  {
     name: 'AdminDropzone', group: G('Forms'), height: 141,
     readme: `# AdminDropzone
 
@@ -166,7 +179,7 @@ One row of opening hours: day chips with a tick box inside, open and close times
     html: page('AdminHoursRow', demo('Opening hours row')),
   },
   {
-    name: 'AdminMediaGrid', group: G('Forms'), height: 207,
+    name: 'AdminMediaGrid', group: G('Forms'), height: 552,
     readme: `# AdminMediaGrid
 
 The media library: a grid of pictures, each with its name, size and actions.
@@ -189,7 +202,7 @@ A row of tabs that switches the view inside a screen, each with an icon in front
     html: page('AdminTabs', `<div class="admin-tabs" role="tablist">${tab('All customers', 'people', true)}${tab('New this week', 'sparkle', false)}${tab('Needs attention', 'alert', false, 3)}${tab('Pull list', 'bookmark', false)}</div>`),
   },
   {
-    name: 'AdminNavBadge', group: G('Navigation'), height: 96, width: 420,
+    name: 'AdminNavBadge', group: G('Navigation'), height: 120, width: 420,
     readme: `# AdminNavBadge
 
 A count on a menu item for work waiting on staff, shown on every screen.
@@ -227,7 +240,7 @@ ${demo('Tick option in a filter row')}
 ${demo('<h3>Pager'.slice(4))}`),
   },
   {
-    name: 'AdminTable', group: G('Data'), height: 788, width: 960,
+    name: 'AdminTable', group: G('Data'), height: 781, width: 960,
     readme: `# AdminTable
 
 Every admin list: a striped table under the slate header band, with sortable columns and a small set of row states.
@@ -337,7 +350,7 @@ ${demo('Static fold (always open, not clickable)')}
 ${demo('Fold with a count and an action at the top (Place Order cutoff)')}`),
   },
   {
-    name: 'AdminHintFold', group: G('Containers'), height: 105,
+    name: 'AdminHintFold', group: G('Containers'), height: 117,
     readme: `# AdminHintFold
 
 "How this works": instructions that start closed on every screen size, to save space.
@@ -383,7 +396,7 @@ ${demo('Hints, status and notices')}
 ${demo('Empty state')}`),
   },
   {
-    name: 'AdminToast', group: G('Feedback'), height: 85,
+    name: 'AdminToast', group: G('Feedback'), height: 142,
     readme: `# AdminToast
 
 A short confirmation that appears bottom-right and dismisses itself.

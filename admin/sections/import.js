@@ -10,6 +10,7 @@ import { $, esc, must, setStatus, toast, fmtDate, processImage, loadScript, soli
 import { tally } from '../../js/util.js';
 import { todayIn, addDays } from '../../js/dates.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../js/config.js';
+import { mountPullLists, pullImportBusy } from './import-pull-lists.js';
 
 const SOURCE = { lunar: 'Lunar', prh: 'PRH', funko: 'Funko', sheet: 'Spreadsheet' };
 const FIELD_LABEL = {
@@ -21,7 +22,7 @@ let sb;
 let settings;
 let libs;
 let busy = false;
-export const hasUnsavedChanges = () => busy;
+export const hasUnsavedChanges = () => busy || pullImportBusy();
 
 /** SheetJS (ES module) and JSZip (classic script) on first use. */
 async function loadLibs() {
@@ -39,10 +40,11 @@ export async function mount(el, ctx) {
   sb = ctx.sb;
   settings = await must(sb.from('settings').select('timezone').eq('id', 1).single());
   el.innerHTML = `
-    <h1>Import Titles</h1>
+    <h1>Import</h1>
     ${hintSlot()}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-tab="files">Import Files</button>
+      <button type="button" class="admin-tab" role="tab" data-tab="pulls">Pull Lists</button>
       <button type="button" class="admin-tab" role="tab" data-tab="skip">Always Skip</button>
       <button type="button" class="admin-tab" role="tab" data-tab="runs">Recent Runs</button>
     </div>
@@ -57,6 +59,7 @@ export async function mount(el, ctx) {
     </div>
     <div data-files></div>
     </div>
+    <div data-tabpane="pulls"></div>
     <div data-tabpane="skip">
     <section class="fold fold--compact fold--static exclusions" data-exclusions>
       <div class="fold__head"><h2>Always Skip</h2> <span class="card__meta" data-exclusion-count>Publishers, series, title words or mature titles to leave out of every import</span></div>
@@ -88,8 +91,10 @@ export async function mount(el, ctx) {
   $('[data-sample]', el).addEventListener('click', downloadSample);
   setupTabs(el, 'admin-import-tab', 'files', undefined, {
     files: `Drop in this week's sheets as downloaded: Lunar or PRH FOC sheets, Lunar or PRH release sheets, or a Funko pre-order list. Any other spreadsheet (.xlsx, .xls or .csv) works too if it has a header row with a <strong>Title</strong> (or Name / Product) column and details such as Price, UPC, ISBN, SKU, Publisher, Release date or FOC date — pictures in the sheet become covers. You'll see what will change before anything is saved. New titles come in with their collector badges ticked when the title says so: <strong>First Issue</strong> (#1), <strong>One-Shot</strong>, <strong>Limited Series</strong> (“#2 (of 6)”), <strong>Facsimile</strong> and <strong>Blind Bag</strong>. Incentive covers and retailer bundles are always skipped, plus anything on the list below.`,
+    pulls: `For a shop moving to Pullwise: one spreadsheet of your customers and the series each one takes (.xlsx, .xls or .csv). It can have one row per customer and title, one row per customer with all their titles in one cell, or one sheet per customer named after them — download the sample to see the columns. Check which column holds what, then every title is matched to a series: <strong>Matched</strong> lines are ready, <strong>Needs a look</strong> lines offer the closest series to choose from, and <strong>Not found</strong> lines can be searched for, added to the series catalog or skipped. Each choice is remembered, so the same spelling matches by itself next time. Customers already in Pullwise (same email, or same phone) are updated, never added twice, and keep the follows they have. Nothing is saved until you press <strong>Save</strong>; you can leave a review and resume it from Drafts. Saving adds each customer's follows and puts the titles open for pre-order now on their pull list (mature titles only for customers marked Mature OK). It sends no email.`,
   });
   mountExclusions(el);
+  mountPullLists($('[data-tabpane="pulls"]', el), { sb, onLog: () => loadLog(el) });
   loadLog(el);
 }
 
@@ -336,7 +341,7 @@ async function makeThumb(bytes, type) {
   return { bytes: new Uint8Array(await small.blob.arrayBuffer()), type: small.type };
 }
 
-const RUN_NAMES = { import: 'Import', status_flip: 'Daily status update', catalog_sync: 'Master catalog sync', prh_sync: 'PRH title updates', prh_import: 'Automatic PRH import', lunar_import: 'Automatic Lunar import' };
+const RUN_NAMES = { import: 'Import', pull_import: 'Pull list import', status_flip: 'Daily status update', catalog_sync: 'Master catalog sync', prh_sync: 'PRH title updates', prh_import: 'Automatic PRH import', lunar_import: 'Automatic Lunar import' };
 
 function loadLog(el) {
   return loadRunLog(sb, $('[data-log]', el), { name: (job) => RUN_NAMES[job] ?? job });

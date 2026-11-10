@@ -39,7 +39,7 @@ That's it: they can sign in right away. If you close the box before copying, use
 | 6 | **Media** | Two tabs: **Library** (small thumbnails, copy a link to use elsewhere, replace or delete) and **Upload** (photos are resized as they go in). | Whoever posts |
 | 7 | **Pages / FAQ** | Edit page text (including We Buy Comics and the Terms), add a page, edit the FAQ. Each page has tabs: **Page Text**, **Google & Browser Tab** (and **Page Settings** for pages you added); the homepage has **Page Text** (the text above Staff Picks and above the email signup), **Shelf Intros** (Closing Soon, Funko Pops, Action Figures, Records) and **Google & Browser Tab**. | Owner / manager |
 | 8 | **Series** | Two tabs: **All Series** (merge series the distributors name two ways, set series covers) and **Add Active Series** (manage the active series list). | Owner / manager |
-| 9 | **Import Titles** | Three tabs: **Import Files** (load the weekly distributor sheets), **Always Skip** (publishers, series and words to leave out) and **Recent Runs**. Read the rules below first. | Whoever handles ordering |
+| 9 | **Import** | Four tabs: **Import Files** (load the weekly distributor sheets), **Pull Lists** (bring in a shop's existing customers and pull lists, once, when moving to Pullwise: see below), **Always Skip** (publishers, series and words to leave out) and **Recent Runs**. Read the rules below first. | Whoever handles ordering |
 | 10 | **Emails** | Three tabs: **Email Settings** (schedule, sender, look), **Send** (the weekly pull list email and the "your books are in" email: always **Preview** and **Send a test to me** before **Send to everyone**), and **Email Log**. | Owner / manager |
 | 11 | **Surveys** | The list has **All**, **Open** and **Closed** tabs. Each survey has tabs: **Details**, **Questions**, **Results** (print as a PDF) and **Share** (link and QR code). | Whoever runs surveys |
 | 12 | **Chat** | Visitors chat with you from the button on every public page. The **switch at the top** turns chat on or off for visitors (it starts off); flip it off when nobody is around to answer. The list has **Open** and **Closed** tabs and shows new messages as they arrive; open a chat to reply, close it when you're done, or delete it. Leave the screen open while you want to be reachable: on other screens a small pop-up announces a new message. Chats hold the visitor's name and, if they gave it, their email, so delete the ones you don't need. | Counter staff |
@@ -54,6 +54,34 @@ That's it: they can sign in right away. If you close the box before copying, use
 - **Emails to everyone:** never use "Send to everyone now" to test. Use **Send a test to me**.
 - **Deleting a customer cannot be undone** (it removes their profile, pull list, orders, follows, notes and login). Check twice.
 - **Never share your login.** Ask the owner to add each person instead.
+
+## Importing pull lists
+
+For a shop moving to Pullwise: **Admin → Import → Pull Lists** brings in every customer and the series they take
+from one spreadsheet (.xlsx, .xls or .csv). Owners only.
+
+1. **Get the sheet ready.** Any of three layouts works: one row per customer and title; one row per customer with all
+   their titles in one cell (one per line, or separated by commas or semicolons); or one sheet per customer, named
+   after them. **Download sample CSV** shows the columns: customer name (or first and last name), email, phone, title,
+   quantity, notes, Mature OK and No email. "Saga x2" in a title is read as 2 copies.
+2. **Check the columns.** The import guesses the layout and which column is which; correct any guess, and watch the
+   count of customers and titles change.
+3. **Match titles.** Every title is matched to a series. **Matched** lines are ready. **Needs a look** lines show the
+   closest series: pick one, or Skip. **Not found** lines: search for the series, **Add to series catalog** if it's
+   new, or Skip. Every choice is remembered, so the same spelling matches by itself in later imports.
+4. **Check the customers.** Each one is marked **New** or **In Pullwise** (same email, or same phone). Customers with
+   no email and no phone are allowed but flagged: they can't be matched to an existing record, so make sure they're
+   not already in Pullwise, and their pull list fills only once a phone or email is added.
+5. **Save.** Nothing is saved until you press Save, and you can leave a review and resume it from **Drafts**.
+   Saving adds each customer's follows and puts the titles open for pre-order now on their pull list (mature titles
+   only for Mature OK customers); later titles arrive with the hourly update. Customers already in Pullwise keep what
+   they have: their details are only filled in where blank, follows they already had stay as they were, and sheet notes
+   are added under their existing notes. If a customer can't be saved, the reason shows beside them: fix it and press
+   **Retry**; the others aren't redone. **Saving sends no email.** New customers get the weekly and arrival emails
+   from then on unless the sheet says No email.
+
+**Download skipped and not found** gives a CSV of the lines left out, to follow up by hand. A record of each import is
+in **Recent Runs**; the review's details are deleted 30 days after it is saved or discarded.
 
 ## Part 4: Changing or removing access (owner)
 
