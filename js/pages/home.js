@@ -60,7 +60,7 @@ async function loadHome() {
     // Whatever came out most recently tops up the shelf when this week's books are few or not imported yet.
     soft('fresh', getItems({ statuses: IN_STORE, order: 'released', limit: SHELF })),
     soft('picks', getItems({ staffPick: true, excludeStatuses: ['sold_out'], limit: SHELF })),
-    soft('events', getEvents({ from: new Date().toISOString() })),
+    soft('events', getEvents({ from: new Date().toISOString() }).then((rows) => rows.filter((e) => !e.cancelled_at))),
     soft('news', getPosts(3)),
     ...SHELVES.flatMap(({ id, slug }) => [
       soft(id, getItems({ categorySlug: slug, statuses: IN_STORE, order: 'newest', limit: SHELF })),

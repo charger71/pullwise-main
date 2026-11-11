@@ -1419,3 +1419,36 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .chat-compose { display: flex; align-items: flex-end; gap: var(--sp-8); }
 .chat-compose .field { flex: 1; min-width: 0; margin: 0; }
 .admin-title-row .switch { margin-left: auto; }
+
+/* Events > Calendar: one month. A grid on desktop (an event is a chip you can drag to another day); on phones just the days that have events, one under another. */
+.admin-cal__nav { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); margin-bottom: var(--sp-12); }
+.admin-cal__title { font-size: var(--fs-title); margin: 0; text-align: center; }
+.admin-cal__today { margin: 0 0 var(--sp-12); text-align: center; }
+.admin-cal__weekdays, .admin-cal__grid, .admin-cal__events { list-style: none; margin: 0; padding: 0; }
+.admin-cal__weekdays { display: none; }
+.admin-cal__day { display: none; padding: var(--sp-8) var(--sp-10); background: var(--surface); border: var(--border); border-radius: var(--radius); }
+.admin-cal__day + .admin-cal__day { margin-top: var(--sp-8); }
+.admin-cal__day--has { display: block; }
+.admin-cal__day--today { border-color: var(--brand-primary); }
+.admin-cal__day.is-over { background: var(--dropzone-hover); border-color: var(--brand-primary); }
+.admin-cal__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); margin-bottom: var(--sp-4); }
+.admin-cal__num { font-weight: 700; }
+.admin-cal__digit { display: none; }
+.admin-cal__add { display: none; }
+.admin-cal__events li + li { margin-top: var(--sp-4); }
+.admin-cal__chip { display: block; width: 100%; padding: var(--sp-4) var(--sp-8); min-height: var(--tap); text-align: left; font: inherit; font-size: var(--fs-ui); color: var(--ink); background: var(--paper); border: var(--border); border-left: 3px solid var(--brand-primary); border-radius: var(--radius-xs); cursor: pointer; overflow-wrap: anywhere; }
+.admin-cal__chip:hover { border-color: var(--brand-primary); }
+.admin-cal__chip--cancelled { text-decoration: line-through; color: var(--muted); border-left-color: var(--line); }
+.admin-cal__time { color: var(--muted); font-size: var(--fs-xs); }
+@media (min-width: 900px) {
+  .admin-cal__weekdays, .admin-cal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .admin-cal__weekdays { gap: var(--sp-4); margin-bottom: var(--sp-4); font-size: var(--fs-xs); font-weight: 700; text-align: center; color: var(--muted); }
+  .admin-cal__grid { gap: var(--sp-4); }
+  .admin-cal__day { display: block; min-height: 110px; padding: var(--sp-6); }
+  .admin-cal__day + .admin-cal__day { margin-top: 0; }
+  .admin-cal__day--blank { background: transparent; border-color: transparent; }
+  .admin-cal__label { display: none; }
+  .admin-cal__digit { display: block; font-size: var(--fs-sm); color: var(--muted); }
+  .admin-cal__add { display: inline-flex; width: var(--tap); height: var(--tap); }
+  .admin-cal__chip { min-height: 0; font-size: var(--fs-xs); }
+}

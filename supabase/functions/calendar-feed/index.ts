@@ -49,7 +49,8 @@ Deno.serve(async () => {
       `LAST-MODIFIED:${stamp(e.updated_at)}`,
       `DTSTART:${stamp(e.starts_at)}`,
       `DTEND:${stamp(e.ends_at ?? new Date(new Date(e.starts_at).getTime() + 2 * 3600000).toISOString())}`,
-      `SUMMARY:${text(e.title)}`,
+      ...(e.cancelled_at ? ['STATUS:CANCELLED'] : []),
+      `SUMMARY:${text(e.cancelled_at ? `CANCELLED: ${e.title}` : e.title)}`,
       // Calendar apps show URL in different places (or not at all), so the link is also at the end of the description.
       `DESCRIPTION:${text(`${htmlToText(e.description)}\n\nDetails: ${site}/event.html?id=${e.id}`.trim())}`,
       `URL:${site}/event.html?id=${e.id}`,

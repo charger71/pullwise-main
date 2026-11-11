@@ -12,6 +12,8 @@
 //   POST  staff { "mode": "arrivals_preview" | "arrivals_test" }  preview / send-to-me for the arrival email
 //   POST  { "mode": "event_signup", "signup_id": n }  (cron secret only; public.event_signup_email_trigger calls this for each
 //           new event signup)   emails the customer a confirmation and the shop a notification
+//   POST  { "mode": "event_reminder" | "event_cancelled", "event_id": n }  (cron secret only; public.event_reminder_tick sends the
+//           reminder the day before, public.event_cancel_email_trigger the cancellation notice)   emails everyone signed up
 //   GET/POST ?u=<unsubscribe token>[&k=arrivals]   the unsubscribe page and its one-click POST
 //           (k=arrivals stops only the arrival emails; otherwise the weekly email)
 //
@@ -122,12 +124,13 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.json().catch(() => ({}));
-  const mode = isCron ? (['arrivals', 'event_signup'].includes(body.mode) ? body.mode : 'send') : body.mode;
-  if (!['preview', 'test', 'send', 'arrivals', 'arrivals_preview', 'arrivals_test', 'message', 'event_signup'].includes(mode)) return json(400, { error: 'Unknown mode.' });
-  if (mode === 'event_signup' && !isCron) return json(403, { error: 'Not allowed.' });
+  const mode = isCron ? (['arrivals', 'event_signup', 'event_reminder', 'event_cancelled'].includes(body.mode) ? body.mode : 'send') : body.mode;
+  if (!['preview', 'test', 'send', 'arrivals', 'arrivals_preview', 'arrivals_test', 'message', 'event_signup', 'event_reminder', 'event_cancelled'].includes(mode)) return json(400, { error: 'Unknown mode.' });
+  if (['event_signup', 'event_reminder', 'event_cancelled'].includes(mode) && !isCron) return json(403, { error: 'Not allowed.' });
 
   try {
     if (mode === 'event_signup') return await sendEventSignup(Number(body.signup_id));
+    if (mode === 'event_reminder' || mode === 'event_cancelled') return await sendEventNotice(Number(body.event_id), mode === 'event_cancelled' ? 'cancelled' : 'reminder');
     if (mode === 'message') return await sendMessage(body, staffEmail);
     if (mode.startsWith('arrivals')) return await runArrivals(mode, body.customer_id, staffEmail);
     return await run(mode, body.customer_id, staffEmail, isCron);
@@ -162,16 +165,8 @@ async function sendMessage(body: { to?: string; subject?: string; message?: stri
   return json(200, { ok: true, to });
 }
 
-/** A new event signup: a confirmation to the customer, and a notification (Reply goes to the customer) to the shop. */
-async function sendEventSignup(signupId: number) {
-  if (!Number.isInteger(signupId)) return json(400, { error: 'Missing signup.' });
-  const { data: su, error } = await admin.from('event_signups').select('*, event:events(*)').eq('id', signupId).single();
-  if (error) throw error;
-  const { data: shop, error: sErr } = await loadShop();
-  if (sErr) throw sErr;
-  const from = shop.pull_list_email_from || Deno.env.get('RESEND_FROM');
-  if (!from) return json(500, { error: 'Set the From address in Admin → Emails first.' });
-  const ev = su.event;
+/** When and where an event is, for an email: the shop's time zone, and (with several locations) the event's location with its address. */
+async function eventWhenWhere(ev: Record<string, any>, shop: Record<string, any>) {
   const tz = shop.timezone || undefined;
   const when = `${new Date(ev.starts_at).toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at ${new Date(ev.starts_at).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' })}`;
   // A shop with several locations holds each event at one of them: its name and address, then any note staff typed.
@@ -183,6 +178,59 @@ async function sendEventSignup(signupId: number) {
   const addr = [evShop.street, [evShop.city, evShop.region].filter(Boolean).join(', ')].filter(Boolean).join(', ');
   const where = allLocations ? `${evShop.shop_name} — all locations${ev.location ? ` (${ev.location})` : ''}`
     : locs.multi ? [evShop.shop_name, addr].filter(Boolean).join(', ') + (ev.location ? ` (${ev.location})` : '') : ev.location || shop.shop_name;
+  return { evShop, when, where };
+}
+
+/**
+ * An email to everyone signed up for an event: the day-before reminder, or the notice that it was cancelled. Each
+ * signup gets its own email (Reply goes to the shop). A reminder is skipped for an event that has since been cancelled.
+ */
+async function sendEventNotice(eventId: number, kind: 'reminder' | 'cancelled') {
+  if (!Number.isInteger(eventId)) return json(400, { error: 'Missing event.' });
+  const { data: ev, error } = await admin.from('events').select('*').eq('id', eventId).single();
+  if (error) throw error;
+  if (kind === 'reminder' && ev.cancelled_at) return json(200, { ok: true, sent: 0, skipped: 'cancelled' });
+  const { data: signups, error: gErr } = await admin.from('event_signups').select('*').eq('event_id', eventId).order('id');
+  if (gErr) throw gErr;
+  const { data: shop, error: sErr } = await loadShop();
+  if (sErr) throw sErr;
+  const from = shop.pull_list_email_from || Deno.env.get('RESEND_FROM');
+  if (!from) return json(500, { error: 'Set the From address in Admin → Emails first.' });
+  const { evShop, when, where } = await eventWhenWhere(ev, shop);
+  const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
+  const subject = kind === 'cancelled' ? `Cancelled: ${ev.title}` : `Reminder: ${ev.title} is coming up`;
+  const rows: LogRow[] = [];
+  for (const su of signups) {
+    const people = su.party_size === 1 ? '1 person' : `${su.party_size} people`;
+    const message = kind === 'cancelled'
+      ? `Hi ${su.name},\n\nWe're sorry: ${ev.title} on ${when} has been cancelled.\n\nYour signup has been released, and nothing more is needed from you. Questions? Just reply to this email or call the shop${evShop.phone ? ` at ${evShop.phone}` : ''}.`
+      : `Hi ${su.name},\n\nA reminder that you're signed up for ${ev.title}.\n\nWhen: ${when}\nWhere: ${where}\nSpots held: ${people}\n\nEvent details: ${siteUrl}/event.html?id=${ev.id}\n\nCan't make it? Just reply to this email or call the shop${evShop.phone ? ` at ${evShop.phone}` : ''} so we can free up your spot.`;
+    const mail = buildMessage({ shop: evShop, subject, message });
+    let failure: string | null = null;
+    try {
+      const res = await resend('/emails', { from, to: [su.email], subject, html: mail.html, text: mail.text, ...(shop.email ? { reply_to: shop.email } : {}) });
+      if (!res.ok) failure = `Resend: ${(await res.json().catch(() => ({}))).message ?? res.status}`;
+    } catch (err) {
+      failure = err instanceof Error ? err.message : String(err);
+    }
+    rows.push({ kind: kind === 'cancelled' ? 'event_cancelled' : 'event_reminder', to_email: su.email, subject, body: mail.text, sent_by: kind === 'cancelled' ? 'Event cancelled' : 'Event reminder', status: failure ? 'failed' : 'sent', error: failure });
+    await new Promise((r) => setTimeout(r, 600)); // Resend allows ~2 requests a second
+  }
+  await logEmails(rows);
+  return json(200, { ok: true, sent: rows.filter((r) => r.status === 'sent').length, failed: rows.filter((r) => r.status === 'failed').length });
+}
+
+/** A new event signup: a confirmation to the customer, and a notification (Reply goes to the customer) to the shop. */
+async function sendEventSignup(signupId: number) {
+  if (!Number.isInteger(signupId)) return json(400, { error: 'Missing signup.' });
+  const { data: su, error } = await admin.from('event_signups').select('*, event:events(*)').eq('id', signupId).single();
+  if (error) throw error;
+  const { data: shop, error: sErr } = await loadShop();
+  if (sErr) throw sErr;
+  const from = shop.pull_list_email_from || Deno.env.get('RESEND_FROM');
+  if (!from) return json(500, { error: 'Set the From address in Admin → Emails first.' });
+  const ev = su.event;
+  const { evShop, when, where } = await eventWhenWhere(ev, shop);
   const people = su.party_size === 1 ? '1 person' : `${su.party_size} people`;
   const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
 

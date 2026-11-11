@@ -47,11 +47,12 @@ if (e === undefined) {
     <p><a href="calendar.html">← Calendar</a></p>
     ${e.image_url ? `<a href="${esc(e.image_url)}" data-lightbox><img class="event__img" src="${esc(e.image_url)}" alt="${esc(e.title)}"></a>` : ''}
     <span class="event__type">${esc(EVENT_TYPES[e.event_type] ?? 'Event')}</span>
-    <h1>${esc(e.title)}</h1>
+    <h1>${e.cancelled_at ? '<span class="event__cancelled">Cancelled</span> ' : ''}${esc(e.title)}</h1>
+    ${e.cancelled_at ? '<p class="event__notice" role="status">This event has been cancelled. We’re sorry! Call the shop with any questions.</p>' : ''}
     <p class="event__when">${esc(when)}${place.label ? ` · ${esc(place.label)}` : ''}</p>
     ${description.trim() ? `<div class="page-body">${description}</div>` : ''}
     <div id="signup"></div>
-    <div class="event__actions">
+    <div class="event__actions"${e.cancelled_at ? ' hidden' : ''}>
       <span>Add to calendar:</span>
       <a href="#" data-ics>Apple / .ics</a>
       <a href="${esc(googleLink(e, where))}" target="_blank" rel="noopener">Google</a>
@@ -64,7 +65,7 @@ if (e === undefined) {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   });
-  if (e.signup_enabled && new Date(e.ends_at ?? e.starts_at) > new Date()) mountSignup($('#signup', el), e);
+  if (e.signup_enabled && !e.cancelled_at && new Date(e.ends_at ?? e.starts_at) > new Date()) mountSignup($('#signup', el), e);
 }
 
 async function mountSignup(box, e) {

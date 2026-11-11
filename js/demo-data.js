@@ -86,8 +86,11 @@ for (const i of items) if (i.status === 'pre_order' && i.foc_date && lastReserve
 
 export const events = [
   { id: 1, title: 'New Comic Book Day Release Party', event_type: 'release_party', starts_at: at(3, 11), ends_at: at(3, 19), location: 'In store', description: '<p>Doors at 11. Free pizza while it lasts, and 10% off every new release.</p>', image_url: null },
-  { id: 2, title: 'Pokémon TCG League Night', event_type: 'tournament', starts_at: at(5, 18), ends_at: at(5, 21), location: 'Back room', description: '<p>Casual standard-format play. All ages, all skill levels.</p>', image_url: null },
-  { id: 3, title: 'Local Creator Signing', event_type: 'signing', starts_at: at(12, 13), ends_at: at(12, 16), location: 'In store', description: '<p>Meet local artists and get your books signed.</p>', image_url: null },
+  { id: 2, title: 'Pokémon TCG League Night', event_type: 'tournament', starts_at: at(5, 18), ends_at: at(5, 21), location: 'Back room', description: '<p>Casual standard-format play. All ages, all skill levels.</p>', image_url: null, series_id: 'demo-league' },
+  ...[12, 19, 26].map((d, i) => ({ id: 5 + i, title: 'Pokémon TCG League Night', event_type: 'tournament', starts_at: at(d, 18), ends_at: at(d, 21), location: 'Back room', description: '<p>Casual standard-format play. All ages, all skill levels.</p>', image_url: null, series_id: 'demo-league' })),
+  { id: 3, title: 'Local Creator Signing', event_type: 'signing', starts_at: at(12, 13), ends_at: at(12, 16), location: 'In store', description: '<p>Meet local artists and get your books signed.</p>', image_url: null, signup_enabled: true, signup_capacity: 20 },
+  { id: 20, title: 'Board Game Meetup', event_type: 'other', starts_at: at(3, 15), ends_at: at(3, 18), location: 'Back room', description: '<p>Bring a game or play ours.</p>', image_url: null },
+  { id: 21, title: 'Kids Art Hour', event_type: 'other', starts_at: at(3, 9), ends_at: at(3, 10), location: 'In store', description: '<p>Draw your own hero.</p>', image_url: null, cancelled_at: at(1, 9) },
   { id: 4, title: 'Whatnot Livestream: Dollar-Bin Dig', event_type: 'livestream', starts_at: at(8, 20), ends_at: at(8, 22), location: 'Online', description: '<p>We dig through the dollar bins live. Bring your want list.</p>', image_url: null },
 ];
 

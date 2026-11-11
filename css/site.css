@@ -998,6 +998,65 @@ body.app-locked .chat-launch { bottom: var(--sp-16); } /* the sign-in screen has
 .event--compact h3 a:hover { text-decoration: underline; }
 .event--compact .event__when { font-size: var(--fs-sm); margin-bottom: 0; }
 .event--compact:last-child { margin-bottom: var(--sp-16); }
+.event__tags { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-6); margin: var(--sp-4) 0 0; }
+.event__tag { font-size: var(--fs-2xs); font-weight: 700; padding: var(--sp-2) var(--sp-8); border-radius: var(--radius-xs); background: var(--raised); color: var(--ink); }
+.event__tag--open { color: var(--ok); }
+.event__tag--full { color: var(--error); }
+.event__tag--today { background: var(--gold); color: var(--on-accent); }
+.event__tag--cancelled { background: var(--sold-out); color: var(--on-sold-out); }
+.event h3.event__title--cancelled a { text-decoration: line-through; color: var(--muted); }
+.event__cancelled { font-size: var(--fs-sub); font-family: var(--font-body); text-transform: uppercase; letter-spacing: .06em; padding: var(--sp-2) var(--sp-8); border-radius: var(--radius-xs); background: var(--sold-out); color: var(--on-sold-out); vertical-align: middle; }
+.event__notice { padding: var(--sp-12) var(--sp-16); border: var(--border); border-left: 4px solid var(--error); border-radius: var(--radius); background: var(--surface); }
+.event__repeat { color: var(--muted); text-transform: none; letter-spacing: 0; font-weight: 600; }
+/* List / Calendar switch above the events. */
+.view-toggle { display: flex; justify-content: flex-end; gap: var(--sp-8); margin-bottom: var(--sp-16); }
+.view-toggle .btn { min-width: var(--tap); }
+.view-toggle .btn__icon { width: 20px; height: 20px; margin: 0; }
+.view-toggle .btn[aria-pressed="true"] { background: var(--gold-text); color: var(--on-accent); }
+/* Calendar view: a month grid on wider screens; on phones just the days that have events, one under another. */
+.cal__nav { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); margin-bottom: var(--sp-12); }
+.cal__title { font-size: var(--fs-title); margin: 0; text-align: center; }
+.cal__today { margin: 0 0 var(--sp-12); text-align: center; }
+.cal__weekdays, .cal__grid, .cal__events { list-style: none; margin: 0; padding: 0; }
+.cal__weekdays { display: none; }
+.cal__day { display: none; padding: var(--sp-10) var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
+.cal__day + .cal__day { margin-top: var(--sp-8); }
+.cal__day--has { display: block; }
+.cal__day--today { border-color: var(--gold-text); }
+.cal__num { display: block; font-weight: 700; margin-bottom: var(--sp-6); }
+.cal__digit { display: none; }
+.cal__events li + li { margin-top: var(--sp-4); }
+.cal__event--release_party, .cal__swatch--release_party { --cal-type: var(--gold); }
+.cal__event--signing, .cal__swatch--signing { --cal-type: var(--teal); }
+.cal__event--tournament, .cal__swatch--tournament { --cal-type: var(--warn); }
+.cal__event--livestream, .cal__swatch--livestream { --cal-type: var(--violet); }
+.cal__event--comic_con, .cal__swatch--comic_con { --cal-type: var(--clearance); }
+.cal__event--sale, .cal__swatch--sale { --cal-type: var(--ok); }
+.cal__event--other, .cal__swatch--other { --cal-type: var(--cream); }
+.cal__event--cancelled { text-decoration: line-through; color: var(--muted); }
+.cal__legend { list-style: none; display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-16); margin: var(--sp-16) 0 0; padding: 0; font-size: var(--fs-sm); color: var(--muted); }
+.cal__legend li { display: flex; align-items: center; gap: var(--sp-6); }
+.cal__swatch { width: 12px; height: 12px; border-radius: var(--radius-xs); background: var(--cal-type, var(--cream)); }
+.cal__event { border-left: 3px solid var(--cal-type, var(--cream)); display: block; padding: var(--sp-4) var(--sp-6); border-radius: var(--radius-xs); background: var(--raised); color: var(--ink); font-size: var(--fs-ui); text-decoration: none; overflow-wrap: anywhere; }
+.cal__event:hover { background: var(--teal-dark); }
+.cal__more { display: none; margin-top: var(--sp-4); padding: var(--sp-4) var(--sp-6); min-height: var(--tap); background: none; border: 0; font: inherit; font-size: var(--fs-xs); font-weight: 700; color: var(--gold-text); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.cal__events--dialog li + li { margin-top: var(--sp-8); }
+.cal__events--dialog .cal__event { font-size: var(--fs-md); padding: var(--sp-8) var(--sp-10); }
+.cal__time { color: var(--muted); font-size: var(--fs-xs); }
+@media (min-width: 700px) {
+  .cal__weekdays, .cal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .cal__weekdays { gap: var(--sp-4); margin-bottom: var(--sp-4); font-size: var(--fs-xs); font-weight: 700; text-align: center; color: var(--muted); }
+  .cal__grid { gap: var(--sp-4); }
+  .cal__day { display: block; min-height: 96px; padding: var(--sp-6); }
+  .cal__day + .cal__day { margin-top: 0; }
+  .cal__day--blank { background: transparent; border-color: transparent; }
+  .cal__label { display: none; }
+  .cal__digit { display: block; font-size: var(--fs-sm); color: var(--muted); }
+  .cal__num { margin-bottom: var(--sp-4); }
+  .cal__event { font-size: var(--fs-xs); }
+  .cal__events:not(.cal__events--dialog) .cal__extra { display: none; }
+  .cal__more { display: block; }
+}
 .month-heading { font-size: var(--fs-title); padding-bottom: var(--sp-6); border-bottom: var(--border); margin: var(--sp-32) 0 var(--sp-16); }
 .month-heading:first-child { margin-top: 0; }
 /* ---------- Misc blocks ---------- */
