@@ -835,6 +835,19 @@ dialog, dialog .dialog__body { overscroll-behavior: contain; }
 .gallery figcaption { margin-top: var(--sp-6); color: var(--muted); font-size: var(--fs-ui); }
 @media (min-width: 600px) { .gallery { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 800px) { .gallery { grid-template-columns: repeat(4, 1fr); } }
+/* Rows of columns from the editor's Columns button: one column on phones, side by side from 600px (3 and 4 columns from 700 / 800). */
+.cols { display: grid; grid-template-columns: 1fr; gap: var(--sp-16) var(--sp-24); margin: var(--sp-16) 0; clear: both; }
+.cols .col { min-width: 0; }
+.cols .col > :first-child { margin-top: 0; }
+.cols .col > :last-child { margin-bottom: 0; }
+.cols .col img { max-width: 100%; height: auto; }
+@media (min-width: 600px) {
+  .cols--2, .cols--4 { grid-template-columns: repeat(2, 1fr); }
+  .cols--1-2 { grid-template-columns: 1fr 2fr; }
+  .cols--2-1 { grid-template-columns: 2fr 1fr; }
+}
+@media (min-width: 700px) { .cols--3 { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 800px) { .cols--4 { grid-template-columns: repeat(4, 1fr); } }
 .lightbox__close { position: absolute; top: 8px; right: 8px; width: var(--tap); height: var(--tap); border-radius: 50%; border: 2px solid #fff; background: #000; color: #fff; font-size: var(--fs-lede); cursor: pointer; }
 /* ---------- Title details dialog (click a cover) ---------- */
 .card__open { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
