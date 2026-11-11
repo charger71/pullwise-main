@@ -110,7 +110,7 @@ logic in `js/import/apply.js`.
 | Import | Drop Lunar/PRH FOC or release sheets, Funko lists, or any spreadsheet with recognisable column headers (shows which columns it used), preview, import (same rules as the command-line importer); history of imports and daily status runs, failures highlighted; Pull Lists: a moving shop's customers and pull lists from one spreadsheet, titles matched to series, every line reviewed before Save |
 | Events / News | Community calendar events and blog posts with the WYSIWYG editor and images; posts can be drafts or scheduled |
 | Media | Upload several images at once (resized, optional crop), copy links, replace; owners can delete (it first shows where the image is used) |
-| Pages / FAQ | Each page's intro and body text (all homepage sections on one screen); add or delete your own pages (they live at `page.html?slug=…` and link from the menu or footer); the FAQ list |
+| Pages / FAQ | Each page's intro and body text (all homepage sections on one screen); add or delete your own pages (each lives at its own address, `/page-name`, and links from the menu or footer); the FAQ list |
 | Emails | The weekly pull list email and the "your books are in" email: schedule, sender, preview, test and send now |
 | Surveys | Short surveys with a shareable link and QR code, and their answers |
 | Shop settings | **Owners only.** Name, headline, contact, hours, socials, map, logo, colors, reservation rules, timezone, pinned publishers |

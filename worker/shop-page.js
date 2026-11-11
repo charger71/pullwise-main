@@ -173,6 +173,18 @@ export const PAGE_SLUGS = {
   'privacy.html': 'privacy', 'terms.html': 'terms', 'search.html': 'search', 'survey.html': 'survey',
 };
 
+/** The slug in an address that could be a staff-made page: one lowercase word-with-dashes segment (/ambassador-program), or null. */
+export const customSlugOf = (pathname) => /^\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/.exec(pathname)?.[1] ?? null;
+
+/** The slug in a news post's address (/news/grand-opening), or null. */
+export const postSlugOf = (pathname) => /^\/news\/([A-Za-z0-9_-]+)\/?$/.exec(pathname)?.[1] ?? null;
+
+/** The staff-made page an address names, given the shop's cached data ({ settings, pages }), or null: it has to exist, be a staff page and not be switched off. */
+export function customPageSlug(pathname, data) {
+  const slug = customSlugOf(pathname);
+  return slug && data?.pages?.[slug]?.custom && !(data.settings?.disabled_pages ?? []).includes(slug) ? slug : null;
+}
+
 /** The page served, with a 404 status, for any address that has no file (wrangler.jsonc's not_found_handling). */
 export const NOT_FOUND_FILE = '404.html';
 

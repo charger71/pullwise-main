@@ -16,15 +16,52 @@ export const OPTIONAL_PAGES = {
   news: { href: 'blog.html', page: 'blog' },
 };
 
-/** The address of a page by slug: a built-in one's file, or a staff-made page's page.html link. */
-export const pageHref = (slug) => OPTIONAL_PAGES[slug]?.href ?? `page.html?slug=${encodeURIComponent(slug)}`;
+/**
+ * Addresses a staff-made page can't take: every file and folder at the top of the site, the built-in pages' names, and
+ * the Worker's own addresses. A staff-made page lives at /<slug>, and the files are served first, so one of these would
+ * hide the page (js/slugs.test.js checks the files and folders are all here).
+ */
+export const RESERVED_SLUGS = [
+  '404', 'about', 'account', 'app', 'blog', 'calendar', 'contact', 'event', 'faq', 'gift-cards', 'go', 'how-to', 'index', 'new-arrivals', 'page', 'post',
+  'pre-orders', 'privacy', 'search', 'survey', 'terms', 'we-buy-comics', // the HTML files
+  'admin', 'css', 'fonts', 'icons', 'js', 'supabase', 'tools', 'worker', // the folders
+  'manifest', 'robots', 'sitemap', 'sw', 'readme', // other files and the Worker's addresses
+  'home', 'news', 'visit', 'pull-list', // built-in pages' names
+];
+
+/** The address of a staff-made page: its slug at the top of the site. */
+export const customHref = (slug) => `/${slug}`;
+
+/** The address of a news post: /news/<slug> (the Worker serves post.html there). */
+export const postHref = (slug) => `/news/${slug}`;
+
+/** The slug of the post being viewed: /news/grand-opening, or, from links made before posts had their own address, post.html?slug=grand-opening. */
+export function postSlugHere(pathname = '', search = '') {
+  const q = new URLSearchParams(search).get('slug');
+  if (q) return q;
+  return /^\/news\/([^/]+)\/?$/.exec(decodeURIComponent(pathname))?.[1] ?? null;
+}
+
+/** The address of a page by slug: a built-in one's file, or a staff-made page's own address. */
+export const pageHref = (slug) => OPTIONAL_PAGES[slug]?.href ?? customHref(slug);
+
+/**
+ * The slug of the staff-made page being viewed: /ambassador-program (the Worker serves page.html there), or, for
+ * links made before pages had their own address, page.html?slug=ambassador-program. Null on page.html itself.
+ */
+export function customSlugHere(pathname = '', search = '') {
+  const q = new URLSearchParams(search).get('slug');
+  if (q) return q;
+  const seg = decodeURIComponent(pathname).replace(/^\/+|\/+$/g, '');
+  return seg && !seg.includes('/') && seg !== 'page' && seg !== 'page.html' ? seg : null;
+}
 
 /** The links that go nowhere now: every switched-off page's address. */
 export const offHrefs = (off = []) => new Set(off.map(pageHref));
 
 /** The slug of the page this document is (`page` is <body data-page>), or null for a page that can't be switched off. */
-export function slugOfPage(page, search = '') {
-  if (page === 'custom') return new URLSearchParams(search).get('slug');
+export function slugOfPage(page, search = '', pathname = '') {
+  if (page === 'custom') return customSlugHere(pathname, search);
   return Object.keys(OPTIONAL_PAGES).find((k) => OPTIONAL_PAGES[k].page === page) ?? null;
 }
 

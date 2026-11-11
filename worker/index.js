@@ -18,7 +18,7 @@
 import SHOPS from '../shops.json';
 import { mediaUpload } from './media.js';
 import { BACKUPS_PATH, backupFiles } from './backups.js';
-import { MEDIA_UPLOAD_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { MEDIA_UPLOAD_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
 const CACHE_SECONDS = 60;
@@ -63,6 +63,34 @@ export default {
       res = await env.ASSETS.fetch(request);
       if (!page) return res;
     }
+    // A staff-made page lives at /<slug>: no file by that name, so serve page.html (its script reads the slug from the
+    // address). Unknown, switched-off and not-a-staff-page slugs stay 404.
+    let customSlug = null;
+    if (res.status === 404 && page && customSlugOf(url.pathname)) {
+      const slugHere = customPageSlug(url.pathname, await shopData(shop, ctx));
+      if (slugHere) {
+        const headers = new Headers(request.headers); // the whole file, as above: a 304 would leave nothing to rewrite
+        headers.delete('If-None-Match');
+        headers.delete('If-Modified-Since');
+        const pageRes = await env.ASSETS.fetch(new Request(new URL('/page.html', url), { method: request.method, headers }));
+        if (pageRes.ok) {
+          res = pageRes;
+          file = 'page.html';
+          customSlug = slugHere;
+        }
+      }
+    }
+    // A news post lives at /news/<slug>: serve post.html (its script finds the post), unless News is switched off.
+    if (res.status === 404 && page && postSlugOf(url.pathname) && !((await shopData(shop, ctx))?.settings?.disabled_pages ?? []).includes('news')) {
+      const headers = new Headers(request.headers);
+      headers.delete('If-None-Match');
+      headers.delete('If-Modified-Since');
+      const postRes = await env.ASSETS.fetch(new Request(new URL('/post.html', url), { method: request.method, headers }));
+      if (postRes.ok) {
+        res = postRes;
+        file = 'post.html';
+      }
+    }
     if (res.status === 404) file = NOT_FOUND_FILE;
     // Any other page outside the root (admin/ and its style guide) is served as is: the shop's theme uses the same
     // --brand-* names as the admin's own colors and would paint over them.
@@ -71,7 +99,7 @@ export default {
 
     const data = await shopData(shop, ctx);
     if (!data) return res; // Supabase unreachable and nothing cached: the page's own script fills in the details
-    const out = rewrite(res, file, data, shop);
+    const out = rewrite(res, file, data, shop, customSlug);
     const h = new Headers(out.headers);
     h.delete('ETag');
     h.set('Cache-Control', 'no-cache');
@@ -128,7 +156,7 @@ async function shopData(shop, ctx) {
     };
     const [settings, pages] = await Promise.all([
       get('settings?select=shop_name,tagline,timezone,logo_url,favicon_url,app_icon_url,app_screenshots,hero_image_url,hero_headline,colors,fonts,disabled_pages&id=eq.1'),
-      get('pages?select=slug,meta_title,meta_description'),
+      get('pages?select=slug,meta_title,meta_description,custom'),
     ]);
     const data = { settings: settings[0] ?? {}, pages: Object.fromEntries(pages.map((p) => [p.slug, p])) };
     memo.set(shop.id, { at: now, data });
@@ -140,8 +168,8 @@ async function shopData(shop, ctx) {
   }
 }
 
-function rewrite(res, file, { settings, pages }, shop) {
-  const slug = PAGE_SLUGS[file];
+function rewrite(res, file, { settings, pages }, shop, customSlug = null) {
+  const slug = PAGE_SLUGS[file] ?? customSlug;
   const row = slug ? pages[slug] ?? {} : file === NOT_FOUND_FILE ? {} : null; // its title gets the shop name too
   const desc = row?.meta_description?.trim();
   let title = null;

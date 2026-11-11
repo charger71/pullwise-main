@@ -3,7 +3,7 @@
 
 import { PAGE_BLOCKS } from '../../js/page-defaults.js';
 import { PLACEHOLDERS } from '../../js/content.js';
-import { OPTIONAL_PAGES, orderMenu } from '../../js/optional-pages.js';
+import { OPTIONAL_PAGES, RESERVED_SLUGS, orderMenu, customHref } from '../../js/optional-pages.js';
 import { $, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, setupTabs, fmtTime, fmtDate, fmtDateTime, sortableTable, switchHtml } from '../lib.js';
 import { adminHash } from '../route.js';
 
@@ -48,7 +48,7 @@ const menuItems = () => orderMenu([
 const FOOTER_SLUGS = ['about', 'gift-cards', 'how-to', 'faq', 'privacy', 'terms'];
 const footerItems = () => orderMenu([
   ...FOOTER_SLUGS.map((slug) => ({ href: `${slug}.html`, screen: SCREENS.find((sc) => sc.blocks[0].slug === slug) })),
-  ...SCREENS.filter((sc) => sc.custom && (sc.place ?? 'footer') === 'footer').map((sc) => ({ href: `page.html?slug=${encodeURIComponent(sc.blocks[0].slug)}`, screen: sc })),
+  ...SCREENS.filter((sc) => sc.custom && (sc.place ?? 'footer') === 'footer').map((sc) => ({ href: customHref(sc.blocks[0].slug), screen: sc })),
 ].filter((n) => n.screen), footerOrder);
 const PLACES = { menu: 'Main menu', footer: 'Footer', hidden: 'Not linked' };
 const linkedFrom = (screen) => {
@@ -225,6 +225,7 @@ async function newPage(el, sb) {
   const slug = slugify(title);
   if (!slug) return toast('Use some letters or numbers in the name.', 'error');
   try {
+    if (RESERVED_SLUGS.includes(slug)) return toast('That name is used by the site itself. Try a different name.', 'error');
     if (screenOf(slug) || PAGE_BLOCKS.some((b) => b.slug === slug) || (await must(sb.from('pages').select('slug').eq('slug', slug).maybeSingle()))) {
       return toast('There’s already a page with that name.', 'error');
     }
@@ -278,7 +279,7 @@ async function load(el, sb, key) {
   const status = $('#page-status', el);
   setStatus(status, '');
   const first = screen.blocks[0];
-  $('#page-view', el).href = screen.custom ? `../page.html?slug=${encodeURIComponent(first.slug)}` : `../${PAGE_URLS[first.slug]}`;
+  $('#page-view', el).href = screen.custom ? `..${customHref(first.slug)}` : `../${PAGE_URLS[first.slug]}`;
   let rows;
   try {
     rows = await must(sb.from('pages').select('slug,title,placement,lede_html,body_html,meta_title,meta_description,updated_at').in('slug', screen.blocks.map((b) => b.slug)));
@@ -304,7 +305,7 @@ async function load(el, sb, key) {
         <p class="field__hint">The heading on the page and the text of its link.</p></div>
       <div class="field"><label for="cp-slug">Page address <span class="req" aria-hidden="true">*</span></label>
         <input id="cp-slug" maxlength="60" required pattern="[a-z0-9]+(-[a-z0-9]+)*" value="${esc(first.slug)}">
-        <p class="field__hint">The page lives at <code>page.html?slug=<span data-slug-preview>${esc(first.slug)}</span></code>. Lowercase letters, numbers and dashes. Changing it breaks any link or printed QR code that still uses the old address, so only change it if you haven’t shared the page yet (menu and footer links update by themselves).</p></div>
+        <p class="field__hint">The page lives at <code>/<span data-slug-preview>${esc(first.slug)}</span></code> on your website. Lowercase letters, numbers and dashes. Changing it breaks any link or printed QR code that still uses the old address, so only change it if you haven’t shared the page yet (menu and footer links update by themselves).</p></div>
       <div class="field"><label for="cp-place">Link from</label>
         <select id="cp-place">${[['footer', 'The footer (More)'], ['menu', 'The main menu'], ['hidden', 'Nowhere — share the address yourself']]
           .map(([v, l]) => `<option value="${v}"${v === place ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
@@ -384,6 +385,10 @@ async function save(el, sb, key) {
         return false;
       }
       try {
+        if (RESERVED_SLUGS.includes(newSlug)) {
+          setStatus(status, 'That address is used by the site itself. Pick a different one.', 'error');
+          return false;
+        }
         if (PAGE_BLOCKS.some((b) => b.slug === newSlug) || (await must(sb.from('pages').select('slug').eq('slug', newSlug).maybeSingle()))) {
           setStatus(status, 'There’s already a page with that address.', 'error');
           return false;
@@ -398,7 +403,7 @@ async function save(el, sb, key) {
         const block = screen.blocks[0];
         for (const f of block.fields) editors[`${newSlug}:${f}`] = editors[`${block.slug}:${f}`];
         block.slug = newSlug;
-        $('#page-view', el).href = `../page.html?slug=${encodeURIComponent(newSlug)}`;
+        $('#page-view', el).href = `..${customHref(newSlug)}`;
       } catch (err) {
         setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
         return false;
@@ -426,7 +431,7 @@ async function save(el, sb, key) {
     if (screen.custom && newSlug !== screen.key) {
       history.replaceState(null, '', adminHash('pages', newSlug));
       await mount(el, { sb, isOwner, arg: newSlug });
-      setStatus($('#page-status', el), `Saved ${fmtTime()} — the page is now at page.html?slug=${newSlug}.`, 'ok');
+      setStatus($('#page-status', el), `Saved ${fmtTime()} — the page is now at /${newSlug}.`, 'ok');
       return true;
     }
     setStatus(status, `Saved ${fmtTime()} — page titles and descriptions are live on the site in about a minute.`, 'ok');

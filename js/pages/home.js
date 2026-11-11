@@ -1,6 +1,7 @@
 import { initPage, $, esc, heroHeadlineHtml, sizedImage, HERO_WIDTH, hoursList, addressLines, mapsHref, telHref, mapEmbed, locationAs, eventPlace, fmtDate, fmtTime, addDays, openFocFrom, EVENT_TYPES } from '../site.js';
 import { todayIn } from '../dates.js';
 import { formatPhone } from '../util.js';
+import { postHref } from '../optional-pages.js';
 import { getItems, getEvents, getCategories, getPosts, getSettings } from '../data.js';
 import { renderGrid, enableReservations } from '../components.js';
 import * as pull from '../customer.js';
@@ -172,7 +173,7 @@ function renderNews(news) {
     .map(
       (p) => `<li>
         <time datetime="${esc(p.published_at)}">${fmtDate(p.published_at, { month: 'short', day: 'numeric', year: 'numeric' })}</time>
-        <h3><a href="post.html?slug=${encodeURIComponent(p.slug)}">${esc(p.title)}</a></h3>
+        <h3><a href="${postHref(p.slug)}">${esc(p.title)}</a></h3>
         ${p.excerpt ? `<p>${esc(p.excerpt)}</p>` : ''}
       </li>`,
     )

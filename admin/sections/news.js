@@ -2,6 +2,7 @@
 // until published; a future publish time schedules the post.
 
 import { $, $$, esc, must, toast, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, slugify, sortableTable, solidIcon, friendlyError, hintFold } from '../lib.js';
+import { postHref } from '../../js/optional-pages.js';
 
 let sb;
 let tab = 'all'; // all | published | scheduled | drafts
@@ -68,7 +69,7 @@ async function load(el) {
             <td class="card-title"><strong>${esc(p.title)}</strong>
             </td>
             <td class="card-wide" data-sort="${p.published_at ?? ''}">${state}</td>
-            <td class="nowrap card-foot"><button class="btn btn--ghost btn--small" type="button" data-edit="${p.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(p.title)}</span></button> ${p.published_at && p.published_at <= now ? `<a class="btn btn--ghost btn--small" href="../post.html?slug=${encodeURIComponent(p.slug)}" target="_blank" rel="noopener">View ↗</a>` : ''}</td>
+            <td class="nowrap card-foot"><button class="btn btn--ghost btn--small" type="button" data-edit="${p.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(p.title)}</span></button> ${p.published_at && p.published_at <= now ? `<a class="btn btn--ghost btn--small" href="..${postHref(p.slug)}" target="_blank" rel="noopener">View ↗</a>` : ''}</td>
             </tr>`;
         })
         .join('')}</tbody></table>`
@@ -88,7 +89,7 @@ async function edit(listEl, id) {
     <form class="admin-form" novalidate>
       <div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="p-title">Title <span class="req" aria-hidden="true">*</span></label><input id="p-title" name="title" required value="${esc(post.title)}"></div>
-        <div class="field span-2"><label for="p-slug">Web address</label><input id="p-slug" name="slug" value="${esc(post.slug)}" aria-describedby="p-slug-hint"><p class="field__hint" id="p-slug-hint">post.html?slug=<span data-slug-preview>${esc(post.slug ?? '')}</span> — made from the title if left blank.</p></div>
+        <div class="field span-2"><label for="p-slug">Web address</label><input id="p-slug" name="slug" value="${esc(post.slug)}" aria-describedby="p-slug-hint"><p class="field__hint" id="p-slug-hint">/news/<span data-slug-preview>${esc(post.slug ?? '')}</span> — made from the title if left blank.</p></div>
         <div class="field span-2"><label for="p-excerpt">Summary</label><textarea id="p-excerpt" name="excerpt" rows="2" maxlength="300">${esc(post.excerpt)}</textarea><p class="field__hint">Shown in the News list.</p></div>
         <div class="field span-2"><span class="label" id="p-body-label">Post</span><div class="editor--body"><div data-body></div></div></div>
         <div class="field span-2" data-cover></div>
