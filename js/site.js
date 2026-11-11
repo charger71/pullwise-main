@@ -12,12 +12,12 @@ import { initCustomer } from './customer.js';
 import { readCache, writeCache, sameData } from './cache.js';
 import { esc, itemTitle, heroHeadlineHtml, sizedImage, LOGO_WIDTH, HERO_WIDTH, formatPhone, prefersReducedMotion, chatOn } from './util.js';
 import { ITEM_STATUS } from './labels.js';
-import { offHrefs, slugOfPage } from './optional-pages.js';
+import { offHrefs, slugOfPage, orderMenu } from './optional-pages.js';
 import { localDate, addDays, todayIn, lastReserveDay } from './dates.js';
 
 export { esc, itemTitle, heroHeadlineHtml, sizedImage, HERO_WIDTH, localDate, addDays, lastReserveDay };
 
-// My Pull List is always the last link: custom menu pages go in before it (see renderHeader).
+// My Pull List is always the last link; the rest follow settings.menu_order (Admin → Pages), see renderHeader.
 const NAV = [
   { page: 'preorders', href: 'pre-orders.html', label: 'Pre-Orders' },
   { page: 'arrivals', href: 'new-arrivals.html', label: 'New Arrivals' },
@@ -315,7 +315,7 @@ function renderHeader(s, page, extraNav = [], off = new Set()) {
         <span class="nav-toggle__icon" aria-hidden="true"></span><span class="visually-hidden">Menu</span>
       </button>
       <nav id="site-nav" class="nav" aria-label="Main">
-        <ul>${[...NAV.slice(0, -1), ...extraNav, NAV.at(-1)].filter((n) => !off.has(n.href)).map(
+        <ul>${[...orderMenu([...NAV.slice(0, -1), ...extraNav], s.menu_order ?? []), NAV.at(-1)].filter((n) => !off.has(n.href)).map(
           // Custom pages' titles are staff text: escaped like everything else.
           (n) => `<li><a href="${esc(n.href)}"${n.page === page ? ' aria-current="page"' : ''}>${esc(n.label)}</a></li>`,
         ).join('')}</ul>
@@ -413,7 +413,7 @@ function renderFooter(s, extraLinks = [], off = new Set()) {
       </section>
       <section>
         <h2 class="footer__heading">More</h2>
-        <ul class="footer__links">${[...FOOTER_LINKS, ...(chatOn(s) ? [{ href: '#chat', label: 'Chat with us' }] : []), ...extraLinks].filter((l) => !off.has(l.href)).map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('')}</ul>
+        <ul class="footer__links">${orderMenu([...FOOTER_LINKS, ...(chatOn(s) ? [{ href: '#chat', label: 'Chat with us' }] : []), ...extraLinks], s.footer_order ?? []).filter((l) => !off.has(l.href)).map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('')}</ul>
       </section>
     </div>
     <p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)} · ${POWERED_BY}</p>`;
