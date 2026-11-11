@@ -86,10 +86,17 @@ async function showList(el, sb) {
       <h1>Pages</h1>
       <button class="btn btn--add" type="button" id="page-new">${solidIcon('add', 18)} New page</button>
     </div>
-    ${hintFold(`Every page on the website. Sort by any column, and open a page to change its text. Switch a page off to take it off the site: its links leave the menu, footer and search, and its address shows “page not found”. Its text is kept for when you switch it back on. Switching off Calendar or News also hides their events or posts and the home page’s block for them. Home, Pre-Orders, New Arrivals, Privacy and Terms are always on, because the shop runs on them.${isOwner ? '' : ' Only an owner can switch pages on or off.'}`)}
-    <div class="panel" data-menu-order></div>
-    <div class="panel" data-footer-order></div>
-    <div data-list><p class="card__meta">Loading the pages…</p></div>`;
+    ${hintFold(`Every page on the website. Sort by any column, and open a page to change its text. Switch a page off to take it off the site: its links leave the menu, footer and search, and its address shows “page not found”. Its text is kept for when you switch it back on. Switching off Calendar or News also hides their events or posts and the home page’s block for them. Home, Pre-Orders, New Arrivals, Privacy and Terms are always on, because the shop runs on them. <strong>Menu Order</strong> sets the order of the links in the main menu and the footer.${isOwner ? '' : ' Only an owner can switch pages on or off.'}`)}
+    <div class="admin-tabs" role="tablist">
+      <button type="button" class="admin-tab" role="tab" data-tab="pages">All Pages</button>
+      <button type="button" class="admin-tab" role="tab" data-tab="order">Menu Order</button>
+    </div>
+    <div data-tabpane="pages"><div data-list><p class="card__meta">Loading the pages…</p></div></div>
+    <div data-tabpane="order">
+      <div class="panel" data-menu-order></div>
+      <div class="panel" data-footer-order></div>
+    </div>`;
+  setupTabs(el, 'admin-pages-list-tab', 'pages');
   drawOrder(el, sb, MENU_ORDER);
   drawOrder(el, sb, FOOTER_ORDER);
   $('#page-new', el).addEventListener('click', () => newPage(el, sb));
