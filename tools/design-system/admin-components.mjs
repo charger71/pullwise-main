@@ -190,6 +190,18 @@ The media library: a grid of pictures, each with its name, size and actions.
     html: page('AdminMediaGrid', demo('Picture list (Media)')),
   },
   {
+    name: 'AdminMonthCalendar', group: G('Containers'), height: 330, width: 960,
+    readme: `# AdminMonthCalendar
+
+One month of events (Events → Calendar): a grid on desktop, where each event is a chip you can drag to another day; on phones only the days that have events, one under another.
+
+- \`.admin-cal__nav\` (Prev, \`.admin-cal__title\`, Next), \`.admin-cal__today\` (This month), \`.admin-cal__weekdays\`, then \`.admin-cal__grid\` of \`.admin-cal__day\` cells.
+- A cell has a \`.admin-cal__head\` (the day and an \`.icon-btn.admin-cal__add\` + that adds on that day) and \`.admin-cal__events\` of \`.admin-cal__chip\` buttons. Today's cell has a \`admin-brand-primary\` edge; the cell a chip is dragged over takes \`is-over\`.
+- A cancelled item uses \`.admin-cal__chip--cancelled\` (struck through, muted). A drag is a shortcut only: the same change is possible from the item's edit screen.
+- Consumer provides: the month's events.`,
+    html: page('AdminMonthCalendar', demo('A month')),
+  },
+  {
     name: 'AdminTabs', group: G('Navigation'), height: 107, width: 960,
     readme: `# AdminTabs
 
