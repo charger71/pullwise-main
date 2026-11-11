@@ -3,7 +3,7 @@
 
 import { PAGE_BLOCKS } from '../../js/page-defaults.js';
 import { PLACEHOLDERS } from '../../js/content.js';
-import { OPTIONAL_PAGES } from '../../js/optional-pages.js';
+import { OPTIONAL_PAGES, orderMenu } from '../../js/optional-pages.js';
 import { $, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, setupTabs, fmtTime, fmtDate, fmtDateTime, sortableTable, switchHtml } from '../lib.js';
 import { adminHash } from '../route.js';
 
@@ -33,10 +33,23 @@ let dirty = false;
 let editors = {};
 let isOwner = false;
 let disabled = []; // settings.disabled_pages: the slugs of pages switched off
+let menuOrder = []; // settings.menu_order: the main menu's link keys, first to last
+let footerOrder = []; // settings.footer_order: the footer links' addresses, first to last
 export const hasUnsavedChanges = () => dirty;
 
 // Where each built-in page is linked from on the site (js/site.js NAV and FOOTER_LINKS).
 const MENU = ['pre-orders', 'new-arrivals', 'we-buy-comics', 'calendar', 'news', 'visit'];
+// The main menu's links as js/site.js NAV keys them; staff-made pages with the Main menu placement are `page:<slug>`.
+const MENU_KEYS = { 'pre-orders': 'preorders', 'new-arrivals': 'arrivals', 'we-buy-comics': 'we-buy', calendar: 'calendar', news: 'blog', visit: 'contact' };
+const menuItems = () => orderMenu([
+  ...MENU.map((slug) => ({ page: MENU_KEYS[slug], screen: SCREENS.find((sc) => sc.blocks[0].slug === slug) })),
+  ...SCREENS.filter((sc) => sc.custom && sc.place === 'menu').map((sc) => ({ page: `page:${sc.blocks[0].slug}`, screen: sc })),
+].filter((n) => n.screen), menuOrder);
+const FOOTER_SLUGS = ['about', 'gift-cards', 'how-to', 'faq', 'privacy', 'terms'];
+const footerItems = () => orderMenu([
+  ...FOOTER_SLUGS.map((slug) => ({ href: `${slug}.html`, screen: SCREENS.find((sc) => sc.blocks[0].slug === slug) })),
+  ...SCREENS.filter((sc) => sc.custom && (sc.place ?? 'footer') === 'footer').map((sc) => ({ href: `page.html?slug=${encodeURIComponent(sc.blocks[0].slug)}`, screen: sc })),
+].filter((n) => n.screen), footerOrder);
 const PLACES = { menu: 'Main menu', footer: 'Footer', hidden: 'Not linked' };
 const linkedFrom = (screen) => {
   if (screen.custom) return PLACES[screen.place] ?? 'Footer';
@@ -59,6 +72,9 @@ export async function mount(el, { sb, isOwner: owner, arg }) {
   buildScreens(custom);
   for (const r of custom) screenOf(r.slug).place = r.placement;
   disabled = (await sb.from('settings').select('disabled_pages').eq('id', 1).maybeSingle()).data?.disabled_pages ?? [];
+  const orders = (await sb.from('settings').select('menu_order,footer_order').eq('id', 1).maybeSingle()).data; // null before the migration is applied
+  menuOrder = orders?.menu_order ?? [];
+  footerOrder = orders?.footer_order ?? [];
   if (arg && screenOf(arg)) return showEditor(el, sb, arg);
   await showList(el, sb);
 }
@@ -71,7 +87,11 @@ async function showList(el, sb) {
       <button class="btn btn--add" type="button" id="page-new">${solidIcon('add', 18)} New page</button>
     </div>
     ${hintFold(`Every page on the website. Sort by any column, and open a page to change its text. Switch a page off to take it off the site: its links leave the menu, footer and search, and its address shows “page not found”. Its text is kept for when you switch it back on. Switching off Calendar or News also hides their events or posts and the home page’s block for them. Home, Pre-Orders, New Arrivals, Privacy and Terms are always on, because the shop runs on them.${isOwner ? '' : ' Only an owner can switch pages on or off.'}`)}
+    <div class="panel" data-menu-order></div>
+    <div class="panel" data-footer-order></div>
     <div data-list><p class="card__meta">Loading the pages…</p></div>`;
+  drawOrder(el, sb, MENU_ORDER);
+  drawOrder(el, sb, FOOTER_ORDER);
   $('#page-new', el).addEventListener('click', () => newPage(el, sb));
   let saved = {};
   try {
@@ -118,6 +138,77 @@ async function showList(el, sb) {
       toast(`Couldn’t change it: ${friendlyError(err)}`, 'error');
     }
     box.disabled = false;
+  });
+}
+
+// Link orders: arrows move a link up or down and save at once.
+const MENU_ORDER = {
+  attr: 'data-menu-order', column: 'menu_order', title: 'Main menu order', id: 'mo', items: menuItems, key: (n) => n.page,
+  hint: 'The order of the links across the top of the website. My Pull List always stays last.', last: 'My Pull List',
+  get: () => menuOrder, set: (keys) => (menuOrder = keys),
+};
+const FOOTER_ORDER = {
+  attr: 'data-footer-order', column: 'footer_order', title: 'Footer order', id: 'fo', items: footerItems, key: (n) => n.href,
+  hint: 'The order of the links at the bottom of every page. Pages not linked from anywhere are not listed.',
+  get: () => footerOrder, set: (keys) => (footerOrder = keys),
+};
+function drawOrder(el, sb, cfg) {
+  const box = $(`[${cfg.attr}]`, el);
+  const items = cfg.items();
+  box.innerHTML = `<h2>${cfg.title}</h2>
+    <p class="card__meta" id="${cfg.id}-hint">${cfg.hint}</p>
+    <ol class="menu-order" aria-describedby="${cfg.id}-hint">${items.map((n, i) => `<li class="menu-order__item" data-key="${esc(cfg.key(n))}"${isOwner ? ' draggable="true"' : ''}>
+      <span class="menu-order__grip" aria-hidden="true">⋮⋮</span><span class="menu-order__label" id="${cfg.id}-${i}">${esc(n.screen.label)}${isOn(n.screen) ? '' : ' <span class="pill">Off</span>'}</span>
+      <span class="menu-order__move">
+        <button class="btn btn--ghost btn--small" type="button" data-move="-1" data-key="${esc(cfg.key(n))}" aria-label="Move up" aria-describedby="${cfg.id}-${i}"${i === 0 || !isOwner ? ' disabled' : ''}>↑</button>
+        <button class="btn btn--ghost btn--small" type="button" data-move="1" data-key="${esc(cfg.key(n))}" aria-label="Move down" aria-describedby="${cfg.id}-${i}"${i === items.length - 1 || !isOwner ? ' disabled' : ''}>↓</button>
+      </span></li>`).join('')}
+      ${cfg.last ? `<li class="menu-order__item menu-order__item--fixed"><span class="menu-order__label">${cfg.last}</span><span class="card__meta">Always last</span></li>` : ''}</ol>`;
+  const save = async (keys) => {
+    try {
+      await must(sb.from('settings').update({ [cfg.column]: keys }).eq('id', 1));
+      cfg.set(keys);
+      toast(`${cfg.title} saved.`, 'ok');
+      return true;
+    } catch (err) {
+      toast(`Order not saved: ${friendlyError(err)}`, 'error');
+      return false;
+    }
+  };
+  box.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', async () => {
+    const keys = items.map(cfg.key);
+    const i = keys.indexOf(b.dataset.key);
+    const j = i + Number(b.dataset.move);
+    [keys[i], keys[j]] = [keys[j], keys[i]];
+    if (!(await save(keys))) return;
+    drawOrder(el, sb, cfg);
+    const mine = [...box.querySelectorAll('button[data-key]')].filter((x) => x.dataset.key === b.dataset.key && !x.disabled);
+    (mine.find((x) => x.dataset.move === b.dataset.move) ?? mine[0])?.focus();
+  }));
+  // Dragging a row onto another puts it there. A shortcut only: the arrows do the same.
+  let dragKey = null;
+  box.querySelectorAll('li[draggable]').forEach((li) => {
+    li.addEventListener('dragstart', (e) => {
+      dragKey = li.dataset.key;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragKey);
+      li.classList.add('is-dragging');
+    });
+    li.addEventListener('dragend', () => (dragKey = null, box.querySelectorAll('.is-dragging, .is-over').forEach((x) => x.classList.remove('is-dragging', 'is-over'))));
+    li.addEventListener('dragover', (e) => {
+      if (!dragKey || dragKey === li.dataset.key) return;
+      e.preventDefault();
+      li.classList.add('is-over');
+    });
+    li.addEventListener('dragleave', (e) => !li.contains(e.relatedTarget) && li.classList.remove('is-over'));
+    li.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      if (!dragKey || dragKey === li.dataset.key) return;
+      const keys = items.map(cfg.key);
+      keys.splice(keys.indexOf(dragKey), 1);
+      keys.splice(keys.indexOf(li.dataset.key) + (items.map(cfg.key).indexOf(dragKey) < items.map(cfg.key).indexOf(li.dataset.key) ? 1 : 0), 0, dragKey);
+      if (await save(keys)) drawOrder(el, sb, cfg);
+    });
   });
 }
 

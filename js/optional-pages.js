@@ -27,3 +27,10 @@ export function slugOfPage(page, search = '') {
   if (page === 'custom') return new URLSearchParams(search).get('slug');
   return Object.keys(OPTIONAL_PAGES).find((k) => OPTIONAL_PAGES[k].page === page) ?? null;
 }
+
+/** Links (each with a `page` key, or just an `href`) in the order a shop saved (settings.menu_order, footer_order).
+ * Links it doesn't list keep their usual order after the listed ones. */
+export function orderMenu(items, saved = []) {
+  const rank = (n) => { const i = saved.indexOf(n.page ?? n.href); return i < 0 ? saved.length : i; };
+  return items.map((n, i) => [n, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([n]) => n);
+}

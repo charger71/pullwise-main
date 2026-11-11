@@ -121,6 +121,16 @@
 .admin-status--error { color: var(--danger-ink); }
 
 /* FAQ manager */
+.menu-order { list-style: none; margin: var(--sp-12) 0 0; padding: 0; }
+.menu-order__item { display: flex; align-items: center; gap: var(--sp-12); padding-block: var(--sp-6); border-top: 1px solid var(--line); }
+.menu-order__item:first-child { border-top: 0; }
+.menu-order__label { flex: 1; min-width: 0; font-weight: 700; }
+.menu-order__move { display: flex; gap: var(--sp-6); }
+.menu-order__item[draggable] { cursor: grab; }
+.menu-order__item.is-dragging { opacity: .5; }
+.menu-order__item.is-over { outline: 2px solid var(--brand-accent); outline-offset: -2px; }
+.menu-order__grip { color: var(--muted); letter-spacing: -.2em; user-select: none; }
+.menu-order__item--fixed .menu-order__label { font-weight: 400; color: var(--muted); }
 .faq-items { list-style: none; padding: 0; margin: 0 0 var(--sp-16); counter-reset: faq; }
 .faq-item { counter-increment: faq; position: relative; }
 .faq-item__num::before { content: 'Question ' counter(faq); font-weight: 700; color: inherit; opacity: .85; font-size: var(--fs-ui); white-space: nowrap; }

@@ -753,6 +753,16 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
             <p class="admin-hint mt-8">The arrows sit over the header band but outside the <code>&lt;summary&gt;</code>, so they can be reached and announced, and each one is described by its question.</p>
           </div>
           <div class="sg-item" data-code>
+            <h3>Menu order list</h3>
+            <div class="sg-demo">
+              <ol class="menu-order">
+                <li class="menu-order__item" draggable="true"><span class="menu-order__grip" aria-hidden="true">⋮⋮</span><span class="menu-order__label" id="sg-mo-1">Pre-Orders</span><span class="menu-order__move"><button class="btn btn--ghost btn--small" type="button" aria-label="Move up" aria-describedby="sg-mo-1" disabled>↑</button><button class="btn btn--ghost btn--small" type="button" aria-label="Move down" aria-describedby="sg-mo-1">↓</button></span></li>
+                <li class="menu-order__item menu-order__item--fixed"><span class="menu-order__label">My Pull List</span><span class="card__meta">Always last</span></li>
+              </ol>
+            </div>
+            <p class="admin-hint mt-8">A short list the staff put in order with ↑ and ↓ buttons that save at once (Pages → Main menu order). Each button is described by its row’s label; the first row’s ↑ and the last row’s ↓ are disabled. Rows are also <code>draggable</code>, with a <code>menu-order__grip</code> (⋮⋮): dropping one on another puts it there (the target shows <code>is-over</code>, the dragged row <code>is-dragging</code>). The drag is only a shortcut; the buttons stay for keyboards and phones. An item that must stay put uses <code>menu-order__item--fixed</code>, with no buttons.</p>
+          </div>
+          <div class="sg-item" data-code>
             <h3>Activity log</h3>
             <div class="sg-demo">
               <ul class="job-log">
