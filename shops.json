@@ -36,6 +36,17 @@
       "projectRef": "ufszxnsfjfozpijghvhw",
       "gaMeasurementId": "",
       "app": false
+    },
+    {
+      "id": "derbycomics",
+      "domains": [
+        "derbycomics.pullwise.shop"
+      ],
+      "supabaseUrl": "https://ckbervhfuwsmgcgmurnx.supabase.co",
+      "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrYmVydmhmdXdzbWdjZ211cm54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQzNjkyNDUsImV4cCI6MjEwOTk0NTI0NX0.GdF2hBD2DsZxNReojvkNHXvzCqdLbXdegfHd6J3qUz8",
+      "projectRef": "ckbervhfuwsmgcgmurnx",
+      "gaMeasurementId": "",
+      "app": false
     }
   ]
 }
