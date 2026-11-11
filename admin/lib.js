@@ -275,7 +275,7 @@ const TOOLBARS = {
     [{ header: [2, 3, 4, false] }],
     ['bold', 'italic', 'underline', 'strike'],
     [{ color: TEXT_COLORS }, { background: HIGHLIGHTS }],
-    ['link', 'image', 'video', 'table', 'divider'],
+    ['link', 'image', 'video', 'table', 'divider', 'gallery'],
     [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
     [{ align: [] }],
     ['blockquote'],
@@ -296,6 +296,36 @@ function registerFormats() {
     static tagName = 'hr';
   }
   Quill.register(Divider);
+  // A picture gallery: <div class="gallery"><figure><a href data-lightbox><img><figcaption>…</figure>…</div>. Shown as a
+  // grid on the site (js/site.js opens it in the lightbox with next/previous); edited as a whole in a dialog.
+  class Gallery extends BlockEmbed {
+    static blotName = 'gallery';
+    static tagName = 'div';
+    static className = 'gallery';
+    static create(value) {
+      const node = super.create();
+      node.setAttribute('contenteditable', 'false');
+      for (const it of value?.items ?? []) {
+        const fig = document.createElement('figure');
+        const a = Object.assign(document.createElement('a'), { href: it.src });
+        a.setAttribute('data-lightbox', '');
+        a.append(Object.assign(document.createElement('img'), { src: it.src, alt: it.caption ?? '', loading: 'lazy' }));
+        fig.append(a);
+        if (it.caption) fig.append(Object.assign(document.createElement('figcaption'), { textContent: it.caption }));
+        node.append(fig);
+      }
+      return node;
+    }
+    static value(node) {
+      return { items: [...node.querySelectorAll('figure')].map((f) => ({ src: f.querySelector('img')?.getAttribute('src') ?? '', caption: f.querySelector('figcaption')?.textContent ?? '' })).filter((i) => i.src) };
+    }
+    html() {
+      const copy = this.domNode.cloneNode(true);
+      copy.removeAttribute('contenteditable');
+      return copy.outerHTML;
+    }
+  }
+  Quill.register(Gallery);
   // Quill saves videos as plain links by default; keep the player instead.
   const Video = Quill.import('formats/video');
   class VideoPlayer extends Video {
@@ -333,6 +363,8 @@ function registerFormats() {
   const icons = Quill.import('ui/icons');
   icons.table ??=
     '<svg viewBox="0 0 18 18"><rect class="ql-stroke" height="12" width="12" x="3" y="3" rx="1"></rect><line class="ql-stroke" x1="3" x2="15" y1="7" y2="7"></line><line class="ql-stroke" x1="3" x2="15" y1="11" y2="11"></line><line class="ql-stroke" x1="7" x2="7" y1="7" y2="15"></line><line class="ql-stroke" x1="11" x2="11" y1="7" y2="15"></line></svg>';
+  icons.gallery =
+    '<svg viewBox="0 0 18 18"><rect class="ql-stroke" height="5" width="5" x="2.5" y="2.5" rx="1"></rect><rect class="ql-stroke" height="5" width="5" x="10.5" y="2.5" rx="1"></rect><rect class="ql-stroke" height="5" width="5" x="2.5" y="10.5" rx="1"></rect><rect class="ql-stroke" height="5" width="5" x="10.5" y="10.5" rx="1"></rect></svg>';
   Quill.import('ui/icons').divider =
     '<svg viewBox="0 0 18 18"><line class="ql-stroke" x1="2" x2="16" y1="9" y2="9"></line><line class="ql-stroke ql-thin" x1="5" x2="13" y1="4" y2="4" opacity=".4"></line><line class="ql-stroke ql-thin" x1="5" x2="13" y1="14" y2="14" opacity=".4"></line></svg>';
 }
@@ -374,6 +406,128 @@ async function insertImages(quill, files, index) {
   }
 }
 
+const GALLERY_MAX = 24;
+/** The pictures of a gallery block's markup, as [{ src, caption }]. */
+const Gallery_items = (node) => [...node.querySelectorAll('figure')].map((f) => ({ src: f.querySelector('img')?.getAttribute('src') ?? '', caption: f.querySelector('figcaption')?.textContent ?? '' })).filter((i) => i.src);
+
+/** Pick pictures from the Media Library (several at once); resolves with their addresses, or [] if none. */
+async function pickLibraryImages() {
+  const sb = await db();
+  const files = (await listAllFiles(sb, 'media', 'library', { sortBy: { column: 'created_at', order: 'desc' } })).filter((f) => f.id && !/-sm\.jpg$/.test(f.name));
+  const urls = files.map((f) => sb.storage.from('media').getPublicUrl(`library/${f.name}`).data.publicUrl);
+  return new Promise((resolve) => {
+    const d = openDialog('Choose from Media', files.length
+      ? `<p class="field__hint">Tap the pictures to add, then press Add. They are linked, not copied.</p>
+        <ul class="media-grid media-pick">${urls.map((u, i) => `<li class="media-item"><button type="button" class="media-pick__btn" data-url="${esc(u)}" aria-pressed="false" aria-label="${esc(files[i].name)}"><img src="${esc(u)}" alt="" loading="lazy"></button></li>`).join('')}</ul>
+        <div class="admin-actions"><button class="btn btn--primary" type="button" data-add>Add selected</button></div>`
+      : '<p class="empty">The Media Library is empty. Upload images under Media first.</p>', { wide: true });
+    let picked = [];
+    d.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-url]');
+      if (b) return b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'));
+      if (e.target.closest('[data-add]')) {
+        picked = $$('[data-url][aria-pressed="true"]', d).map((x) => x.dataset.url);
+        d.close();
+      }
+    });
+    d.addEventListener('close', () => resolve(picked));
+  });
+}
+
+/**
+ * The gallery editor: add pictures (upload, or from Media), caption them, put them in order, remove some.
+ * Resolves with the new list of { src, caption }, or null if the dialog was dismissed.
+ */
+function editGallery(initial) {
+  return new Promise((resolve) => {
+    let items = initial.map((i) => ({ ...i }));
+    const u = uid('gal');
+    const d = openDialog('Picture Gallery', `
+      <p class="field__hint">A grid of pictures that opens larger when tapped. Captions are optional; they show under the picture and describe it for people who can’t see it.</p>
+      <ul class="gallery-edit" data-items></ul>
+      <div class="admin-actions">
+        <input id="${u}" type="file" accept="image/*" multiple class="visually-hidden">
+        <label class="btn btn--ghost" for="${u}">Upload pictures…</label>
+        <button class="btn btn--ghost" type="button" data-library>Choose from Media…</button>
+      </div>
+      <p class="admin-status" role="status" data-status></p>
+      <div class="admin-actions"><button class="btn btn--primary" type="button" data-done>Done</button> <button class="btn btn--ghost" type="button" data-cancel>Cancel</button></div>`, { wide: true });
+    const list = $('[data-items]', d);
+    const status = $('[data-status]', d);
+    let finished = false;
+    const finish = (value) => {
+      if (finished) return;
+      finished = true;
+      resolve(value);
+      d.close();
+    };
+    const draw = () => {
+      list.innerHTML = items.length
+        ? items.map((it, i) => `<li class="gallery-edit__item">
+            <img src="${esc(it.src)}" alt="">
+            <div class="field"><label class="visually-hidden" for="${u}-c${i}">Caption for picture ${i + 1}</label><input id="${u}-c${i}" data-caption="${i}" maxlength="200" autocomplete="off" placeholder="Caption (optional)" value="${esc(it.caption)}"></div>
+            <span class="gallery-edit__move">
+              <button class="btn btn--ghost btn--small" type="button" data-move="-1" data-i="${i}" aria-label="Move picture ${i + 1} earlier"${i === 0 ? ' disabled' : ''}>↑</button>
+              <button class="btn btn--ghost btn--small" type="button" data-move="1" data-i="${i}" aria-label="Move picture ${i + 1} later"${i === items.length - 1 ? ' disabled' : ''}>↓</button>
+              <button class="icon-btn icon-btn--remove" type="button" data-remove="${i}" aria-label="Remove picture ${i + 1}" title="Remove">${solidIcon('remove', 18)}</button>
+            </span></li>`).join('')
+        : '<li class="empty">No pictures yet.</li>';
+    };
+    const add = (urls) => {
+      const room = GALLERY_MAX - items.length;
+      items.push(...urls.slice(0, room).map((src) => ({ src, caption: '' })));
+      if (urls.length > room) setStatus(status, `A gallery holds up to ${GALLERY_MAX} pictures.`, 'error');
+      draw();
+    };
+    draw();
+    d.addEventListener('close', () => finish(null));
+    d.addEventListener('input', (e) => {
+      const c = e.target.closest('[data-caption]');
+      if (c) items[Number(c.dataset.caption)].caption = c.value;
+    });
+    d.addEventListener('click', async (e) => {
+      const mv = e.target.closest('[data-move]');
+      const rm = e.target.closest('[data-remove]');
+      if (mv) {
+        const i = Number(mv.dataset.i);
+        const j = i + Number(mv.dataset.move);
+        [items[i], items[j]] = [items[j], items[i]];
+        draw();
+        const mine = $$(`[data-move][data-i="${j}"]`, d).filter((b) => !b.disabled); // the arrow just used, or the other once at an end
+        (mine.find((b) => b.dataset.move === mv.dataset.move) ?? mine[0])?.focus();
+      } else if (rm) {
+        items.splice(Number(rm.dataset.remove), 1);
+        draw();
+      } else if (e.target.closest('[data-library]')) {
+        try {
+          add(await pickLibraryImages());
+        } catch (err) {
+          setStatus(status, friendlyError(err), 'error');
+        }
+      } else if (e.target.closest('[data-done]')) {
+        finish(items.map((i) => ({ src: i.src, caption: i.caption.trim() })));
+      } else if (e.target.closest('[data-cancel]')) {
+        finish(null);
+      }
+    });
+    $(`#${u}`, d).addEventListener('change', async (e) => {
+      const files = [...e.target.files].filter((f) => f.type.startsWith('image/'));
+      e.target.value = '';
+      const urls = [];
+      for (const [n, file] of files.entries()) {
+        setStatus(status, `Uploading ${n + 1} of ${files.length}…`);
+        try {
+          urls.push((await uploadImage(file, 'content', { maxSize: 1600 })).url);
+        } catch (err) {
+          setStatus(status, `${file.name} not added: ${friendlyError(err)}`, 'error');
+        }
+      }
+      if (urls.length) setStatus(status, '');
+      add(urls);
+    });
+  });
+}
+
 /** Editor inside `el`. `labelEl` gives the editable area its accessible name. */
 export function makeEditor(el, kind = 'body', labelEl = null) {
   registerFormats();
@@ -403,6 +557,14 @@ export function makeEditor(el, kind = 'body', labelEl = null) {
       q.setSelection(at, 0, 'silent');
       q.getModule('table').insertTable(3, 3);
     },
+    async gallery() {
+      const q = this.quill;
+      const { index } = q.getSelection(true);
+      const items = await editGallery([]);
+      if (!items?.length) return;
+      q.insertEmbed(index, 'gallery', { items }, 'user');
+      q.setSelection(index + 1, 0, 'user');
+    },
     divider() {
       const { index } = this.quill.getSelection(true);
       this.quill.insertEmbed(index, 'divider', true, 'user');
@@ -428,7 +590,7 @@ export function makeEditor(el, kind = 'body', labelEl = null) {
     quill.root.setAttribute('aria-labelledby', (labelEl.id ||= uid('lbl')));
   }
   // Name the icon-only toolbar buttons for screen readers and tooltips.
-  const names = { bold: 'Bold', italic: 'Italic', underline: 'Underline', strike: 'Strikethrough', link: 'Link', image: 'Insert image', video: 'Insert video', table: 'Insert table', divider: 'Divider line', blockquote: 'Quote', clean: 'Clear formatting' };
+  const names = { bold: 'Bold', italic: 'Italic', underline: 'Underline', strike: 'Strikethrough', link: 'Link', image: 'Insert image', video: 'Insert video', table: 'Insert table', divider: 'Divider line', gallery: 'Insert picture gallery', blockquote: 'Quote', clean: 'Clear formatting' };
   quill.getModule('toolbar').container.querySelectorAll('button').forEach((b) => {
     const f = [...b.classList].find((c) => c.startsWith('ql-'))?.slice(3);
     const label = f === 'list' ? (b.value === 'ordered' ? 'Numbered list' : 'Bulleted list') : f === 'indent' ? (b.value === '+1' ? 'Indent' : 'Outdent') : names[f];
@@ -441,6 +603,19 @@ export function makeEditor(el, kind = 'body', labelEl = null) {
     if (pickers[f] && label) label.setAttribute('aria-label', pickers[f]), (label.title = pickers[f]);
   });
   if (kind === 'body') {
+    // A gallery in the text is edited as a whole: click it to change its pictures and captions.
+    quill.root.addEventListener('click', async (e) => {
+      const node = e.target.closest?.('.gallery');
+      if (!node) return;
+      e.preventDefault();
+      const blot = Quill.find(node);
+      if (!blot) return;
+      const index = quill.getIndex(blot);
+      const items = await editGallery(Gallery_items(node));
+      if (items === null) return;
+      quill.deleteText(index, 1, 'user');
+      if (items.length) quill.insertEmbed(index, 'gallery', { items }, 'user');
+    });
     imageTools(quill);
     tableTools(quill);
   }
@@ -490,7 +665,7 @@ function imageTools(quill) {
     requestAnimationFrame(place);
   };
 
-  quill.root.addEventListener('click', (e) => (e.target.tagName === 'IMG' ? show(e.target) : hide()));
+  quill.root.addEventListener('click', (e) => (e.target.tagName === 'IMG' && !e.target.closest('.gallery') ? show(e.target) : hide()));
   quill.on('selection-change', (range) => {
     if (!range) return;
     const [leaf] = quill.getLeaf(range.index + 1);

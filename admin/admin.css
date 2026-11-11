@@ -77,6 +77,15 @@
 .ql-editor h4 { font-weight: 700; font-size: var(--fs-base); }
 .ql-editor img { max-width: 100%; border-radius: var(--radius-sm); cursor: pointer; }
 .ql-editor iframe.ql-video { width: 100%; max-width: 560px; aspect-ratio: 16 / 9; height: auto; }
+.ql-editor .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: var(--sp-8); margin: var(--sp-12) 0; padding: var(--sp-8); border: 2px dashed var(--field-line); border-radius: var(--radius); cursor: pointer; }
+.ql-editor .gallery figure { margin: 0; }
+.ql-editor .gallery img { width: 100%; aspect-ratio: 1; object-fit: cover; cursor: pointer; }
+.ql-editor .gallery figcaption { font-size: var(--fs-sm); color: var(--muted); }
+.gallery-edit { list-style: none; margin: 0 0 var(--sp-12); padding: 0; display: grid; gap: var(--sp-8); }
+.gallery-edit__item { display: flex; align-items: center; gap: var(--sp-12); }
+.gallery-edit__item img { flex: none; width: 64px; height: 64px; object-fit: cover; border-radius: var(--radius-sm); }
+.gallery-edit__item .field { flex: 1; min-width: 0; margin: 0; }
+.gallery-edit__move { display: flex; gap: var(--sp-6); flex: none; }
 .ql-editor hr { border: 0; border-top: 2px solid var(--line); margin: 1em 0; }
 .ql-editor table { border-collapse: collapse; width: auto; margin: .5em 0; }
 .ql-editor td { border: 1px solid var(--line-strong); padding: var(--sp-6) var(--sp-8); min-width: 60px; }
@@ -790,6 +799,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .media-pick__btn { display: block; width: 100%; padding: 0; border: 2px solid transparent; border-radius: var(--radius); background: none; cursor: pointer; }
 .media-pick__btn:hover, .media-pick__btn:focus-visible { border-color: var(--ink); }
 .media-pick__btn img { display: block; width: 100%; }
+.media-pick__btn[aria-pressed='true'] { border-color: var(--brand-accent); outline: 2px solid var(--brand-accent); outline-offset: 0; }
 
 /* Titles: dates in the list filter the list when clicked */
 .tt-datelink { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }

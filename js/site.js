@@ -539,24 +539,55 @@ function loadAnalyticsWhenIdle(settings) {
 }
 
 // ---------------------------------------------------------------------------
-// Lightbox: any <a data-lightbox href="big.jpg"><img …></a> opens in a modal.
+// Lightbox: any <a data-lightbox href="big.jpg"><img …></a> opens in a modal. Inside a picture gallery (.gallery, from the
+// editor's Gallery button) it also steps through that gallery's pictures (buttons or ← →) and shows the captions.
 // ---------------------------------------------------------------------------
 
 function setupLightbox() {
   const dialog = document.createElement('dialog');
   dialog.className = 'lightbox';
-  dialog.innerHTML = `<button class="lightbox__close" type="button" aria-label="Close">✕</button><img alt="">`;
+  dialog.setAttribute('aria-label', 'Picture');
+  dialog.innerHTML = `<button class="lightbox__close" type="button" aria-label="Close">✕</button>
+    <img alt="">
+    <div class="lightbox__bar">
+      <button class="lightbox__nav lightbox__nav--prev" type="button" aria-label="Previous picture" hidden>‹</button>
+      <p class="lightbox__caption" aria-live="polite"></p>
+      <button class="lightbox__nav lightbox__nav--next" type="button" aria-label="Next picture" hidden>›</button>
+    </div>`;
   document.body.append(dialog);
   const img = $('img', dialog);
+  const caption = $('.lightbox__caption', dialog);
+  const nav = [...dialog.querySelectorAll('.lightbox__nav')];
+  const bar = $('.lightbox__bar', dialog);
+  let group = [];
+  let at = 0;
+  const show = (i) => {
+    at = (i + group.length) % group.length;
+    const link = group[at];
+    const text = link.closest('figure')?.querySelector('figcaption')?.textContent.trim() ?? '';
+    img.src = link.href;
+    img.alt = $('img', link)?.alt ?? '';
+    caption.textContent = text;
+    bar.hidden = !text && group.length < 2;
+  };
   dialog.addEventListener('click', (e) => {
     if (e.target === dialog || e.target.closest('.lightbox__close')) dialog.close();
+    else if (e.target.closest('.lightbox__nav--prev')) show(at - 1);
+    else if (e.target.closest('.lightbox__nav--next')) show(at + 1);
+  });
+  dialog.addEventListener('keydown', (e) => {
+    if (group.length < 2 || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    e.preventDefault();
+    show(at + (e.key === 'ArrowLeft' ? -1 : 1));
   });
   document.addEventListener('click', (e) => {
     const link = e.target.closest('a[data-lightbox]');
     if (!link) return;
     e.preventDefault();
-    img.src = link.href;
-    img.alt = $('img', link)?.alt ?? '';
+    const gallery = link.closest('.gallery');
+    group = gallery ? [...gallery.querySelectorAll('a[data-lightbox]')] : [link];
+    nav.forEach((b) => (b.hidden = group.length < 2));
+    show(group.indexOf(link));
     dialog.showModal();
   });
 }

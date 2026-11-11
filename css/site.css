@@ -822,6 +822,19 @@ dialog, dialog .dialog__body { overscroll-behavior: contain; }
 /* Fits the picture: a dialog's width: auto would stretch it across the page. */
 .lightbox { width: fit-content; max-width: calc(100vw - 32px); background: #000; }
 .lightbox img { display: block; max-height: calc(100vh - 64px); width: auto; }
+.lightbox__bar { display: flex; align-items: center; justify-content: center; gap: var(--sp-12); padding: var(--sp-8) var(--sp-12); background: #000; color: #fff; }
+.lightbox__bar[hidden] { display: none; }
+.lightbox__caption { flex: 1; margin: 0; font-size: var(--fs-ui); text-align: center; }
+.lightbox__nav { flex: none; width: var(--tap); height: var(--tap); border-radius: 50%; border: 2px solid #fff; background: #000; color: #fff; font-size: var(--fs-lede); line-height: 1; cursor: pointer; }
+.lightbox__nav[hidden] { display: none; }
+/* A picture gallery from the editor's Gallery button: a grid of square pictures that open in the lightbox. */
+.gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-12); margin: var(--sp-16) 0; clear: both; }
+.gallery figure { margin: 0; }
+.gallery a { display: block; }
+.gallery img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius); }
+.gallery figcaption { margin-top: var(--sp-6); color: var(--muted); font-size: var(--fs-ui); }
+@media (min-width: 600px) { .gallery { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 800px) { .gallery { grid-template-columns: repeat(4, 1fr); } }
 .lightbox__close { position: absolute; top: 8px; right: 8px; width: var(--tap); height: var(--tap); border-radius: 50%; border: 2px solid #fff; background: #000; color: #fff; font-size: var(--fs-lede); cursor: pointer; }
 /* ---------- Title details dialog (click a cover) ---------- */
 .card__open { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
