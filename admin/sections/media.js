@@ -2,12 +2,11 @@
 // once (resized and optionally cropped in the browser), copy each one's link,
 // delete ones no longer needed. Stored in Storage under media/library/.
 
-import { $, esc, must, toast, hintFold, uploadImage, replaceImage, thumbPath, CROPS, setStatus, solidIcon, friendlyError, setupTabs, listAllFiles } from '../lib.js';
+import { $, esc, must, toast, hintFold, uploadImage, replaceImage, thumbPath, CROPS, setStatus, solidIcon, friendlyError, listAllFiles } from '../lib.js';
 
 const FOLDER = 'library';
 let sb;
 let isOwner = false;
-let showTab = () => {};
 let files = []; // the Library's images as last listed
 let bustAt = 0; // after a Replace, the previews skip the browser's copy (one stamp per load, so re-sorting reuses them)
 
@@ -47,11 +46,6 @@ export async function mount(el, ctx) {
   el.innerHTML = `
     <h1>Media Library</h1>
     ${hintFold(`Images for news posts, emails, social media and series covers. Each upload is resized to the chosen size — the original file is never changed. To fix or update a picture without breaking anything that uses it, press <strong>Replace</strong> on it: the new image takes the old one’s place under the same link (it uses the Crop and Longest side chosen below, and can take up to an hour to show for people who already loaded the old one).`)}
-    <div class="admin-tabs" role="tablist">
-      <button type="button" class="admin-tab" role="tab" data-tab="library">Library <span class="admin-tab__badge" data-image-count hidden></span></button>
-      <button type="button" class="admin-tab" role="tab" data-tab="upload">Upload</button>
-    </div>
-    <div data-tabpane="upload">
     <div class="panel media-upload">
       <div class="form-grid form-grid--pairs">
         <div class="field"><label for="m-crop">Crop</label><select id="m-crop">${Object.entries(CROPS).map(([k, c]) => `<option value="${k}">${c.label}</option>`).join('')}</select></div>
@@ -63,8 +57,6 @@ export async function mount(el, ctx) {
       </label>
       <p class="admin-status" role="status" data-upload-status></p>
     </div>
-    </div>
-    <div data-tabpane="library">
     <div class="media-toolbar">
       <p class="results-count" data-count></p>
       <label class="visually-hidden" for="m-sort">Sort images</label>
@@ -74,9 +66,7 @@ export async function mount(el, ctx) {
         <button class="icon-btn" type="button" data-view="list" aria-pressed="false" aria-label="List" title="List">${solidIcon('list', 20)}</button>
       </div>
     </div>
-    <ul class="media-grid" data-grid></ul>
-    </div>`;
-  showTab = setupTabs(el, 'admin-media-tab', 'library');
+    <ul class="media-grid" data-grid></ul>`;
 
   // Grid or list, remembered on this device.
   const setView = (view) => {
@@ -200,7 +190,6 @@ async function upload(el, files) {
       failed.push(`${file.name}: ${friendlyError(err)}`);
     }
   }
-  if (!failed.length) showTab('library');
   setStatus(status, failed.length ? `Uploaded ${images.length - failed.length}; failed: ${failed.join('; ')}` : `Uploaded ${images.length} ${images.length === 1 ? 'image' : 'images'}.`, failed.length ? 'error' : 'ok');
   load(el);
 }
@@ -217,8 +206,6 @@ async function load(el, fresh = false) {
   files = data.filter((f) => f.id && !/-sm\.jpg$/.test(f.name)); // skip folder placeholders and the small copies
   bustAt = fresh ? Date.now() : 0;
   $('[data-count]', el).textContent = `${files.length} ${files.length === 1 ? 'image' : 'images'}`;
-  const badge = $('[data-image-count]', el);
-  if (badge) (badge.textContent = files.length), (badge.hidden = !files.length);
   render(el);
 }
 

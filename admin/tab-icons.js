@@ -65,7 +65,7 @@ const BY_LABEL = [
   [/^customers$/i, 'people'],
   [/^all customers/i, 'people'], [/^new this week/i, 'sparkle'], [/^needs attention/i, 'alert'],
   [/^pull list/i, 'bookmark'], [/^profile/i, 'user'], [/^messages/i, 'message'], [/^changes/i, 'history'],
-  [/^upcoming/i, 'calendar'], [/^past/i, 'clock'], [/signups/i, 'clipboard'],
+  [/^upcoming/i, 'calendar'], [/^calendar$/i, 'grid'], [/^past/i, 'clock'], [/signups/i, 'clipboard'],
   [/^reservations/i, 'bookmark'], [/^place order/i, 'cart'], [/^re-order/i, 'again'], [/^received/i, 'box'],
   [/^my account/i, 'user'], [/^staff list/i, 'shield'], [/^add a staff/i, 'userPlus'],
   [/^all series/i, 'layers'], [/^creatives/i, 'brush'], [/^add active series/i, 'plus'], [/^all$/i, 'grid'],

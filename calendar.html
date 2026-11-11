@@ -59,10 +59,15 @@
             <label for="f-range">When</label>
             <select id="f-range" name="range">
               <option value="upcoming">Upcoming</option>
+              <option value="week">Next 7 days</option>
               <option value="past">Past events</option>
             </select>
           </div>
         </form>
+        <div class="view-toggle" role="group" aria-label="Show events as">
+          <button class="btn btn--small btn--ghost" type="button" data-view="list" aria-pressed="true" aria-label="List" title="List"><svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button>
+          <button class="btn btn--small btn--ghost" type="button" data-view="calendar" aria-pressed="false" aria-label="Calendar" title="Calendar"><svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/></svg></button>
+        </div>
         <div id="events" aria-live="polite"></div>
       </div>
     </section>
