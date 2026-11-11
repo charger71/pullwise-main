@@ -29,7 +29,11 @@ const purify = () =>
   }));
 
 /** Placeholders staff can type in the editor, filled from settings. */
-export const PLACEHOLDERS = ['shop_name', 'phone', 'email', 'max_copies_per_title', 'hold_days', 'founded_year'];
+export const PLACEHOLDERS = ['shop_name', 'website', 'phone', 'email', 'max_copies_per_title', 'hold_days', 'founded_year'];
+
+/** What a placeholder shows: {website} is the address the visitor is on (no https://), the rest come from settings. */
+const placeholderValue = (key, settings) =>
+  key === 'phone' ? formatPhone(settings?.[key]) : key === 'website' ? (settings?.website ?? globalThis.location?.host ?? '') : settings?.[key];
 
 /** Plain-text fallback for rich text that couldn't be sanitized: tags dropped, paragraphs kept, everything escaped. */
 const asPlainText = (html) => {
@@ -52,7 +56,7 @@ const asPlainText = (html) => {
  * as plain escaped paragraphs instead — never as raw HTML — so callers always get something safe to show.
  */
 export async function renderRich(html, settings = {}) {
-  const filled = String(html ?? '').replace(/\{(\w+)\}/g, (m, key) => (PLACEHOLDERS.includes(key) ? esc(key === 'phone' ? formatPhone(settings?.[key]) : settings?.[key]) : m));
+  const filled = String(html ?? '').replace(/\{(\w+)\}/g, (m, key) => (PLACEHOLDERS.includes(key) ? esc(placeholderValue(key, settings)) : m));
   try {
     return (await purify()).sanitize(filled, { ADD_TAGS: ['iframe'], ADD_ATTR: ['target', 'allowfullscreen', 'frameborder'] });
   } catch (err) {

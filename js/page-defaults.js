@@ -3,7 +3,7 @@
 // used for demo mode and to seed a new shop's database.
 //
 // HTML as the WYSIWYG editor produces it. {placeholders} are filled from shop
-// settings when shown, e.g. {shop_name}, {max_copies_per_title}, {phone}.
+// settings when shown, e.g. {shop_name}, {website}, {max_copies_per_title}, {phone}.
 // A <blockquote> shows as a highlighted callout box.
 
 /** Every editable block: page key → which fields it has, for the admin editor.
