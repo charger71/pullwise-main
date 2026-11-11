@@ -329,17 +329,38 @@ An event on the calendar: a tear-off date block beside the type, title, time and
 - Type (\`.event__type\`: Release party, Signing, Tournament…) in \`shop-gold-text\` upper case; title as an h3 link; when-and-where in muted.
 - Months are separated by \`.month-heading\` (\`shop-type-title\` with a \`line\` underline).
 - \`.event--compact\` is the home page's "Coming up" list: a 48px block and smaller text.
+- Tags (\`.event__tags\` of \`.event__tag\`): Today (accent), Tomorrow, Signups open / N spots left (\`shop-ok\`), Full (\`shop-error\`) and Cancelled (\`shop-sold-out\`). A repeating event adds \`.event__repeat\` ("· Repeats weekly") after the type; a cancelled one strikes its title (\`.event__title--cancelled\`).
 - Consumer provides: the event record. Built by js/pages/calendar.js.`,
     html: page('ShopEvent', `
 <h2 class="month-heading">November 2026</h2>
 <article class="event">
   <div class="event__date" aria-hidden="true"><span class="event__month">Nov</span><span class="event__day">7</span></div>
-  <div class="event__body"><div class="event__text"><span class="event__type">Signing</span><h3><a href="#">Meet the Monstress team</a></h3><p class="event__when">Saturday, November 7 · 1:00 PM–4:00 PM · Main Street</p><p class="event__summary">Bring your books; two signatures per person.</p><div class="event__actions"><a href="#">Add to calendar</a><a href="#">Details</a></div></div></div>
+  <div class="event__body"><div class="event__text"><span class="event__type">Signing <span class="event__repeat">· Repeats weekly</span></span><p class="event__tags"><span class="event__tag event__tag--today">Today</span> <span class="event__tag event__tag--open">8 spots left</span></p><h3><a href="#">Meet the Monstress team</a></h3><p class="event__when">Saturday, November 7 · 1:00 PM–4:00 PM · Main Street</p><p class="event__summary">Bring your books; two signatures per person.</p><div class="event__actions"><a href="#">Add to calendar</a><a href="#">Details</a></div></div></div>
 </article>
 <article class="event event--compact" style="margin-top:20px">
   <div class="event__date" aria-hidden="true"><span class="event__month">Nov</span><span class="event__day">14</span></div>
   <div><span class="event__type">Tournament</span><h3><a href="#">Pokémon League night</a></h3><p class="event__when">Sat, Nov 14 · 6:00 PM</p></div>
 </article>`),
+  },
+  {
+    name: 'ShopCalendar', group: G('Content'), height: 420,
+    readme: `# ShopCalendar
+
+The Calendar page's month view, beside the list. A List / Calendar switch (\`.view-toggle\` of icon-only small ghost buttons, the pressed one filled \`shop-gold-text\`) sits under the filters and is remembered on the device; the address holds the view, month and filters.
+
+- \`.cal__nav\` (Prev, month title, Next) and \`.cal__today\` (This month); \`.cal__weekdays\` and \`.cal__grid\` of \`.cal__day\` cells, today edged \`shop-gold-text\`.
+- An event is a \`.cal__event\` link with its time. Its left edge takes the type's color (\`--cal-type\`: release party gold, signing teal, tournament warn, livestream violet, Comic Con clearance, sale ok, other cream); a legend (\`.cal__legend\`) names them, and the type is also in the link's hidden text. A cancelled event is struck through and muted.
+- A square shows two events; more are behind \`.cal__more\` ("+N more"), which opens a dialog listing the day. Phones show only the days that have events, one under another, with every event.
+- Arrow keys move between days; swiping sideways changes the month on a phone.
+- Consumer provides: the month's events. Built by js/pages/calendar.js.`,
+    html: page('ShopCalendar', `
+<div class="cal"><div class="cal__nav"><button class="btn btn--ghost btn--small" type="button">← Prev</button><h2 class="cal__title">November 2026</h2><button class="btn btn--ghost btn--small" type="button">Next →</button></div>
+<ul class="cal__weekdays" aria-hidden="true"><li>Sun</li><li>Mon</li><li>Tue</li><li>Wed</li><li>Thu</li><li>Fri</li><li>Sat</li></ul>
+<ol class="cal__grid">
+<li class="cal__day cal__day--has cal__day--today"><span class="cal__num"><span class="cal__label">Sat 14</span><span class="cal__digit" aria-hidden="true">14</span></span><ul class="cal__events"><li><a class="cal__event cal__event--release_party" href="#"><span class="cal__time">11:00 AM</span> New Comic Day party</a></li><li><a class="cal__event cal__event--tournament" href="#"><span class="cal__time">6:00 PM</span> Pokémon League</a></li></ul><button class="cal__more" type="button">+1 more</button></li>
+<li class="cal__day cal__day--has"><span class="cal__num"><span class="cal__label">Mon 16</span><span class="cal__digit" aria-hidden="true">16</span></span><ul class="cal__events"><li><a class="cal__event cal__event--signing cal__event--cancelled" href="#"><span class="cal__time">1:00 PM</span> Creator signing</a></li></ul></li>
+</ol>
+<ul class="cal__legend"><li><span class="cal__swatch cal__swatch--release_party"></span>Release party</li><li><span class="cal__swatch cal__swatch--signing"></span>Signing</li><li><span class="cal__swatch cal__swatch--tournament"></span>Tournament</li></ul></div>`),
   },
   {
     name: 'ShopPanel', group: G('Content'), height: 404,
