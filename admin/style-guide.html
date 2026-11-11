@@ -753,6 +753,15 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
             <p class="admin-hint mt-8">The arrows sit over the header band but outside the <code>&lt;summary&gt;</code>, so they can be reached and announced, and each one is described by its question.</p>
           </div>
           <div class="sg-item" data-code>
+            <h3>Columns row (editor)</h3>
+            <div class="sg-demo">
+              <div class="ql-editor">
+                <div class="cols cols--1-2"><div class="col"><p>Narrow</p></div><div class="col"><p>Wide</p></div></div>
+              </div>
+            </div>
+            <p class="admin-hint mt-8">The editor’s Columns button (and a click on a row in the text) opens a dialog: a Layout select and one small editor per column (<code>editor--cell</code>, inside <code>cols-edit__col</code>). A row is a <code>cols</code> block with a layout class and a <code>col</code> per column: <code>cols--2</code>, <code>cols--3</code>, <code>cols--4</code> (equal), <code>cols--1-2</code> (narrow, then wide) and <code>cols--2-1</code> (wide, then narrow). In the editor it shows as a dashed grid you click to edit. On the website the columns stack on phones, first on top, and sit side by side from 600px (three from 700px, four from 800px). More rows are more Columns blocks.</p>
+          </div>
+          <div class="sg-item" data-code>
             <h3>Gallery editor list</h3>
             <div class="sg-demo">
               <ul class="gallery-edit">

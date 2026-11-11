@@ -72,6 +72,17 @@
 .ql-container.ql-snow { border: 1px solid var(--field-line); border-top: 0; border-radius: 0 0 var(--radius) var(--radius); background: var(--surface); font: var(--fs-base)/1.55 var(--font-body); position: relative; }
 .ql-editor { min-height: 90px; max-height: 45vh; overflow-y: auto; }
 .editor--body .ql-editor { min-height: 260px; max-height: 65vh; }
+.editor--cell .ql-editor { min-height: 120px; max-height: 30vh; }
+.cols-edit__col { margin-bottom: var(--sp-16); }
+.ql-editor .cols { display: grid; grid-template-columns: 1fr; gap: var(--sp-8); margin: var(--sp-12) 0; padding: var(--sp-8); border: 2px dashed var(--field-line); border-radius: var(--radius); cursor: pointer; }
+.ql-editor .cols .col { min-width: 0; padding: var(--sp-6); border: 1px dashed var(--line); border-radius: var(--radius-sm); }
+.ql-editor .cols .col > :first-child { margin-top: 0; }
+.ql-editor .cols .col > :last-child { margin-bottom: 0; }
+.ql-editor .cols--2, .ql-editor .cols--1-2, .ql-editor .cols--2-1 { grid-template-columns: repeat(2, 1fr); }
+.ql-editor .cols--3 { grid-template-columns: repeat(3, 1fr); }
+.ql-editor .cols--4 { grid-template-columns: repeat(4, 1fr); }
+.ql-editor .cols--1-2 { grid-template-columns: 1fr 2fr; }
+.ql-editor .cols--2-1 { grid-template-columns: 2fr 1fr; }
 .ql-editor h2 { font-family: var(--font-display); font-weight: 400; font-size: var(--fs-lg); }
 .ql-editor h3 { font-family: var(--font-display); font-weight: 400; font-size: var(--fs-card); }
 .ql-editor h4 { font-weight: 700; font-size: var(--fs-base); }

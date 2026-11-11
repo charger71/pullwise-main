@@ -271,11 +271,13 @@ const HIGHLIGHTS = ['#ffd100', '#fff3b0', '#d9f5df', '#e3ecff', '#f1e3ff', '#ffe
 
 const TOOLBARS = {
   lede: [['bold', 'italic', 'underline', 'link'], [{ color: TEXT_COLORS }, { background: HIGHLIGHTS }], ['blockquote'], ['clean']],
+  // One column of a Columns row: the body's tools without the blocks that make their own layout.
+  cell: [[{ header: [2, 3, 4, false] }], ['bold', 'italic', 'underline'], ['link', 'image', 'video', 'divider'], [{ list: 'ordered' }, { list: 'bullet' }], [{ align: [] }], ['clean']],
   body: [
     [{ header: [2, 3, 4, false] }],
     ['bold', 'italic', 'underline', 'strike'],
     [{ color: TEXT_COLORS }, { background: HIGHLIGHTS }],
-    ['link', 'image', 'video', 'table', 'divider', 'gallery'],
+    ['link', 'image', 'video', 'table', 'divider', 'gallery', 'columns'],
     [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
     [{ align: [] }],
     ['blockquote'],
@@ -326,6 +328,36 @@ function registerFormats() {
     }
   }
   Quill.register(Gallery);
+  // A row of columns: <div class="cols cols--2"><div class="col">…text…</div>…</div>. Stacks on phones (css/site.css);
+  // each column is its own small editor in a dialog, and the whole row is edited from there.
+  class Columns extends BlockEmbed {
+    static blotName = 'columns';
+    static tagName = 'div';
+    static className = 'cols';
+    static create(value) {
+      const node = super.create();
+      node.setAttribute('contenteditable', 'false');
+      const layout = COLS_LAYOUTS[value?.layout] ? value.layout : '2';
+      node.classList.add(`cols--${layout}`);
+      for (const html of value?.cols ?? []) {
+        const col = document.createElement('div');
+        col.className = 'col';
+        col.innerHTML = cleanCellHtml(html);
+        node.append(col);
+      }
+      return node;
+    }
+    static value(node) {
+      const layout = Object.keys(COLS_LAYOUTS).find((k) => node.classList.contains(`cols--${k}`)) ?? '2';
+      return { layout, cols: [...node.children].filter((c) => c.classList.contains('col')).map((c) => c.innerHTML) };
+    }
+    html() {
+      const copy = this.domNode.cloneNode(true);
+      copy.removeAttribute('contenteditable');
+      return copy.outerHTML;
+    }
+  }
+  Quill.register(Columns);
   // Quill saves videos as plain links by default; keep the player instead.
   const Video = Quill.import('formats/video');
   class VideoPlayer extends Video {
@@ -363,6 +395,8 @@ function registerFormats() {
   const icons = Quill.import('ui/icons');
   icons.table ??=
     '<svg viewBox="0 0 18 18"><rect class="ql-stroke" height="12" width="12" x="3" y="3" rx="1"></rect><line class="ql-stroke" x1="3" x2="15" y1="7" y2="7"></line><line class="ql-stroke" x1="3" x2="15" y1="11" y2="11"></line><line class="ql-stroke" x1="7" x2="7" y1="7" y2="15"></line><line class="ql-stroke" x1="11" x2="11" y1="7" y2="15"></line></svg>';
+  icons.columns =
+    '<svg viewBox="0 0 18 18"><rect class="ql-stroke" height="12" width="4.5" x="2.5" y="3" rx="1"></rect><rect class="ql-stroke" height="12" width="4.5" x="9" y="3" rx="1"></rect><line class="ql-stroke" x1="16" x2="16" y1="3" y2="15"></line></svg>';
   icons.gallery =
     '<svg viewBox="0 0 18 18"><rect class="ql-stroke" height="5" width="5" x="2.5" y="2.5" rx="1"></rect><rect class="ql-stroke" height="5" width="5" x="10.5" y="2.5" rx="1"></rect><rect class="ql-stroke" height="5" width="5" x="2.5" y="10.5" rx="1"></rect><rect class="ql-stroke" height="5" width="5" x="10.5" y="10.5" rx="1"></rect></svg>';
   Quill.import('ui/icons').divider =
@@ -404,6 +438,76 @@ async function insertImages(quill, files, index) {
       toast(`Image not added: ${friendlyError(err)}`, 'error');
     }
   }
+}
+
+const COLS_LAYOUTS = { 2: '2 equal columns', 3: '3 equal columns', 4: '4 equal columns', '1-2': 'Narrow column, then wide', '2-1': 'Wide column, then narrow' };
+const COLS_COUNT = { 2: 2, 3: 3, 4: 4, '1-2': 2, '2-1': 2 };
+const CELL_TAGS = new Set(['P', 'BR', 'STRONG', 'EM', 'U', 'S', 'A', 'H2', 'H3', 'H4', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'IMG', 'HR', 'SPAN', 'IFRAME', 'B', 'I']);
+const SAFE_URL = /^(https?:|mailto:|tel:|\/|#|[\w./?=&%-]+$)/i;
+
+/** A column's saved HTML with only what the editor itself writes: no scripts, handlers or odd addresses. */
+function cleanCellHtml(html) {
+  const doc = new DOMParser().parseFromString(`<body>${html ?? ''}`, 'text/html');
+  for (const el of [...doc.body.querySelectorAll('*')]) {
+    if (!CELL_TAGS.has(el.tagName) || (el.tagName === 'IFRAME' && !videoEmbedUrl(el.getAttribute('src') ?? '') && !/^https:\/\/(www\.youtube(-nocookie)?\.com\/embed\/|player\.vimeo\.com\/video\/)/.test(el.getAttribute('src') ?? ''))) {
+      el.remove();
+      continue;
+    }
+    for (const a of [...el.attributes]) {
+      const keep = ['class', 'href', 'src', 'alt', 'target', 'rel', 'allowfullscreen', 'frameborder', 'style'].includes(a.name);
+      if (!keep || (['href', 'src'].includes(a.name) && !SAFE_URL.test(a.value.trim())) || (a.name === 'style' && /url\(|expression|javascript:/i.test(a.value))) el.removeAttribute(a.name);
+    }
+  }
+  return doc.body.innerHTML;
+}
+
+/**
+ * The columns editor: pick a layout and write each column in its own small editor.
+ * Resolves with { layout, cols: [html, …] }, or null if the dialog was dismissed.
+ */
+function editColumns(initial) {
+  return new Promise((resolve) => {
+    const u = uid('cols');
+    let layout = COLS_LAYOUTS[initial?.layout] ? initial.layout : '2';
+    const start = initial?.cols?.length ? initial.cols : ['', ''];
+    const editors = []; // made when a column is first shown
+    const d = openDialog('Columns', `
+      <div class="field"><label for="${u}-layout">Layout</label><select id="${u}-layout">${Object.entries(COLS_LAYOUTS).map(([k, l]) => `<option value="${k}"${k === layout ? ' selected' : ''}>${l}</option>`).join('')}</select>
+        <p class="field__hint">On phones the columns stack, the first on top. For more rows, add another Columns block under this one.</p></div>
+      <div data-cols>${[0, 1, 2, 3].map((i) => `<div class="cols-edit__col" data-col-box="${i}"><span class="label" id="${u}-l${i}">Column ${i + 1}</span><div class="editor--cell"><div data-col="${i}"></div></div></div>`).join('')}</div>
+      <p class="admin-status" role="status" data-status></p>
+      <div class="admin-actions"><button class="btn btn--primary" type="button" data-done>Done</button> <button class="btn btn--ghost" type="button" data-cancel>Cancel</button></div>`, { wide: true });
+    const status = $('[data-status]', d);
+    let finished = false;
+    const finish = (value) => {
+      if (finished) return;
+      finished = true;
+      resolve(value);
+      d.close();
+    };
+    const draw = () => {
+      const n = COLS_COUNT[layout];
+      for (let i = 0; i < 4; i++) {
+        $(`[data-col-box="${i}"]`, d).hidden = i >= n;
+        if (i < n && !editors[i]) {
+          editors[i] = makeEditor($(`[data-col="${i}"]`, d), 'cell', $(`#${u}-l${i}`, d));
+          setHtml(editors[i], start[i] ?? '');
+        }
+      }
+      const lost = editors.map((q, i) => (i >= n && q && getHtml(q) ? i + 1 : 0)).filter(Boolean);
+      setStatus(status, lost.length ? `Column ${lost.join(', ')} has text and is removed when you press Done.` : '', lost.length ? 'error' : undefined);
+    };
+    draw();
+    $(`#${u}-layout`, d).addEventListener('change', (e) => {
+      layout = e.target.value;
+      draw();
+    });
+    d.addEventListener('close', () => finish(null));
+    d.addEventListener('click', (e) => {
+      if (e.target.closest('[data-done]')) finish({ layout, cols: editors.slice(0, COLS_COUNT[layout]).map((q) => (q ? getHtml(q) ?? '' : '')) });
+      else if (e.target.closest('[data-cancel]')) finish(null);
+    });
+  });
 }
 
 const GALLERY_MAX = 24;
@@ -557,6 +661,14 @@ export function makeEditor(el, kind = 'body', labelEl = null) {
       q.setSelection(at, 0, 'silent');
       q.getModule('table').insertTable(3, 3);
     },
+    async columns() {
+      const q = this.quill;
+      const { index } = q.getSelection(true);
+      const out = await editColumns(null);
+      if (!out) return;
+      q.insertEmbed(index, 'columns', out, 'user');
+      q.setSelection(index + 1, 0, 'user');
+    },
     async gallery() {
       const q = this.quill;
       const { index } = q.getSelection(true);
@@ -590,7 +702,7 @@ export function makeEditor(el, kind = 'body', labelEl = null) {
     quill.root.setAttribute('aria-labelledby', (labelEl.id ||= uid('lbl')));
   }
   // Name the icon-only toolbar buttons for screen readers and tooltips.
-  const names = { bold: 'Bold', italic: 'Italic', underline: 'Underline', strike: 'Strikethrough', link: 'Link', image: 'Insert image', video: 'Insert video', table: 'Insert table', divider: 'Divider line', gallery: 'Insert picture gallery', blockquote: 'Quote', clean: 'Clear formatting' };
+  const names = { bold: 'Bold', italic: 'Italic', underline: 'Underline', strike: 'Strikethrough', link: 'Link', image: 'Insert image', video: 'Insert video', table: 'Insert table', divider: 'Divider line', gallery: 'Insert picture gallery', columns: 'Insert columns', blockquote: 'Quote', clean: 'Clear formatting' };
   quill.getModule('toolbar').container.querySelectorAll('button').forEach((b) => {
     const f = [...b.classList].find((c) => c.startsWith('ql-'))?.slice(3);
     const label = f === 'list' ? (b.value === 'ordered' ? 'Numbered list' : 'Bulleted list') : f === 'indent' ? (b.value === '+1' ? 'Indent' : 'Outdent') : names[f];
@@ -616,15 +728,39 @@ export function makeEditor(el, kind = 'body', labelEl = null) {
       quill.deleteText(index, 1, 'user');
       if (items.length) quill.insertEmbed(index, 'gallery', { items }, 'user');
     });
+    // A row of columns is edited the same way.
+    quill.root.addEventListener('click', async (e) => {
+      const node = e.target.closest?.('.cols');
+      if (!node) return;
+      e.preventDefault();
+      const blot = Quill.find(node);
+      if (!blot) return;
+      const index = quill.getIndex(blot);
+      const out = await editColumns(blot.constructor.value(node));
+      if (out === null) return;
+      quill.deleteText(index, 1, 'user');
+      quill.insertEmbed(index, 'columns', out, 'user');
+    });
     imageTools(quill);
     tableTools(quill);
+  } else if (kind === 'cell') {
+    imageTools(quill); // a column's pictures get the same bar: alignment, size, alt text, link
   }
   return quill;
 }
 
+/** A web address typed for a picture's link, made complete (example.com becomes https://example.com); '' for none, null if it isn't an address. */
+export function imageLinkUrl(raw) {
+  const v = String(raw ?? '').trim();
+  if (!v) return '';
+  if (/^(https?:\/\/\S+|mailto:\S+|tel:[\d+()\s-]+)$/i.test(v) || /^[/#]\S*$/.test(v)) return v;
+  if (/^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(v)) return `https://${v}`;
+  return null;
+}
+
 /**
  * Click (or select) an image in the editor to get alignment, size presets, alt
- * text and a corner handle for free resizing. Width is stored as a percentage
+ * text, a link and a corner handle for free resizing. Width is stored as a percentage
  * of the text column so pictures scale on phones.
  */
 function imageTools(quill) {
@@ -642,6 +778,7 @@ function imageTools(quill) {
       <button type="button" data-width="" title="Original size">Auto</button>
       <span class="img-tools__sep"></span>
       <button type="button" data-alt>Alt text</button>
+      <button type="button" data-link title="Make the picture a link">Link</button>
     </div>
     <span class="img-tools__size"></span>
     <span class="img-tools__handle" title="Drag to resize"></span>`;
@@ -656,6 +793,7 @@ function imageTools(quill) {
     // Not enough room above the picture (it's at the top of the editor): show the bar inside it.
     box.classList.toggle('img-tools--inside', r.top - c.top < $('.img-tools__bar', box).offsetHeight + 8);
     $('.img-tools__size', box).textContent = img.style.width || 'Auto';
+    $('[data-link]', box).setAttribute('aria-pressed', String(!!img.closest('a')));
     $$('[data-align]', box).forEach((b) => b.setAttribute('aria-pressed', IMG_ALIGNS.find((a) => img.classList.contains(`img-align-${a}`)) === (b.dataset.align || undefined) || (!b.dataset.align && !IMG_ALIGNS.some((a) => img.classList.contains(`img-align-${a}`)))));
   };
   const show = (el) => { img = el; box.hidden = false; place(); };
@@ -665,7 +803,7 @@ function imageTools(quill) {
     requestAnimationFrame(place);
   };
 
-  quill.root.addEventListener('click', (e) => (e.target.tagName === 'IMG' && !e.target.closest('.gallery') ? show(e.target) : hide()));
+  quill.root.addEventListener('click', (e) => (e.target.tagName === 'IMG' && !e.target.closest('.gallery, .cols') ? show(e.target) : hide()));
   quill.on('selection-change', (range) => {
     if (!range) return;
     const [leaf] = quill.getLeaf(range.index + 1);
@@ -685,6 +823,12 @@ function imageTools(quill) {
     else if ('alt' in b.dataset) {
       const alt = prompt('Describe this image for people who can’t see it:', img.getAttribute('alt') ?? '');
       if (alt != null) apply({ alt: alt.trim() || false });
+    } else if ('link' in b.dataset) {
+      const raw = prompt('Where should this picture link to? Paste a web address, or leave empty to remove the link.', img.closest('a')?.getAttribute('href') ?? '');
+      if (raw == null) return;
+      const url = imageLinkUrl(raw);
+      if (raw.trim() && !url) return toast('That doesn’t look like a web address.', 'error');
+      apply({ link: url || false });
     }
   });
 
@@ -746,7 +890,7 @@ export function setHtml(quill, html) {
 
 /** Clean HTML for storage, or null when the editor is empty. */
 export function getHtml(quill) {
-  if (!quill.getText().trim()) return null;
+  if (!quill.getText().trim() && !quill.getContents().ops.some((op) => typeof op.insert !== 'string')) return null;
   const doc = document.createElement('div');
   doc.innerHTML = quill.getSemanticHTML().replace(/&nbsp;/g, ' ');
   // Quill opens every link in a new tab; keep that only for other websites.
