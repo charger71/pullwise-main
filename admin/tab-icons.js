@@ -58,6 +58,7 @@ const BY_LABEL = [
   [/^details/i, 'info'], [/^questions/i, 'question'], [/^results/i, 'chart'], [/^share/i, 'share'], [/^open/i, 'check'], [/^closed/i, 'lock'],
   [/^page text/i, 'pencil'], [/^shelf intros/i, 'layers'], [/^page settings/i, 'gear'], [/^google/i, 'globe'],
   [/^published/i, 'check'], [/^scheduled/i, 'calendar'], [/^drafts?/i, 'pencil'],
+  [/^all pages/i, 'log'], [/^menu order/i, 'layers'],
   [/^library/i, 'image'], [/^upload/i, 'upload'],
   [/^import files/i, 'upload'], [/^always skip/i, 'ban'], [/^recent runs/i, 'history'],
   [/^email settings/i, 'gear'], [/^send$/i, 'send'], [/log$/i, 'log'],
