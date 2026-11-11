@@ -17,6 +17,7 @@ import { localDate, addDays, todayIn, lastReserveDay } from './dates.js';
 
 export { esc, itemTitle, heroHeadlineHtml, sizedImage, HERO_WIDTH, localDate, addDays, lastReserveDay };
 
+// My Pull List is always the last link: custom menu pages go in before it (see renderHeader).
 const NAV = [
   { page: 'preorders', href: 'pre-orders.html', label: 'Pre-Orders' },
   { page: 'arrivals', href: 'new-arrivals.html', label: 'New Arrivals' },
@@ -314,7 +315,7 @@ function renderHeader(s, page, extraNav = [], off = new Set()) {
         <span class="nav-toggle__icon" aria-hidden="true"></span><span class="visually-hidden">Menu</span>
       </button>
       <nav id="site-nav" class="nav" aria-label="Main">
-        <ul>${[...NAV, ...extraNav].filter((n) => !off.has(n.href)).map(
+        <ul>${[...NAV.slice(0, -1), ...extraNav, NAV.at(-1)].filter((n) => !off.has(n.href)).map(
           // Custom pages' titles are staff text: escaped like everything else.
           (n) => `<li><a href="${esc(n.href)}"${n.page === page ? ' aria-current="page"' : ''}>${esc(n.label)}</a></li>`,
         ).join('')}</ul>
