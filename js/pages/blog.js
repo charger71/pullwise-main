@@ -1,5 +1,6 @@
 import { initPage, $, esc, fmtDate } from '../site.js';
 import { getPosts } from '../data.js';
+import { postHref } from '../optional-pages.js';
 
 await initPage();
 const posts = await getPosts().catch((err) => (console.error(err), null));
@@ -10,7 +11,7 @@ $('#posts').innerHTML = !posts
       .map(
         (p) => `<li class="panel">
           <time datetime="${esc(p.published_at)}">${fmtDate(p.published_at, { month: 'long', day: 'numeric', year: 'numeric' })}</time>
-          <h2 class="post-list__title"><a href="post.html?slug=${encodeURIComponent(p.slug)}">${esc(p.title)}</a></h2>
+          <h2 class="post-list__title"><a href="${postHref(p.slug)}">${esc(p.title)}</a></h2>
           ${p.excerpt ? `<p>${esc(p.excerpt)}</p>` : ''}
         </li>`,
       )

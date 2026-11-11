@@ -1,7 +1,7 @@
 import { initPage, $, esc, fmtDate, openFocFrom } from '../site.js';
 import { getItems, getPosts, getSearchablePages, getFaqs, searchSeries, searchArtists, getEvents, getSettings, logSearch } from '../data.js';
 import { PAGE_BLOCKS } from '../page-defaults.js';
-import { offHrefs } from '../optional-pages.js';
+import { offHrefs, customHref, postHref } from '../optional-pages.js';
 import { squash, searchWords } from '../util.js';
 import { renderGrid, itemCard, enableReservations, seriesCards, enableSeriesFollow, artistRows, enableArtistFollow } from '../components.js';
 
@@ -128,7 +128,7 @@ if (!q) {
     const text = plain(`${p.lede_html ?? ''} ${p.body_html ?? ''}`);
     const named = p.custom ? p.title : (PAGE_LINKS[p.slug]?.[0] ?? (p.slug.startsWith('home') ? 'Home' : labels[p.slug]));
     if (!matches(`${named} ${text}`)) continue;
-    const href = p.custom ? `page.html?slug=${encodeURIComponent(p.slug)}` : (PAGE_LINKS[p.slug]?.[1] ?? 'index.html');
+    const href = p.custom ? customHref(p.slug) : (PAGE_LINKS[p.slug]?.[1] ?? 'index.html');
     if (!found.has(href) && !off.has(href)) found.set(href, { title: named, href, text });
   }
   hitList('pages', [...found.values()]);
@@ -142,7 +142,7 @@ if (!q) {
       .map(
         (p) => `<li class="panel">
           <time datetime="${esc(p.published_at)}">${fmtDate(p.published_at, { month: 'long', day: 'numeric', year: 'numeric' })}</time>
-          <h3 class="post-list__title"><a href="post.html?slug=${encodeURIComponent(p.slug)}">${esc(p.title)}</a></h3>
+          <h3 class="post-list__title"><a href="${postHref(p.slug)}">${esc(p.title)}</a></h3>
           ${p.excerpt ? `<p>${esc(p.excerpt)}</p>` : ''}
         </li>`,
       )

@@ -2,11 +2,12 @@ import { initPage, $, esc, fmtDate } from '../site.js';
 import { getPost } from '../data.js';
 import { renderRich } from '../content.js';
 import { setPageMeta, snippet, htmlSnippet } from '../page-meta.js';
+import { postSlugHere } from '../optional-pages.js';
 
 const s = await initPage();
 const el = $('#post');
 // undefined = couldn't load (network, database), null = no such post.
-const post = await getPost(new URLSearchParams(location.search).get('slug') ?? '').catch((err) => (console.error(err), undefined));
+const post = await getPost(postSlugHere(location.pathname, location.search) ?? '').catch((err) => (console.error(err), undefined));
 
 if (post === undefined) {
   setPageMeta({ title: `${s.shop_name} — News`, noindex: true });

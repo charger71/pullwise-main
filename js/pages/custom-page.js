@@ -1,15 +1,17 @@
-// A page staff created in the admin: page.html?slug=…
+// A page staff created in the admin: served at /<slug> (the Worker sends it page.html), or page.html?slug=… from older links
 import { initPage, $, esc } from '../site.js';
+import { customSlugHere } from '../optional-pages.js';
 import { getCustomPage } from '../data.js';
 import { renderRich } from '../content.js';
 import { setPageMeta, snippet, htmlSnippet } from '../page-meta.js';
 
 // The We Buy Comics page (once a staff-made page) is now we-buy-comics.html; keep old shared links working.
-if (['sell-your-stuff', 'we-buy-comics'].includes(new URLSearchParams(location.search).get('slug'))) location.replace('we-buy-comics.html');
+const slug = customSlugHere(location.pathname, location.search);
+if (['sell-your-stuff', 'we-buy-comics'].includes(slug)) location.replace('/we-buy-comics.html');
 
 const s = await initPage();
 // undefined = couldn't load (network, database), null = no such page.
-const page = await getCustomPage(new URLSearchParams(location.search).get('slug') ?? '').catch((err) => (console.error(err), undefined));
+const page = await getCustomPage(slug ?? '').catch((err) => (console.error(err), undefined));
 const el = $('#custom-page');
 
 if (page === undefined) {

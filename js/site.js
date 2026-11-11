@@ -12,7 +12,7 @@ import { initCustomer } from './customer.js';
 import { readCache, writeCache, sameData } from './cache.js';
 import { esc, itemTitle, heroHeadlineHtml, sizedImage, LOGO_WIDTH, HERO_WIDTH, formatPhone, prefersReducedMotion, chatOn } from './util.js';
 import { ITEM_STATUS } from './labels.js';
-import { offHrefs, slugOfPage, orderMenu } from './optional-pages.js';
+import { offHrefs, slugOfPage, orderMenu, customHref, customSlugHere } from './optional-pages.js';
 import { localDate, addDays, todayIn, lastReserveDay } from './dates.js';
 
 export { esc, itemTitle, heroHeadlineHtml, sizedImage, HERO_WIDTH, localDate, addDays, lastReserveDay };
@@ -287,7 +287,7 @@ function brandHtml(s) {
  * (js/pages/app.js setupSearch). The website is a link on the Shop tab. */
 function renderAppHeader(s) {
   $('#site-header').innerHTML = `
-    <a class="skip-link" href="#main">Skip to content</a>
+    <a class="skip-link" href="${esc(location.pathname + location.search)}#main">Skip to content</a>
     <div class="app-bar container">
       <a class="brand" href="#list">${brandHtml(s)}</a>
       <button class="app-bar__search" type="button" aria-label="Search titles" title="Search titles" aria-expanded="false" aria-controls="app-search" data-search-toggle><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button>
@@ -297,7 +297,7 @@ function renderAppHeader(s) {
 function renderHeader(s, page, extraNav = [], off = new Set()) {
   const brand = brandHtml(s);
   $('#site-header').innerHTML = `
-    <a class="skip-link" href="#main">Skip to content</a>
+    <a class="skip-link" href="${esc(location.pathname + location.search)}#main">Skip to content</a>
     <div class="topbar">
       <div class="topbar__inner container">
         ${s.announcement ? `<p class="topbar__notice"><strong>Announcement:</strong> ${linkify(s.announcement)}</p>` : '<p class="topbar__notice" hidden></p>'}
@@ -671,7 +671,7 @@ function outageMessage({ slow }) {
 
 export async function initPage() {
   // Staff-made pages are all data-page="custom"; tell them apart by slug so the menu can mark the current one.
-  const page = document.body.dataset.page === 'custom' ? `page:${new URLSearchParams(location.search).get('slug')}` : document.body.dataset.page;
+  const page = document.body.dataset.page === 'custom' ? `page:${customSlugHere(location.pathname, location.search)}` : document.body.dataset.page;
   // The pull list app (app.html) has just the shop's brand on top and its own tab bar: no menu, footer or list bar.
   const app = page === 'app';
   loadAboveTheFoldImages();
@@ -689,7 +689,7 @@ export async function initPage() {
   const paint = (s, custom) => {
     // Pages the shop switched off (Admin → Pages): this one shows the not-found page; links to them disappear.
     const offList = s.disabled_pages ?? [];
-    const self = slugOfPage(document.body.dataset.page, location.search);
+    const self = slugOfPage(document.body.dataset.page, location.search, location.pathname);
     if (self && offList.includes(self)) return location.replace('404.html');
     const off = offHrefs(offList);
     document.documentElement.dataset.off = offList.join(' '); // css/site.css hides links to them in page text
@@ -698,7 +698,7 @@ export async function initPage() {
     if (s !== FALLBACK_SETTINGS) applyTheme(s);
     if (app) renderAppHeader(s);
     else {
-      const pageHref = (p) => `page.html?slug=${encodeURIComponent(p.slug)}`;
+      const pageHref = (p) => customHref(p.slug);
       renderHeader(s, page, custom.filter((p) => p.placement === 'menu').map((p) => ({ page: `page:${p.slug}`, href: pageHref(p), label: p.title })), off);
       renderFooter(s, custom.filter((p) => p.placement === 'footer').map((p) => ({ href: pageHref(p), label: p.title })), off);
       loadNewsletterForm(s.newsletter_embed?.trim() ?? '');
