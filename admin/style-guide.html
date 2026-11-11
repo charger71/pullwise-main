@@ -753,6 +753,19 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
             <p class="admin-hint mt-8">The arrows sit over the header band but outside the <code>&lt;summary&gt;</code>, so they can be reached and announced, and each one is described by its question.</p>
           </div>
           <div class="sg-item" data-code>
+            <h3>Gallery editor list</h3>
+            <div class="sg-demo">
+              <ul class="gallery-edit">
+                <li class="gallery-edit__item">
+                  <img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+                  <div class="field"><label class="visually-hidden" for="sg-gal-c0">Caption for picture 1</label><input id="sg-gal-c0" maxlength="200" autocomplete="off" placeholder="Caption (optional)" value="Opening day"></div>
+                  <span class="gallery-edit__move"><button class="btn btn--ghost btn--small" type="button" aria-label="Move picture 1 earlier" disabled>↑</button><button class="btn btn--ghost btn--small" type="button" aria-label="Move picture 1 later">↓</button><button class="icon-btn icon-btn--remove" type="button" aria-label="Remove picture 1" title="Remove"><svg class="solid-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM7 11h10v2H7z"/></svg></button></span>
+                </li>
+              </ul>
+            </div>
+            <p class="admin-hint mt-8">The editor’s Gallery button (and a click on a gallery in the text) opens this in a wide dialog: a row per picture with a thumbnail, an optional caption, ↑ ↓ to reorder and a remove button, then Upload pictures… and Choose from Media… (the Media picker lets you tap several, each <code>media-pick__btn</code> showing <code>aria-pressed="true"</code> when picked). Done saves, Cancel changes nothing. In the editor a gallery is a dashed <code>gallery</code> grid you click to edit; on the website it is a grid of square pictures that open in the lightbox with next/previous.</p>
+          </div>
+          <div class="sg-item" data-code>
             <h3>Menu order list</h3>
             <div class="sg-demo">
               <ol class="menu-order">
