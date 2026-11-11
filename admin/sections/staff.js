@@ -1,8 +1,8 @@
-// Staff: your own account (change your password) and, for owners, who has access to the admin.
+// Staff: your own account (change your name and password) and, for owners, who has access to the admin.
 // Account changes go through the staff-admin Edge Function; the staff table is read-only here.
 
 import { getTheme, saveTheme, COLOR_VARS, getColors, saveColors, currentMode } from '../theme.js';
-import { $, $$, esc, toast, setStatus, openDialog, fmtDateTime, solidIcon, friendlyError, setupTabs, sortableTable, hintFold, hintSlot } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, openDialog, fmtDateTime, solidIcon, friendlyError, setupTabs, sortableTable, hintFold, hintSlot } from '../lib.js';
 
 let sb;
 
@@ -103,6 +103,12 @@ export async function mount(el, ctx) {
       <div class="fold__head"><h2>My Account</h2></div>
       <div class="fold__body">
       <p>${esc(me?.name ?? '')} · ${esc(user.email)} · <strong>${me ? roleOf(me) : 'Staff'}</strong></p>
+      <form class="admin-form" data-name-form>
+        <h3>My name</h3>
+        <div class="field"><label for="st-myname">Name</label><input id="st-myname" maxlength="80" autocomplete="name" required value="${esc(me?.name ?? '')}"><p class="field__hint">Shown in change logs, such as “changed by Chris”.</p></div>
+        <p class="admin-status" role="status" data-name-status></p>
+        <button class="btn btn--primary" type="submit">Save my name</button>
+      </form>
       <form class="admin-form" data-password novalidate>
         <h3>Change my password</h3>
         <div class="form-grid form-grid--pairs">
@@ -147,6 +153,7 @@ export async function mount(el, ctx) {
           <td class="st-role card-key" data-sort="${r.is_super ? 0 : r.is_owner ? 1 : 2}"><span class="pill pill--${roleKey}">${solidIcon(roleKey === 'super' ? 'shield' : roleKey === 'owner' ? 'crown' : 'person', 14)} ${roleOf(r)}</span></td>
           <td class="st-last card__meta nowrap card-key card-label" data-sort="${r.last_sign_in_at ?? ''}">${solidIcon('clock', 14)} ${r.last_sign_in_at ? esc(fmtDateTime(r.last_sign_in_at)) : 'Never'}</td>
           <td class="st-actions staff-actions card-foot">
+            ${r.is_super && !viewerSuper && r.user_id !== user.id ? '' : `<button class="icon-btn" type="button" data-rename="${r.user_id}" aria-label="Change the name of ${esc(r.name)}" title="Change name">${solidIcon('edit')}<span class="st-act">Change name</span></button>`}
             ${r.is_super && !viewerSuper ? '' : `<button class="icon-btn" type="button" data-reset="${r.user_id}" aria-label="Reset password for ${esc(r.name)}" title="Reset password">${solidIcon('key')}<span class="st-act">Reset password</span></button>`}
             ${r.is_super ? '' : `<button class="icon-btn" type="button" data-owner="${r.user_id}" data-make="${r.is_owner ? '0' : '1'}" aria-label="${r.is_owner ? `Make ${esc(r.name)} regular staff` : `Make ${esc(r.name)} an owner`}" title="${r.is_owner ? 'Make staff' : 'Make owner'}">${solidIcon(r.is_owner ? 'person' : 'crown')}<span class="st-act">${r.is_owner ? 'Make staff' : 'Make owner'}</span></button>`}
             ${r.user_id === user.id || r.is_super ? '' : `<button class="icon-btn icon-btn--remove" type="button" data-remove="${r.user_id}" aria-label="Remove ${esc(r.name)} from staff" title="Remove from staff">${solidIcon('remove')}<span class="st-act">Remove</span></button>`}
@@ -238,6 +245,20 @@ export async function mount(el, ctx) {
   });
 
   // Change my own password.
+  $('[data-name-form]', el).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = $('[data-name-status]', el);
+    const name = $('#st-myname', el).value.trim();
+    if (!name) return setStatus(status, 'Please enter your name.', 'error');
+    setStatus(status, 'Saving…');
+    try {
+      await must(sb.rpc('rename_staff', { p_user_id: user.id, p_name: name }));
+      toast('Name saved');
+      mount(el, ctx);
+    } catch (err) {
+      setStatus(status, friendlyError(err), 'error');
+    }
+  });
   const pwForm = $('[data-password]', el);
   pwForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -280,6 +301,22 @@ export async function mount(el, ctx) {
     }
   });
 
+  $$('[data-rename]', el).forEach((b) =>
+    b.addEventListener('click', async () => {
+      const r = nameOf(b.dataset.rename);
+      const name = prompt(`New name for ${r.name}:`, r.name)?.trim();
+      if (!name || name === r.name) return;
+      b.disabled = true;
+      try {
+        await must(sb.rpc('rename_staff', { p_user_id: r.user_id, p_name: name }));
+        toast(`Renamed to ${name}`);
+        reload();
+      } catch (err) {
+        toast(friendlyError(err), 'error');
+        b.disabled = false;
+      }
+    }),
+  );
   $$('[data-reset]', el).forEach((b) =>
     b.addEventListener('click', async () => {
       const r = nameOf(b.dataset.reset);
