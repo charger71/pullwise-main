@@ -833,7 +833,15 @@ dialog, dialog .dialog__body { overscroll-behavior: contain; }
 /* A picture gallery from the editor's Gallery button: a grid of square pictures that open in the lightbox. */
 .gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-12); margin: var(--sp-16) 0; clear: both; }
 .gallery figure { margin: 0; }
-.gallery a { display: block; }
+.gallery a { position: relative; display: block; overflow: hidden; border-radius: var(--radius); }
+/* Hover or keyboard focus: the picture eases in a little and a soft dark tint with a magnifier says it opens larger. */
+.gallery a::after { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity var(--dur);
+  background: color-mix(in srgb, #000 30%, transparent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6'/%3E%3Cpath d='M15 15l5 5M10.5 8v5M8 10.5h5'/%3E%3C/svg%3E") center / 32px no-repeat; }
+.gallery img { transition: transform var(--dur-slide); }
+.gallery a:focus-visible::after { opacity: 1; }
+@media (hover: hover) { .gallery a:hover::after { opacity: 1; } .gallery a:hover img { transform: scale(1.05); } }
+.gallery a:focus-visible img { transform: scale(1.05); }
+@media (prefers-reduced-motion: reduce) { .gallery a::after, .gallery img { transition: none; } .gallery a:hover img, .gallery a:focus-visible img { transform: none; } }
 .gallery img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius); }
 .gallery figcaption { margin-top: var(--sp-6); color: var(--muted); font-size: var(--fs-ui); }
 @media (min-width: 600px) { .gallery { grid-template-columns: repeat(3, 1fr); } }
