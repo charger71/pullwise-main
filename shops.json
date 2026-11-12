@@ -47,6 +47,17 @@
       "projectRef": "ckbervhfuwsmgcgmurnx",
       "gaMeasurementId": "",
       "app": true
+    },
+    {
+      "id": "pops-test",
+      "domains": [
+        "pops-test.pullwise.shop"
+      ],
+      "supabaseUrl": "https://yddtfjlvnrrmxjysdlzi.supabase.co",
+      "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkZHRmamx2bnJybXhqeXNkbHppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ1MjM2NDAsImV4cCI6MjExMDA5OTY0MH0.JhAxu6bU5Eb_D-NhOBcJwMjIJ_yK2M9YlNeKpIEnyIc",
+      "projectRef": "yddtfjlvnrrmxjysdlzi",
+      "gaMeasurementId": "",
+      "app": false
     }
   ]
 }
