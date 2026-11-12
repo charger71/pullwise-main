@@ -400,6 +400,10 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .media-grid.media-pick { gap: var(--sp-14); grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); } /* the image picker keeps its larger thumbnails */
 .media-item { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
 .media-item img { width: 100%; aspect-ratio: 1; object-fit: contain; background: var(--media-bg); border-radius: var(--radius-sm); }
+.media-item__file { display: grid; place-items: center; aspect-ratio: 1; background: var(--media-bg); border-radius: var(--radius-sm); color: var(--ink); text-decoration: none; }
+.media-item__file span { font-size: var(--fs-sm); font-weight: 700; letter-spacing: .06em; padding: var(--sp-2) var(--sp-8); border: 2px solid currentColor; border-radius: var(--radius-sm); }
+.file-pick { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-6); }
+.file-pick__btn { width: 100%; justify-content: flex-start; text-align: left; overflow-wrap: anywhere; }
 .media-item__name { margin: 0; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Library cards: name, picture, then Copy link, Replace and Delete as icons under it. */
 .media-item__actions { display: flex; justify-content: center; gap: var(--sp-8); }
