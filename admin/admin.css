@@ -95,7 +95,8 @@
 .gallery-edit { list-style: none; margin: 0 0 var(--sp-12); padding: 0; display: grid; gap: var(--sp-8); }
 .gallery-edit__item { display: flex; align-items: center; gap: var(--sp-12); }
 .gallery-edit__item img { flex: none; width: 64px; height: 64px; object-fit: cover; border-radius: var(--radius-sm); }
-.gallery-edit__item .field { flex: 1; min-width: 0; margin: 0; }
+.gallery-edit__fields { flex: 1; min-width: 0; display: grid; gap: var(--sp-6); }
+.gallery-edit__fields .field { margin: 0; }
 .gallery-edit__move { display: flex; gap: var(--sp-6); flex: none; }
 .ql-editor hr { border: 0; border-top: 2px solid var(--line); margin: 1em 0; }
 .ql-editor table { border-collapse: collapse; width: auto; margin: .5em 0; }
