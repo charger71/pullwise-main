@@ -262,13 +262,13 @@ async function edit(listEl, id, template = null) {
         <div class="field"><label for="ev-cap">Spots available (optional)</label><input id="ev-cap" name="signup_capacity" type="number" min="1" max="1000" value="${esc(ev.signup_capacity)}"><p class="field__hint">Counts people, not signups. Leave blank for no limit. Reminders go out about 24 hours before the event starts (between 8am and 8pm), once, and only when the box above is checked.</p></div>
       </div>
       <div class="admin-actions sticky-actions">
-        <button class="btn btn--primary" type="submit">${id ? (ev.series_id ? 'Save this date only' : 'Save') : 'Add event'}</button>
-        ${id && ev.series_id ? '<button class="btn btn--ghost" type="submit" data-apply-later>Save and apply to all future dates</button>' : ''}
+        <button class="btn btn--primary" type="submit">${id ? 'Save' : 'Add event'}</button>
+        ${id && ev.series_id ? '<button class="btn btn--ghost" type="submit" data-apply-later>Save + future dates</button>' : ''}
         ${id ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
-        ${id && ev.series_id ? `<button class="btn btn--danger" type="button" data-delete-later>${solidIcon('trash', 16)} Delete this and future dates</button>` : ''}
+        ${id && ev.series_id ? `<button class="btn btn--danger" type="button" data-delete-later>${solidIcon('trash', 16)} Delete + future dates</button>` : ''}
         <span class="admin-status" role="status"></span>
       </div>
-      ${id && ev.series_id ? '<p class="field__hint">This event is part of a repeating series. “Save and apply to all future dates” carries the details, photo, signup settings and time of day to every future date; each date keeps its own signups.</p>' : ''}
+      ${id && ev.series_id ? '<p class="field__hint">This event is part of a repeating series. Save changes this date only; “Save + future dates” carries the details, photo, signup settings and time of day to every future date; each date keeps its own signups.</p>' : ''}
     </form>
     </div></section>`;
   window.scrollTo(0, 0);
