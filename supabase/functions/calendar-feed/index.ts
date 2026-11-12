@@ -10,12 +10,21 @@ import { htmlToText, icsText as text, icsFold as fold } from './ical.js';
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
 
 const stamp = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+// An all-day event is entered as midnight to 11:59 PM in the shop's time zone (same rule as allDayRange in js/ics.js).
+const allDayRange = (e: { starts_at: string; ends_at: string | null }, tz?: string) => {
+  if (!e.ends_at) return null;
+  const f = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-CA', { timeZone: tz || undefined, ...o });
+  const clock = (iso: string) => f({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
+  const ymd = (iso: string) => f({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+  if (clock(e.starts_at) !== '00:00' || clock(e.ends_at) !== '23:59') return null;
+  return { start: ymd(e.starts_at).replace(/-/g, ''), end: new Date(Date.parse(`${ymd(e.ends_at)}T00:00:00Z`) + 864e5).toISOString().slice(0, 10).replace(/-/g, '') };
+};
 // text() escapes a TEXT value; fold() keeps lines to 75 octets (RFC 5545). See ical.js.
 
 Deno.serve(async () => {
   const since = new Date(Date.now() - 90 * 86400000).toISOString();
   const [{ data: settings }, { data: locations }, { data: events, error }] = await Promise.all([
-    supabase.from('settings').select('shop_name').eq('id', 1).single(),
+    supabase.from('settings').select('shop_name,timezone').eq('id', 1).single(),
     supabase.from('locations').select('*').order('id'),
     supabase.from('events').select('*').gte('starts_at', since).order('starts_at'),
   ]);
@@ -42,13 +51,14 @@ Deno.serve(async () => {
     `PRODID:-//${text(shop)}//Events//EN`,
     `X-WR-CALNAME:${text(shop)} Events`,
     'X-PUBLISHED-TTL:PT6H',
-    ...(events ?? []).flatMap((e) => [
+    ...(events ?? []).flatMap((e) => {
+    const all = allDayRange(e, settings?.timezone);
+    return [
       'BEGIN:VEVENT',
       `UID:event-${e.id}@${host}`,
       `DTSTAMP:${now}`,
       `LAST-MODIFIED:${stamp(e.updated_at)}`,
-      `DTSTART:${stamp(e.starts_at)}`,
-      `DTEND:${stamp(e.ends_at ?? new Date(new Date(e.starts_at).getTime() + 2 * 3600000).toISOString())}`,
+      ...(all ? [`DTSTART;VALUE=DATE:${all.start}`, `DTEND;VALUE=DATE:${all.end}`] : [`DTSTART:${stamp(e.starts_at)}`, `DTEND:${stamp(e.ends_at ?? new Date(new Date(e.starts_at).getTime() + 2 * 3600000).toISOString())}`]),
       ...(e.cancelled_at ? ['STATUS:CANCELLED'] : []),
       `SUMMARY:${text(e.cancelled_at ? `CANCELLED: ${e.title}` : e.title)}`,
       // Calendar apps show URL in different places (or not at all), so the link is also at the end of the description.
@@ -56,7 +66,8 @@ Deno.serve(async () => {
       `URL:${site}/event.html?id=${e.id}`,
       `LOCATION:${text(placeOf(e))}`,
       'END:VEVENT',
-    ]),
+    ];
+    }),
     'END:VCALENDAR',
   ];
 

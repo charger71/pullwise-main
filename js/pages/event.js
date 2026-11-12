@@ -54,12 +54,12 @@ if (e === undefined) {
     <div class="event__actions"${e.cancelled_at ? ' hidden' : ''}>
       <span>Add to calendar:</span>
       <a href="#" data-ics>Apple / .ics</a>
-      <a href="${esc(googleLink(e, where))}" target="_blank" rel="noopener">Google</a>
-      <a href="${esc(outlookLink(e, where))}" target="_blank" rel="noopener">Outlook</a>
+      <a href="${esc(googleLink(e, where, s.timezone))}" target="_blank" rel="noopener">Google</a>
+      <a href="${esc(outlookLink(e, where, s.timezone))}" target="_blank" rel="noopener">Outlook</a>
     </div>`;
   $('[data-ics]', el).addEventListener('click', (ev) => {
     ev.preventDefault();
-    const blob = new Blob([icsFor(e, s.shop_name, new URL(SITE_URL).host, place.ics)], { type: 'text/calendar' });
+    const blob = new Blob([icsFor(e, s.shop_name, new URL(SITE_URL).host, place.ics, s.timezone)], { type: 'text/calendar' });
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${e.title.replace(/[^\w]+/g, '-')}.ics` });
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
