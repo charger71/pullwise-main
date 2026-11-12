@@ -555,7 +555,7 @@ function editGallery(initial) {
     let items = initial.map((i) => ({ ...i }));
     const u = uid('gal');
     const d = openDialog('Picture Gallery', `
-      <p class="field__hint">A grid of pictures that opens larger when tapped. The caption shows under the picture. The description (alt text) isn’t shown; screen readers read it to people who can’t see the picture, and search engines use it. Both are optional.</p>
+      <p class="field__hint">A grid of pictures that opens larger when tapped. The caption (optional) shows over the picture. The description (alt text) isn’t shown; screen readers read it to people who can’t see the picture, and search engines use it. The description is required.</p>
       <ul class="gallery-edit" data-items></ul>
       <div class="admin-actions">
         <input id="${u}" type="file" accept="image/*" multiple class="visually-hidden">
@@ -579,7 +579,7 @@ function editGallery(initial) {
             <img src="${esc(it.src)}" alt="">
             <div class="gallery-edit__fields">
               <div class="field"><label class="visually-hidden" for="${u}-c${i}">Caption for picture ${i + 1}</label><input id="${u}-c${i}" data-caption="${i}" maxlength="200" autocomplete="off" placeholder="Caption (optional)" value="${esc(it.caption)}"></div>
-              <div class="field"><label class="visually-hidden" for="${u}-a${i}">Description (alt text) for picture ${i + 1}</label><input id="${u}-a${i}" data-alt="${i}" maxlength="250" autocomplete="off" placeholder="Description for screen readers (optional)" value="${esc(it.alt)}"></div>
+              <div class="field"><label class="visually-hidden" for="${u}-a${i}">Description (alt text) for picture ${i + 1}</label><input id="${u}-a${i}" data-alt="${i}" maxlength="250" autocomplete="off" required aria-required="true" placeholder="Description of the picture (required)" value="${esc(it.alt)}"></div>
             </div>
             <span class="gallery-edit__move">
               <button class="btn btn--ghost btn--small" type="button" data-move="-1" data-i="${i}" aria-label="Move picture ${i + 1} earlier"${i === 0 ? ' disabled' : ''}>↑</button>
@@ -622,6 +622,12 @@ function editGallery(initial) {
           setStatus(status, friendlyError(err), 'error');
         }
       } else if (e.target.closest('[data-done]')) {
+        const missing = items.findIndex((i) => !i.alt.trim());
+        if (missing >= 0) {
+          setStatus(status, `Add a description (alt text) for picture ${missing + 1}. It’s how people who can’t see the picture know what it shows.`, 'error');
+          $(`[data-alt="${missing}"]`, d).focus();
+          return;
+        }
         finish(items.map((i) => ({ src: i.src, caption: i.caption.trim(), alt: i.alt.trim() })));
       } else if (e.target.closest('[data-cancel]')) {
         finish(null);
