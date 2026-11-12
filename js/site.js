@@ -120,6 +120,16 @@ export const fmtDate = (iso, opts = { month: 'short', day: 'numeric' }) =>
 /** A timestamp's time of day, in shop time. */
 export const fmtTime = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: shopTimeZone });
 
+/** An all-day event is entered as midnight to 11:59 PM (shop time): lists show its date, not a time. */
+export const isAllDay = (e) => {
+  if (!e?.ends_at) return false;
+  const clock = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: shopTimeZone });
+  return clock(e.starts_at) === '00:00' && clock(e.ends_at) === '23:59';
+};
+
+/** An event's time for a list: "6:00 PM–8:00 PM", or "All day". */
+export const eventTimes = (e) => (isAllDay(e) ? 'All day' : `${fmtTime(e.starts_at)}${e.ends_at ? `–${fmtTime(e.ends_at)}` : ''}`);
+
 /** Today's date in the shop's timezone, as YYYY-MM-DD. */
 export const shopToday = () => todayIn(shopTimeZone);
 

@@ -97,6 +97,15 @@ export const toLocalInput = (iso) => {
 };
 export const fromLocalInput = (v) => (v ? new Date(v).toISOString() : null);
 
+/** An all-day event runs from midnight to 11:59 PM (local time); the public site shows its dates, not times. */
+export const isAllDay = (e) => {
+  if (!e?.ends_at) return false;
+  const hm = (iso) => toLocalInput(iso).slice(11);
+  return hm(e.starts_at) === '00:00' && hm(e.ends_at) === '23:59';
+};
+/** A date-and-time for staff lists; an all-day event shows just its date. */
+export const fmtEventWhen = (e) => (isAllDay(e) ? fmtDate(e.starts_at, { month: 'short', day: 'numeric' }) + ' · All day' : fmtDateTime(e.starts_at));
+
 export const slugify = (s) =>
   String(s).toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/[\s_-]+/g, '-').slice(0, 80);
 

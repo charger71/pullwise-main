@@ -168,7 +168,10 @@ async function sendMessage(body: { to?: string; subject?: string; message?: stri
 /** When and where an event is, for an email: the shop's time zone, and (with several locations) the event's location with its address. */
 async function eventWhenWhere(ev: Record<string, any>, shop: Record<string, any>) {
   const tz = shop.timezone || undefined;
-  const when = `${new Date(ev.starts_at).toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at ${new Date(ev.starts_at).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' })}`;
+  const clock = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const allDay = ev.ends_at && clock(ev.starts_at) === '00:00' && clock(ev.ends_at) === '23:59'; // entered as an all-day event
+  const day = new Date(ev.starts_at).toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const when = allDay ? `${day} (all day)` : `${day} at ${new Date(ev.starts_at).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' })}`;
   // A shop with several locations holds each event at one of them: its name and address, then any note staff typed.
   const locs = await loadLocations();
   const allLocations = locs.multi && ev.location_id === null; // an event for every location has no one address

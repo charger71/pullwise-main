@@ -1,4 +1,4 @@
-import { initPage, $, esc, heroHeadlineHtml, sizedImage, HERO_WIDTH, hoursList, addressLines, mapsHref, telHref, mapEmbed, locationAs, eventPlace, fmtDate, fmtTime, addDays, openFocFrom, EVENT_TYPES } from '../site.js';
+import { initPage, $, esc, heroHeadlineHtml, sizedImage, HERO_WIDTH, hoursList, addressLines, mapsHref, telHref, mapEmbed, locationAs, eventPlace, fmtDate, eventTimes, addDays, openFocFrom, EVENT_TYPES } from '../site.js';
 import { todayIn } from '../dates.js';
 import { formatPhone } from '../util.js';
 import { postHref } from '../optional-pages.js';
@@ -158,7 +158,7 @@ function renderEvents(events, st) {
           <div>
             <span class="event__type">${esc(EVENT_TYPES[e.event_type] ?? 'Event')}</span>
             <h3><a href="event.html?id=${e.id}">${esc(e.title)}</a></h3>
-            <p class="event__when">${fmtDate(e.starts_at, { weekday: 'short', month: 'short', day: 'numeric' })} · ${fmtTime(e.starts_at)}${e.ends_at ? `–${fmtTime(e.ends_at)}` : ''}${eventPlace(st, e).label ? ` · ${esc(eventPlace(st, e).label)}` : ''}</p>
+            <p class="event__when">${fmtDate(e.starts_at, { weekday: 'short', month: 'short', day: 'numeric' })} · ${eventTimes(e)}${eventPlace(st, e).label ? ` · ${esc(eventPlace(st, e).label)}` : ''}</p>
           </div>
         </article>`,
         )
