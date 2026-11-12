@@ -272,12 +272,12 @@ const HIGHLIGHTS = ['#ffd100', '#fff3b0', '#d9f5df', '#e3ecff', '#f1e3ff', '#ffe
 const TOOLBARS = {
   lede: [['bold', 'italic', 'underline', 'link'], [{ color: TEXT_COLORS }, { background: HIGHLIGHTS }], ['blockquote'], ['clean']],
   // One column of a Columns row: the body's tools without the blocks that make their own layout.
-  cell: [[{ header: [2, 3, 4, false] }], ['bold', 'italic', 'underline'], ['link', 'image', 'video', 'divider'], [{ list: 'ordered' }, { list: 'bullet' }], [{ align: [] }], ['clean']],
+  cell: [[{ header: [2, 3, 4, false] }], ['bold', 'italic', 'underline'], ['link', 'file', 'image', 'video', 'divider'], [{ list: 'ordered' }, { list: 'bullet' }], [{ align: [] }], ['clean']],
   body: [
     [{ header: [2, 3, 4, false] }],
     ['bold', 'italic', 'underline', 'strike'],
     [{ color: TEXT_COLORS }, { background: HIGHLIGHTS }],
-    ['link', 'image', 'video', 'table', 'divider', 'gallery', 'columns'],
+    ['link', 'file', 'image', 'video', 'table', 'divider', 'gallery', 'columns'],
     [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
     [{ align: [] }],
     ['blockquote'],
@@ -395,6 +395,8 @@ function registerFormats() {
   const icons = Quill.import('ui/icons');
   icons.table ??=
     '<svg viewBox="0 0 18 18"><rect class="ql-stroke" height="12" width="12" x="3" y="3" rx="1"></rect><line class="ql-stroke" x1="3" x2="15" y1="7" y2="7"></line><line class="ql-stroke" x1="3" x2="15" y1="11" y2="11"></line><line class="ql-stroke" x1="7" x2="7" y1="7" y2="15"></line><line class="ql-stroke" x1="11" x2="11" y1="7" y2="15"></line></svg>';
+  icons.file =
+    '<svg viewBox="0 0 18 18"><path class="ql-stroke" d="M4.5 2.5h6l3 3v10h-9z" fill="none"></path><polyline class="ql-stroke" points="10.5 2.5 10.5 5.5 13.5 5.5" fill="none"></polyline><line class="ql-stroke" x1="6.5" x2="11.5" y1="9" y2="9"></line><line class="ql-stroke" x1="6.5" x2="11.5" y1="12" y2="12"></line></svg>';
   icons.columns =
     '<svg viewBox="0 0 18 18"><rect class="ql-stroke" height="12" width="4.5" x="2.5" y="3" rx="1"></rect><rect class="ql-stroke" height="12" width="4.5" x="9" y="3" rx="1"></rect><line class="ql-stroke" x1="16" x2="16" y1="3" y2="15"></line></svg>';
   icons.gallery =
@@ -522,10 +524,31 @@ const galleryItems = (node) =>
     .filter((i) => i.src);
 const Gallery_items = galleryItems;
 
+/** Pick one document, audio or video file from the Media Library; resolves { url, name } or null. */
+async function pickLibraryFile() {
+  const sb = await db();
+  const files = (await listAllFiles(sb, 'media', 'library', { sortBy: { column: 'created_at', order: 'desc' } })).filter((f) => f.id && isLibraryFile(f.name));
+  const shown = files.map((f) => ({ name: f.name.replace(/^[a-z0-9]+-/, ''), url: sb.storage.from('media').getPublicUrl(`library/${f.name}`).data.publicUrl }));
+  return new Promise((resolve) => {
+    const d = openDialog('Link to a file', shown.length
+      ? `<p class="field__hint">Pick a file from the Media Library. Your text links to it.</p>
+        <ul class="file-pick">${shown.map((f, i) => `<li><button class="btn btn--ghost file-pick__btn" type="button" data-pick="${i}">${esc(f.name)}</button></li>`).join('')}</ul>`
+      : '<p class="empty">No files yet. Upload documents under Media first.</p>', { wide: true });
+    let picked = null;
+    d.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-pick]');
+      if (!b) return;
+      picked = shown[Number(b.dataset.pick)];
+      d.close();
+    });
+    d.addEventListener('close', () => resolve(picked));
+  });
+}
+
 /** Pick pictures from the Media Library (several at once); resolves with their addresses, or [] if none. */
 async function pickLibraryImages() {
   const sb = await db();
-  const files = (await listAllFiles(sb, 'media', 'library', { sortBy: { column: 'created_at', order: 'desc' } })).filter((f) => f.id && !/-sm\.jpg$/.test(f.name));
+  const files = (await listAllFiles(sb, 'media', 'library', { sortBy: { column: 'created_at', order: 'desc' } })).filter((f) => f.id && isLibraryImage(f.name) && !/-sm\.jpg$/.test(f.name));
   const urls = files.map((f) => sb.storage.from('media').getPublicUrl(`library/${f.name}`).data.publicUrl);
   return new Promise((resolve) => {
     const d = openDialog('Choose from Media', files.length
@@ -660,6 +683,22 @@ export function makeEditor(el, kind = 'body', labelEl = null) {
       input.addEventListener('change', () => insertImages(this.quill, [...input.files], this.quill.getSelection(true).index));
       input.click();
     },
+    async file() {
+      const q = this.quill;
+      const range = q.getSelection(true);
+      let picked;
+      try {
+        picked = await pickLibraryFile();
+      } catch (err) {
+        return toast(friendlyError(err), 'error');
+      }
+      if (!picked) return;
+      if (range.length) q.formatText(range.index, range.length, 'link', picked.url, 'user'); // the selected words link to it
+      else {
+        q.insertText(range.index, picked.name, 'link', picked.url, 'user'); // nothing selected: its name, linked
+        q.setSelection(range.index + picked.name.length, 0, 'user');
+      }
+    },
     video() {
       const url = prompt('Paste a YouTube or Vimeo link:', '');
       if (!url) return;
@@ -721,7 +760,7 @@ export function makeEditor(el, kind = 'body', labelEl = null) {
     quill.root.setAttribute('aria-labelledby', (labelEl.id ||= uid('lbl')));
   }
   // Name the icon-only toolbar buttons for screen readers and tooltips.
-  const names = { bold: 'Bold', italic: 'Italic', underline: 'Underline', strike: 'Strikethrough', link: 'Link', image: 'Insert image', video: 'Insert video', table: 'Insert table', divider: 'Divider line', gallery: 'Insert picture gallery', columns: 'Insert columns', blockquote: 'Quote', clean: 'Clear formatting' };
+  const names = { bold: 'Bold', italic: 'Italic', underline: 'Underline', strike: 'Strikethrough', link: 'Link', file: 'Link to a file from Media', image: 'Insert image', video: 'Insert video', table: 'Insert table', divider: 'Divider line', gallery: 'Insert picture gallery', columns: 'Insert columns', blockquote: 'Quote', clean: 'Clear formatting' };
   quill.getModule('toolbar').container.querySelectorAll('button').forEach((b) => {
     const f = [...b.classList].find((c) => c.startsWith('ql-'))?.slice(3);
     const label = f === 'list' ? (b.value === 'ordered' ? 'Numbered list' : 'Bulleted list') : f === 'indent' ? (b.value === '+1' ? 'Indent' : 'Outdent') : names[f];
@@ -986,6 +1025,34 @@ function hasTransparency(ctx, w, h) {
   return false;
 }
 
+/** Files other than pictures the Media Library takes (by extension; the type sent to Storage comes from here, never from the browser). */
+export const FILE_TYPES = {
+  pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  txt: 'text/plain', csv: 'text/csv', mp3: 'audio/mpeg', mp4: 'video/mp4',
+};
+export const FILE_ACCEPT = Object.keys(FILE_TYPES).map((e) => `.${e}`).join(',');
+export const MAX_FILE_BYTES = 50 * 1024 * 1024;
+export const fileExt = (name) => /\.([a-z0-9]+)$/i.exec(String(name ?? ''))?.[1].toLowerCase() ?? '';
+/** Is this Library file a picture (as opposed to a document, audio or video)? */
+export const isLibraryImage = (name) => /\.(jpe?g|png|gif|webp|avif|svg)$/i.test(name);
+/** Is this a file the Library takes besides pictures? */
+export const isLibraryFile = (name) => fileExt(name) in FILE_TYPES;
+
+/** Upload a document, audio or video file as it is (no resizing) under `folder`; returns { url, path }. */
+export async function uploadFile(file, folder, { cacheControl = '3600' } = {}) {
+  const ext = fileExt(file.name);
+  if (!(ext in FILE_TYPES)) throw new Error(`.${ext || 'this'} files can’t be uploaded. Use ${Object.keys(FILE_TYPES).join(', ')}.`);
+  if (file.size > MAX_FILE_BYTES) throw new Error(`That file is too large (${Math.round(MAX_FILE_BYTES / 1048576)} MB at most).`);
+  const sb = await db();
+  let base = slugify(file.name.replace(/\.[^.]+$/, '')) || 'file';
+  if (base.endsWith('-sm')) base += '-file';
+  const path = `${folder}/${Date.now().toString(36)}-${base}.${ext}`;
+  const url = await putMedia(sb, path, file, { contentType: FILE_TYPES[ext], cacheControl });
+  return { url, path };
+}
+
 /** Long side of the small copy used on cards and lists (about 2x a phone card). */
 const THUMB_SIZE = 560;
 
@@ -1077,7 +1144,7 @@ export function imageField(root, { folder, crop = 'original', maxSize = 1600, la
     try {
       const sb = await db();
       const files = (await listAllFiles(sb, 'media', 'library', { sortBy: { column: 'created_at', order: 'desc' } }))
-        .filter((f) => f.id && !/-sm\.jpg$/.test(f.name)); // small copies aren't listed as pictures of their own
+        .filter((f) => f.id && isLibraryImage(f.name) && !/-sm\.jpg$/.test(f.name)); // small copies and documents aren't listed as pictures
       const urls = files.map((f) => sb.storage.from('media').getPublicUrl(`library/${f.name}`).data.publicUrl);
       const d = openDialog('Choose from Media', files.length
         ? `<p class="field__hint">Pick an image from the Media Library. It is linked, not copied, so the same image can be used again and again.</p>

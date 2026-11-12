@@ -1,8 +1,8 @@
-// Media library: images for news posts, emails, socials… Upload several at
-// once (resized and optionally cropped in the browser), copy each one's link,
+// Media library: images for news posts, emails, socials… and documents, audio and video to link to. Upload several at
+// once (pictures are resized and optionally cropped in the browser; other files are stored as they are), copy each one's link,
 // delete ones no longer needed. Stored in Storage under media/library/.
 
-import { $, esc, must, toast, hintFold, uploadImage, replaceImage, thumbPath, CROPS, setStatus, solidIcon, friendlyError, listAllFiles } from '../lib.js';
+import { $, esc, must, toast, hintFold, uploadImage, replaceImage, thumbPath, CROPS, setStatus, solidIcon, friendlyError, listAllFiles, uploadFile, isLibraryImage, isLibraryFile, fileExt, FILE_ACCEPT } from '../lib.js';
 
 const FOLDER = 'library';
 let sb;
@@ -45,23 +45,23 @@ export async function mount(el, ctx) {
   isOwner = ctx.isOwner === true;
   el.innerHTML = `
     <h1>Media Library</h1>
-    ${hintFold(`Images for news posts, emails, social media and series covers. Each upload is resized to the chosen size — the original file is never changed. To fix or update a picture without breaking anything that uses it, press <strong>Replace</strong> on it: the new image takes the old one’s place under the same link (it uses the Crop and Longest side chosen below, and can take up to an hour to show for people who already loaded the old one).`)}
+    ${hintFold(`Images for news posts, emails, social media and series covers, plus files to link to (PDF, Word, Excel, PowerPoint, text, CSV, MP3 and MP4, up to 50 MB each; in the page editor, the file button links text to one). Each picture is resized to the chosen size — the original file is never changed. To fix or update a picture without breaking anything that uses it, press <strong>Replace</strong> on it (pictures only; to change a file, upload the new one and link to that): the new image takes the old one’s place under the same link (it uses the Crop and Longest side chosen below, and can take up to an hour to show for people who already loaded the old one).`)}
     <div class="panel media-upload">
       <div class="form-grid form-grid--pairs">
         <div class="field"><label for="m-crop">Crop</label><select id="m-crop">${Object.entries(CROPS).map(([k, c]) => `<option value="${k}">${c.label}</option>`).join('')}</select></div>
         <div class="field"><label for="m-size">Longest side</label><select id="m-size"><option value="2000">Large (2000px)</option><option value="1600" selected>Medium (1600px)</option><option value="1080">Social (1080px)</option><option value="800">Small (800px)</option><option value="400">Extra Small (400px)</option></select></div>
       </div>
       <label class="dropzone" for="m-files">
-        <input id="m-files" type="file" accept="image/*" multiple class="visually-hidden">
-        <strong>Choose images</strong> or drop them here — several at once is fine
+        <input id="m-files" type="file" accept="image/*,${FILE_ACCEPT}" multiple class="visually-hidden">
+        <strong>Choose images or files</strong> or drop them here — several at once is fine
       </label>
       <p class="admin-status" role="status" data-upload-status></p>
     </div>
     <div class="media-toolbar">
       <p class="results-count" data-count></p>
-      <label class="visually-hidden" for="m-sort">Sort images</label>
+      <label class="visually-hidden" for="m-sort">Sort files</label>
       <select id="m-sort" class="select--small media-toolbar__sort">${Object.entries(SORTS).map(([k, s]) => `<option value="${k}">${s.label}</option>`).join('')}</select>
-      <div class="view-switch" role="group" aria-label="Show images as">
+      <div class="view-switch" role="group" aria-label="Show files as">
         <button class="icon-btn" type="button" data-view="grid" aria-pressed="false" aria-label="Grid" title="Grid">${solidIcon('grid', 20)}</button>
         <button class="icon-btn" type="button" data-view="list" aria-pressed="false" aria-label="List" title="List">${solidIcon('list', 20)}</button>
       </div>
@@ -156,15 +156,15 @@ export async function mount(el, ctx) {
       }
       const places = describeUsage(used ?? []);
       const question = used === null
-        ? 'Delete this image? Anything that links to it will show a broken image.'
+        ? 'Delete this file? Anything that links to it will show a broken image or a dead link.'
         : places.length
-          ? `This image is in use:\n\n${places.map((p) => `• ${p}`).join('\n')}\n\nIf you delete it, those will show a broken image. Delete it anyway?`
-          : 'Nothing in the shop uses this image. Delete it?';
+          ? `This file is in use:\n\n${places.map((p) => `• ${p}`).join('\n')}\n\nIf you delete it, those will show a broken image or a dead link. Delete it anyway?`
+          : 'Nothing in the shop uses this file. Delete it?';
       if (!confirm(question)) return;
       try {
         await must(sb.storage.from('media').remove([del.dataset.delete, thumbPath(del.dataset.delete)]));
         sb.rpc('log_media_delete', { p_paths: [del.dataset.delete] }).then(() => {}, () => {});
-        toast('Image deleted');
+        toast('File deleted');
         load(el);
       } catch (err) {
         toast(`Not deleted: ${friendlyError(err)}`, 'error');
@@ -175,22 +175,26 @@ export async function mount(el, ctx) {
 }
 
 async function upload(el, files) {
-  const images = [...files].filter((f) => f.type.startsWith('image/'));
-  if (!images.length) return;
+  const chosen = [...files];
+  const images = chosen.filter((f) => f.type.startsWith('image/'));
+  const others = chosen.filter((f) => !f.type.startsWith('image/'));
+  if (!chosen.length) return;
   const status = $('[data-upload-status]', el);
   const crop = $('#m-crop', el).value;
   const maxSize = Number($('#m-size', el).value);
+  const all = [...images, ...others];
   let done = 0;
   const failed = [];
-  for (const file of images) {
-    setStatus(status, `Uploading ${++done} of ${images.length}…`);
+  for (const file of all) {
+    setStatus(status, `Uploading ${++done} of ${all.length}…`);
     try {
-      await uploadImage(file, FOLDER, { crop, maxSize, cacheControl: '3600', thumb: true });
+      if (images.includes(file)) await uploadImage(file, FOLDER, { crop, maxSize, cacheControl: '3600', thumb: true });
+      else await uploadFile(file, FOLDER);
     } catch (err) {
       failed.push(`${file.name}: ${friendlyError(err)}`);
     }
   }
-  setStatus(status, failed.length ? `Uploaded ${images.length - failed.length}; failed: ${failed.join('; ')}` : `Uploaded ${images.length} ${images.length === 1 ? 'image' : 'images'}.`, failed.length ? 'error' : 'ok');
+  setStatus(status, failed.length ? `Uploaded ${all.length - failed.length}; failed: ${failed.join('; ')}` : `Uploaded ${all.length} ${all.length === 1 ? 'file' : 'files'}.`, failed.length ? 'error' : 'ok');
   load(el);
 }
 
@@ -203,9 +207,11 @@ async function load(el, fresh = false) {
   } catch (error) {
     return (grid.innerHTML = `<li class="form-error">${esc(friendlyError(error))}</li>`);
   }
-  files = data.filter((f) => f.id && !/-sm\.jpg$/.test(f.name)); // skip folder placeholders and the small copies
+  files = data.filter((f) => f.id && (isLibraryImage(f.name) ? !/-sm\.jpg$/.test(f.name) : isLibraryFile(f.name))); // skip folder placeholders and the small copies
   bustAt = fresh ? Date.now() : 0;
-  $('[data-count]', el).textContent = `${files.length} ${files.length === 1 ? 'image' : 'images'}`;
+  const pictures = files.filter((f) => isLibraryImage(f.name)).length;
+  const docs = files.length - pictures;
+  $('[data-count]', el).textContent = [pictures && `${pictures} ${pictures === 1 ? 'image' : 'images'}`, docs && `${docs} ${docs === 1 ? 'file' : 'files'}`].filter(Boolean).join(' · ') || '0 files';
   render(el);
 }
 
@@ -220,16 +226,20 @@ function render(el) {
           const url = sb.storage.from('media').getPublicUrl(path).data.publicUrl;
           const shown = bustAt ? `${url}?v=${bustAt}` : url; // preview only; the copied link stays clean
           const kb = Math.round((f.metadata?.size ?? 0) / 1024);
+          const picture = isLibraryImage(f.name);
+          const size = kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`;
           return `<li class="media-item">
-            <p class="card__meta media-item__name" title="${esc(f.name)}">${esc(shortName(f.name))} · ${kb} KB</p>
-            <a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(shown)}" alt="${esc(f.name)}" loading="lazy"></a>
+            <p class="card__meta media-item__name" title="${esc(f.name)}">${esc(shortName(f.name))} · ${size}</p>
+            ${picture
+              ? `<a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(shown)}" alt="${esc(f.name)}" loading="lazy"></a>`
+              : `<a class="media-item__file" href="${esc(url)}" target="_blank" rel="noopener" aria-label="Open ${esc(f.name)}"><span>${esc(fileExt(f.name).toUpperCase())}</span></a>`}
             <div class="media-item__actions">
               <button class="icon-btn" type="button" data-copy="${esc(url)}" aria-label="Copy link to ${esc(f.name)}" title="Copy link">${solidIcon('link', 20)}</button>
-              <label class="icon-btn media-replace" title="Replace">${solidIcon('swap', 20)}<input type="file" accept="image/*" class="visually-hidden" data-replace="${esc(path)}" aria-label="Replace ${esc(f.name)} with a new image"></label>
+              ${picture ? `<label class="icon-btn media-replace" title="Replace">${solidIcon('swap', 20)}<input type="file" accept="image/*" class="visually-hidden" data-replace="${esc(path)}" aria-label="Replace ${esc(f.name)} with a new image"></label>` : ''}
               ${isOwner ? `<button class="icon-btn icon-btn--remove" type="button" data-delete="${esc(path)}" aria-label="Delete ${esc(f.name)}" title="Delete">${solidIcon('trash', 20)}</button>` : ''}
             </div>
           </li>`;
         })
         .join('')
-    : '<li class="empty">No images yet.</li>';
+    : '<li class="empty">Nothing here yet.</li>';
 }
