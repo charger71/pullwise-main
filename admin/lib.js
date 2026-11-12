@@ -804,6 +804,8 @@ export function makeEditor(el, kind = 'body', labelEl = null) {
   } else if (kind === 'cell') {
     imageTools(quill); // a column's pictures get the same bar: alignment, size, alt text, link
   }
+  quill.on('text-change', () => keepLineAbove(quill));
+  keepLineAbove(quill);
   return quill;
 }
 
@@ -941,9 +943,21 @@ function tableTools(quill) {
   quill.on('text-change', () => update(quill.getSelection()));
 }
 
+/**
+ * A picture, gallery, columns row, divider, video or table that starts the text leaves no line above it to put the cursor
+ * on. Keep one empty line there (getHtml drops it again when saving, so the page gets no stray gap).
+ */
+export function keepLineAbove(quill) {
+  const [line] = quill.getLine(0);
+  if (!line) return;
+  const BlockEmbed = Quill.import('blots/block/embed');
+  if (line instanceof BlockEmbed || line.domNode.closest?.('td, th')) quill.insertText(0, '\n', 'silent');
+}
+
 export function setHtml(quill, html) {
   quill.setContents([], 'silent');
   if (html) quill.clipboard.dangerouslyPasteHTML(html, 'silent');
+  keepLineAbove(quill);
 }
 
 /** Clean HTML for storage, or null when the editor is empty. */
@@ -960,6 +974,9 @@ export function getHtml(quill) {
   });
   // Quill writes a hard black border onto tables; the site's stylesheet styles them.
   doc.querySelectorAll('table[style]').forEach((t) => t.removeAttribute('style'));
+  // The empty line kept above a first gallery, row, divider, video or table (see keepLineAbove) isn't saved.
+  const first = doc.firstElementChild;
+  if (first?.tagName === 'P' && !first.textContent && first.children.length <= 1 && first.nextElementSibling?.matches('.gallery, .cols, hr, iframe, table')) first.remove();
   return doc.innerHTML;
 }
 
