@@ -1,7 +1,7 @@
 // Events: the Community Calendar (signings, release parties, tournaments…).
 
 import { refreshEventAlerts, newEventSignups } from '../event-alerts.js';
-import { $, esc, must, toast, openDialog, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, sortableTable, formatPhone, solidIcon, friendlyError, fetchAll, listLocations, hintFold } from '../lib.js';
+import { $, esc, must, toast, openDialog, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, fmtEventWhen, isAllDay, sortableTable, formatPhone, solidIcon, friendlyError, fetchAll, listLocations, hintFold } from '../lib.js';
 
 const TYPES = { release_party: 'Release party', signing: 'Signing', tournament: 'Tournament', livestream: 'Livestream', comic_con: 'Comic Con', sale: 'Sale', other: 'Other' };
 const REPEATS = { none: 'Does not repeat', daily: 'Every day', weekly: 'Every week', biweekly: 'Every 2 weeks', monthly: 'Every month, same date (like the 15th)', monthlyweekday: 'Every month, same weekday (like the 2nd Friday)' };
@@ -116,7 +116,7 @@ async function load(el) {
   box.innerHTML = data.length
     ? `<table class="admin-table cards"><thead><tr><th scope="col" data-sort="text">When</th><th scope="col" data-sort="text">Event</th><th scope="col" data-sort="text">Type</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead><tbody>${data
         .map((e) => `<tr>
-          <td class="nowrap" data-sort="${esc(e.starts_at)}">${fmtDateTime(e.starts_at)}</td>
+          <td class="nowrap" data-sort="${esc(e.starts_at)}">${fmtEventWhen(e)}</td>
           <td class="card-title"><strong>${esc(e.title)}</strong>${e.cancelled_at ? ' <span class="pill pill--cancelled">Cancelled</span>' : ''}${e.series_id ? ' <span class="pill pill--info">Repeats</span>' : ''}${placeOf(e) ? `<br><span class="card__meta">${esc(placeOf(e))}</span>` : ''}</td>
           <td>${TYPES[e.event_type] ?? e.event_type}</td>
           <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-edit="${e.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(e.title)}</span></button>
@@ -155,7 +155,7 @@ async function loadCalendar(el) {
     cells.push(`<li class="admin-cal__day${here.length ? ' admin-cal__day--has' : ''}${k === todayKey ? ' admin-cal__day--today' : ''}" data-day="${k}">
       <div class="admin-cal__head"><span class="admin-cal__num"><span class="admin-cal__label">${esc(label)}</span><span class="admin-cal__digit" aria-hidden="true">${d}</span></span>
         <button class="icon-btn admin-cal__add" type="button" data-add-day="${k}" aria-label="Add an event on ${esc(label)}" title="Add an event">${solidIcon('add', 18)}</button></div>
-      <ul class="admin-cal__events">${here.map((e) => `<li><button class="admin-cal__chip${e.cancelled_at ? ' admin-cal__chip--cancelled' : ''}" type="button" draggable="true" data-edit="${e.id}" data-move="${e.id}" title="${esc(`${e.title} · ${TYPES[e.event_type] ?? e.event_type}${e.cancelled_at ? ' · Cancelled' : ''}${e.series_id ? ' · Repeats' : ''}`)}"><span class="admin-cal__time">${esc(new Date(e.starts_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }))}</span> ${esc(e.title)}${e.cancelled_at ? '<span class="visually-hidden"> (cancelled)</span>' : ''}</button></li>`).join('')}</ul>
+      <ul class="admin-cal__events">${here.map((e) => `<li><button class="admin-cal__chip${e.cancelled_at ? ' admin-cal__chip--cancelled' : ''}" type="button" draggable="true" data-edit="${e.id}" data-move="${e.id}" title="${esc(`${e.title} · ${TYPES[e.event_type] ?? e.event_type}${e.cancelled_at ? ' · Cancelled' : ''}${e.series_id ? ' · Repeats' : ''}`)}"><span class="admin-cal__time">${isAllDay(e) ? 'All day' : esc(new Date(e.starts_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }))}</span> ${esc(e.title)}${e.cancelled_at ? '<span class="visually-hidden"> (cancelled)</span>' : ''}</button></li>`).join('')}</ul>
     </li>`);
   }
   const title = new Date(y, m, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -231,6 +231,7 @@ async function loadCalendar(el) {
 
 async function edit(listEl, id, template = null) {
   const ev = id ? await must(sb.from('events').select('*').eq('id', id).single()) : { event_type: 'other', ...template };
+  const allDay = isAllDay(ev);
   const locations = await listLocations(sb); // [] unless the shop has 2+ locations
   const d = listEl;
   const back = () => showList(listEl);
@@ -248,8 +249,9 @@ async function edit(listEl, id, template = null) {
         <div class="field"><label for="ev-type">Type</label><select id="ev-type" name="event_type">${Object.entries(TYPES).map(([v, l]) => `<option value="${v}"${v === ev.event_type ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
         ${locations.length ? `<div class="field"><label for="ev-store">Location</label><select id="ev-store" name="location_id"><option value="">All locations</option>${locations.map((l) => `<option value="${l.id}"${l.id === ev.location_id ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>` : ''}
         <div class="field"><label for="ev-loc">${locations.length ? 'Where in the store (optional)' : 'Location'}</label><input id="ev-loc" name="location" placeholder="${locations.length ? 'e.g. back room' : 'In store'}" value="${esc(ev.location)}"></div>
-        <div class="field"><label for="ev-start">Starts <span class="req" aria-hidden="true">*</span></label><input id="ev-start" name="starts_at" type="datetime-local" required value="${toLocalInput(ev.starts_at)}"></div>
-        <div class="field"><label for="ev-end">Ends (optional)</label><input id="ev-end" name="ends_at" type="datetime-local" value="${toLocalInput(ev.ends_at)}"></div>
+        <div class="field"><label for="ev-start">Starts <span class="req" aria-hidden="true">*</span></label><input id="ev-start" name="starts_at" type="${allDay ? 'date' : 'datetime-local'}" required value="${toLocalInput(ev.starts_at).slice(0, allDay ? 10 : 16)}"></div>
+        <div class="field"><label for="ev-end">Ends (optional)</label><input id="ev-end" name="ends_at" type="${allDay ? 'date' : 'datetime-local'}" value="${toLocalInput(ev.ends_at).slice(0, allDay ? 10 : 16)}"></div>
+        <div class="checks span-2"><label><input name="all_day" type="checkbox"${allDay ? ' checked' : ''}> All day (no set time)</label></div>
         ${id ? '' : `<div class="field"><label for="ev-repeat">Repeats</label><select id="ev-repeat" name="repeat">${Object.entries(REPEATS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
         <div class="field span-2" data-days hidden><span class="label" id="ev-days-label">On these days (the start date is always included)</span><div class="checks" role="group" aria-labelledby="ev-days-label">${WEEKDAYS.map((w, i) => `<label><input type="checkbox" name="days" value="${i}"> ${w}</label>`).join('')}</div></div>
         <div class="field" data-until hidden><label for="ev-until">Repeat until <span class="req" aria-hidden="true">*</span></label><input id="ev-until" name="until" type="date"><p class="field__hint">Up to ${MAX_REPEATS} dates. Each date is its own event, so you can edit or delete one without touching the rest.</p></div>`}
@@ -283,14 +285,27 @@ async function edit(listEl, id, template = null) {
     $('[data-until]', d).hidden = repeatSel.value === 'none';
     $('[data-days]', d).hidden = !['weekly', 'biweekly'].includes(repeatSel.value);
   });
+  // All day swaps the start and end to plain dates (and back to date-and-time, from a default hour).
+  const startIn = $('#ev-start', d), endIn = $('#ev-end', d);
+  $('[name="all_day"]', d).addEventListener('change', (e) => {
+    const on = e.target.checked;
+    for (const [input, time] of [[startIn, '10:00'], [endIn, '']]) {
+      const day = input.value.slice(0, 10);
+      input.type = on ? 'date' : 'datetime-local';
+      input.value = on ? day : day ? `${day}T${time}` : '';
+    }
+  });
   const status = $('.admin-status', d);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = new FormData(form);
+    const allDayOn = f.get('all_day') === 'on';
     const row = {
       title: f.get('title').trim(), event_type: f.get('event_type'), location: f.get('location').trim() || null,
       ...(f.has('location_id') ? { location_id: Number(f.get('location_id')) || null } : {}), // empty = every location
-      starts_at: fromLocalInput(f.get('starts_at')), ends_at: fromLocalInput(f.get('ends_at')),
+      starts_at: fromLocalInput(allDayOn && f.get('starts_at') ? `${f.get('starts_at')}T00:00` : f.get('starts_at')),
+      // An all-day event runs midnight to 11:59 PM; with no end date it is a single day.
+      ends_at: fromLocalInput(allDayOn ? `${f.get('ends_at') || f.get('starts_at')}T23:59` : f.get('ends_at')),
       summary: f.get('summary').trim() || null,
       signup_enabled: f.get('signup_enabled') === 'on', send_reminder: f.get('send_reminder') === 'on', signup_capacity: Number(f.get('signup_capacity')) || null, description: getHtml(quill), image_url: image.get(),
     };

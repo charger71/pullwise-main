@@ -1,4 +1,4 @@
-import { initPage, $, esc, fmtDate, fmtTime, eventPlace, EVENT_TYPES, focusBackOnClose } from '../site.js';
+import { initPage, $, esc, fmtDate, fmtTime, eventTimes, isAllDay, eventPlace, EVENT_TYPES, focusBackOnClose } from '../site.js';
 import { getEvents, getEventSpotsTaken, DEMO } from '../data.js';
 import { SUPABASE_URL, SITE_URL } from '../config.js';
 import { icsFor, googleLink, outlookLink, htmlToText } from '../ics.js';
@@ -160,7 +160,7 @@ async function load() {
             <span class="event__type">${esc(EVENT_TYPES[e.event_type] ?? 'Event')}${e.series_id ? ` <span class="event__repeat">· ${repeats.get(e.series_id)}</span>` : ''}</span>
             ${tags.get(e.id) ? `<p class="event__tags">${tags.get(e.id)}</p>` : ''}
             <h3${e.cancelled_at ? ' class="event__title--cancelled"' : ''}><a href="event.html?id=${e.id}">${esc(e.title)}</a></h3>
-            <p class="event__when">${day(e.starts_at, { weekday: 'long', month: 'long', day: 'numeric' })} · ${fmtTime(e.starts_at)}${e.ends_at ? `–${fmtTime(e.ends_at)}` : ''}${eventPlace(s, e).label ? ` · ${esc(eventPlace(s, e).label)}` : ''}</p>
+            <p class="event__when">${day(e.starts_at, { weekday: 'long', month: 'long', day: 'numeric' })} · ${eventTimes(e)}${eventPlace(s, e).label ? ` · ${esc(eventPlace(s, e).label)}` : ''}</p>
             ${blurb(e) ? `<p class="event__summary">${esc(blurb(e))}</p>` : ''}
             <p class="event__more"><a href="event.html?id=${e.id}">More details →</a></p>
             <div class="event__actions"${e.cancelled_at ? ' hidden' : ''}>
@@ -229,7 +229,7 @@ async function loadMonth() {
     const k = `${y}-${pad(m + 1)}-${pad(d)}`;
     const dayEvents = events.filter((e) => key(e.starts_at) <= k && k <= key(e.ends_at ?? e.starts_at));
     const label = new Date(y, m, d).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
-    const chip = (e, extra = false) => `<li${extra ? ' class="cal__extra"' : ''}><a class="cal__event cal__event--${esc(e.event_type)}${e.cancelled_at ? ' cal__event--cancelled' : ''}" href="event.html?id=${e.id}" title="${esc(`${e.cancelled_at ? 'Cancelled: ' : ''}${e.title} · ${EVENT_TYPES[e.event_type] ?? 'Event'}${e.series_id ? ` · ${repeats.get(e.series_id)}` : ''}`)}"><span class="cal__time">${fmtTime(e.starts_at)}</span> ${esc(e.title)}<span class="visually-hidden"> (${esc(EVENT_TYPES[e.event_type] ?? 'Event')}${e.cancelled_at ? ', cancelled' : ''}${e.series_id ? ', repeats' : ''})</span></a></li>`;
+    const chip = (e, extra = false) => `<li${extra ? ' class="cal__extra"' : ''}><a class="cal__event cal__event--${esc(e.event_type)}${e.cancelled_at ? ' cal__event--cancelled' : ''}" href="event.html?id=${e.id}" title="${esc(`${e.cancelled_at ? 'Cancelled: ' : ''}${e.title} · ${EVENT_TYPES[e.event_type] ?? 'Event'}${e.series_id ? ` · ${repeats.get(e.series_id)}` : ''}`)}"><span class="cal__time">${isAllDay(e) ? 'All day' : fmtTime(e.starts_at)}</span> ${esc(e.title)}<span class="visually-hidden"> (${esc(EVENT_TYPES[e.event_type] ?? 'Event')}${e.cancelled_at ? ', cancelled' : ''}${e.series_id ? ', repeats' : ''})</span></a></li>`;
     dayEventsByKey.set(k, { label: new Date(y, m, d).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }), list: dayEvents.map((e) => chip(e)).join('') });
     // A date square holds CAL_FIT events; on the grid the rest are behind "+N more" (phones list every event, so show them all there).
     cells.push(`<li class="cal__day${dayEvents.length ? ' cal__day--has' : ''}${k === todayKey ? ' cal__day--today' : ''}">
