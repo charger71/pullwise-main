@@ -250,7 +250,7 @@ async function edit(listEl, id, template = null) {
         <div class="field"><label for="ev-loc">${locations.length ? 'Where in the store (optional)' : 'Location'}</label><input id="ev-loc" name="location" placeholder="${locations.length ? 'e.g. back room' : 'In store'}" value="${esc(ev.location)}"></div>
         <div class="field"><label for="ev-start">Starts <span class="req" aria-hidden="true">*</span></label><input id="ev-start" name="starts_at" type="datetime-local" required value="${toLocalInput(ev.starts_at)}"></div>
         <div class="field"><label for="ev-end">Ends (optional)</label><input id="ev-end" name="ends_at" type="datetime-local" value="${toLocalInput(ev.ends_at)}"></div>
-        ${id ? (ev.series_id ? '<div class="checks span-2"><label><input name="apply_later" type="checkbox"> Apply these changes to all later dates in this series too</label></div><p class="field__hint span-2">This event is part of a repeating series. Unchecked, changes apply to this date only. Checked, the details, photo, signup settings and time of day carry to every later date; each date keeps its own signups.</p>' : '') : `<div class="field"><label for="ev-repeat">Repeats</label><select id="ev-repeat" name="repeat">${Object.entries(REPEATS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
+        ${id ? '' : `<div class="field"><label for="ev-repeat">Repeats</label><select id="ev-repeat" name="repeat">${Object.entries(REPEATS).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
         <div class="field span-2" data-days hidden><span class="label" id="ev-days-label">On these days (the start date is always included)</span><div class="checks" role="group" aria-labelledby="ev-days-label">${WEEKDAYS.map((w, i) => `<label><input type="checkbox" name="days" value="${i}"> ${w}</label>`).join('')}</div></div>
         <div class="field" data-until hidden><label for="ev-until">Repeat until <span class="req" aria-hidden="true">*</span></label><input id="ev-until" name="until" type="date"><p class="field__hint">Up to ${MAX_REPEATS} dates. Each date is its own event, so you can edit or delete one without touching the rest.</p></div>`}
         <div class="field span-2"><label for="ev-summary">Short description</label><textarea id="ev-summary" name="summary" rows="2" maxlength="300">${esc(ev.summary)}</textarea>
@@ -262,11 +262,13 @@ async function edit(listEl, id, template = null) {
         <div class="field"><label for="ev-cap">Spots available (optional)</label><input id="ev-cap" name="signup_capacity" type="number" min="1" max="1000" value="${esc(ev.signup_capacity)}"><p class="field__hint">Counts people, not signups. Leave blank for no limit. Reminders go out about 24 hours before the event starts (between 8am and 8pm), once, and only when the box above is checked.</p></div>
       </div>
       <div class="admin-actions sticky-actions">
-        <button class="btn btn--primary" type="submit">${id ? 'Save' : 'Add event'}</button>
+        <button class="btn btn--primary" type="submit">${id ? (ev.series_id ? 'Save this date only' : 'Save') : 'Add event'}</button>
+        ${id && ev.series_id ? '<button class="btn btn--ghost" type="submit" data-apply-later>Save and apply to all future dates</button>' : ''}
         ${id ? `<button class="btn btn--danger" type="button" data-delete>${solidIcon('trash', 16)} Delete</button>` : ''}
-        ${id && ev.series_id ? `<button class="btn btn--danger" type="button" data-delete-later>${solidIcon('trash', 16)} Delete this and later dates</button>` : ''}
+        ${id && ev.series_id ? `<button class="btn btn--danger" type="button" data-delete-later>${solidIcon('trash', 16)} Delete this and future dates</button>` : ''}
         <span class="admin-status" role="status"></span>
       </div>
+      ${id && ev.series_id ? '<p class="field__hint">This event is part of a repeating series. “Save and apply to all future dates” carries the details, photo, signup settings and time of day to every future date; each date keeps its own signups.</p>' : ''}
     </form>
     </div></section>`;
   window.scrollTo(0, 0);
@@ -309,8 +311,8 @@ async function edit(listEl, id, template = null) {
     try {
       await must(id ? sb.from('events').update(row).eq('id', id) : sb.from('events').insert(rows));
       let later = 0;
-      if (id && ev.series_id && f.get('apply_later') === 'on') later = await updateLater(ev, row);
-      toast(id ? (later ? `Event saved, and ${later} later ${later === 1 ? 'date' : 'dates'}` : 'Event saved') : rows.length > 1 ? `${rows.length} events created` : 'Event created');
+      if (id && ev.series_id && e.submitter?.hasAttribute('data-apply-later')) later = await updateLater(ev, row);
+      toast(id ? (later ? `Event saved, and ${later} future ${later === 1 ? 'date' : 'dates'}` : 'Event saved') : rows.length > 1 ? `${rows.length} events created` : 'Event created');
       back();
     } catch (err) {
       setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
@@ -343,7 +345,7 @@ async function edit(listEl, id, template = null) {
     }
   });
   $('[data-delete-later]', d)?.addEventListener('click', async () => {
-    if (!confirm(`Delete “${ev.title}” on ${fmtDateTime(ev.starts_at)} and every later date in this series? This can’t be undone.`)) return;
+    if (!confirm(`Delete “${ev.title}” on ${fmtDateTime(ev.starts_at)} and every future date in this series? This can’t be undone.`)) return;
     try {
       await must(sb.from('events').delete().eq('series_id', ev.series_id).gte('starts_at', ev.starts_at));
       toast('Events deleted');
