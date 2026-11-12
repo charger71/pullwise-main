@@ -549,11 +549,9 @@ function setupLightbox() {
   dialog.setAttribute('aria-label', 'Picture');
   dialog.innerHTML = `<button class="lightbox__close" type="button" aria-label="Close">✕</button>
     <img alt="">
-    <div class="lightbox__bar">
-      <button class="lightbox__nav lightbox__nav--prev" type="button" aria-label="Previous picture" hidden>‹</button>
-      <p class="lightbox__caption" aria-live="polite"></p>
-      <button class="lightbox__nav lightbox__nav--next" type="button" aria-label="Next picture" hidden>›</button>
-    </div>`;
+    <button class="lightbox__nav lightbox__nav--prev" type="button" aria-label="Previous picture" hidden>‹</button>
+    <button class="lightbox__nav lightbox__nav--next" type="button" aria-label="Next picture" hidden>›</button>
+    <div class="lightbox__bar"><p class="lightbox__caption" aria-live="polite"></p></div>`;
   document.body.append(dialog);
   const img = $('img', dialog);
   const caption = $('.lightbox__caption', dialog);
@@ -568,7 +566,7 @@ function setupLightbox() {
     img.src = link.href;
     img.alt = $('img', link)?.alt ?? '';
     caption.textContent = text;
-    bar.hidden = !text && group.length < 2;
+    bar.hidden = !text;
   };
   dialog.addEventListener('click', (e) => {
     if (e.target === dialog || e.target.closest('.lightbox__close')) dialog.close();

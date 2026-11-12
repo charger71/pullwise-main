@@ -311,7 +311,7 @@ function registerFormats() {
         const fig = document.createElement('figure');
         const a = Object.assign(document.createElement('a'), { href: it.src });
         a.setAttribute('data-lightbox', '');
-        a.append(Object.assign(document.createElement('img'), { src: it.src, alt: it.caption ?? '', loading: 'lazy' }));
+        a.append(Object.assign(document.createElement('img'), { src: it.src, alt: it.alt || it.caption || '', loading: 'lazy' }));
         fig.append(a);
         if (it.caption) fig.append(Object.assign(document.createElement('figcaption'), { textContent: it.caption }));
         node.append(fig);
@@ -319,7 +319,7 @@ function registerFormats() {
       return node;
     }
     static value(node) {
-      return { items: [...node.querySelectorAll('figure')].map((f) => ({ src: f.querySelector('img')?.getAttribute('src') ?? '', caption: f.querySelector('figcaption')?.textContent ?? '' })).filter((i) => i.src) };
+      return { items: galleryItems(node) };
     }
     html() {
       const copy = this.domNode.cloneNode(true);
@@ -511,8 +511,16 @@ function editColumns(initial) {
 }
 
 const GALLERY_MAX = 24;
-/** The pictures of a gallery block's markup, as [{ src, caption }]. */
-const Gallery_items = (node) => [...node.querySelectorAll('figure')].map((f) => ({ src: f.querySelector('img')?.getAttribute('src') ?? '', caption: f.querySelector('figcaption')?.textContent ?? '' })).filter((i) => i.src);
+/** The pictures of a gallery block's markup, as [{ src, caption, alt }]. An alt that only repeats the caption counts as none. */
+const galleryItems = (node) =>
+  [...node.querySelectorAll('figure')]
+    .map((f) => {
+      const caption = f.querySelector('figcaption')?.textContent ?? '';
+      const alt = f.querySelector('img')?.getAttribute('alt') ?? '';
+      return { src: f.querySelector('img')?.getAttribute('src') ?? '', caption, alt: alt === caption ? '' : alt };
+    })
+    .filter((i) => i.src);
+const Gallery_items = galleryItems;
 
 /** Pick pictures from the Media Library (several at once); resolves with their addresses, or [] if none. */
 async function pickLibraryImages() {
@@ -547,7 +555,7 @@ function editGallery(initial) {
     let items = initial.map((i) => ({ ...i }));
     const u = uid('gal');
     const d = openDialog('Picture Gallery', `
-      <p class="field__hint">A grid of pictures that opens larger when tapped. Captions are optional; they show under the picture and describe it for people who can’t see it.</p>
+      <p class="field__hint">A grid of pictures that opens larger when tapped. The caption shows under the picture. The description (alt text) isn’t shown; screen readers read it to people who can’t see the picture, and search engines use it. Both are optional.</p>
       <ul class="gallery-edit" data-items></ul>
       <div class="admin-actions">
         <input id="${u}" type="file" accept="image/*" multiple class="visually-hidden">
@@ -569,7 +577,10 @@ function editGallery(initial) {
       list.innerHTML = items.length
         ? items.map((it, i) => `<li class="gallery-edit__item">
             <img src="${esc(it.src)}" alt="">
-            <div class="field"><label class="visually-hidden" for="${u}-c${i}">Caption for picture ${i + 1}</label><input id="${u}-c${i}" data-caption="${i}" maxlength="200" autocomplete="off" placeholder="Caption (optional)" value="${esc(it.caption)}"></div>
+            <div class="gallery-edit__fields">
+              <div class="field"><label class="visually-hidden" for="${u}-c${i}">Caption for picture ${i + 1}</label><input id="${u}-c${i}" data-caption="${i}" maxlength="200" autocomplete="off" placeholder="Caption (optional)" value="${esc(it.caption)}"></div>
+              <div class="field"><label class="visually-hidden" for="${u}-a${i}">Description (alt text) for picture ${i + 1}</label><input id="${u}-a${i}" data-alt="${i}" maxlength="250" autocomplete="off" placeholder="Description for screen readers (optional)" value="${esc(it.alt)}"></div>
+            </div>
             <span class="gallery-edit__move">
               <button class="btn btn--ghost btn--small" type="button" data-move="-1" data-i="${i}" aria-label="Move picture ${i + 1} earlier"${i === 0 ? ' disabled' : ''}>↑</button>
               <button class="btn btn--ghost btn--small" type="button" data-move="1" data-i="${i}" aria-label="Move picture ${i + 1} later"${i === items.length - 1 ? ' disabled' : ''}>↓</button>
@@ -579,7 +590,7 @@ function editGallery(initial) {
     };
     const add = (urls) => {
       const room = GALLERY_MAX - items.length;
-      items.push(...urls.slice(0, room).map((src) => ({ src, caption: '' })));
+      items.push(...urls.slice(0, room).map((src) => ({ src, caption: '', alt: '' })));
       if (urls.length > room) setStatus(status, `A gallery holds up to ${GALLERY_MAX} pictures.`, 'error');
       draw();
     };
@@ -588,6 +599,8 @@ function editGallery(initial) {
     d.addEventListener('input', (e) => {
       const c = e.target.closest('[data-caption]');
       if (c) items[Number(c.dataset.caption)].caption = c.value;
+      const a = e.target.closest('[data-alt]');
+      if (a) items[Number(a.dataset.alt)].alt = a.value;
     });
     d.addEventListener('click', async (e) => {
       const mv = e.target.closest('[data-move]');
@@ -609,7 +622,7 @@ function editGallery(initial) {
           setStatus(status, friendlyError(err), 'error');
         }
       } else if (e.target.closest('[data-done]')) {
-        finish(items.map((i) => ({ src: i.src, caption: i.caption.trim() })));
+        finish(items.map((i) => ({ src: i.src, caption: i.caption.trim(), alt: i.alt.trim() })));
       } else if (e.target.closest('[data-cancel]')) {
         finish(null);
       }
