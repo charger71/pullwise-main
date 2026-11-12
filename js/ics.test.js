@@ -3,7 +3,7 @@ import * as feed from '../supabase/functions/calendar-feed/ical.js';
 
 // js/config.js takes SITE_URL from the page's origin (the Worker sets it per shop); Node has no page, so give it one.
 globalThis.location ??= { origin: 'https://shop.example.com' };
-const { icsFor, htmlToText, icsText, icsFold, releaseIcs, releaseGoogleLink, titleUrl } = await import('./ics.js');
+const { allDayRange, googleLink, outlookLink, icsFor, htmlToText, icsText, icsFold, releaseIcs, releaseGoogleLink, titleUrl } = await import('./ics.js');
 
 const octets = (s) => Buffer.byteLength(s, 'utf8');
 
@@ -66,4 +66,21 @@ console.log('ics tests passed');
   assert.equal(titleUrl({ ...item, status: 'coming_soon' }), 'https://shop.example.com/new-arrivals.html?title=5'); // listed on New Arrivals
   assert.equal(new URL(releaseGoogleLink(item, 'Main Street Comics')).searchParams.get('dates'), '20261125/20261126');
   assert.equal(releaseIcs({ ...item, release_date: '2026-12-31' }, 'S', 'h').match(/DTEND;VALUE=DATE:(\d+)/)[1], '20270101', 'across the new year');
+}
+
+// All-day events (midnight to 11:59 PM in the shop's zone) export as dates, not times; the end is the day after.
+{
+  const tz = 'America/Chicago';
+  const one = { id: 9, title: 'Free Comic Book Day', starts_at: '2027-05-01T05:00:00Z', ends_at: '2027-05-02T04:59:00Z', description: '' };
+  const two = { ...one, ends_at: '2027-05-03T04:59:00Z' };
+  assert.deepEqual(allDayRange(one, tz), { start: '2027-05-01', end: '2027-05-02' });
+  assert.deepEqual(allDayRange(two, tz), { start: '2027-05-01', end: '2027-05-03' });
+  assert.equal(allDayRange({ ...one, ends_at: null }, tz), null, 'no end: timed');
+  assert.equal(allDayRange({ ...one, starts_at: '2027-05-01T14:00:00Z' }, tz), null, 'a daytime start is timed');
+  const f = icsFor(one, 'S', 'h', null, tz);
+  assert.match(f, /DTSTART;VALUE=DATE:20270501\r\n/);
+  assert.match(f, /DTEND;VALUE=DATE:20270502\r\n/);
+  assert.match(googleLink(one, 'S', tz), /dates=20270501%2F20270502/);
+  assert.match(outlookLink(one, 'S', tz), /allday=true&startdt=2027-05-01&enddt=2027-05-02/);
+  assert.match(googleLink({ ...one, starts_at: '2027-05-01T14:00:00Z' }, 'S', tz), /dates=20270501T140000Z/);
 }

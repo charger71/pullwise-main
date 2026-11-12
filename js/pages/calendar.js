@@ -166,8 +166,8 @@ async function load() {
             <div class="event__actions"${e.cancelled_at ? ' hidden' : ''}>
               <span>Add to calendar:</span>
               <a href="#" data-ics="${e.id}">Apple / .ics</a>
-              <a href="${esc(googleLink(e, eventPlace(s, e).where))}" target="_blank" rel="noopener">Google</a>
-              <a href="${esc(outlookLink(e, eventPlace(s, e).where))}" target="_blank" rel="noopener">Outlook</a>
+              <a href="${esc(googleLink(e, eventPlace(s, e).where, s.timezone))}" target="_blank" rel="noopener">Google</a>
+              <a href="${esc(outlookLink(e, eventPlace(s, e).where, s.timezone))}" target="_blank" rel="noopener">Outlook</a>
             </div>
             </div>
             ${e.image_url ? `<a class="event__photo" href="${esc(e.image_url)}" data-lightbox><img class="event__img" src="${esc(e.image_url)}" alt="${esc(e.title)}" loading="lazy"></a>` : ''}
@@ -267,7 +267,7 @@ list.addEventListener('click', (ev) => {
   if (!link) return;
   ev.preventDefault();
   const e = events.find((x) => x.id === Number(link.dataset.ics));
-  const blob = new Blob([icsFor(e, s.shop_name, host, eventPlace(s, e).ics)], { type: 'text/calendar' });
+  const blob = new Blob([icsFor(e, s.shop_name, host, eventPlace(s, e).ics, s.timezone)], { type: 'text/calendar' });
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${e.title.replace(/[^\w]+/g, '-')}.ics` });
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);

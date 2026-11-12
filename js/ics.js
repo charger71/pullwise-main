@@ -57,10 +57,24 @@ const details = (e) => `${htmlToText(e.description)}\n\nDetails: ${eventUrl(e)}`
 
 const stamp = (iso) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 const text = icsText;
+/**
+ * An all-day event is entered as midnight to 11:59 PM in the shop's time zone. Returns its dates as YYYY-MM-DD,
+ * the end being the day after (the way calendars count all-day events), or null for a timed event.
+ */
+export function allDayRange(e, tz) {
+  if (!e?.ends_at) return null;
+  const f = (opts) => new Intl.DateTimeFormat('en-CA', { timeZone: tz || undefined, ...opts });
+  const clock = (iso) => f({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
+  const ymd = (iso) => f({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+  if (clock(e.starts_at) !== '00:00' || clock(e.ends_at) !== '23:59') return null;
+  return { start: ymd(e.starts_at), end: new Date(Date.parse(`${ymd(e.ends_at)}T00:00:00Z`) + 864e5).toISOString().slice(0, 10) };
+}
+
 const endOf = (e) => e.ends_at ?? new Date(new Date(e.starts_at).getTime() + 2 * 3600000).toISOString();
 
 /** `place`: the LOCATION text, when the shop has several locations (see eventPlace in site.js). */
-export function icsFor(e, shopName, host, place = null) {
+export function icsFor(e, shopName, host, place = null, tz = undefined) {
+  const all = allDayRange(e, tz);
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -68,8 +82,7 @@ export function icsFor(e, shopName, host, place = null) {
     'BEGIN:VEVENT',
     `UID:event-${e.id}@${host}`,
     `DTSTAMP:${stamp(new Date().toISOString())}`,
-    `DTSTART:${stamp(e.starts_at)}`,
-    `DTEND:${stamp(endOf(e))}`,
+    ...(all ? [`DTSTART;VALUE=DATE:${all.start.replace(/-/g, '')}`, `DTEND;VALUE=DATE:${all.end.replace(/-/g, '')}`] : [`DTSTART:${stamp(e.starts_at)}`, `DTEND:${stamp(endOf(e))}`]),
     `SUMMARY:${text(e.title)}`,
     `DESCRIPTION:${text(details(e))}`,
     `URL:${eventUrl(e)}`,
@@ -79,24 +92,25 @@ export function icsFor(e, shopName, host, place = null) {
   ].map(icsFold).join('\r\n') + '\r\n';
 }
 
-export function googleLink(e, location) {
+export function googleLink(e, location, tz = undefined) {
+  const all = allDayRange(e, tz);
   const p = new URLSearchParams({
     action: 'TEMPLATE',
     text: e.title,
-    dates: `${stamp(e.starts_at)}/${stamp(endOf(e))}`,
+    dates: all ? `${all.start.replace(/-/g, '')}/${all.end.replace(/-/g, '')}` : `${stamp(e.starts_at)}/${stamp(endOf(e))}`,
     details: details(e),
     location,
   });
   return `https://calendar.google.com/calendar/render?${p}`;
 }
 
-export function outlookLink(e, location) {
+export function outlookLink(e, location, tz = undefined) {
+  const all = allDayRange(e, tz);
   const p = new URLSearchParams({
     path: '/calendar/action/compose',
     rru: 'addevent',
     subject: e.title,
-    startdt: new Date(e.starts_at).toISOString(),
-    enddt: new Date(endOf(e)).toISOString(),
+    ...(all ? { allday: 'true', startdt: all.start, enddt: all.end } : { startdt: new Date(e.starts_at).toISOString(), enddt: new Date(endOf(e)).toISOString() }),
     body: details(e),
     location,
   });
