@@ -566,6 +566,41 @@ Follow a series or a creator from a title: choices as large toggle buttons in a 
 </div>`),
   },
   {
+    name: 'ShopGallery', group: G('Content'), height: 430, width: 960,
+    readme: `# ShopGallery
+
+A picture gallery from the page editor's Gallery button: a grid of square pictures that open larger in a lightbox.
+
+- \`.gallery\`: two columns on phones, three from 600px, four from 800px, \`shop-sp-12\` apart. Each \`figure\` has a link (\`a[data-lightbox]\`) around a square, cropped picture with \`shop-radius\` corners and an optional \`figcaption\` in muted text.
+- **Hover and keyboard focus:** a soft dark tint with a small magnifier fades in and the picture eases in 5%. Only on pointer devices (a tap leaves nothing stuck); with reduced motion the tint shows instantly and the picture does not zoom.
+- **Lightbox** (\`.lightbox\`, a dialog): the picture on black with the caption over its bottom edge on a dark fade (\`.lightbox__bar\`), a round Close button top right and round previous/next buttons (\`.lightbox__nav\`) at the vertical middle of each side. ← → step through the gallery and wrap around, Escape or a click outside closes. The arrows only show when the gallery has more than one picture.
+- Every picture has a description (alt text); staff must write one.
+- Consumer provides: the pictures, descriptions and captions (from the page text).`,
+    html: page('ShopGallery', `
+<div class="gallery">
+  <figure><a href="#" data-lightbox><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23c8ced6'/%3E%3C/svg%3E" alt="Opening day" loading="lazy"></a><figcaption>Opening day</figcaption></figure>
+  <figure><a href="#" data-lightbox><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23c8ced6'/%3E%3C/svg%3E" alt="New shelves" loading="lazy"></a><figcaption>New shelves</figcaption></figure>
+  <figure><a href="#" data-lightbox><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23c8ced6'/%3E%3C/svg%3E" alt="Staff picks wall" loading="lazy"></a><figcaption>Staff picks wall</figcaption></figure>
+  <figure><a href="#" data-lightbox><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23c8ced6'/%3E%3C/svg%3E" alt="Halloween costumes" loading="lazy"></a><figcaption>Halloween costumes</figcaption></figure>
+</div>
+<p class="card__meta" style="margin:16px 0 8px">The lightbox, open on the second picture:</p>
+<div class="lightbox" style="position:relative;display:inline-block;max-width:420px"><button class="lightbox__close" type="button" aria-label="Close">✕</button><img alt="New shelves" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23c8ced6'/%3E%3C/svg%3E" style="width:420px;height:280px"><button class="lightbox__nav lightbox__nav--prev" type="button" aria-label="Previous picture">‹</button><button class="lightbox__nav lightbox__nav--next" type="button" aria-label="Next picture">›</button><div class="lightbox__bar"><p class="lightbox__caption">New shelves</p></div></div>`),
+  },
+  {
+    name: 'ShopColumns', group: G('Content'), height: 200, width: 960,
+    readme: `# ShopColumns
+
+Rows of side-by-side text and pictures from the page editor's Columns button.
+
+- \`.cols\` with a layout class and a \`.col\` per column. On phones the columns stack, first on top. From 600px two-column rows sit side by side (\`cols--2\`, \`cols--4\` as two, \`cols--1-2\` narrow then wide, \`cols--2-1\` wide then narrow); \`cols--3\` goes three across from 700px and \`cols--4\` four from 800px.
+- \`shop-sp-16\` between stacked columns, \`shop-sp-24\` between side-by-side ones. Text keeps the page's text styles; pictures scale down to their column (\`max-width: 100%\`) and can carry a link.
+- The first and last child of a column have no outer margin, so columns line up at the top and bottom.
+- Consumer provides: the layout and each column's text and pictures.`,
+    html: page('ShopColumns', `
+<div class="cols cols--1-2"><div class="col"><h3>Hours</h3><p>Mon–Sat 10–7<br>Sun 12–5</p></div><div class="col"><h3>Pull list pickup</h3><p>Come in any time after your books arrive and pay at the counter. We hold your books for 30 days.</p></div></div>
+<div class="cols cols--3"><div class="col"><p>Comics</p></div><div class="col"><p>Toys</p></div><div class="col"><p>Games</p></div></div>`),
+  },
+  {
     name: 'ShopPostList', group: G('Content'), height: 233,
     readme: `# ShopPostList
 

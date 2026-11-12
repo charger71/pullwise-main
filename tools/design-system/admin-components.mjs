@@ -444,6 +444,51 @@ A modal dialog: title, round close button and a body ending in an action row.
     html: page('AdminDialog', demo('<h3>Structure'.slice(4))),
   },
   {
+    name: 'AdminGalleryEditor', group: G('Forms'), height: 280, width: 960,
+    readme: `# AdminGalleryEditor
+
+The picture gallery tool in the rich-text editor: a dialog to add, describe and order the pictures of a gallery.
+
+- **Opens** from the editor's Gallery button, or by clicking a gallery in the text (\`openDialog\` with \`wide\`).
+- \`.gallery-edit\` of \`.gallery-edit__item\`: a 64px thumbnail, then \`.gallery-edit__fields\` with two inputs: an optional **caption** (shown over the picture on the site) and a **required description** (alt text, not shown; read by screen readers and search engines). **Done** will not save until every picture has a description.
+- \`.gallery-edit__move\`: ↑ ↓ small ghost buttons (the first ↑ and last ↓ are disabled) and a red remove icon button. After a move, focus follows to the arrow still enabled on that picture.
+- Below the list: Upload pictures… (several at once) and Choose from Media… (the picker lets staff tap several, each \`.media-pick__btn\` showing \`aria-pressed="true"\` with an \`admin-brand-accent\` outline). A gallery holds up to 24 pictures.
+- **In the editor text** a gallery is a dashed \`.gallery\` grid of small square pictures you click to edit. On the website it becomes ShopGallery.
+- Consumer provides: the pictures (address, caption, description).`,
+    html: page('AdminGalleryEditor', `
+${demo('Gallery editor list')}
+${h('In the editor text (click it to edit)')}
+<div class="ql-editor"><div class="gallery"><figure><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23c8ced6'/%3E%3C/svg%3E" alt="Opening day"><figcaption>Opening day</figcaption></figure><figure><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23c8ced6'/%3E%3C/svg%3E" alt="New shelves"><figcaption>New shelves</figcaption></figure><figure><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23c8ced6'/%3E%3C/svg%3E" alt="Staff picks wall"></figure></div></div>`),
+  },
+  {
+    name: 'AdminColumnsEditor', group: G('Forms'), height: 270, width: 960,
+    readme: `# AdminColumnsEditor
+
+The rows-and-columns tool in the rich-text editor: side-by-side text and pictures that stack on phones.
+
+- **Opens** from the editor's Columns button, or by clicking a row in the text. The dialog has a **Layout** select (2, 3 or 4 equal columns, narrow then wide, wide then narrow) and one small editor per column (\`.editor--cell\` inside \`.cols-edit__col\`) with a lighter toolbar: text style, bold/italic/underline, link, file link, picture, video, divider, lists, alignment. Pictures in a column get the same picture bar (alignment, size, description, link).
+- A row is a \`.cols\` block with a layout class (\`cols--2\`, \`cols--3\`, \`cols--4\`, \`cols--1-2\`, \`cols--2-1\`) and a \`.col\` per column. Changing to fewer columns keeps the first ones' text.
+- **In the editor text** a row is a dashed grid (\`admin-field-line\` edge) with a dashed box per column; click it to edit. More rows are more Columns buttons. The website shows it as ShopColumns.
+- Consumer provides: the layout and each column's text.`,
+    html: page('AdminColumnsEditor', `
+${demo('Columns row (editor)')}
+${h('Three columns')}
+<div class="ql-editor"><div class="cols cols--3"><div class="col"><p>One</p></div><div class="col"><p>Two</p></div><div class="col"><p>Three</p></div></div></div>`),
+  },
+  {
+    name: 'AdminMenuOrder', group: G('Navigation'), height: 140, width: 960,
+    readme: `# AdminMenuOrder
+
+A short list staff put in order: the main menu and the footer links (Admin → Pages → Menu Order).
+
+- \`.menu-order\` of \`.menu-order__item\`: a grip (\`⋮⋮\`, muted), the label in bold, and ↑ ↓ small ghost buttons that save at once. Each button is described by its row's label; the first ↑ and last ↓ are disabled, and focus follows to the arrow still enabled on a moved row.
+- Rows are also \`draggable\` with the grip: while dragging, the row is half transparent (\`.is-dragging\`) and the drop target gets an \`admin-brand-accent\` outline (\`.is-over\`). Drag is only a shortcut; the buttons stay for keyboards and phones.
+- A row that must stay put (My Pull List, always last in the main menu) is \`.menu-order__item--fixed\`: regular weight, muted, with a note and no buttons.
+- Items not in the saved order go at the end, in their default order. There is a list for the main menu and one for the footer.
+- Consumer provides: the items and the saved order.`,
+    html: page('AdminMenuOrder', demo('Menu order list')),
+  },
+  {
     name: 'AdminRichText', group: G('Forms'), height: 0,
     readme: `# AdminRichText
 
