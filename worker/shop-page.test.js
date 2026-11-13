@@ -82,6 +82,23 @@ assert.doesNotMatch(map, /<loc>https:\/\/www\.|search\.html|account\.html/);
 const mapOff = sitemapXml(shops[0], ['faq', 'news', 'my-page']);
 assert.doesNotMatch(mapOff, /faq\.html|blog\.html/, 'switched-off pages are left out');
 assert.match(mapOff, /calendar\.html/);
+// Posts and events from the database
+const mapDb = sitemapXml(shops[0], [], {
+  posts: [{ slug: 'grand-opening', updated_at: '2026-11-02T10:00:00+00:00' }, { slug: 'bad slug<x>' }, { slug: 'two_words-ok' }],
+  events: [{ id: 7 }, { id: '8; drop' }, { id: -1 }, { id: 12 }],
+});
+assert.match(mapDb, /<loc>https:\/\/a-comics\.com\/news\/grand-opening<\/loc><lastmod>2026-11-02<\/lastmod>/);
+assert.match(mapDb, /\/news\/two_words-ok<\/loc><\/url>/, 'no lastmod when there is none');
+assert.doesNotMatch(mapDb, /bad slug|drop|id=-1/, 'anything that is not a plain slug or number is skipped');
+assert.match(mapDb, /<loc>https:\/\/a-comics\.com\/event\.html\?id=7<\/loc>/);
+assert.match(mapDb, /event\.html\?id=12</);
+assert.doesNotMatch(sitemapXml(shops[0], ['news'], { posts: [{ slug: 'a' }], events: [{ id: 1 }] }), /\/news\/a</, 'posts go with News');
+assert.doesNotMatch(sitemapXml(shops[0], ['calendar'], { posts: [{ slug: 'a' }], events: [{ id: 1 }] }), /event\.html/, 'events go with Calendar');
+assert.match(sitemapXml(shops[0], ['calendar'], { posts: [{ slug: 'a' }] }), /\/news\/a</);
+assert.equal(sitemapXml(shops[0]), sitemapXml(shops[0], [], {}), 'no database rows: just the fixed pages');
+const many = sitemapXml(shops[0], [], { posts: Array.from({ length: 1200 }, (_, i) => ({ slug: `p${i}` })), events: Array.from({ length: 700 }, (_, i) => ({ id: i + 1 })) });
+assert.equal((many.match(/\/news\/p/g) ?? []).length, 1000, 'at most 1000 posts');
+assert.equal((many.match(/event\.html\?id=/g) ?? []).length, 500, 'at most 500 events');
 assert.equal(robotsTxt(shops[0], 'User-agent: *\nDisallow: /admin/\n'), 'User-agent: *\nDisallow: /admin/\n\nSitemap: https://a-comics.com/sitemap.xml\n');
 
 // Home banner
