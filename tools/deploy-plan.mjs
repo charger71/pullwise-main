@@ -49,6 +49,7 @@ export function validate(data) {
     if (s.canary != null && typeof s.canary !== 'boolean') problems.push(`${at}: canary must be true or false`);
     if (s.catalog != null && typeof s.catalog !== 'boolean') problems.push(`${at}: catalog must be true or false`);
     if (s.app != null && typeof s.app !== 'boolean') problems.push(`${at}: app must be true or false`);
+    if (s.locations != null && typeof s.locations !== 'boolean') problems.push(`${at}: locations must be true or false`);
     if (s.media != null && s.media !== 'r2') problems.push(`${at}: media can only be "r2" (or left out for the shop's own storage)`);
   });
   const catalogs = data.shops.filter((s) => s?.catalog === true).map((s) => s.id);

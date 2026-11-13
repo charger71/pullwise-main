@@ -230,6 +230,8 @@ a `location_id` that defaults to the default location: `reservations`, `events`,
 `staff.location_id` (null = every location). Weekly and arrival emails and the public site read address, phone and
 hours from the default location (`withLocation` in `weekly-pull-list/email.js`, `getSettings` in `js/data.js`).
 
+Several locations are an upper-tier feature, switched per shop with `"locations": true` in `shops.json` (the same way as `"app"`; `add-shop --locations`). Without it the shop has its one location (Shop Settings), the admin has no Locations screen and no location filters, and customers never see a pickup picker, even if more locations exist in the database. The switch is read by `js/config.js` (`LOCATIONS_ENABLED`, written by the Worker).
+
 To add a second location, owners use Admin → Locations → Add a location. Other locations are edited only there. Staff set a customer's pickup location on the customer's Profile tab. With two or more locations, a customer picks one home location (Account → My Profile, and at first sign-in); that is
 where their pull list is picked up. New lines follow it (`reservations_set_location`), changing it moves lines that
 haven't arrived yet (`customers_move_open_lines`; books already on the shelf stay where they are), and the weekly and

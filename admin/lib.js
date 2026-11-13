@@ -1,6 +1,7 @@
 // Shared helpers for the admin sections.
 
 import { supabase } from '../js/data.js';
+import { LOCATIONS_ENABLED } from '../js/config.js';
 import { esc, must, formatPhone } from '../js/util.js';
 import { putMedia } from '../js/media-store.js';
 import { friendlyError, fromError } from '../js/errors.js';
@@ -1598,6 +1599,7 @@ export function setupTabs(el, key, fallback, onShow, hints) {
 
 /** The shop's locations when it has two or more (else []): the location filters only show for a multi-location shop. */
 export async function listLocations(sb) {
+  if (!LOCATIONS_ENABLED) return [];
   const { data } = await sb.from('locations').select('id,name,is_default').order('id');
   return data?.length > 1 ? data : [];
 }

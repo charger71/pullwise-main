@@ -249,7 +249,7 @@ function renderRows(box, rows, cols, empty = 'No searches yet.') {
     return;
   }
   box.innerHTML = `<div class="admin-table-wrap"><table class="admin-table cards">
-      <thead><tr>${cols.map(([head]) => `<th scope="col">${head}</th>`).join('')}</tr></thead>
+      <thead><tr>${cols.map(([head, , , tip]) => `<th scope="col"${tip ? ` title="${esc(tip)}"` : ''}>${head}</th>`).join('')}</tr></thead>
       <tbody></tbody></table></div>
     ${PAGER_HTML}`;
   setupPager(box, rows.length, (start, end) => {
@@ -322,8 +322,8 @@ async function renderSeries(box) {
   renderRows(box, await must(sb.rpc('analytics_series_demand', { p_days: DEMAND_DAYS })), [
     ['Series', 'card-title', (r) => r.label],
     ['Followers', 'center card-key card-label', (r) => r.followers.toLocaleString()],
-    ['Copies per issue', 'center card-label', (r) => r.copies.toLocaleString()],
-    [`New in ${DEMAND_DAYS} days`, 'center card-label', (r) => r.new_followers.toLocaleString()],
+    ['CPI', 'center card-label', (r) => r.copies.toLocaleString(), 'Copies per issue'],
+    [`${DEMAND_DAYS} Days`, 'center card-label', (r) => r.new_followers.toLocaleString(), `New in ${DEMAND_DAYS} days`],
   ], 'Nobody follows a series yet.');
 }
 
