@@ -21,6 +21,8 @@
     { "binding": "MEDIA", "bucket_name": "pullwise-media" },
     { "binding": "BACKUPS", "bucket_name": "pullwise-backups" }
   ],
+  // Rate limit for the public catalog feed (worker/catalog-feed.js): 60 requests a minute per client address.
+  "ratelimits": [{ "name": "CATALOG_RATE_LIMIT", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } }],
   "vars": { "MEDIA_PUBLIC_URL": "https://images.pullwise.shop" },
   "observability": { "enabled": true },
   // Preview builds of non-production branches (`wrangler preview`) refuse to run without this block. Empty means a
