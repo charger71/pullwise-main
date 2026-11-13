@@ -1428,7 +1428,12 @@ function setListView(table, view) {
  */
 function listToolbar(table, ths, choose, current) {
   const wrap = table.closest('.admin-table-wrap') ?? table;
-  if (wrap.previousElementSibling?.matches('.list-toolbar')) wrap.previousElementSibling.remove();
+  const old = wrap.previousElementSibling;
+  if (old?.matches('.list-toolbar')) {
+    const kept = old.querySelector('.results-count'); // a re-draw gives the count back before the bar goes
+    if (kept) old.before(kept);
+    old.remove();
+  }
   if (!table.matches('.cards, .titles-table') || table.closest('.fold, .panel, .dash-card, dialog, .qr-item') || !ths.length) return () => {};
   const id = uid('list-sort');
   const cols = ths.map((th) => ({ th, label: th.textContent.trim(), num: th.dataset.sort === 'num' })).filter((c) => c.label);
@@ -1442,7 +1447,14 @@ function listToolbar(table, ths, choose, current) {
       <button class="icon-btn" type="button" data-view="grid" aria-pressed="false" aria-label="Grid" title="Grid">${solidIcon('grid', 20)}</button>
       <button class="icon-btn" type="button" data-view="list" aria-pressed="false" aria-label="List" title="List">${solidIcon('list', 20)}</button>
     </div>`;
+  // The results count sits in the toolbar's row (count left, sort + view switch right) instead of on a line of its own.
+  let count = null;
+  for (let n = wrap.previousElementSibling ?? (wrap === wrap.parentElement?.firstElementChild ? wrap.parentElement.previousElementSibling : null); n && !count; n = n.previousElementSibling) {
+    if (n.matches('.results-count')) count = n;
+    else if (n.matches('form, .admin-tabs, [role="tablist"]')) break;
+  }
   wrap.before(bar);
+  if (count) bar.prepend(count);
   const select = $('select', bar) ?? document.createElement('select'); // Titles sorts in its own filters
   select.addEventListener('change', () => {
     const [i, d] = select.value.split('|');
