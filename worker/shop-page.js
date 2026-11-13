@@ -21,6 +21,10 @@ export const APP_PATH = '/app';
  * account page (the same pull list in the browser), have no install manifest, and hide every "Get the app" link. */
 export const hasApp = (shop) => shop?.app === true;
 
+/** Whether the shop can have more than one pickup location: only shops marked "locations": true in shops.json. The rest
+ * have the one location (their Shop Settings), no Locations screen, and no location pickers or filters anywhere. */
+export const hasLocations = (shop) => shop?.locations === true;
+
 /** Where Android looks for proof that the shop's Play Store app may open its website full screen. */
 export const ASSET_LINKS_PATH = '/.well-known/assetlinks.json';
 const ANDROID_PACKAGE = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/;
@@ -151,6 +155,7 @@ export function configJs(shop, settings = {}) {
     // Covers and series images go to the shared R2 bucket through the Worker for shops marked "media": "r2".
     line('MEDIA_UPLOAD_URL', shop.media === 'r2' ? MEDIA_UPLOAD_PATH : ''),
     `export const APP_ENABLED = ${hasApp(shop)};`,
+    `export const LOCATIONS_ENABLED = ${hasLocations(shop)};`,
     // The master catalog ("catalog": true) gets the admin's PRH look-up; its key is only on the catalog.
     `export const IS_CATALOG = ${shop.catalog === true};`,
     `export const FALLBACK_SETTINGS = ${JSON.stringify(fallback).replace(/</g, '\\u003c')};`,

@@ -1,7 +1,7 @@
 // Data access for customer-facing pages. Talks to Supabase when configured,
 // otherwise serves demo data with the same shapes and filtering behaviour.
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, LOCATIONS_ENABLED } from './config.js';
 import { squash, searchWords } from './util.js';
 
 export const DEMO = !SUPABASE_URL;
@@ -39,7 +39,7 @@ export function getSettings() {
         const loc = (all ?? []).find((l) => l.is_default);
         if (loc) {
           const { street, city, region, postal_code, country, phone, hours, map_embed_url } = loc;
-          return { ...row, street, city, region, postal_code, country, phone, hours, map_embed_url, locations: all.length > 1 ? all : [] };
+          return { ...row, street, city, region, postal_code, country, phone, hours, map_embed_url, locations: LOCATIONS_ENABLED && all.length > 1 ? all : [] };
         }
         return row;
       });

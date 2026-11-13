@@ -6,6 +6,7 @@
 import { parseAdminHash, adminHash } from './route.js';
 import { decorateTabs, tabKeys } from './tab-icons.js';
 import { DEMO, getSettings } from '../js/data.js';
+import { LOCATIONS_ENABLED } from '../js/config.js';
 import { $, $$, db, esc, openEmailDialog, friendlyError } from './lib.js';
 import { sizedImage } from '../js/util.js';
 import { VERSION } from './version.js';
@@ -178,6 +179,7 @@ async function showApp() {
     if (item) item.hidden = !isOwner;
   });
   $$('.admin-nav [data-owner-only]').forEach((group) => (group.hidden = !isOwner)); // Utilities
+  if (!LOCATIONS_ENABLED) $('.admin-nav a[href="#locations"]')?.closest('li')?.setAttribute('hidden', ''); // "locations": true in shops.json
   // Live chat can be switched off for the whole shop (Shop Settings); then its screen is gone. A shop that hasn't got the
   // column yet (an update still rolling out) keeps the screen.
   const showChat = (on) => {
@@ -227,7 +229,7 @@ let lastHash = location.hash;
 async function route() {
   if (location.hash === '#restore') history.replaceState(null, '', '#backup'); // Restore is now part of Backup
   let { name, arg } = parseAdminHash(location.hash, SECTIONS);
-  if ((OWNER_ONLY.includes(name) && !isOwner) || (name === 'chat' && !chatAvailable)) {
+  if ((OWNER_ONLY.includes(name) && !isOwner) || (name === 'chat' && !chatAvailable) || (name === 'locations' && !LOCATIONS_ENABLED)) {
     name = 'dashboard';
     arg = '';
     history.replaceState(null, '', '#dashboard');

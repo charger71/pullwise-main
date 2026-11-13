@@ -6,7 +6,7 @@
 
 import { initPage, $, esc, announceIn, fmtDate, itemFullTitle, itemTitle, cover, price, cutoffPassed } from '../site.js';
 import { DEMO, supabase, getSettings, searchSeries, searchArtists } from '../data.js';
-import { SITE_URL, APP_ENABLED } from '../config.js';
+import { SITE_URL, APP_ENABLED, LOCATIONS_ENABLED } from '../config.js';
 import { LINE_STATUS_CUSTOMER as LINE_STATUS } from '../labels.js';
 import { whenIn as whenLabel } from '../dates.js';
 import { thumbOf, thumbFallback, artistMeta, btnIcon } from '../util.js';
@@ -213,6 +213,7 @@ function signedOut(sb) {
 
 /** The shop's locations (empty if there is just the one, or the list can't be read): the pickup picker only shows for two or more. */
 async function getLocations(sb) {
+  if (!LOCATIONS_ENABLED) return [];
   const [{ data }, shop] = await Promise.all([sb.from('locations').select('id,name').order('id'), getSettings()]);
   return data?.length > 1 ? data.map((l) => ({ ...l, label: locationLabel(l, shop.shop_name) })) : [];
 }
