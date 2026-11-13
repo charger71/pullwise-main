@@ -660,6 +660,44 @@ function lastKnownSettings() {
   }
 }
 
+/**
+ * Maintenance mode (settings.maintenance_mode, switched on by an owner on the Dashboard): a full-screen "be right
+ * back" notice over the page, also on the pull list app. Idempotent, so it is safe to call on the saved snapshot and
+ * again on the fresh settings; the page underneath is left alone (but made inert, so Tab can't reach it) and the
+ * staff admin never loads this file. It is cosmetic: the database and the app's data calls keep answering.
+ */
+export function applyMaintenance(s) {
+  const old = document.getElementById('maintenance');
+  if (!s.maintenance_mode) {
+    old?.remove();
+    document.documentElement.classList.remove('is-maintenance');
+    document.querySelectorAll('[data-maint-inert]').forEach((el) => (el.inert = false, el.removeAttribute('data-maint-inert')));
+    return;
+  }
+  const reach = [
+    s.phone && `call <a href="${esc(telHref(s.phone))}">${esc(formatPhone(s.phone))}</a>`,
+    s.email && `email <a href="mailto:${esc(s.email)}">${esc(s.email)}</a>`,
+  ].filter(Boolean);
+  const html = `
+    <div class="maintenance__box">
+      <h1>${esc(s.shop_name ? s.shop_name + ' Will Be' : 'We Will Be')} Right Back</h1>
+      <p>${s.maintenance_message ? esc(s.maintenance_message) : 'The site is down for a little maintenance. Please check back shortly.'}</p>
+      ${reach.length ? `<p>In the meantime, ${reach.join(' or ')}.</p>` : ''}
+    </div>`;
+  const el = old ?? Object.assign(document.createElement('div'), { id: 'maintenance', className: 'maintenance' });
+  el.setAttribute('role', 'alert');
+  el.innerHTML = html;
+  if (!old) {
+    document.body.append(el);
+    [...document.body.children].forEach((c) => {
+      if (c === el || c.inert || /^(SCRIPT|STYLE|TEMPLATE)$/.test(c.tagName)) return;
+      c.inert = true;
+      c.setAttribute('data-maint-inert', '');
+    });
+  }
+  document.documentElement.classList.add('is-maintenance');
+}
+
 /** A message in place of the page when the settings can't be loaded, with how to reach the shop if we know it. */
 function outageMessage({ slow }) {
   const s = lastKnownSettings() ?? {};
@@ -712,6 +750,7 @@ export async function initPage() {
       loadNewsletterForm(s.newsletter_embed?.trim() ?? '');
     }
     fillSettings(s);
+    applyMaintenance(s); // after the header and footer, so it also covers the app
   };
   let shown = { s: readCache('settings'), custom: readCache('custom-pages') };
   if (shown.s && shown.custom) paint(shown.s, shown.custom);

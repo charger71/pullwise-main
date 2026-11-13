@@ -135,6 +135,7 @@
   --z-header: 50;        /* the sticky site header and its menu */
   --z-skip: 100;         /* the skip link, above everything it jumps over */
   --z-busy: 9998;        /* the loading dimmer; its spinner sits one above */
+  --z-maintenance: 200;  /* the maintenance-mode notice: over the header, the pull-list bar and the chat button */
   --z-splash: 10000;     /* the pull list app's loading screen, over everything while it opens */
 
   /* Motion. Every transition stops and the skeleton stops pulsing under prefers-reduced-motion; the spinner slows. */
@@ -1617,3 +1618,9 @@ html:has(body[data-page="app"]) { scroll-padding-top: calc(var(--app-header-bott
 /* App → Account → Notifications */
 .push-on { margin: 0 0 var(--sp-8); color: var(--ok); font-weight: 700; }
 .push-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-16); margin-top: var(--sp-12); }
+
+/* Maintenance mode: a full-screen notice over the page (js/site.js applyMaintenance) */
+.maintenance { position: fixed; inset: 0; z-index: var(--z-maintenance); display: grid; place-items: center; padding: var(--sp-24); background: var(--paper); color: var(--ink); overflow: auto; text-align: center; }
+.maintenance__box { max-width: 36rem; }
+.maintenance__box a { color: var(--ink); text-decoration: underline; font-weight: 700; }
+html.is-maintenance { overflow: hidden; }
