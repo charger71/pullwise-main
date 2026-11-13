@@ -51,12 +51,14 @@
     {
       "id": "popscomics502",
       "domains": [
+        "popscomics502.com",
+        "www.popscomics502.com",
         "popscomics502.pullwise.shop"
       ],
       "supabaseUrl": "https://lrzjehkpcrscvmgxhjei.supabase.co",
       "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyemplaGtwY3JzY3ZtZ3hoamVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ1MzE3NzEsImV4cCI6MjExMDEwNzc3MX0.xdEPRDJGrVEOp6J4sjMGyoXC_fNemMglk5y3tECQRhg",
       "projectRef": "lrzjehkpcrscvmgxhjei",
-      "gaMeasurementId": "",
+      "gaMeasurementId": "G-93K8VP6V3F",
       "app": false
     }
   ]
