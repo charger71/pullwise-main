@@ -9,6 +9,7 @@ import { cutoffPassed } from '../../js/site.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { todayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
 import { adminHash } from '../route.js';
+import { followedSeries, discountFor, tiersFrom, totals } from '../../js/discount.js';
 
 const SOURCE = { manual: 'Customer', variant: 'Customer (all covers)', series: 'Series follow', artist: 'Artist follow', staff: 'Staff' };
 const ITEM_FIELDS = 'id,title,issue_number,variant,publisher,price,series_key,foc_date,release_date,status';
@@ -605,6 +606,7 @@ async function loadOrders(el, c) {
       must(lineQuery().not('status', 'in', `(${inPlay.join(',')})`).limit(500)),
     ]);
     const lines = [...current, ...history];
+    const disc = discountInfo(await must(sb.from('subscriptions').select('kind,key').eq('customer_id', c.id).eq('kind', 'series')));
     const unlinked = await findUnlinked(c);
     const staffNames = new Map((await must(sb.from('staff').select('user_id,name'))).map((m) => [m.user_id, m.name]));
     const latest = lines.reduce((a, l) => (!a || l.updated_at > a.updated_at ? l : a), null);
@@ -619,10 +621,10 @@ async function loadOrders(el, c) {
     box.innerHTML = `
       ${unlinked.length ? `<p class="notice cust-link">${unlinked.length} earlier guest ${unlinked.length === 1 ? 'order matches' : 'orders match'} this customer’s phone or email but ${unlinked.length === 1 ? 'isn’t' : 'aren’t'} linked yet.
         <button class="btn btn--primary btn--small" type="button" data-link>Link ${unlinked.length === 1 ? 'it' : 'them'}</button></p>` : ''}
-      ${shown.length ? summaryChips(shown) : ''}
+      ${shown.length ? summaryChips(shown, disc) : ''}
       ${shown.length ? `<div class="admin-table-wrap"><table class="admin-table cust-lines">
         <thead><tr><th scope="col">Title</th><th scope="col" class="cl-out">Out</th><th scope="col" class="cl-qty">Qty</th><th scope="col" class="cl-status">Status</th><th scope="col" class="cl-by">Added by</th><th scope="col" class="cl-rm"><span class="visually-hidden">Remove</span></th></tr></thead>
-        ${groupedRows(shown, c, staffNames)}</table></div>` : '<p class="empty">Nothing on this customer’s pull list yet.</p>'}`;
+        ${groupedRows(shown, c, staffNames)}</table></div>${discountTotals(shown, disc)}` : '<p class="empty">Nothing on this customer’s pull list yet.</p>'}`;
     box.onchange = (e) => editLine(el, c, lines, e);
     box.onclick = async (e) => {
       const fold = e.target.closest('[data-fold-group]');
@@ -649,11 +651,29 @@ async function loadOrders(el, c) {
 
 const ACTIVE_STATUSES = ['open', 'ordered', 'reordered', 'arrived'];
 
+/** The customer's pull list discount from their series follows: { on, series, pct, next }. `on` is false when the program is off. */
+function discountInfo(follows) {
+  const tiers = tiersFrom(settings);
+  return { on: tiers.length > 0, series: followedSeries(follows), ...discountFor(followedSeries(follows), tiers) };
+}
+const money = (n) => `$${n.toFixed(2)}`;
+
+/** Subtotal at cover price, the pull list discount and the estimated total: the same math as the customer's My Pull List and the printed list. */
+function discountTotals(lines, disc) {
+  const { subtotal, discount, total } = totals(lines, disc.on ? disc.pct : 0);
+  if (!subtotal) return '';
+  const unpriced = lines.filter((l) => ACTIVE_STATUSES.includes(l.status) && l.item?.price == null).length;
+  return `<dl class="cust-totals"><dt>Subtotal (cover price)</dt><dd>${money(subtotal)}</dd>
+    ${disc.on && disc.pct ? `<dt>Pull list discount (${disc.pct}%)</dt><dd>−${money(discount)}</dd>` : ''}
+    <dt><strong>Estimated total</strong></dt><dd><strong>${money(total)}</strong></dd></dl>
+    <p class="card__meta">Active titles only; tax not included${unpriced ? `; ${unpriced} without a price not counted` : ''}.</p>`;
+}
+
 /** Open titles a series/artist follow added in the last week (the hourly sweep, or when the follow was made). */
 const autoAddedRecently = (l) => ['series', 'artist'].includes(l.source) && l.status === 'open' && Date.now() - new Date(l.created_at) < 7 * 864e5;
 
 /** "1 ready for pickup · 3 open · 1 ordered · 2 past": the state of the list at a glance. */
-function summaryChips(lines) {
+function summaryChips(lines, disc) {
   const n = (fn) => lines.filter(fn).length;
   const chip = (count, label, cls) => (count ? `<span class="pill pill--${cls}">${count} ${label}</span>` : '');
   const copies = lines.filter((l) => ACTIVE_STATUSES.includes(l.status)).reduce((sum, l) => sum + l.quantity, 0);
@@ -665,8 +685,10 @@ function summaryChips(lines) {
     chip(n((l) => l.status === 'not_ordered'), 'not ordered', 'not_ordered'),
     chip(n((l) => !ACTIVE_STATUSES.includes(l.status) && l.status !== 'not_ordered'), 'past', 'released'),
     chip(n(autoAddedRecently), 'new from follows this week', 'new'),
+    disc.on && disc.pct ? `<span class="pill pill--done" title="${disc.series} series followed">${disc.pct}% discount</span>` : '',
   ].join(' ');
-  return `<p class="cust-chips">${chips}${copies ? ` <span class="card__meta">${copies} ${copies === 1 ? 'copy' : 'copies'} active</span>` : ''}</p>`;
+  const why = disc.on ? ` <span class="card__meta">${disc.series} series followed${disc.next ? ` · follow ${disc.next.more} more for ${disc.next.pct}%` : ''}</span>` : '';
+  return `<p class="cust-chips">${chips}${why}${copies ? ` <span class="card__meta">${copies} ${copies === 1 ? 'copy' : 'copies'} active</span>` : ''}</p>`;
 }
 
 // Folded pull list groups, remembered on this device; Past starts folded.
@@ -887,14 +909,18 @@ function setupFollows(el, c) {
 
   const load = async () => {
     try {
-      const subs = await must(sb.from('subscriptions').select('id,kind,label,role,quantity,all_covers').eq('customer_id', c.id).order('label'));
-      list.innerHTML = subs.length
+      const subs = await must(sb.from('subscriptions').select('id,kind,key,label,role,quantity,all_covers').eq('customer_id', c.id).order('label'));
+      const d = discountInfo(subs);
+      const discLine = !d.on
+        ? '<p class="admin-hint">The pull list discount is switched off in Shop Settings.</p>'
+        : `<p class="cust-disc"><strong>${d.pct ? `${d.pct}% pull list discount` : 'No discount yet'}</strong> · ${d.series} series ${d.series === 1 ? 'counts' : 'count'} (artist follows don’t)${d.next ? ` · ${d.next.more} more series ${d.next.more === 1 ? 'reaches' : 'reach'} ${d.next.pct}%` : ' · top tier'}</p>`;
+      list.innerHTML = discLine + (subs.length
         ? `<ul class="job-log cust-follows">${subs
             .map((f) => `<li><span><strong>${esc(f.label)}</strong> <span class="card__meta">${f.kind === 'series' ? (f.all_covers ? 'Series · every cover' : 'Series · main cover') : ROLE_LABEL[f.role]} · ${f.quantity} ${f.quantity === 1 ? 'copy' : 'copies'} of each</span></span>
               <span class="cust-follows__act">${f.kind === 'series' ? `<label><input type="checkbox" data-fall="${f.id}" data-label="${esc(f.label)}"${f.all_covers ? ' checked' : ''}> All covers<span class="visually-hidden"> of ${esc(f.label)}</span></label>` : ''}
               <button class="btn btn--danger btn--small" type="button" data-unfollow="${f.id}" data-label="${esc(f.label)}" aria-label="Unfollow ${esc(f.label)}">${solidIcon('unfollow', 16)} Unfollow</button></span></li>`)
             .join('')}</ul>`
-        : '<p class="empty">Not following anything.</p>';
+        : '<p class="empty">Not following anything.</p>');
       const fc = $('[data-follow-count]', el);
       if (fc) fc.textContent = subs.length ? `${subs.length} ${subs.length === 1 ? 'follow' : 'follows'}` : 'Not following anything';
     } catch (err) {
