@@ -59,7 +59,7 @@
       "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyemplaGtwY3JzY3ZtZ3hoamVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ1MzE3NzEsImV4cCI6MjExMDEwNzc3MX0.xdEPRDJGrVEOp6J4sjMGyoXC_fNemMglk5y3tECQRhg",
       "projectRef": "lrzjehkpcrscvmgxhjei",
       "gaMeasurementId": "G-93K8VP6V3F",
-      "app": false
+      "app": true
     }
   ]
 }
