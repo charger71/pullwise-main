@@ -61,7 +61,7 @@ export async function mount(el, { sb }) {
       </div></div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Opening Hours</h2></div><div class="fold__body">
         <div data-hours></div>
-        <button class="btn btn--add btn--small" type="button" data-add-hours>${solidIcon('add', 16)} Add hours</button>
+        <button class="btn btn--add btn--small mt-14" type="button" data-add-hours>${solidIcon('add', 16)} Add hours</button>
       </div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Map</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         <div class="field field--full"><label><input type="checkbox" name="show_map"${s.show_map ? ' checked' : ''}> Show a Google Map on the Home and Visit pages</label></div>
@@ -113,6 +113,11 @@ export async function mount(el, { sb }) {
         <div class="field span-2">${switchHtml('Use live chat on this site', { name: 'chat_available', checked: s.chat_available !== false })}
         <p class="field__hint">Turns the whole feature on or off. Off removes the Chat screen from this admin and the chat button and footer link from every public page, and visitors can’t start chats; saved chats are kept. While it is on, you switch chat on and off for visitors from Admin → Chat (chat starts off).</p></div>
         ${field('chat_greeting', 'Greeting', 'maxlength="200"', 'Shown above the first message box. Leave blank for the standard greeting.', 'field--full')}
+      </div></div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Maintenance Mode</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
+        <div class="field span-2">${switchHtml('Cover the public site with a “be right back” screen', { name: 'maintenance_mode', checked: !!s.maintenance_mode })}
+        <p class="field__hint">When on, every public page and the pull list app are covered by a “be right back” screen showing the message below, with the shop’s phone and email if set. This staff admin keeps working, so you can switch it off again. It only hides the site from visitors: it doesn’t stop the database from answering, so the pull list app’s data calls still work. Only owners can change it.</p></div>
+        ${field('maintenance_message', 'Message for visitors', 'maxlength="500"', 'Optional. Leave blank for the standard message.', 'field--full')}
       </div></div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Footer Code</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         <div class="field span-2"><label for="s-footer-scripts">Code for the bottom of every page</label>
@@ -236,7 +241,7 @@ export async function mount(el, { sb }) {
     if (typeof fontPicks === 'string') return setStatus(status, fontPicks, 'error');
 
     const row = {
-      shop_name: text('shop_name'), tagline: text('tagline'), hero_headline: text('hero_headline'), copyright_text: text('copyright_text'), footer_scripts: text('footer_scripts'), chat_available: f.has('chat_available'), chat_greeting: text('chat_greeting'), founded_year: int('founded_year', null),
+      shop_name: text('shop_name'), tagline: text('tagline'), hero_headline: text('hero_headline'), copyright_text: text('copyright_text'), footer_scripts: text('footer_scripts'), chat_available: f.has('chat_available'), maintenance_mode: f.has('maintenance_mode'), maintenance_message: text('maintenance_message'), chat_greeting: text('chat_greeting'), founded_year: int('founded_year', null),
       phone: text('phone'), email: text('email'), street: text('street'), city: text('city'), region: text('region'), postal_code: text('postal_code'),
       hours, socials, colors, fonts: fontPicks, logo_url: logo.get(), favicon_url: favicon.get(), show_name_with_logo: f.has('show_name_with_logo'), hero_image_url: hero.get(), show_map: f.has('show_map'), map_embed_url: mapUrl, ga_measurement_id: gaId,
       max_copies_per_title: int('max_copies_per_title', 10), hold_days: int('hold_days', 30),

@@ -15,12 +15,11 @@ import { ACTIVE, DAYS, LINE_FIELDS, TREND_CARD, TOP_CARD, TOP_SEARCHES_CARD, use
 let sb;
 let settings;
 let isOwner = false;
-const maintSummary = (on) => (on ? 'ON — the public site is covered' : 'Off');
 
 export async function mount(el, ctx) {
   isOwner = ctx.isOwner === true;
   sb = ctx.sb;
-  settings = await must(sb.from('settings').select('hold_days,timezone,announcement,maintenance_mode,maintenance_message,pull_list_email_enabled,pull_list_email_day,pull_list_email_hour,pull_list_email_last_sent,arrival_email_enabled').eq('id', 1).single());
+  settings = await must(sb.from('settings').select('hold_days,timezone,announcement,pull_list_email_enabled,pull_list_email_day,pull_list_email_hour,pull_list_email_last_sent,arrival_email_enabled').eq('id', 1).single());
   useShop(sb, settings.timezone);
   const locations = await listLocations(sb); // [] unless the shop has 2+ locations: then each gets its own tab
   el.innerHTML = `
@@ -48,20 +47,6 @@ export async function mount(el, ctx) {
     </form>
       </div>
     </details>
-    ${isOwner ? `<details class="fold fold--compact dash-announce-fold"${settings.maintenance_mode ? ' open' : ''}>
-      <summary class="fold__head"><h2 id="dash-maint-title">Maintenance Mode<span class="fold__note" data-maint-sum>${maintSummary(settings.maintenance_mode)}</span></h2></summary>
-      <div class="fold__body">
-    <form class="dash-announce" data-maint novalidate>
-      <p class="admin-hint" id="dash-maint-hint">When on, every public page and the pull list app are covered by a “be right back” screen showing the message below, with the shop’s phone and email if set. This staff admin keeps working, so you can switch it off again. It only hides the site from visitors: it doesn’t stop the database from answering, so the pull list app’s data calls still work. Only owners can change it.</p>
-      <div class="field">${switchHtml(settings.maintenance_mode ? 'Maintenance mode is on' : 'Maintenance mode is off', { name: 'maintenance_mode', checked: settings.maintenance_mode })}</div>
-      <div class="dash-announce__row">
-        <input id="dash-maint-message" name="maintenance_message" aria-label="Message for visitors" aria-describedby="dash-maint-hint" maxlength="500" placeholder="Message for visitors (optional)" value="${esc(settings.maintenance_message)}">
-        <button class="btn btn--primary" type="submit">Save</button>
-      </div>
-      <p class="admin-status" role="status" data-maint-status></p>
-    </form>
-      </div>
-    </details>` : ''}
     <div data-tabpane="today">
     <p class="card__meta" data-scope hidden></p>
     <ul class="dash-tiles" data-tiles aria-busy="true"><li class="dash-tile"><p class="admin-hint loading">Loading…</p></li></ul>
@@ -111,27 +96,6 @@ export async function mount(el, ctx) {
     } catch (err) {
       setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
     }
-  });
-  $('[data-maint]', el)?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const status = $('[data-maint-status]', el);
-    setStatus(status, 'Saving…');
-    try {
-      const fd = new FormData(e.target);
-      const maintenance_mode = fd.get('maintenance_mode') === 'on';
-      const maintenance_message = fd.get('maintenance_message').toString().trim() || null;
-      // Row-level security turns an update by a signed-out session into "0 rows", not an error.
-      if (!(await must(sb.from('settings').update({ maintenance_mode, maintenance_message }).eq('id', 1).select('id')))?.length) {
-        throw Object.assign(new Error('You may have been signed out. Sign in again, then save once more.'), { code: 'P0001' });
-      }
-      $('[data-maint-sum]', el).textContent = maintSummary(maintenance_mode);
-      setStatus(status, maintenance_mode ? `Saved ${fmtTime()} — the public site is covered now.` : 'Saved — the public site is showing normally.', 'ok');
-    } catch (err) {
-      setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
-    }
-  });
-  $('[data-maint] .switch__text', el)?.closest('form').addEventListener('change', (e) => {
-    if (e.target.name === 'maintenance_mode') e.target.closest('.switch').querySelector('.switch__text').textContent = e.target.checked ? 'Maintenance mode is on' : 'Maintenance mode is off';
   });
   $('[data-asof]', el).textContent = `As of ${fmtDateTime(new Date().toISOString())}`;
 
