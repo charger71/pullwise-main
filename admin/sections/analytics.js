@@ -5,13 +5,12 @@
 
 import { $, $$, esc, must, fmtDate, fmtDateTime, itemName, STATUS_LABELS, sortableTable, friendlyError, setupTabs, toListTop, hintSlot, formatPhone, openEmailDialog } from '../lib.js';
 import { moneySummary } from '../money.js';
-import { addDays, todayIn, dayIn } from '../../js/dates.js';
+import { addDays, weekStart, todayIn, dayIn } from '../../js/dates.js';
 import { APP_ENABLED } from '../../js/config.js';
 
 export const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
 export const DAYS = 30;
 const SEARCH_DAYS = 90; // the database keeps searches this long (supabase/migrations/…_search_log.sql)
-const MONEY_WEEKS = 13;
 const DRIFT_DAYS = 60;
 const DEMAND_DAYS = 90;
 const GROWTH_MONTHS = 12;
@@ -94,7 +93,7 @@ export async function mount(el, ctx) {
       ${card('dash-series', 'Most-Followed Series', 'data-series', { hint: `How many customers follow each series, the copies of each issue they ask for, and the follows added in the last ${DEMAND_DAYS} days.` })}
       </div>
       <div class="dash-stack">
-      ${card('dash-money', `Money · Last ${MONEY_WEEKS} weeks`, 'data-money', { hint: 'Estimated at each title’s cover price, before pull list discounts. Customers pay in the store, so this isn’t sales.' })}
+      ${card('dash-money', 'Money · This week', 'data-money', { hint: 'Estimated at each title’s cover price, before pull list discounts. Customers pay in the store, so this isn’t sales.' })}
       ${card('dash-status', 'Titles by Status', 'data-status', { link: '<a class="btn btn--small btn--green" href="#titles">Titles →</a>' })}
       ${card('dash-publishers', 'Demand by Publisher', 'data-publishers', { hint: 'Each publisher’s share of the copies on open, ordered or arrived reservations. Imprints and similar spellings count under one name.' })}
       </div>
@@ -474,11 +473,10 @@ async function renderApp(box) {
 
 /** Estimated dollars reserved, in progress and picked up, and how much of what's held for people gets picked up. */
 async function renderMoney(box, active) {
-  const since = addDays(today(), -(MONEY_WEEKS * 7 - 1));
+  const since = weekStart(today()); // this week, Sunday to today
   const fields = 'id,order_id,quantity,status,arrived_on,created_at,updated_at,item:items(price),placed:reservation_orders(customer_id)';
   const recent = await all(() => sb.from('reservations').select(fields).gte('updated_at', new Date(`${since}T00:00:00`).toISOString()).order('id'));
-  const m = moneySummary({ recent, active, since, weeks: MONEY_WEEKS, dayOf: dayKey });
-  const day = (d) => fmtDate(d, { month: 'short', day: 'numeric' });
+  const m = moneySummary({ recent, active, since, weeks: 1, dayOf: dayKey });
   box.innerHTML = `
     <p class="dash-big">${dollars(m.reserved)} <span>reserved</span></p>
     <ul class="dash-facts">
@@ -494,11 +492,7 @@ async function renderMoney(box, active) {
       ${fact(m.releasedCopies, m.releasedCopies === 1 ? 'copy released to the shelf' : 'copies released to the shelf')}
       ${m.typicalWait == null ? '' : fact(m.typicalWait, `${m.typicalWait === 1 ? 'day' : 'days'} is the typical wait from arrival to pickup`)}
     </ul>`}
-    ${m.unpriced ? `<p class="card__meta">${plural(m.unpriced, 'line')} with no cover price ${m.unpriced === 1 ? 'isn’t' : 'aren’t'} in these dollars.</p>` : ''}
-    <details class="dash-details"><summary>Show by week</summary>
-      <table class="admin-table"><thead><tr><th scope="col">Week starting</th><th scope="col">Reserved</th><th scope="col">Copies</th></tr></thead>
-      <tbody>${m.byWeek.slice().reverse().map((w) => `<tr><td>${day(w.start)}</td><td>${dollars(w.value)}</td><td>${w.copies.toLocaleString()}</td></tr>`).join('')}</tbody></table>
-    </details>`;
+    ${m.unpriced ? `<p class="card__meta">${plural(m.unpriced, 'line')} with no cover price ${m.unpriced === 1 ? 'isn’t' : 'aren’t'} in these dollars.</p>` : ''}`;
 }
 
 async function renderStatus(box) {
