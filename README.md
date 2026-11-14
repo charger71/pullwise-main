@@ -71,6 +71,13 @@ the weekly email, so there is nothing extra to set up beyond the migration and r
 - Customers can turn it off in their profile ("Email me when my books are ready for pickup") or with the link in
   the email; staff can set it on the customer's page.
 
+**Skip.** A title a follow added gets a one-tap "Skip this one" in the weekly email (while it is new and still open
+for changes) and a Skip button on the app notification that announces a single new title. Both use the customer's
+private `unsubscribe_token` and the line id: `weekly-pull-list?u=<token>&skip=<line>`. A GET shows the title and a
+button (mail scanners open links); the POST calls `skip_followed_line()`, which cancels the line and remembers the
+removal in `pull_list_exclusions`, exactly like Remove in the app. It refuses titles the customer added themselves
+and anything past the order cutoff. Staff test and preview emails carry no Skip links.
+
 Email logic lives in `supabase/functions/weekly-pull-list/email.js`; run its tests with
 `node supabase/functions/weekly-pull-list/email.test.js`.
 
