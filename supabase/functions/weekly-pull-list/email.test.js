@@ -26,6 +26,31 @@ assert.equal(sec.later[0].isNew, true);
 assert.equal(sec.later[1].changeBy, '2026-10-10');
 assert.equal(sec.later[0].changeBy, null); // FOC Oct 5 has passed, nothing left to change
 
+// Skip this one: only for a title a follow added this week that can still be changed
+{
+  const l = (id, source, status, created_at, foc) => ({ id, quantity: 1, status, source, created_at, item: it(`T${id}`, '1', '2026-11-04', foc) });
+  const sk = sections([
+    l(1, 'series', 'open', '2026-10-06T10:00:00Z', '2026-10-12'), // follow, new, changeable: skippable
+    l(2, 'artist', 'open', '2026-10-06T10:00:00Z', '2026-10-12'), // artist follow: skippable
+    l(3, 'manual', 'open', '2026-10-06T10:00:00Z', '2026-10-12'), // they added it themselves
+    l(4, 'series', 'open', '2026-10-06T10:00:00Z', '2026-10-05'), // cutoff passed
+    l(5, 'series', 'open', '2026-09-01T10:00:00Z', '2026-10-12'), // not new any more
+    l(6, 'series', 'ordered', '2026-10-06T10:00:00Z', '2026-10-12'), // already ordered
+    l(7, 'variant', 'open', '2026-10-06T10:00:00Z', '2026-10-12'), // all-covers add: not a skippable follow line
+    { quantity: 1, status: 'open', source: 'series', created_at: '2026-10-06T10:00:00Z', item: it('NOID', '1', '2026-11-04', '2026-10-12') }, // no id
+  ], { today });
+  const byTitle = Object.fromEntries(sk.later.map((e) => [e.title.split(' ')[0], e.skipId]));
+  assert.deepEqual(byTitle, { T1: 1, T2: 2, T3: undefined, T4: undefined, T5: undefined, T6: undefined, T7: undefined, NOID: undefined });
+  const skipUrl = (id) => `https://db.test/f?u=tok&skip=${id}`;
+  const m = build({ customer: { first_name: 'Jo' }, sections: sk, shop: { shop_name: 'S', colors: {} }, today, manageUrl: 'https://example.com/account.html', unsubscribeUrl: 'https://example.com/u?u=abc', skipUrl });
+  assert.equal((m.html.match(/Skip this one<\/a>/g) ?? []).length, 2, 'a Skip link on each of the two');
+  assert.ok(m.html.includes('href="https://db.test/f?u=tok&amp;skip=1"'), 'the link is escaped for HTML');
+  assert.match(m.text, /- T1 #1[^\n]*\n  [^\n]*\n  Skip this one: https:\/\/db\.test\/f\?u=tok&skip=1\n/);
+  assert.ok(!/skip=3|skip=4|skip=5|skip=6|skip=7/.test(m.html + m.text));
+  const none = build({ customer: { first_name: 'Jo' }, sections: sk, shop: { shop_name: 'S', colors: {} }, today, manageUrl: 'https://example.com/account.html', unsubscribeUrl: 'https://example.com/u?u=abc' });
+  assert.ok(!/Skip this one/.test(none.html + none.text), 'a test or preview (no link maker) has no Skip');
+}
+
 assert.equal(sections([{ quantity: 1, status: 'picked_up', item: it('A', '1') }], { today }), null);
 assert.equal(sections([], { today }), null);
 

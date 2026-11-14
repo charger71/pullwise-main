@@ -36,15 +36,23 @@ export function arrivalMessage(lines, shopName = '', readyCount = lines.length) 
   };
 }
 
-/** Titles a series or artist the customer follows added to their list. */
-export function newTitlesMessage(lines) {
+/**
+ * Titles a series or artist the customer follows added to their list. `skipUrl(line)` makes the one-tap Skip link
+ * (weekly-pull-list's ?u=&skip=); a notice about a single line gets a Skip button (sw.js), several only open the list.
+ */
+export function newTitlesMessage(lines, { skipUrl } = {}) {
   const names = titles(lines);
-  return {
+  const msg = {
     title: names.length === 1 ? 'New on your pull list' : `${names.length} new titles on your pull list`,
     body: `${nameList(names)}, from what you follow. Remove any you don’t want before the order cutoff.`,
     url: linkFor(lines, names),
     tag: 'new-titles',
   };
+  if (lines.length === 1 && lines[0].id && skipUrl) {
+    msg.body = `${nameList(names)}, from what you follow. Tap Skip to take it off, or leave it and it stays.`;
+    msg.skip = { url: skipUrl(lines[0]), title: names[0] };
+  }
+  return msg;
 }
 
 // Calendar days as YYYY-MM-DD (no time zones), as in weekly-pull-list/email.js.

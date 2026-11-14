@@ -106,6 +106,7 @@ async function seriesFollows(db: typeof admin) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
   const url = new URL(req.url);
+  if (url.searchParams.has('u') && url.searchParams.has('skip')) return skipTitle(req, url.searchParams.get('u')!, url.searchParams.get('skip')!);
   if (url.searchParams.has('u')) return unsubscribe(req, url.searchParams.get('u')!, url.searchParams.get('k') === 'arrivals' ? 'arrivals' : 'weekly');
   if (req.method !== 'POST') return json(405, { error: 'POST only' });
 
@@ -282,7 +283,7 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
   for (let offset = 0; ; offset += 1000) {
     const { data, error: lErr } = await admin
       .from('reservations')
-      .select('quantity,status,arrived_on,source,created_at,item:items(title,issue_number,variant,release_date,foc_date,price,series_key),order:reservation_orders!inner(customer_id)')
+      .select('id,quantity,status,arrived_on,source,created_at,item:items(title,issue_number,variant,release_date,foc_date,price,series_key),order:reservation_orders!inner(customer_id)')
       .in('status', ACTIVE)
       .not('order.customer_id', 'is', null)
       .order('id')
@@ -304,7 +305,9 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
     const sec = sections((lines.get(c.id) ?? []) as never[], { today, holdDays: shop.hold_days ?? 30, follows: follows.get(c.id) });
     if (!sec) return null;
     const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}`;
-    return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, app }) };
+    // Skip links carry the customer's private token, so a staff test or preview gets none.
+    const skipUrl = forStaff ? null : (lineId: number) => `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}&skip=${lineId}`;
+    return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, app, skipUrl }) };
   };
 
   if (mode === 'preview' || mode === 'test') {
@@ -571,4 +574,50 @@ async function unsubscribe(req: Request, token: string, kind: 'weekly' | 'arriva
     return page('You’re unsubscribed', `<p>You won’t get the ${what} any more. Your pull list itself hasn’t changed. You can turn it back on any time in your profile.</p>`);
   }
   return page(`Unsubscribe from the ${what}?`, `<form method="post"><button style="font:bold 16px Arial;padding:12px 20px;cursor:pointer">Yes, unsubscribe me</button></form>`);
+}
+
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+
+/**
+ * "Skip this one" from the weekly email or a notification: takes a title a follow added off the customer's pull list
+ * and remembers it so the follow doesn't add it back (public.skip_followed_line). A GET only shows what it would skip
+ * and a button: mail scanners open links, and that must not skip anything. A POST does it; the page answers in HTML,
+ * or in JSON for the app's notification button (which asks with Accept: application/json or a text/plain body).
+ */
+async function skipTitle(req: Request, token: string, lineParam: string) {
+  const line = /^\d{1,15}$/.test(lineParam) ? Number(lineParam) : 0;
+  const wantsJson = req.method === 'POST' && !(req.headers.get('content-type') ?? '').includes('form');
+  const answer = (result: string, title: string, heading: string, body: string) =>
+    wantsJson ? json(200, { result, title }) : page(heading, `<p>${body}</p>`);
+  const bad = () => answer('invalid', '', 'Link not recognised', 'This link isn’t valid any more. Log in to your account to change your pull list.');
+  if (!UUID.test(token) || !line) return bad();
+  if (req.method === 'POST') {
+    const { data, error } = await admin.rpc('skip_followed_line', { p_token: token, p_line: line });
+    if (error) {
+      console.error('skip_followed_line', error);
+      return wantsJson ? json(500, { error: 'Try again.' }) : page('Something went wrong', '<p>We couldn’t skip that title. Please try again, or log in to your account to remove it.</p>');
+    }
+    const { result, title } = data as { result: string; title?: string };
+    const t = esc(title ?? 'That title');
+    if (result === 'skipped') return answer(result, title ?? '', 'Skipped', `${t} is off your pull list, and it won’t be added again. You still follow the series or artist, so their other issues will keep coming.`);
+    if (result === 'already') return answer(result, title ?? '', 'Already skipped', `${t} isn’t on your pull list any more.`);
+    if (result === 'closed') return answer(result, title ?? '', 'Too late to skip', `The order for ${t} is already in. Please call the shop to change it.`);
+    return bad();
+  }
+  // A GET names the title first (the token proves who is asking; nothing is changed).
+  const { data: who } = await admin.from('customers').select('id').eq('unsubscribe_token', token).maybeSingle();
+  const { data: row } = who
+    ? await admin
+        .from('reservations')
+        .select('status,source,item:items(title,issue_number),order:reservation_orders!inner(customer_id)')
+        .eq('id', line)
+        .eq('order.customer_id', who.id)
+        .in('source', ['series', 'artist'])
+        .maybeSingle()
+    : { data: null };
+  const item = row?.item as { title: string; issue_number: string | null } | null | undefined;
+  if (!row || !item) return bad();
+  const name = esc(item.title + (item.issue_number ? ` #${item.issue_number}` : ''));
+  if (row.status === 'cancelled') return page('Already skipped', `<p>${name} isn’t on your pull list any more.</p>`);
+  return page(`Skip ${name}?`, `<p>It will come off your pull list and won’t be added again. You’ll still follow the series or artist.</p><form method="post"><button style="font:bold 16px Arial;padding:12px 20px;cursor:pointer">Yes, skip it</button></form>`);
 }
