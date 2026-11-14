@@ -90,6 +90,11 @@ shop's visitors load the catalog's covers. Logos, banners, event photos and the 
 4. Existing images: Actions → **Move images to R2** → Run workflow, first with "dry run" ticked to see the count, then
    without. It copies them into the bucket and rewrites the addresses; shops pick them up on their next hourly sync.
 
+Every shop's own domain also serves these images at `https://<shop domain>/__img/<shop id>/covers/…` (the Worker reads
+the bucket; nothing to set up in Cloudflare per shop, since each domain is already attached to the Worker). Mail sent
+from a shop's domain should load pictures from that same domain, not from `images.pullwise.shop`, which is more likely to
+be filed as spam: use `ownDomainImage()` (`worker/shop-page.js`) to turn an images-domain address into the shop's.
+
 New covers uploaded in an R2 shop's admin (Import, a title's cover, a series cover) go through the site Worker
 (`PUT /__media`, staff only) straight into the bucket under the shop's id.
 

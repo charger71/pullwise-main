@@ -140,6 +140,31 @@ export function mediaPath(path, contentType) {
   return ext && ext.test(parts.at(-1).toLowerCase()) ? path : null;
 }
 
+/** Where every shop's own domain serves the R2 images (worker/media.js mediaServe): https://<shop domain>/__img/<shop id>/covers/… */
+export const MEDIA_SERVE_PATH = '/__img/';
+
+/**
+ * The same image on a shop's own domain. Email from a shop's domain that loads pictures from another domain
+ * (images.pullwise.shop) is more likely to be filed as spam, so mail uses this. Addresses that aren't on the
+ * shared images domain (Supabase Storage logos, other sites) are returned as they were.
+ */
+export function ownDomainImage(url, publicBase, siteBase) {
+  const base = String(publicBase ?? '').replace(/\/+$/, '');
+  const own = String(siteBase ?? '').replace(/\/+$/, '');
+  if (!base || !own || typeof url !== 'string' || !url.startsWith(`${base}/`)) return url;
+  return `${own}${MEDIA_SERVE_PATH}${url.slice(base.length + 1)}`;
+}
+
+/** The R2 key in a /__img/ address ("catalog/covers/lunar/A-1.jpg"), or null. Shop id first, then a path mediaPath accepts. */
+export function mediaKey(pathname) {
+  if (!pathname.startsWith(MEDIA_SERVE_PATH)) return null;
+  const parts = pathname.slice(MEDIA_SERVE_PATH.length).split('/');
+  const rest = parts.slice(1).join('/');
+  if (parts.length < 3 || !/^[a-z0-9][a-z0-9-]*$/.test(parts[0])) return null;
+  const type = Object.keys(MEDIA_TYPES).find((t) => MEDIA_TYPES[t].test(rest.toLowerCase()));
+  return type && mediaPath(rest, type) ? `${parts[0]}/${rest}` : null;
+}
+
 /** Public address of an object the Worker stored for a shop. */
 export const mediaUrl = (publicBase, shop, path) => `${publicBase.replace(/\/+$/, '')}/${shop.id}/${path}`;
 

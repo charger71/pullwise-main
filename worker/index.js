@@ -8,6 +8,7 @@
 //  * /sitemap.xml is generated on the shop's main domain, and /robots.txt (the static file) gets its address.
 //  * An address with no file gets 404.html (wrangler.jsonc's not_found_handling), branded like the other pages.
 //  * PUT /__media stores covers and series images in R2 for shops using it (worker/media.js).
+//  * GET /__img/<shop id>/covers/… serves those R2 images from the shop's own domain, for email (worker/media.js).
 //  * GET /__backups lists and serves the shop's nightly backup files to its owners (worker/backups.js).
 //  * GET /catalog.json is the public read-only catalog feed, on the master catalog only ("catalog": true) (worker/catalog-feed.js).
 //  * /manifest.webmanifest is the shop's installable pull list app (app.html), under its name, icon and colors;
@@ -17,10 +18,10 @@
 //    run in demo mode.
 
 import SHOPS from '../shops.json';
-import { mediaUpload } from './media.js';
+import { mediaUpload, mediaServe } from './media.js';
 import { BACKUPS_PATH, backupFiles } from './backups.js';
 import { CATALOG_FEED_PATH, catalogFeed } from './catalog-feed.js';
-import { MEDIA_UPLOAD_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { MEDIA_UPLOAD_PATH, MEDIA_SERVE_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
 const CACHE_SECONDS = 60;
@@ -37,6 +38,7 @@ export default {
       return app ? Response.redirect(app, app.endsWith(NO_APP_PATH) ? 302 : 301) : env.ASSETS.fetch(request);
     }
     if (url.pathname === MEDIA_UPLOAD_PATH) return mediaUpload(request, shop, env);
+    if (url.pathname.startsWith(MEDIA_SERVE_PATH)) return mediaServe(request, env);
     if (url.pathname === BACKUPS_PATH) return backupFiles(request, shop, env);
     if (url.pathname === CATALOG_FEED_PATH && shop.catalog === true) return catalogFeed(request, shop, env, { waitUntil: (p) => ctx.waitUntil(p) });
     if (url.pathname === '/js/config.js') return config(shop, request, await cachedShopData(shop));
