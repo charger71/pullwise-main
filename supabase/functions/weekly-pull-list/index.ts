@@ -313,7 +313,7 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
     const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : emailLink(`u=${c.unsubscribe_token}`);
     // Skip links carry the customer's private token, so a staff test or preview gets none.
     const skipUrl = forStaff ? null : (lineId: number) => emailLink(`u=${c.unsubscribe_token}&skip=${lineId}`);
-    return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, app, skipUrl, siteUrl: SITE, mediaBase: MEDIA_BASE }) };
+    return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, app, skipUrl, siteUrl: SITE, mediaBase: MEDIA_BASE, storageBase: SUPABASE_URL }) };
   };
 
   if (mode === 'preview' || mode === 'test') {
@@ -420,7 +420,7 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
     const waiting = customerLines.find((l) => l.status === 'arrived' && !l.arrival_notified_at);
     const shop = withLocation(shopBase, locs.byId.get(waiting?.location_id ?? c.home_location_id) ?? locs.fallback, { multi: locs.multi });
     const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : unsubUrl(c); // a test must not carry the customer's real link
-    return { unsubscribeUrl, ids: customerLines.filter((l) => l.status === 'arrived' && !l.arrival_notified_at).map((l) => l.id), ...buildArrival({ customer: c, arrival, shop, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, sample, siteUrl: SITE, mediaBase: MEDIA_BASE }) };
+    return { unsubscribeUrl, ids: customerLines.filter((l) => l.status === 'arrived' && !l.arrival_notified_at).map((l) => l.id), ...buildArrival({ customer: c, arrival, shop, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, sample, siteUrl: SITE, mediaBase: MEDIA_BASE, storageBase: SUPABASE_URL }) };
   };
 
   if (mode === 'arrivals_preview' || mode === 'arrivals_test') {
