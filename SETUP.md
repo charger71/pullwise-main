@@ -93,7 +93,11 @@ shop's visitors load the catalog's covers. Logos, banners, event photos and the 
 Every shop's own domain also serves these images at `https://<shop domain>/__img/<shop id>/covers/…` (the Worker reads
 the bucket; nothing to set up in Cloudflare per shop, since each domain is already attached to the Worker). Mail sent
 from a shop's domain should load pictures from that same domain, not from `images.pullwise.shop`, which is more likely to
-be filed as spam: use `ownDomainImage()` (`worker/shop-page.js`) to turn an images-domain address into the shop's.
+be filed as spam: the pull-list emails do this: covers that are in R2 load from `<shop domain>/__img/…`, and the logo from
+`<shop domain>/__email-logo` (the Worker fetches the logo set in Admin → Emails, else the site logo). Covers kept elsewhere
+(Supabase Storage, a distributor's site) are left out of mail rather than loaded from another domain. This needs the
+function's `SITE_URL` secret to be the shop's own domain; `MEDIA_PUBLIC_URL` (optional, default `https://images.pullwise.shop`)
+must match `wrangler.jsonc` if you changed that.
 
 New covers uploaded in an R2 shop's admin (Import, a title's cover, a series cover) go through the site Worker
 (`PUT /__media`, staff only) straight into the bucket under the shop's id.

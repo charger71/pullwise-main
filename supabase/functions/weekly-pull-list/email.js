@@ -3,6 +3,16 @@
 
 import { followedSeries, discountFor, totals, tiersFrom } from './discount.js';
 
+// Kept in step with worker/shop-page.js (a Supabase function is deployed on its own, so it can't import from worker/);
+// email.test.js checks they agree.
+export const EMAIL_LOGO_PATH = '/__email-logo';
+export function ownDomainImage(url, publicBase, siteBase) {
+  const base = String(publicBase ?? '').replace(/\/+$/, '');
+  const own = String(siteBase ?? '').replace(/\/+$/, '');
+  if (!base || !own || typeof url !== 'string' || !url.startsWith(`${base}/`)) return url;
+  return `${own}/__img/${url.slice(base.length + 1)}`;
+}
+
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 // YYYY-MM-DD helpers (calendar dates, no time zones)
@@ -44,6 +54,7 @@ export function sections(lines, { today, holdDays = 30, follows = [] }) {
       price: l.item.price,
       out: l.item.release_date,
       note: SOURCE_NOTE[l.source] ?? null,
+      cover: l.item.cover_url ?? null,
       isNew: ['series', 'artist', 'variant', 'staff'].includes(l.source) && String(l.created_at ?? '').slice(0, 10) >= weekAgo,
     };
     if (l.status === 'arrived') {
@@ -78,7 +89,7 @@ export function tierNote(series, tiers) {
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** The shop logo as a small (96px) copy for email: Supabase Storage resizes it on the fly, so the 800px original isn't downloaded. */
-function logoSrc(url) {
+export function logoSrc(url) {
   if (!/^https:\/\//.test(url ?? '')) return null;
   return url.includes('/storage/v1/object/public/') ? `${url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')}?width=96&height=96&resize=contain` : url;
 }
@@ -99,7 +110,7 @@ const textOn = (bg) => (contrast(bg, '#ffffff') >= contrast(bg, '#161616') ? '#f
  * Logo and colors for the emails (Admin → Emails → Look). Anything left blank follows the site:
  * the site logo and its main color. Text colors are picked automatically so they stay readable.
  */
-export function emailLook(shop) {
+export function emailLook(shop, siteUrl = '') {
   const site = HEX.test(shop.colors?.primary ?? '') ? shop.colors.primary : '#c8102e';
   const header = HEX.test(shop.email_header_color ?? '') ? shop.email_header_color : site;
   const button = HEX.test(shop.email_button_color ?? '') ? shop.email_button_color : site;
@@ -112,7 +123,9 @@ export function emailLook(shop) {
     text: textOn(body),
     muted: dark ? '#c9c9c9' : '#5b5b5b',
     rule: dark ? '#4a4a4a' : '#eeeeee',
-    logo: logoSrc(shop.email_logo_url || shop.logo_url),
+    // From the shop's own domain when we know it (the Worker serves it: worker/index.js): mail from a shop's domain
+    // that pulls its logo from another one (supabase.co) is more likely to be filed as spam.
+    logo: !(shop.email_logo_url || shop.logo_url) ? null : /^https:\/\//.test(siteUrl) ? `${siteUrl.replace(/\/+$/, '')}${EMAIL_LOGO_PATH}` : logoSrc(shop.email_logo_url || shop.logo_url),
     header,
     headerText: textOn(header),
     button,
@@ -138,6 +151,14 @@ export function subject(sec, shopName) {
   return `Your ${shopName} pull list: ${parts.join(', ')}`;
 }
 
+/** The cover as a small picture in a title's row, only when it can be served from the shop's own domain; else ''. */
+function coverCell(e, look, siteUrl, mediaBase) {
+  const src = e.cover && /^https:\/\//.test(siteUrl) ? ownDomainImage(e.cover, mediaBase, siteUrl) : null;
+  return src && src !== e.cover ? `<td width="56" valign="top" style="padding:8px 12px 8px 0;border-bottom:1px solid ${look.rule}"><img src="${esc(src)}" width="44" alt="" style="display:block;border:0;width:44px;height:auto;border-radius:3px"></td>` : '';
+}
+/** One title's row: [cover] details. The details cell carries the row's bottom rule. */
+const titleRow = (cover, inner, look) => `<tr>${cover}<td style="padding:8px 0;border-bottom:1px solid ${look.rule};font:15px/1.4 Arial,Helvetica,sans-serif;color:${look.text}">${inner}</td></tr>`;
+
 const line = (e, kind) => {
   const bits = [
     e.variant,
@@ -157,8 +178,8 @@ const SECTION_TITLES = {
 };
 
 /** @returns {{ subject: string, html: string, text: string }} */
-export function build({ customer, sections: sec, shop, today, manageUrl, unsubscribeUrl, app = true, skipUrl = null }) {
-  const look = emailLook(shop);
+export function build({ customer, sections: sec, shop, today, manageUrl, unsubscribeUrl, app = true, skipUrl = null, siteUrl = '', mediaBase = '' }) {
+  const look = emailLook(shop, siteUrl);
   const accent = /^#[0-9a-f]{6}$/i.test(shop.colors?.accent ?? '') ? shop.colors.accent : '#ffd100';
   const subj = subject(sec, shop.shop_name);
   const hello = customer.first_name ? `Hi ${customer.first_name},` : 'Hi,';
@@ -173,10 +194,9 @@ export function build({ customer, sections: sec, shop, today, manageUrl, unsubsc
       .map((e) => {
         const l = line(e, key);
         const skip = skipUrl && e.skipId ? skipUrl(e.skipId) : null;
-        return `<tr><td style="padding:8px 0;border-bottom:1px solid ${look.rule};font:15px/1.4 Arial,Helvetica,sans-serif;color:${look.text}">
-          <strong>${esc(e.title)}</strong>${e.isNew ? ` <span style="background:${accent};color:#161616;font-size:11px;font-weight:bold;padding:1px 6px;border-radius:3px">NEW</span>` : ''}
+        return titleRow(coverCell(e, look, siteUrl, mediaBase), `<strong>${esc(e.title)}</strong>${e.isNew ? ` <span style="background:${accent};color:#161616;font-size:11px;font-weight:bold;padding:1px 6px;border-radius:3px">NEW</span>` : ''}
           ${l.bits ? `<br><span style="color:${look.muted};font-size:13px">${esc(l.bits)}</span>` : ''}
-          ${skip ? `<br><a href="${esc(skip)}" style="color:${look.text};font-size:13px;font-weight:bold">Skip this one</a> <span style="color:${look.muted};font-size:13px">(takes it off your list)</span>` : ''}</td></tr>`;
+          ${skip ? `<br><a href="${esc(skip)}" style="color:${look.text};font-size:13px;font-weight:bold">Skip this one</a> <span style="color:${look.muted};font-size:13px">(takes it off your list)</span>` : ''}`, look);
       })
       .join('');
     return `<h2 style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${look.title}">${SECTION_TITLES[key]} (${sec[key].length})</h2>
@@ -228,6 +248,7 @@ export function arrivalSections(lines, { holdDays = 30, follows = [] }) {
     variant: l.item.variant,
     quantity: l.quantity,
     price: l.item.price,
+    cover: l.item.cover_url ?? null,
     holdUntil: l.arrived_on ? addDays(l.arrived_on, holdDays) : null,
   });
   const arrived = lines.filter((l) => l.item && l.status === 'arrived');
@@ -272,8 +293,8 @@ export function hoursLines(hours = []) {
 const money = (n) => `$${Number(n).toFixed(2)}`;
 
 /** @returns {{ subject: string, html: string, text: string }} */
-export function buildArrival({ customer, arrival, shop, manageUrl, unsubscribeUrl, sample = false }) {
-  const look = emailLook(shop);
+export function buildArrival({ customer, arrival, shop, manageUrl, unsubscribeUrl, sample = false, siteUrl = '', mediaBase = '' }) {
+  const look = emailLook(shop, siteUrl);
   const accent = /^#[0-9a-f]{6}$/i.test(shop.colors?.accent ?? '') ? shop.colors.accent : '#ffd100';
   const { fresh, waiting } = arrival;
   const hello = customer.first_name ? `Hi ${customer.first_name},` : 'Hi,';
@@ -290,7 +311,7 @@ export function buildArrival({ customer, arrival, shop, manageUrl, unsubscribeUr
   const bits = (e) => [e.variant, e.quantity > 1 && `${e.quantity} copies`, e.holdUntil && `held until ${dayLabel(e.holdUntil, { month: 'short', day: 'numeric' })}`].filter(Boolean).join(' · ');
   const rows = (list) =>
     list
-      .map((e) => `<tr><td style="padding:8px 0;border-bottom:1px solid ${look.rule};font:15px/1.4 Arial,Helvetica,sans-serif;color:${look.text}"><strong>${esc(e.title)}</strong>${bits(e) ? `<br><span style="color:${look.muted};font-size:13px">${esc(bits(e))}</span>` : ''}</td></tr>`)
+      .map((e) => titleRow(coverCell(e, look, siteUrl, mediaBase), `<strong>${esc(e.title)}</strong>${bits(e) ? `<br><span style="color:${look.muted};font-size:13px">${esc(bits(e))}</span>` : ''}`, look))
       .join('');
   const block = (title, list, color) =>
     list.length ? `<h2 style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${color}">${esc(title)} (${list.length})</h2><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows(list)}</table>` : '';
@@ -323,8 +344,8 @@ export function buildArrival({ customer, arrival, shop, manageUrl, unsubscribeUr
 }
 
 /** A one-to-one message from staff: the shop header (logo and colors), the text they wrote, and the shop's details. */
-export function buildMessage({ shop, subject, message }) {
-  const look = emailLook(shop);
+export function buildMessage({ shop, subject, message, siteUrl = '' }) {
+  const look = emailLook(shop, siteUrl);
   const addr = [shop.street, [shop.city, shop.region].filter(Boolean).join(', '), shop.postal_code].filter(Boolean);
   const paragraphs = String(message).trim().split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${esc(p).replace(/\n/g, '<br>')}</p>`).join('');
   const html = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:${look.page}">

@@ -155,6 +155,9 @@ export function ownDomainImage(url, publicBase, siteBase) {
   return `${own}${MEDIA_SERVE_PATH}${url.slice(base.length + 1)}`;
 }
 
+/** The shop's email logo on its own domain (worker/index.js fetches the staff-set image and serves it). */
+export const EMAIL_LOGO_PATH = '/__email-logo';
+
 /** The R2 key in a /__img/ address ("catalog/covers/lunar/A-1.jpg"), or null. Shop id first, then a path mediaPath accepts. */
 export function mediaKey(pathname) {
   if (!pathname.startsWith(MEDIA_SERVE_PATH)) return null;

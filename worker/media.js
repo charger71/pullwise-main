@@ -47,3 +47,24 @@ export async function mediaServe(request, env) {
   if (object.httpEtag) headers.set('ETag', object.httpEtag);
   return new Response(request.method === 'HEAD' ? null : object.body, { headers });
 }
+
+// GET /__email-logo on a shop's own domain: the logo for its emails (Admin → Emails' logo, else the site logo), so mail
+// loads it from the shop's domain instead of supabase.co. Only the image the shop's staff set is fetched, never an address
+// from the request. A small copy (96px) when it sits in Supabase Storage, like the email always asked for.
+export async function emailLogo(request, settings, fetchFn = fetch) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('GET only', { status: 405, headers: { Allow: 'GET, HEAD' } });
+  const url = emailLogoSource(settings);
+  const res = url ? await fetchFn(url, { redirect: 'manual', signal: AbortSignal.timeout(5000) }).catch(() => null) : null;
+  const type = (res?.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase();
+  const size = Number(res?.headers.get('Content-Length') ?? 0);
+  if (!res?.ok || !/^image\/(png|jpeg|gif|webp)$/.test(type) || size > MAX_LOGO_BYTES) return new Response('Not found', { status: 404, headers: { 'Cache-Control': 'public, max-age=60' } });
+  return new Response(request.method === 'HEAD' ? null : res.body, { headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
+}
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+
+/** The https address of the shop's email logo, as a small copy when Supabase Storage can resize it; null when it has none. */
+export function emailLogoSource(settings = {}) {
+  const url = settings.email_logo_url || settings.logo_url;
+  if (!/^https:\/\//.test(url ?? '')) return null;
+  return url.includes('/storage/v1/object/public/') ? `${url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')}?width=96&height=96&resize=contain` : url;
+}
