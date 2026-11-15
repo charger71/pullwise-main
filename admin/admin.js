@@ -9,6 +9,7 @@ import { DEMO, getSettings } from '../js/data.js';
 import { LOCATIONS_ENABLED } from '../js/config.js';
 import { $, $$, db, esc, openEmailDialog, friendlyError } from './lib.js';
 import { sizedImage } from '../js/util.js';
+import { setShopTimeZone } from '../js/dates.js';
 import { VERSION } from './version.js';
 import { syncTheme } from './theme.js';
 import { watchForUpdates } from './update-check.js';
@@ -189,8 +190,11 @@ async function showApp() {
     // The unread count on the menu and the alerts while staff are on other screens.
     on ? startChatAlerts(sb, { current: () => parseAdminHash(location.hash, SECTIONS), onCount: setTitle }) : stopChatAlerts();
   };
-  const { data: chatSetting } = await sb.from('settings').select('chat_available').eq('id', 1).maybeSingle();
-  showChat(chatSetting?.chat_available !== false);
+  const { data: shopSetting } = await sb.from('settings').select('chat_available,timezone').eq('id', 1).maybeSingle();
+  // "Today" and the order cutoffs on every screen follow the shop's timezone (js/dates.js), like the database does,
+  // wherever this staff member is. Set before the first screen opens.
+  setShopTimeZone(shopSetting?.timezone);
+  showChat(shopSetting?.chat_available !== false);
   window.addEventListener('chat-available', (e) => showChat(e.detail));
   startSurveyAlerts(sb, { onCount: setTitle }); // the count of new survey responses on the Surveys menu item
   startEventAlerts(sb, { onCount: setTitle }); // the count of new event signups on the Events menu item
@@ -226,6 +230,7 @@ const setTitle = () => {
 };
 
 let lastHash = location.hash;
+let routeRun = 0; // the latest route() call: a slower, earlier one must not draw over the screen opened after it
 async function route() {
   if (location.hash === '#restore') history.replaceState(null, '', '#backup'); // Restore is now part of Backup
   let { name, arg } = parseAdminHash(location.hash, SECTIONS);
@@ -250,16 +255,19 @@ async function route() {
   const el = $('#section');
   el.setAttribute('aria-label', navLabel || name); // focus lands here on each screen change, so a screen reader names the screen
   el.innerHTML = '<p class="admin-hint loading">Loading…</p>';
+  const mine = ++routeRun;
   try {
     const module = await import(`./sections/${name}.js`);
+    if (mine !== routeRun) return; // another screen was chosen while this one's file loaded
     current = { name, module };
     el.innerHTML = '';
     await module.mount(el, { sb, isOwner, arg });
   } catch (err) {
+    if (mine !== routeRun) return;
     console.error(err);
     el.innerHTML = `<p class="form-error">Couldn’t open this section: ${esc(friendlyError(err))}</p>`;
   }
-  el.focus({ preventScroll: true });
+  if (mine === routeRun) el.focus({ preventScroll: true });
 }
 
 // Collapsible groups in the section list (Pull List, Website, Utilities). Each starts as its markup says (Pull List
@@ -371,7 +379,19 @@ const crumbHeading = () => {
   h1.dataset.shown = text;
 };
 $('#section').addEventListener('keydown', tabKeys);
-new MutationObserver(() => (decorateTabs($('#section')), stackTables($('#section')), crumbHeading())).observe($('#section'), { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-selected'] });
+// A screen drawing a long list changes the page many times in a row: do the work once per frame, not once per change.
+let tidyQueued = false;
+const tidySection = () => {
+  tidyQueued = false;
+  decorateTabs($('#section'));
+  stackTables($('#section'));
+  crumbHeading();
+};
+new MutationObserver(() => {
+  if (tidyQueued) return;
+  tidyQueued = true;
+  requestAnimationFrame(tidySection);
+}).observe($('#section'), { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-selected'] });
 
 $('#admin-version').textContent = VERSION;
 

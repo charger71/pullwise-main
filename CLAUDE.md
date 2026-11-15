@@ -8,7 +8,9 @@
   looks or behaves. The guide is the reference the next change is built from, so it must match the code.
   `admin/consistency.test.js` fails when a shared component is missing from the guide.
 - Shared CSS lives in `admin/base.css` (tokens, both themes) and `admin/admin.css`; one screen per file in
-  `admin/sections/`; helpers (`esc`, `uid`, `hintFold`, `setupTabs`, `openDialog`, …) in `admin/lib.js`.
+  `admin/sections/`; helpers (`esc`, `uid`, `hintFold`, `setupTabs`, `openDialog`, …) in `admin/lib.js`,
+  the rich text editor (`makeEditor`) in `admin/editor.js`, pictures and uploads (`imageField`, `uploadImage`) in
+  `admin/images.js`.
 - Markup a screen writes carries no fixed `style="…"`: give it a class in `admin.css` (inline styles only carry values
   worked out at run time, such as a bar's width). `admin/consistency.test.js` enforces it.
 

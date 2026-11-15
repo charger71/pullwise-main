@@ -2,7 +2,9 @@
 // schedule, sender, and preview / test / send-now tools. Saves only its own
 // settings columns, so it never touches the Shop Settings fields.
 
-import { $, $$, esc, must, toast, setStatus, openDialog, makeEditor, setHtml, getHtml, imageField, settingsField, formReaders, fmtDateTime, debounce, friendlyError, setupTabs, fmtTime, toListTop, hintSlot } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, openDialog, settingsField, formReaders, fmtDateTime, debounce, friendlyError, setupTabs, fmtTime, toListTop, hintSlot } from '../lib.js';
+import { makeEditor, setHtml, getHtml } from '../editor.js';
+import { imageField } from '../images.js';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const hourLabel = (h) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;

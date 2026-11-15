@@ -6,7 +6,8 @@ import { tiersFrom } from '../../js/discount.js';
 import { SUPABASE_URL, APP_ENABLED } from '../../js/config.js';
 import { putMedia } from '../../js/media-store.js';
 import { contrast, colorVars, FONT_LIBRARY, FONT_SLOTS, SPACING, SIZES, letterSpacing, sizeScale, fontScale, isFontUpload } from '../../js/theme-vars.js';
-import { $, $$, esc, must, toast, imageField, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, uid, db, slugify, switchHtml, hintSlot } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, uid, db, slugify, switchHtml, hintSlot } from '../lib.js';
+import { imageField } from '../images.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];

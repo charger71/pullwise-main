@@ -21,8 +21,9 @@ if (!DEMO) supabase();
 let demoPromise;
 const demo = () => (demoPromise ??= import('./demo-data.js'));
 
+/** A Supabase answer's data; a failure is thrown as a real Error (with a stack), keeping the database's code, details and hint. */
 const unwrap = ({ data, error }) => {
-  if (error) throw error;
+  if (error) throw error instanceof Error ? error : Object.assign(new Error(error.message || 'The request failed'), error);
   return data;
 };
 
@@ -31,11 +32,15 @@ export function getSettings() {
   settingsPromise ??= DEMO
     ? demo().then((d) => d.settings)
     : supabase().then(async (sb) => {
-        const row = unwrap(await sb.from('settings').select('*').eq('id', 1).maybeSingle());
+        // Both at once: every page waits for this.
+        const [settings, { data: all }] = await Promise.all([
+          sb.from('settings').select('*').eq('id', 1).maybeSingle(),
+          sb.from('locations').select('*').order('id'),
+        ]);
+        const row = unwrap(settings);
         if (!row) throw new Error('Shop settings not found — run supabase/seed.sql against this project.');
         // Address, phone and hours come from the shop's default location (a shop's first one mirrors its settings).
         // A shop with 2+ locations also gets them all as `locations`, for the Visit page and footer.
-        const { data: all } = await sb.from('locations').select('*').order('id');
         const loc = (all ?? []).find((l) => l.is_default);
         if (loc) {
           const { street, city, region, postal_code, country, phone, hours, map_embed_url } = loc;
@@ -184,8 +189,9 @@ async function fetchItems(f) {
   // Keep an issue's covers together, main cover (no variant / CVR A) first.
   query = query.order('title').order('issue_number', { nullsFirst: true }).order('variant', { nullsFirst: true }).order('id');
   if (f.limit) query = query.range(f.offset ?? 0, (f.offset ?? 0) + f.limit - 1);
-  const { data, error, count } = await query;
-  if (error) throw error;
+  const res = await query;
+  const data = unwrap(res);
+  const { count } = res;
   if (f.countOnly) return count;
   return f.withCount ? { rows: data, count } : data;
 }
