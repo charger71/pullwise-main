@@ -214,11 +214,19 @@ img{-ms-interpolation-mode:bicubic}
 </style>`;
 }
 
-/** The coloured band at the top of every email: logo (when there is one) and the shop name. */
+/**
+ * The coloured band at the top of every email: logo (when there is one) and the shop name.
+ *
+ * The logo is a fixed 48 high and as wide as its own shape makes it, so it is never stretched. It used to be forced to 48 x 48,
+ * which squashed any logo that isn't square (the 96px copy keeps its shape). Only the height is given as an attribute (Outlook
+ * for Windows scales the width to match; given both it stretches), and CSS caps the width, with object-fit so a very wide logo is
+ * shrunk to fit rather than squeezed. Its cell is 48 wide, which is the usual square logo's width, so the name doesn't move
+ * when the picture loads; a wider logo makes the cell grow.
+ */
 function header(shop, look) {
   const name = esc(shop.shop_name);
   return `<tr><td style="background:${look.header};padding:14px 24px;border-radius:6px 6px 0 0">
-        <table role="presentation" cellpadding="0" cellspacing="0"><tr>${look.logo ? `<td style="padding-right:12px"><img src="${esc(look.logo)}" width="48" height="48" alt="" style="display:block;border:0;border-radius:6px"></td>` : ''}
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>${look.logo ? `<td width="48" height="48" valign="middle" style="padding-right:12px"><img src="${esc(look.logo)}" height="48" alt="" style="display:block;border:0;border-radius:6px;height:48px;width:auto;max-width:144px;object-fit:contain"></td>` : ''}
         <td style="font:bold 20px Arial,Helvetica,sans-serif;color:${look.headerText}">${name}</td></tr></table></td></tr>`;
 }
 
