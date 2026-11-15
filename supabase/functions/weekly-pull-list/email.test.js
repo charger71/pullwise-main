@@ -148,7 +148,17 @@ console.log('arrival email tests passed');
 // Logo in the header: a resized copy when the shop has one, nothing when it doesn't.
 const LOGO = 'https://x.supabase.co/storage/v1/object/public/media/brand/logo.png';
 const withLogo = buildArrival({ customer: { first_name: 'Jane' }, arrival: asec, shop: { ...shop2, logo_url: LOGO }, manageUrl: 'x', unsubscribeUrl: 'y' });
-assert.match(withLogo.html, /<img src="https:\/\/x\.supabase\.co\/storage\/v1\/render\/image\/public\/media\/brand\/logo\.png\?width=96&amp;height=96&amp;resize=contain" width="48"/);
+assert.match(withLogo.html, /<img src="https:\/\/x\.supabase\.co\/storage\/v1\/render\/image\/public\/media\/brand\/logo\.png\?width=96&amp;height=96&amp;resize=contain" height="48"/);
+// The logo keeps its own shape: height only (Outlook stretches to width AND height), width follows, capped without squeezing
+{
+  const tag = /<img src="[^"]*"[^>]*>/.exec(withLogo.html)[0];
+  assert.ok(!/ width=/.test(tag), 'no width attribute on the logo');
+  assert.ok(tag.includes('height="48"') && tag.includes('height:48px;width:auto;max-width:144px;object-fit:contain'), 'height fixed, width follows, capped with object-fit');
+  assert.ok(withLogo.html.includes('<td width="48" height="48" valign="middle"'), 'the logo cell holds a square logo’s space so the name stays put');
+  for (const m of [build({ customer: {}, sections: sections([{ id: 1, quantity: 1, status: 'arrived', arrived_on: '2026-10-01', source: 'manual', item: { title: 'T' } }], { today: '2026-10-05' }), shop: { shop_name: 'S', logo_url: LOGO }, today: '2026-10-05', manageUrl: 'https://s.com/account.html', unsubscribeUrl: 'u' }), buildMessage({ shop: { shop_name: 'S', logo_url: LOGO }, subject: 'x', message: 'y' })]) {
+    assert.ok(!/<img [^>]*width="48"/.test(m.html), 'no forced 48 x 48 in any email');
+  }
+}
 assert.doesNotMatch(buildArrival({ customer: {}, arrival: asec, shop: shop2, manageUrl: 'x', unsubscribeUrl: 'y' }).html, /<img /);
 console.log('logo header tests passed');
 
