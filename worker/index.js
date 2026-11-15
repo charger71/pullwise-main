@@ -9,6 +9,7 @@
 //  * An address with no file gets 404.html (wrangler.jsonc's not_found_handling), branded like the other pages.
 //  * PUT /__media stores covers and series images in R2 for shops using it (worker/media.js).
 //  * GET /__backups lists and serves the shop's nightly backup files to its owners (worker/backups.js).
+//  * GET /catalog.json is the public read-only catalog feed, on the master catalog only ("catalog": true) (worker/catalog-feed.js).
 //  * /manifest.webmanifest is the shop's installable pull list app (app.html), under its name, icon and colors;
 //    app.<shop domain> forwards to that app on the shop's main domain. Only shops marked "app": true in shops.json
 //    have it: for the rest /app forwards to the account page and the manifest is a 404.
@@ -18,6 +19,7 @@
 import SHOPS from '../shops.json';
 import { mediaUpload } from './media.js';
 import { BACKUPS_PATH, backupFiles } from './backups.js';
+import { CATALOG_FEED_PATH, catalogFeed } from './catalog-feed.js';
 import { MEDIA_UPLOAD_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
@@ -50,6 +52,7 @@ export default {
     }
     if (url.pathname === MEDIA_UPLOAD_PATH) return mediaUpload(request, shop, env);
     if (url.pathname === BACKUPS_PATH) return backupFiles(request, shop, env);
+    if (url.pathname === CATALOG_FEED_PATH && shop.catalog === true) return catalogFeed(request, shop, env, { waitUntil: (p) => ctx.waitUntil(p) });
     if (url.pathname === '/js/config.js') return config(shop, request, await cachedShopData(shop));
     if (!hasApp(shop) && url.pathname === '/manifest.webmanifest') return new Response('Not found', { status: 404 }); // nothing to install
     if (!hasApp(shop) && (url.pathname === '/app' || url.pathname === '/app.html')) return Response.redirect(new URL(NO_APP_PATH, url).href, 302);
@@ -209,6 +212,8 @@ function rewrite(res, file, { settings, pages }, shop, customSlug = null) {
         },
       });
   }
+  // The feed link in the catalog pages' <head> points at /catalog.json, which only the master catalog serves.
+  if (shop.catalog !== true) rw = rw.on('link[rel="alternate"][type="application/json"]', { element(el) { el.remove(); } });
   rw = rw.on('head', { element(el) { el.append(headTags(file, settings, shop.supabaseUrl).map((t) => `  ${t}\n`).join(''), { html: true }); } });
   // The page's own font preloads, for a default font the shop has replaced: no download it won't use.
   const unused = new Set(unusedDefaultPreloads(settings.fonts, { storageOrigin: shop.supabaseUrl }));

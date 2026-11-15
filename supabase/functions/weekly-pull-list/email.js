@@ -26,7 +26,7 @@ const SOURCE_NOTE = { variant: 'all covers', series: 'from a series you follow',
 
 /**
  * Sort a customer's active lines into the email's sections.
- * `lines`: [{ quantity, status, arrived_on, source, created_at, item: { title, issue_number, variant, release_date, foc_date, price, cover_url } }]
+ * `lines`: [{ id, quantity, status, arrived_on, source, created_at, item: { title, issue_number, variant, release_date, foc_date, price, cover_url } }]
  * Returns null when there is nothing worth emailing about.
  */
 export function sections(lines, { today, holdDays = 30, follows = [] }) {
@@ -52,6 +52,8 @@ export function sections(lines, { today, holdDays = 30, follows = [] }) {
     } else if (['open', 'ordered', 'reordered'].includes(l.status)) {
       const changeBy = l.status === 'open' && l.item.foc_date ? lastChangeDay(l.item.foc_date) : null;
       entry.changeBy = changeBy && changeBy >= today ? changeBy : null;
+      // A title a follow added this week, still open for changes: the email can offer a one-tap Skip.
+      if (l.id && entry.isNew && entry.changeBy && l.status === 'open' && ['series', 'artist'].includes(l.source)) entry.skipId = l.id;
       if (l.status !== 'reordered' && l.item.release_date && l.item.release_date <= weekAhead) soon.push(entry);
       else later.push(entry);
     }
@@ -155,7 +157,7 @@ const SECTION_TITLES = {
 };
 
 /** @returns {{ subject: string, html: string, text: string }} */
-export function build({ customer, sections: sec, shop, today, manageUrl, unsubscribeUrl, app = true }) {
+export function build({ customer, sections: sec, shop, today, manageUrl, unsubscribeUrl, app = true, skipUrl = null }) {
   const look = emailLook(shop);
   const accent = /^#[0-9a-f]{6}$/i.test(shop.colors?.accent ?? '') ? shop.colors.accent : '#ffd100';
   const subj = subject(sec, shop.shop_name);
@@ -170,9 +172,11 @@ export function build({ customer, sections: sec, shop, today, manageUrl, unsubsc
     const rows = sec[key]
       .map((e) => {
         const l = line(e, key);
+        const skip = skipUrl && e.skipId ? skipUrl(e.skipId) : null;
         return `<tr><td style="padding:8px 0;border-bottom:1px solid ${look.rule};font:15px/1.4 Arial,Helvetica,sans-serif;color:${look.text}">
           <strong>${esc(e.title)}</strong>${e.isNew ? ` <span style="background:${accent};color:#161616;font-size:11px;font-weight:bold;padding:1px 6px;border-radius:3px">NEW</span>` : ''}
-          ${l.bits ? `<br><span style="color:${look.muted};font-size:13px">${esc(l.bits)}</span>` : ''}</td></tr>`;
+          ${l.bits ? `<br><span style="color:${look.muted};font-size:13px">${esc(l.bits)}</span>` : ''}
+          ${skip ? `<br><a href="${esc(skip)}" style="color:${look.text};font-size:13px;font-weight:bold">Skip this one</a> <span style="color:${look.muted};font-size:13px">(takes it off your list)</span>` : ''}</td></tr>`;
       })
       .join('');
     return `<h2 style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${look.title}">${SECTION_TITLES[key]} (${sec[key].length})</h2>
@@ -201,7 +205,7 @@ export function build({ customer, sections: sec, shop, today, manageUrl, unsubsc
 
   const textBlock = (key) =>
     sec[key].length
-      ? `${SECTION_TITLES[key].toUpperCase()} (${sec[key].length})\n${sec[key].map((e) => { const l = line(e, key); return `- ${l.head}${l.bits ? `\n  ${l.bits}` : ''}`; }).join('\n')}\n\n`
+      ? `${SECTION_TITLES[key].toUpperCase()} (${sec[key].length})\n${sec[key].map((e) => { const l = line(e, key); return `- ${l.head}${l.bits ? `\n  ${l.bits}` : ''}${skipUrl && e.skipId ? `\n  Skip this one: ${skipUrl(e.skipId)}` : ''}`; }).join('\n')}\n\n`
       : '';
   const text = `${hello}\n\nHere’s your pull list for the week of ${dayLabel(today, { month: 'long', day: 'numeric' })}.${shipNote ? ` ${shipNote}` : ''}\n\n${textBlock('ready')}${textBlock('soon')}${textBlock('later')}${tier.line ? `${tier.line}\n\n` : ''}Log in to edit your pull list: ${manageUrl}\n\n${app ? `On your phone? Get ${shop.shop_name}’s app (your list in one tap, and a notification when your books are in): ${appUrl}\n\n` : ''}--\n${shop.shop_name}${addr.length ? `, ${addr.join(', ')}` : ''}${shop.phone ? `, ${shop.phone}` : ''}\nUnsubscribe: ${unsubscribeUrl}\n`;
 

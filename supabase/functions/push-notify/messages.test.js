@@ -32,6 +32,15 @@ assert.equal(newTitlesMessage([line('Spawn', '401', 9)]).title, 'New on your pul
 assert.equal(newTitlesMessage([line('Spawn', '401', 9)]).url, '/app?title=9#list');
 assert.equal(added.url, '/app#list');
 assert.equal('badge' in added, false, 'new titles leave the icon alone');
+// Skip: only for a notice about one line, and only when a link can be made
+const skipUrl = (l) => `https://x.test/f?u=tok&skip=${l.id}`;
+const skippable = newTitlesMessage([{ id: 77, item: { id: 9, title: 'Spawn', issue_number: '401' } }], { skipUrl });
+assert.deepEqual(skippable.skip, { url: 'https://x.test/f?u=tok&skip=77', title: 'Spawn #401' });
+assert.match(skippable.body, /Skip/);
+assert.equal('skip' in newTitlesMessage([{ id: 1, item: { title: 'A' } }, { id: 2, item: { title: 'B' } }], { skipUrl }), false, 'several titles: no Skip');
+assert.equal('skip' in newTitlesMessage([{ id: 1, item: { title: 'A' } }, { id: 2, item: { title: 'A' } }], { skipUrl }), false, 'two covers of one issue: still no single line to skip');
+assert.equal('skip' in newTitlesMessage([line('Spawn', '401', 9)], { skipUrl }), false, 'a line without an id has nothing to skip');
+assert.equal('skip' in newTitlesMessage([{ id: 5, item: { title: 'A' } }]), false, 'no link maker: no Skip');
 
 // Dates
 assert.equal(addDays('2026-10-31', 1), '2026-11-01');

@@ -71,6 +71,13 @@ the weekly email, so there is nothing extra to set up beyond the migration and r
 - Customers can turn it off in their profile ("Email me when my books are ready for pickup") or with the link in
   the email; staff can set it on the customer's page.
 
+**Skip.** A title a follow added gets a one-tap "Skip this one" in the weekly email (while it is new and still open
+for changes) and a Skip button on the app notification that announces a single new title. Both use the customer's
+private `unsubscribe_token` and the line id: `weekly-pull-list?u=<token>&skip=<line>`. A GET shows the title and a
+button (mail scanners open links); the POST calls `skip_followed_line()`, which cancels the line and remembers the
+removal in `pull_list_exclusions`, exactly like Remove in the app. It refuses titles the customer added themselves
+and anything past the order cutoff. Staff test and preview emails carry no Skip links.
+
 Email logic lives in `supabase/functions/weekly-pull-list/email.js`; run its tests with
 `node supabase/functions/weekly-pull-list/email.test.js`.
 
@@ -175,7 +182,7 @@ npm test
 Runs the date helpers (`js/dates.test.js`), the email tests (`supabase/functions/weekly-pull-list/email.test.js`), the
 staff-management rules, import exclusions, the error-message translator (`js/errors.test.js`), the admin search filters
 (`admin/filters.test.js`), backup/restore logic (`admin/backup.test.js`, `tools/restore.test.js`), the site Worker's page
-logic (`worker/shop-page.test.js`), and the migration rules (`tools/check-migrations.js` and its tests).
+logic (`worker/shop-page.test.js`), the catalog feed (`worker/catalog-feed.test.js`), and the migration rules (`tools/check-migrations.js` and its tests).
 
 **Migrations on a blank database:** `tools/test-migrations.sh` (needs Docker and the Supabase CLI) starts Supabase's own
 Postgres image, runs `supabase db push --include-seed` the way a new shop is installed, checks a second push changes
@@ -187,6 +194,26 @@ GitHub Actions (`.github/workflows/ci.yml`) runs both on every pull request and 
 http://localhost:8080/admin/smoke.html. It opens every admin screen against made-up data and reports any that fail to
 load. It never touches the real database. Add `?break=1` to make the made-up database fail on purpose; most screens
 should then be reported as failed, which shows the test itself works.
+
+## Catalog feed (JSON)
+
+The master catalog (catalog.pullwise.shop) serves a public, read-only JSON feed of titles open for pre-order, so other
+tools can read the catalog without running the site's JavaScript. It is built by the Worker (`worker/catalog-feed.js`)
+from the same public data the Pre-Orders page shows, using only the public anon key and a fixed list of columns.
+
+```bash
+curl 'https://catalog.pullwise.shop/catalog.json'                                  # everything open for pre-order
+curl 'https://catalog.pullwise.shop/catalog.json?foc=2026-11-16'                   # final order cutoff on that date
+curl 'https://catalog.pullwise.shop/catalog.json?release=2026-12-09'               # on sale on that date
+curl 'https://catalog.pullwise.shop/catalog.json?q=absolute+batman'                # title or series, any case
+curl 'https://catalog.pullwise.shop/catalog.json?foc=2026-11-16&q=batman&limit=50&offset=50'
+```
+
+`foc`, `release` and `q` combine. `limit` is 1–1000 (default 500); when more results exist the response has a `next`
+address. Dates must be real `YYYY-MM-DD` dates; bad input gets a `400` with `{ "error": { "code", "message" } }`.
+Responses are cached for 5 minutes, allow `GET` from any origin, and are rate limited per client (`429`).
+Fields with no data are `null`; `creators` has only `cover_artist`, because the catalog doesn't record writers or artists
+separately. Other shops' domains don't serve the feed.
 
 ## Status and plans
 
