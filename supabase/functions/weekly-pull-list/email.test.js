@@ -300,6 +300,41 @@ console.log('email background color tests passed');
   assert.ok(!emailHead(emailLook(shop)).includes('#982c21') || emailHead(emailLook(shop)).includes('pw-title'), 'brand color only reaches titles');
   console.log('responsive and dark mode tests passed');
 }
+
+// Accessible and inbox-friendly basics: lang, title, hidden preview text; the small thumbnail wins when the shop's domain can serve it
+{
+  const shop = { shop_name: 'Shop <Comics>' };
+  const e = (title, extra = {}) => ({ title, variant: null, quantity: 1, price: 4.99, holdUntil: null, ...extra });
+  const pre = (html) => /<div style="display:none;[^"]*">([^<]*)/.exec(html)?.[1].replace(/(&zwnj;&nbsp;)+$/, '');
+  const arrival = (fresh, customer = {}) => buildArrival({ customer, arrival: { fresh, waiting: [], series: 0 }, shop, manageUrl: 'https://s.com/account.html', unsubscribeUrl: 'u' });
+  const a = arrival([e('Saga #1'), e('Batman #2'), e('Spawn #3'), e('Daredevil #4')]);
+  assert.ok(a.html.startsWith('<!doctype html><html lang="en">'));
+  assert.ok(a.html.includes(`<title>${'Your books are in at Shop &lt;Comics&gt;: 4 titles ready for pickup'}</title>`), 'title is the subject, escaped');
+  assert.equal(pre(a.html), 'Saga #1, Batman #2 and 2 more are ready for pickup at Shop &lt;Comics&gt;');
+  assert.ok(a.html.indexOf('display:none;max-height:0') < a.html.indexOf('Hi,'), 'preview text comes first in the body');
+  assert.equal(pre(arrival([e('Saga #1')]).html), 'Saga #1 is ready for pickup at Shop &lt;Comics&gt;');
+  assert.equal(pre(arrival([e('Saga #1')], { ship_arrivals: true }).html), 'Saga #1 has arrived and will be shipped to you');
+  const lines = (s) => sections([{ id: 1, quantity: 1, status: s, arrived_on: '2026-10-01', source: 'manual', item: { title: 'T', release_date: s === 'ordered' ? '2026-10-07' : '2026-12-01' } }], { today: '2026-10-05' });
+  const weekly = (sec) => build({ customer: {}, sections: sec, shop, today: '2026-10-05', manageUrl: 'https://s.com/account.html', unsubscribeUrl: 'u' });
+  assert.equal(pre(weekly(lines('arrived')).html), 'T is ready for pickup at Shop &lt;Comics&gt;');
+  assert.equal(pre(weekly(lines('ordered')).html), 'Coming this week: T');
+  assert.equal(pre(weekly(lines('open')).html), 'Coming up: T');
+  const m = buildMessage({ shop, subject: 'Your order', message: '  Hi Jane,\n\nYour   book is in. '.repeat(20) });
+  assert.ok(m.html.includes('<html lang="en">') && m.html.includes('<title>Your order</title>'));
+  assert.ok(pre(m.html).startsWith('Hi Jane, Your book is in.') && pre(m.html).length <= 110);
+
+  // Thumbnail: used when it is on the images domain; the cover otherwise; none when neither is
+  const mail = (x) => arrival([e('T', x)]).html.replace(/<div[^>]*display:none[\s\S]*?<\/div>/, '');
+  const opts = { siteUrl: 'https://s.com', mediaBase: 'https://images.x.com' };
+  const withCovers = (x) => buildArrival({ customer: {}, arrival: { fresh: [e('T', x)], waiting: [], series: 0 }, shop, manageUrl: 'https://s.com/account.html', unsubscribeUrl: 'u', ...opts }).html;
+  assert.ok(withCovers({ cover: 'https://images.x.com/catalog/covers/full.jpg', coverThumb: 'https://images.x.com/catalog/covers/thumb.jpg' }).includes('src="https://s.com/__img/catalog/covers/thumb.jpg"'));
+  assert.ok(withCovers({ cover: 'https://images.x.com/catalog/covers/full.jpg', coverThumb: 'https://abc.supabase.co/t.jpg' }).includes('src="https://s.com/__img/catalog/covers/full.jpg"'));
+  assert.ok(!withCovers({ cover: 'https://abc.supabase.co/c.jpg', coverThumb: 'https://abc.supabase.co/t.jpg' }).includes('height:66px'));
+  const sec2 = sections([{ id: 1, quantity: 1, status: 'arrived', arrived_on: '2026-10-01', source: 'manual', item: { title: 'T', cover_url: 'c', cover_thumb_url: 't' } }], { today: '2026-10-05' });
+  assert.equal(sec2.ready[0].coverThumb, 't');
+  assert.equal(arrivalSections([{ quantity: 1, status: 'arrived', item: { title: 'T', cover_url: 'c', cover_thumb_url: 't' } }], {}).fresh[0].coverThumb, 't');
+  console.log('lang, title, preview text and thumbnail tests passed');
+}
 function contrast2(a, b) {
   const lum = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
   const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);

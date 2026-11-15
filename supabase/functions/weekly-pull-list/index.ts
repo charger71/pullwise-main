@@ -26,6 +26,9 @@ import { build, sections, buildArrival, arrivalSections, buildMessage, asTest, s
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 // Pictures in mail load from the shop's own domain (SITE_URL), not the shared images domain or Supabase: see worker/media.js.
 const SITE = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
+// Unsubscribe and "Skip this one" links: on the shop's own domain when we know it (the Worker hands them to this function,
+// worker/unsubscribe.js), so the mail doesn't link to supabase.co. Without SITE_URL, straight to this function.
+const emailLink = (query: string) => (SITE ? `${SITE}/__unsubscribe?${query}` : `${SUPABASE_URL}/functions/v1/weekly-pull-list?${query}`);
 const MEDIA_BASE = (Deno.env.get('MEDIA_PUBLIC_URL') ?? 'https://images.pullwise.shop').replace(/\/$/, '');
 const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 
@@ -286,7 +289,7 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
   for (let offset = 0; ; offset += 1000) {
     const { data, error: lErr } = await admin
       .from('reservations')
-      .select('id,quantity,status,arrived_on,source,created_at,item:items(title,issue_number,variant,release_date,foc_date,price,series_key,cover_url),order:reservation_orders!inner(customer_id)')
+      .select('id,quantity,status,arrived_on,source,created_at,item:items(title,issue_number,variant,release_date,foc_date,price,series_key,cover_url,cover_thumb_url),order:reservation_orders!inner(customer_id)')
       .in('status', ACTIVE)
       .not('order.customer_id', 'is', null)
       .order('id')
@@ -307,9 +310,9 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
     const shop = withLocation(shopBase, locs.byId.get(c.home_location_id) ?? locs.fallback, { multi: locs.multi });
     const sec = sections((lines.get(c.id) ?? []) as never[], { today, holdDays: shop.hold_days ?? 30, follows: follows.get(c.id) });
     if (!sec) return null;
-    const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}`;
+    const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : emailLink(`u=${c.unsubscribe_token}`);
     // Skip links carry the customer's private token, so a staff test or preview gets none.
-    const skipUrl = forStaff ? null : (lineId: number) => `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}&skip=${lineId}`;
+    const skipUrl = forStaff ? null : (lineId: number) => emailLink(`u=${c.unsubscribe_token}&skip=${lineId}`);
     return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, app, skipUrl, siteUrl: SITE, mediaBase: MEDIA_BASE }) };
   };
 
@@ -395,7 +398,7 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
 
   const customers = await allCustomers(admin, 'id,first_name,name,email,ship_arrivals,notify_arrivals,unsubscribe_token,home_location_id');
 
-  const select = 'id,quantity,status,arrived_on,arrival_notified_at,location_id,item:items(title,issue_number,variant,price,series_key,cover_url),order:reservation_orders!inner(customer_id)';
+  const select = 'id,quantity,status,arrived_on,arrival_notified_at,location_id,item:items(title,issue_number,variant,price,series_key,cover_url,cover_thumb_url),order:reservation_orders!inner(customer_id)';
   const lines = new Map<number, any[]>();
   for (let offset = 0; ; offset += 1000) {
     const { data, error: lErr } = await admin.from('reservations').select(select).in('status', ACTIVE).not('order.customer_id', 'is', null).order('id').range(offset, offset + 999);
@@ -408,7 +411,7 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
   }
 
   const follows = await seriesFollows(admin);
-  const unsubUrl = (c: (typeof customers)[number]) => `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}&k=arrivals`;
+  const unsubUrl = (c: (typeof customers)[number]) => emailLink(`u=${c.unsubscribe_token}&k=arrivals`);
   const locs = await loadLocations();
   const compose = (c: (typeof customers)[number], customerLines: any[], sample = false, forStaff = false) => {
     const arrival = arrivalSections(customerLines, { holdDays, follows: follows.get(c.id) });

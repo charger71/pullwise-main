@@ -55,6 +55,7 @@ export function sections(lines, { today, holdDays = 30, follows = [] }) {
       out: l.item.release_date,
       note: SOURCE_NOTE[l.source] ?? null,
       cover: l.item.cover_url ?? null,
+      coverThumb: l.item.cover_thumb_url ?? null,
       isNew: ['series', 'artist', 'variant', 'staff'].includes(l.source) && String(l.created_at ?? '').slice(0, 10) >= weekAgo,
     };
     if (l.status === 'arrived') {
@@ -156,13 +157,27 @@ function nightPalette({ page, body, button }) {
 }
 
 /**
+ * Hidden "preview text": what an inbox shows after the subject. Without it the inbox shows the greeting ("Hi Jo, …"). The
+ * filler stops the app pulling the first lines of the visible email in after it.
+ */
+const preheader = (text) => `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:transparent;opacity:0">${esc(text)}${'&zwnj;&nbsp;'.repeat(40)}</div>`;
+
+/** "Absolute Batman #25, Saga #70 and 3 more" */
+function titlesBlurb(entries, max = 2) {
+  const names = entries.slice(0, max).map((e) => e.title);
+  const more = entries.length - names.length;
+  return names.join(', ') + (more > 0 ? ` and ${more} more` : '');
+}
+
+/**
  * The <head> of every email: a phone-width viewport, a declaration that the email has both a light and a dark look, and the
  * rules for both. Colors in the markup are inline (so every mail app shows the light look); the pw-* classes let a dark-mode
  * app swap them, and a narrow screen tighten the padding. Apps that ignore <style> (some Outlooks) just show the light look.
  */
-export function emailHead(look) {
+export function emailHead(look, title = '') {
   const n = look.night;
   return `<meta charset="utf-8">
+<title>${esc(title)}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
@@ -207,9 +222,15 @@ export function subject(sec, shopName) {
 // loads (or while a mail app's preview holds it back) and nothing jumps when it arrives.
 const COVER_W = 44;
 const COVER_H = 66;
+// The title's small thumbnail when it has one (a lighter file), else its cover; either only when it is on the shared images
+// domain, so it can come from the shop's own.
 const coverSrc = (e, siteUrl, mediaBase) => {
-  const src = e.cover && /^https:\/\//.test(siteUrl) ? ownDomainImage(e.cover, mediaBase, siteUrl) : null;
-  return src && src !== e.cover ? src : null;
+  if (!/^https:\/\//.test(siteUrl)) return null;
+  for (const url of [e.coverThumb, e.cover]) {
+    const src = url ? ownDomainImage(url, mediaBase, siteUrl) : null;
+    if (src && src !== url) return src;
+  }
+  return null;
 };
 /** Whether any title in the list has a cover served from the shop's own domain: only then do the rows get a cover column. */
 const anyCover = (entries, siteUrl, mediaBase) => entries.some((e) => coverSrc(e, siteUrl, mediaBase));
@@ -272,7 +293,7 @@ export function build({ customer, sections: sec, shop, today, manageUrl, unsubsc
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>`;
   };
 
-  const html = `<!doctype html><html><head>${emailHead(look)}</head><body class="pw-page" style="margin:0;background:${look.page}">
+  const html = `<!doctype html><html lang="en"><head>${emailHead(look, subj)}</head><body class="pw-page" style="margin:0;background:${look.page}">${preheader(sec.ready.length ? `${titlesBlurb(sec.ready)} ${sec.ready.length === 1 ? 'is' : 'are'} ready for pickup at ${shop.shop_name}` : sec.soon.length ? `Coming this week: ${titlesBlurb(sec.soon)}` : `Coming up: ${titlesBlurb(sec.later)}`)}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="pw-page" style="background:${look.page}"><tr><td align="center" class="pw-outer" style="padding:16px">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="pw-body" style="max-width:600px;width:100%;background:${look.body};border-radius:6px">
       ${header(shop, look)}
@@ -318,6 +339,7 @@ export function arrivalSections(lines, { holdDays = 30, follows = [] }) {
     quantity: l.quantity,
     price: l.item.price,
     cover: l.item.cover_url ?? null,
+    coverThumb: l.item.cover_thumb_url ?? null,
     holdUntil: l.arrived_on ? addDays(l.arrived_on, holdDays) : null,
   });
   const arrived = lines.filter((l) => l.item && l.status === 'arrived');
@@ -387,7 +409,7 @@ export function buildArrival({ customer, arrival, shop, manageUrl, unsubscribeUr
     list.length ? `<h2 class="${cls}" style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${color}">${esc(title)} (${list.length})</h2><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows(list)}</table>` : '';
 
   const subj = `${sample ? '[Sample] ' : ''}${arrivalSubject(fresh.length, shop.shop_name)}`;
-  const html = `<!doctype html><html><head>${emailHead(look)}</head><body class="pw-page" style="margin:0;background:${look.page}">
+  const html = `<!doctype html><html lang="en"><head>${emailHead(look, subj)}</head><body class="pw-page" style="margin:0;background:${look.page}">${preheader(customer.ship_arrivals ? `${titlesBlurb(fresh)} ${fresh.length === 1 ? 'has' : 'have'} arrived and will be shipped to you` : `${titlesBlurb(fresh)} ${fresh.length === 1 ? 'is' : 'are'} ready for pickup at ${shop.shop_name}`)}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="pw-page" style="background:${look.page}"><tr><td align="center" class="pw-outer" style="padding:16px">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="pw-body" style="max-width:600px;width:100%;background:${look.body};border-radius:6px">
       ${header(shop, look)}
@@ -418,7 +440,7 @@ export function buildMessage({ shop, subject, message, siteUrl = '' }) {
   const look = emailLook(shop, siteUrl);
   const addr = [shop.street, [shop.city, shop.region].filter(Boolean).join(', '), shop.postal_code].filter(Boolean);
   const paragraphs = String(message).trim().split(/\n{2,}/).map((p) => `<p class="pw-text" style="margin:0 0 14px;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${esc(p).replace(/\n/g, '<br>')}</p>`).join('');
-  const html = `<!doctype html><html><head>${emailHead(look)}</head><body class="pw-page" style="margin:0;background:${look.page}">
+  const html = `<!doctype html><html lang="en"><head>${emailHead(look, subject)}</head><body class="pw-page" style="margin:0;background:${look.page}">${preheader(String(message).trim().replace(/\s+/g, ' ').slice(0, 110))}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="pw-page" style="background:${look.page}"><tr><td align="center" class="pw-outer" style="padding:16px">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="pw-body" style="max-width:600px;width:100%;background:${look.body};border-radius:6px">
       ${header(shop, look)}
