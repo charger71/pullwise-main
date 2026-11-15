@@ -144,7 +144,7 @@ Phone up to 599px, tablet 600–899px, desktop from 900px, wide from 1200px; sma
 
 ## Rules
 
-- **Where code lives:** shared components in admin/base.css and admin/admin.css; one screen per file in admin/sections/; helpers (\`esc\`, \`uid\`, \`toast\`, \`openDialog\`, \`hintFold\`, \`setupTabs\`, \`sortableTable\`, \`solidIcon\`, \`makeEditor\`) in admin/lib.js.
+- **Where code lives:** shared components in admin/base.css and admin/admin.css; one screen per file in admin/sections/; helpers (\`esc\`, \`uid\`, \`toast\`, \`openDialog\`, \`hintFold\`, \`setupTabs\`, \`sortableTable\`, \`solidIcon\`) in admin/lib.js, the rich text editor (\`makeEditor\`) in admin/editor.js, pictures and uploads (\`imageField\`, \`uploadImage\`) in admin/images.js.
 - **One look for each job:** headers are the slate band, actions are AdminButton, states are AdminPill, lists are AdminTable. Something new goes into the style guide (and this system) first, in the same change.
 - **Lists:** customer columns run Name, Phone, Email, then the rest; show a customer's current details (\`withCustomers\`), not what an order was placed with.
 - **Accessibility:** visible labels; \`role="status"\` for save results and \`role="alert"\` for errors; buttons, not links, for actions; never a whole screen as a live region; never a button inside a \`<summary>\`; tab rows get arrow keys.

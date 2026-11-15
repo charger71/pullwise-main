@@ -10,7 +10,8 @@ const read = (f) => readFileSync(join(dir, f), 'utf8');
 const base = read('base.css');
 const css = read('admin.css');
 const guide = read('style-guide.html');
-const lib = read('lib.js');
+// The shared helpers: lib.js and the two files split from it (the editor and pictures), checked as one.
+const lib = ['lib.js', 'editor.js', 'images.js'].map(read).join('\n');
 const sectionFiles = readdirSync(join(dir, 'sections')).filter((f) => f.endsWith('.js'));
 const sections = Object.fromEntries(sectionFiles.map((f) => [f, read(`sections/${f}`)]));
 const allCss = `${base}\n${css}`;

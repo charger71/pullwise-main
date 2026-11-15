@@ -1,7 +1,9 @@
 // News: blog posts (new-release roundups, shop news). Drafts stay private
 // until published; a future publish time schedules the post.
 
-import { $, $$, esc, must, toast, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, slugify, sortableTable, solidIcon, friendlyError, hintFold } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, toLocalInput, fromLocalInput, fmtDateTime, slugify, sortableTable, solidIcon, friendlyError, hintFold } from '../lib.js';
+import { makeEditor, setHtml, getHtml } from '../editor.js';
+import { imageField } from '../images.js';
 import { postHref } from '../../js/optional-pages.js';
 
 let sb;

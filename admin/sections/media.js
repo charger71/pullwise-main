@@ -2,7 +2,8 @@
 // once (pictures are resized and optionally cropped in the browser; other files are stored as they are), copy each one's link,
 // delete ones no longer needed. Stored in Storage under media/library/.
 
-import { $, esc, must, toast, hintFold, uploadImage, replaceImage, thumbPath, CROPS, setStatus, solidIcon, friendlyError, listAllFiles, uploadFile, isLibraryImage, isLibraryFile, fileExt, FILE_ACCEPT } from '../lib.js';
+import { $, esc, must, toast, hintFold, setStatus, solidIcon, friendlyError, listAllFiles } from '../lib.js';
+import { uploadImage, replaceImage, thumbPath, CROPS, uploadFile, isLibraryImage, isLibraryFile, fileExt, FILE_ACCEPT } from '../images.js';
 
 const FOLDER = 'library';
 let sb;

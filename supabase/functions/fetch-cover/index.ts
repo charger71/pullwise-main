@@ -15,6 +15,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const ALLOWED_HOSTS = new Set(['images.penguinrandomhouse.com', 'funko.com', 'media.lunardistribution.com']);
 const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_REDIRECTS = 3;
+const FETCH_TIMEOUT_MS = 15000;
 // funko.com rejects requests without a browser user agent.
 const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36';
 
@@ -27,8 +29,8 @@ const json = (status: number, body: unknown) => new Response(JSON.stringify(body
 
 /** Same rule as the command-line importer: item number AND a word from the figure's name. */
 async function funkoImageUrl(itemNumber: string, keywords: string[]): Promise<string | null> {
-  const res = await fetch(`https://funko.com/search?q=${encodeURIComponent(itemNumber)}`, { headers: { 'user-agent': BROWSER_UA } });
-  if (!res.ok) return null;
+  const res = await fetch(`https://funko.com/search?q=${encodeURIComponent(itemNumber)}`, { headers: { 'user-agent': BROWSER_UA }, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).catch(() => null);
+  if (!res?.ok) return null;
   const html = await res.text();
   const urls = [...new Set([...html.matchAll(/https:\/\/funko\.com\/dw\/image\/v2\/[^"'\s?]+/g)].map((m) => m[0]))];
   const match = urls.find((u) => {
@@ -60,18 +62,33 @@ Deno.serve(async (req) => {
   if (!target && body.funkoItem) target = await funkoImageUrl(String(body.funkoItem), (body.keywords ?? []).map(String));
   if (!target) return json(404, { error: 'No image found' });
 
-  let host: string;
-  try {
-    host = new URL(target).host;
-  } catch {
-    return json(400, { error: 'Bad URL' });
+  // Redirects are followed by hand, so every hop (not just the first address) is https on an allowed source.
+  let res: Response | null = null;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    let at: URL;
+    try {
+      at = new URL(target);
+    } catch {
+      return json(400, { error: 'Bad URL' });
+    }
+    if (at.protocol !== 'https:' || !ALLOWED_HOSTS.has(at.host)) return json(400, { error: `Not an allowed image source: ${at.host}` });
+    res = await fetch(at, { headers: { 'user-agent': BROWSER_UA }, redirect: 'manual', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).catch(() => null);
+    if (!res) return json(502, { error: 'The source didn’t answer' });
+    const next = res.status >= 300 && res.status < 400 ? res.headers.get('location') : null;
+    if (!next) break;
+    await res.body?.cancel();
+    target = new URL(next, at).href;
+    res = null;
   }
-  if (!ALLOWED_HOSTS.has(host)) return json(400, { error: `Not an allowed image source: ${host}` });
-
-  const res = await fetch(target, { headers: { 'user-agent': BROWSER_UA } });
+  if (!res) return json(502, { error: 'Too many redirects' });
   if (!res.ok) return json(502, { error: `Source returned HTTP ${res.status}` });
   const type = res.headers.get('content-type')?.split(';')[0] ?? '';
   if (!type.startsWith('image/')) return json(502, { error: `Not an image (${type})` });
+  // The stated size first, so an oversized file isn't downloaded at all; then the real size, in case it wasn't stated.
+  if (Number(res.headers.get('content-length') ?? 0) > MAX_BYTES) {
+    await res.body?.cancel();
+    return json(413, { error: 'Image too large' });
+  }
   const bytes = new Uint8Array(await res.arrayBuffer());
   if (bytes.length > MAX_BYTES) return json(413, { error: 'Image too large' });
 

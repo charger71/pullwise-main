@@ -2,9 +2,10 @@
 // changes in the list (status, staff pick, hidden), a read-only info view (click
 // the name), a full edit form, and who ordered each title.
 
-import { $, $$, esc, must, toast, isPhone, openDialog, imageField, uploadImage, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold, fetchAll, fmtDateTime, formatPhone, itemName, withCustomers, downloadCsv, listLocations, toListTop } from '../lib.js';
-import { ITEM_BADGES, price } from '../../js/site.js';
-import { LINE_STATUS } from '../../js/labels.js';
+import { $, $$, esc, must, toast, isPhone, openDialog, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold, fetchAll, fmtDateTime, formatPhone, itemName, withCustomers, downloadCsv, listLocations, toListTop } from '../lib.js';
+import { imageField, uploadImage } from '../images.js';
+import { price } from '../../js/util.js';
+import { LINE_STATUS, ITEM_BADGES } from '../../js/labels.js';
 import { addDays, weekStart } from '../../js/dates.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, IS_CATALOG } from '../../js/config.js';
 import { prhApiItem } from '../../js/import/distributors.js';

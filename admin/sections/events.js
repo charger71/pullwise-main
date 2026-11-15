@@ -1,7 +1,9 @@
 // Events: the Community Calendar (signings, release parties, tournaments…).
 
 import { refreshEventAlerts, newEventSignups } from '../event-alerts.js';
-import { $, esc, must, toast, openDialog, imageField, makeEditor, setHtml, getHtml, setStatus, toLocalInput, fromLocalInput, fmtDateTime, fmtEventWhen, isAllDay, sortableTable, formatPhone, solidIcon, friendlyError, fetchAll, listLocations, hintFold } from '../lib.js';
+import { $, esc, must, toast, openDialog, setStatus, toLocalInput, fromLocalInput, fmtDateTime, fmtEventWhen, isAllDay, sortableTable, formatPhone, solidIcon, friendlyError, fetchAll, listLocations, hintFold } from '../lib.js';
+import { makeEditor, setHtml, getHtml } from '../editor.js';
+import { imageField } from '../images.js';
 
 const TYPES = { release_party: 'Release party', signing: 'Signing', tournament: 'Tournament', livestream: 'Livestream', comic_con: 'Comic Con', sale: 'Sale', other: 'Other' };
 const REPEATS = { none: 'Does not repeat', daily: 'Every day', weekly: 'Every week', biweekly: 'Every 2 weeks', monthly: 'Every month, same date (like the 15th)', monthlyweekday: 'Every month, same weekday (like the 2nd Friday)' };

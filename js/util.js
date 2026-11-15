@@ -38,6 +38,9 @@ export const tally = (values) => {
   return Object.entries(counts).sort((a, b) => b[1] - a[1]);
 };
 
+/** "$4.99"; '' when there is no price. */
+export const price = (n) => (n == null ? '' : `$${Number(n).toFixed(2)}`);
+
 /** "Absolute Batman #25". */
 export const itemTitle = (i) => (i.issue_number ? `${i.title} #${i.issue_number}` : i.title);
 

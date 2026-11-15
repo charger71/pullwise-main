@@ -1,6 +1,7 @@
 // FAQ: add, edit, reorder and delete questions (faqs table).
 
-import { $, $$, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, uid } from '../lib.js';
+import { $, $$, esc, must, hintFold, setStatus, toast, solidIcon, friendlyError, uid } from '../lib.js';
+import { makeEditor, setHtml, getHtml } from '../editor.js';
 
 let items = []; // { id|null, el, quill, dirty }
 export const hasUnsavedChanges = () => items.some((i) => i.dirty);

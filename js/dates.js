@@ -57,3 +57,41 @@ export const lastReserveDay = (foc) => {
 /** "Thu, Oct 1, 6:43 PM" for a timestamp, in `timeZone`. */
 export const whenIn = (timestamp, timeZone) =>
   timestamp ? new Date(timestamp).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: timeZone || undefined }) : '';
+
+// ---------------------------------------------------------------------------
+// The shop's timezone. The site (initPage) and the admin (once signed in) set it from Shop Settings, so "today" and
+// the order cutoffs here match what the database enforces wherever the visitor or staff member is.
+// ---------------------------------------------------------------------------
+
+let shopZone; // undefined until set: the browser's own zone
+
+/** The zone if this browser knows it, else undefined (the browser's own), so a typo in settings can't break dates. */
+export const knownZone = (tz) => {
+  try {
+    return tz ? new Intl.DateTimeFormat('en-US', { timeZone: tz }).resolvedOptions().timeZone : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+export const setShopTimeZone = (tz) => (shopZone = knownZone(tz));
+export const shopTimeZone = () => shopZone;
+
+/** Today's date in the shop's timezone, as YYYY-MM-DD. */
+export const shopToday = () => todayIn(shopZone);
+
+/** Whole days from today (shop time) until an ISO date (negative if past). */
+export const daysUntil = (iso) => Math.round((localDate(iso) - localDate(shopToday())) / 86400000);
+
+// Reservations close at midnight (shop time) on the Saturday before a title's FOC (usually a Monday), so the shop has
+// time to collect and place the order. The database enforces the same rule in create_reservation_order().
+export const cutoffPassed = (item) => !!item?.foc_date && daysUntil(lastReserveDay(item.foc_date)) < 0;
+
+/** A date for display. Plain YYYY-MM-DD dates are calendar days and shown as-is; timestamps in `timeZone` (undefined: the browser's). */
+export const fmtDateIn = (iso, opts = { month: 'short', day: 'numeric' }, timeZone) =>
+  !iso ? ''
+  : iso.length === 10 ? new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { ...opts, timeZone: 'UTC' })
+  : new Date(iso).toLocaleDateString(undefined, { ...opts, timeZone });
+
+/** A timestamp's time of day, in `timeZone` (undefined: the browser's). */
+export const fmtTimeIn = (iso, timeZone) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone });

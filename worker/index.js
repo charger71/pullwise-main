@@ -25,7 +25,21 @@ import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
 const CACHE_SECONDS = 60;
 const FETCH_TIMEOUT_MS = 3000;
-const memo = new Map(); // shop id → { at, data }, per Worker instance, in front of the shared cache
+// How long the last good copy is kept in the shared cache for a database outage (it is only served fresh for
+// CACHE_SECONDS; after that it is the fallback while Supabase can't be reached).
+const KEEP_SECONDS = 7 * 24 * 3600;
+// After a failed fetch, how long pages are served from the last good copy (or as they are) before Supabase is asked again,
+// so an outage doesn't add the timeout to every page.
+const RETRY_SECONDS = 15;
+const memo = new Map(); // shop id → { at (when it was fetched), data, retryAt? }, per Worker instance, in front of the shared cache
+
+/** A page request without its conditional headers: a 304 would leave nothing to rewrite (and the browser's copy has the old titles). */
+function wholeFile(request) {
+  const headers = new Headers(request.headers);
+  headers.delete('If-None-Match');
+  headers.delete('If-Modified-Since');
+  return headers;
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -57,11 +71,7 @@ export default {
     let file = page ? fileOf(url.pathname) : null;
     let res;
     if (file) {
-      // Ask for the whole file: a 304 would leave nothing to rewrite (and the browser's copy has the old titles).
-      const headers = new Headers(request.headers);
-      headers.delete('If-None-Match');
-      headers.delete('If-Modified-Since');
-      res = await env.ASSETS.fetch(new Request(request, { headers }));
+      res = await env.ASSETS.fetch(new Request(request, { headers: wholeFile(request) }));
     } else {
       res = await env.ASSETS.fetch(request);
       if (!page) return res;
@@ -72,10 +82,7 @@ export default {
     if (res.status === 404 && page && customSlugOf(url.pathname)) {
       const slugHere = customPageSlug(url.pathname, await shopData(shop, ctx));
       if (slugHere) {
-        const headers = new Headers(request.headers); // the whole file, as above: a 304 would leave nothing to rewrite
-        headers.delete('If-None-Match');
-        headers.delete('If-Modified-Since');
-        const pageRes = await env.ASSETS.fetch(new Request(new URL('/page.html', url), { method: request.method, headers }));
+        const pageRes = await env.ASSETS.fetch(new Request(new URL('/page.html', url), { method: request.method, headers: wholeFile(request) }));
         if (pageRes.ok) {
           res = pageRes;
           file = 'page.html';
@@ -85,10 +92,7 @@ export default {
     }
     // A news post lives at /news/<slug>: serve post.html (its script finds the post), unless News is switched off.
     if (res.status === 404 && page && postSlugOf(url.pathname) && !((await shopData(shop, ctx))?.settings?.disabled_pages ?? []).includes('news')) {
-      const headers = new Headers(request.headers);
-      headers.delete('If-None-Match');
-      headers.delete('If-Modified-Since');
-      const postRes = await env.ASSETS.fetch(new Request(new URL('/post.html', url), { method: request.method, headers }));
+      const postRes = await env.ASSETS.fetch(new Request(new URL('/post.html', url), { method: request.method, headers: wholeFile(request) }));
       if (postRes.ok) {
         res = postRes;
         file = 'post.html';
@@ -125,28 +129,39 @@ function config(shop, request, data) {
   return new Response(request.method === 'HEAD' ? null : body, { headers });
 }
 
+/** The shared cache's copy of the shop's data as { at, data } (`at`: when it was fetched), or null. */
+async function sharedCopy(shop) {
+  const cached = await caches.default.match(shopDataKey(shop));
+  const copy = cached ? await cached.json().catch(() => null) : null;
+  return copy?.data && Number.isFinite(copy.at) ? copy : null;
+}
+
 /** Whatever copy of the shop's data this instance or the shared cache already has, however old; or null. */
 async function cachedShopData(shop) {
   const hit = memo.get(shop.id);
-  if (hit) return hit.data;
-  const cached = await caches.default.match(shopDataKey(shop));
-  return cached ? cached.json() : null;
+  if (hit?.data) return hit.data;
+  return (await sharedCopy(shop))?.data ?? null;
 }
 
-const shopDataKey = (shop) => new Request(`https://shop-data.internal/${encodeURIComponent(shop.id)}`);
+const shopDataKey = (shop) => new Request(`https://shop-data.internal/v2/${encodeURIComponent(shop.id)}`);
 
-/** The shop's settings and page titles, at most CACHE_SECONDS old; the last good copy if Supabase fails. */
+/**
+ * The shop's settings and page titles, at most CACHE_SECONDS old. If Supabase fails: the last good copy (kept for
+ * KEEP_SECONDS), and it isn't asked again for RETRY_SECONDS.
+ */
 async function shopData(shop, ctx) {
   const now = Date.now();
-  const hit = memo.get(shop.id);
-  if (hit && now - hit.at < CACHE_SECONDS * 1000) return hit.data;
+  const fresh = (c) => c && now - c.at < CACHE_SECONDS * 1000;
+  let hit = memo.get(shop.id);
+  if (fresh(hit)) return hit.data;
+  if (hit?.retryAt > now) return hit.data; // Supabase failed a moment ago
 
-  const key = shopDataKey(shop);
-  const cached = await caches.default.match(key);
-  if (cached) {
-    const data = await cached.json();
-    memo.set(shop.id, { at: now, data });
-    return data;
+  // Another instance may have fetched it since: the shared copy carries its own fetch time, so it is never taken as newer than it is.
+  const shared = await sharedCopy(shop);
+  if (shared && (!hit?.data || shared.at > hit.at)) {
+    hit = { at: shared.at, data: shared.data };
+    memo.set(shop.id, hit);
+    if (fresh(hit)) return hit.data;
   }
   try {
     const get = async (path) => {
@@ -163,10 +178,11 @@ async function shopData(shop, ctx) {
     ]);
     const data = { settings: settings[0] ?? {}, pages: Object.fromEntries(pages.map((p) => [p.slug, p])) };
     memo.set(shop.id, { at: now, data });
-    ctx.waitUntil(caches.default.put(key, new Response(JSON.stringify(data), { headers: { 'Cache-Control': `max-age=${CACHE_SECONDS}` } })));
+    ctx.waitUntil(caches.default.put(shopDataKey(shop), new Response(JSON.stringify({ at: now, data }), { headers: { 'Cache-Control': `max-age=${KEEP_SECONDS}` } })));
     return data;
   } catch (err) {
     console.error(`shop data for ${shop.id}: ${err.message}`);
+    memo.set(shop.id, { at: hit?.at ?? 0, data: hit?.data ?? null, retryAt: now + RETRY_SECONDS * 1000 });
     return hit?.data ?? null;
   }
 }
