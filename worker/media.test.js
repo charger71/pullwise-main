@@ -97,17 +97,17 @@ assert.equal(emailLogoSource({ logo_url: 'http://insecure/l.png' }), null);
 assert.equal(emailLogoSource({}), null);
 const img = (type = 'image/png', status = 200, extra = {}) => async (url, init) => { assert.equal(init.redirect, 'manual'); return new Response('png', { status, headers: { 'Content-Type': type, ...extra } }); };
 const logoReq = (method = 'GET') => new Request('https://shop.com/__email-logo', { method });
-let logo = await emailLogo(logoReq(), { logo_url: SUPA }, img());
+let logo = await emailLogo(logoReq(), { logo_url: SUPA }, { fetchFn: img() });
 assert.equal(logo.status, 200);
 assert.equal(logo.headers.get('Content-Type'), 'image/png');
 assert.equal(await logo.text(), 'png');
-assert.equal((await emailLogo(logoReq(), {}, img())).status, 404);                                  // no logo set
-assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, img('text/html'))).status, 404);       // not an image
-assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, img('image/svg+xml'))).status, 404);   // no SVG (can carry script)
-assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, img('image/png', 302))).status, 404);  // redirects aren't followed
-assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, img('image/png', 200, { 'Content-Length': '99999999' }))).status, 404);
-assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, async () => { throw new Error('down'); })).status, 404);
-assert.equal((await emailLogo(logoReq('POST'), { logo_url: SUPA }, img())).status, 405);
+assert.equal((await emailLogo(logoReq(), {}, { fetchFn: img() })).status, 404);                                  // no logo set
+assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, { fetchFn: img('text/html') })).status, 404);       // not an image
+assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, { fetchFn: img('image/svg+xml') })).status, 404);   // no SVG (can carry script)
+assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, { fetchFn: img('image/png', 302) })).status, 404);  // redirects aren't followed
+assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, { fetchFn: img('image/png', 200, { 'Content-Length': '99999999' }) })).status, 404);
+assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, { fetchFn: async () => { throw new Error('down'); } })).status, 404);
+assert.equal((await emailLogo(logoReq('POST'), { logo_url: SUPA }, { fetchFn: img() })).status, 405);
 
 // Malformed %-escapes are a 404, not a crash
 assert.equal(mediaKey('/__img/catalog/covers/%E0%A4%A.jpg'), null);
@@ -161,3 +161,54 @@ assert.equal((await mediaFromStorage(sbReq('covers/a.jpg'), sbShop, { fetchFn: a
 assert.equal((await mediaFromStorage(sbReq('covers/a.jpg', 'PUT'), sbShop, { fetchFn: sbUpstream(), ...fresh() })).status, 405);
 // Works without a cache too
 assert.equal((await mediaFromStorage(sbReq('covers/a.jpg'), sbShop, { fetchFn: sbUpstream(), cache: null })).status, 200);
+
+// The email logo is kept in the cache, keyed on its source address
+{
+  const cache = memoryCache();
+  const pending = [];
+  const calls = [];
+  const logoFetch = (type = 'image/png') => async (url) => { calls.push(String(url)); return new Response('png', { status: 200, headers: { 'Content-Type': type } }); };
+  const run = (settings, opts = {}) => emailLogo(new Request('https://shop.com/__email-logo', { method: opts.method ?? 'GET' }), settings, { fetchFn: logoFetch(), cache, waitUntil: (p) => pending.push(p), ...opts });
+
+  let res = await run({ logo_url: SUPA });
+  assert.equal(res.status, 200);
+  assert.equal(await res.text(), 'png');
+  await Promise.all(pending);
+  assert.equal(cache.m.size, 1, 'stored');
+  assert.equal(res.headers.get('Cache-Control'), 'public, max-age=3600');
+  // The next ones come from the cache: Supabase isn't asked again
+  for (let i = 0; i < 3; i++) { res = await run({ logo_url: SUPA }); assert.equal(await res.text(), 'png'); assert.equal(res.headers.get('Content-Type'), 'image/png'); }
+  assert.equal(calls.length, 1, 'one fetch for four requests');
+  res = await run({ logo_url: SUPA }, { method: 'HEAD' });
+  assert.equal(res.status, 200); assert.equal(await res.text(), '');
+  assert.equal(calls.length, 1);
+  // Staff change the logo: the source changes, so the new one is fetched at once
+  res = await run({ logo_url: SUPA, email_logo_url: 'https://e.com/new.png' });
+  assert.equal(res.status, 200);
+  assert.deepEqual(calls.slice(1), ['https://e.com/new.png']);
+  await Promise.all(pending);
+  assert.equal(cache.m.size, 2);
+  // The old logo's entry doesn't answer for the new one, and the new one now comes from the cache
+  await run({ logo_url: SUPA, email_logo_url: 'https://e.com/new.png' });
+  assert.equal(calls.length, 2);
+  // Another shop's domain has its own entries
+  await emailLogo(new Request('https://other.com/__email-logo'), { logo_url: SUPA }, { fetchFn: logoFetch(), cache, waitUntil: (p) => pending.push(p) });
+  assert.equal(calls.length, 3);
+
+  // A failure isn't kept: the next request tries again
+  const failCache = memoryCache();
+  const failing = (fetchFn) => emailLogo(logoReq(), { logo_url: SUPA }, { fetchFn, cache: failCache, waitUntil: (p) => pending.push(p) });
+  assert.equal((await failing(async () => { throw new Error('down'); })).status, 404);
+  assert.equal((await failing(img('text/html'))).status, 404);
+  await Promise.all(pending);
+  assert.equal(failCache.m.size, 0, 'nothing stored for failures');
+  assert.equal((await failing(img())).status, 200);
+  // No logo set: nothing fetched, nothing stored
+  const before = calls.length;
+  assert.equal((await run({})).status, 404);
+  assert.equal(calls.length, before);
+  // A cache that errors never breaks the logo
+  const broken = { match: async () => { throw new Error('cache down'); }, put: async () => { throw new Error('cache down'); } };
+  assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, { fetchFn: img(), cache: broken, waitUntil: (p) => pending.push(p) })).status, 200);
+  await Promise.all(pending);
+}

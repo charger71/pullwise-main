@@ -51,15 +51,33 @@ export async function mediaServe(request, env) {
 // GET /__email-logo on a shop's own domain: the logo for its emails (Admin → Emails' logo, else the site logo), so mail
 // loads it from the shop's domain instead of supabase.co. Only the image the shop's staff set is fetched, never an address
 // from the request. A small copy (96px) when it sits in Supabase Storage, like the email always asked for.
-export async function emailLogo(request, settings, fetchFn = fetch) {
+//
+// Kept in Cloudflare's cache, so a weekly send (one request per recipient, plus mail apps' image proxies) doesn't fetch it from
+// Supabase each time. The cache entry is keyed on the logo's source address, not just this URL: when staff change the logo the
+// source changes, so the new one is served at once (the browser's own copy lasts the hour in Cache-Control).
+export async function emailLogo(request, settings, { fetchFn = fetch, cache = globalThis.caches?.default, waitUntil = () => {} } = {}) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('GET only', { status: 405, headers: { Allow: 'GET, HEAD' } });
   const url = emailLogoSource(settings);
-  const res = url ? await fetchFn(url, { redirect: 'manual', signal: AbortSignal.timeout(5000) }).catch(() => null) : null;
+  if (!url) return logoNotFound();
+
+  const key = new Request(`${new URL(request.url).origin}${EMAIL_LOGO_CACHE_PATH}?src=${encodeURIComponent(url)}`);
+  const hit = await cache?.match(key).catch(() => null);
+  if (hit) return request.method === 'HEAD' ? new Response(null, { status: hit.status, headers: hit.headers }) : hit;
+
+  const res = await fetchFn(url, { redirect: 'manual', signal: AbortSignal.timeout(5000) }).catch(() => null);
   const type = (res?.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase();
   const size = Number(res?.headers.get('Content-Length') ?? 0);
-  if (!res?.ok || !/^image\/(png|jpeg|gif|webp)$/.test(type) || size > MAX_LOGO_BYTES) return new Response('Not found', { status: 404, headers: { 'Cache-Control': 'public, max-age=60' } });
-  return new Response(request.method === 'HEAD' ? null : res.body, { headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
+  if (!res?.ok || !/^image\/(png|jpeg|gif|webp)$/.test(type) || size > MAX_LOGO_BYTES) return logoNotFound();
+
+  const headers = { 'Content-Type': type, 'Cache-Control': 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff' };
+  const out = new Response(res.body, { headers });
+  if (cache) waitUntil(cache.put(key, out.clone()).catch(() => {}));
+  return request.method === 'HEAD' ? new Response(null, { headers }) : out;
 }
+// Only a missing logo is remembered by the browser (a minute); a failure to fetch one isn't kept anywhere.
+const logoNotFound = () => new Response('Not found', { status: 404, headers: { 'Cache-Control': 'public, max-age=60' } });
+// The cache's own address for the logo: it never gets a request, it is only a key (the entry's source is in its query).
+const EMAIL_LOGO_CACHE_PATH = '/__email-logo-cache';
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
 /** The https address of the shop's email logo, as a small copy when Supabase Storage can resize it; null when it has none. */

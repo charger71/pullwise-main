@@ -58,7 +58,7 @@ export default {
     if (url.pathname === MEDIA_UPLOAD_PATH) return mediaUpload(request, shop, env);
     if (url.pathname.startsWith(MEDIA_SERVE_PATH)) return mediaServe(request, env);
     if (url.pathname.startsWith(STORAGE_SERVE_PATH)) return mediaFromStorage(request, shop, { waitUntil: (p) => ctx.waitUntil(p) });
-    if (url.pathname === EMAIL_LOGO_PATH) return emailLogo(request, (await shopData(shop, ctx))?.settings);
+    if (url.pathname === EMAIL_LOGO_PATH) return emailLogo(request, (await shopData(shop, ctx))?.settings, { waitUntil: (p) => ctx.waitUntil(p) });
     if (url.pathname === UNSUBSCRIBE_PATH) return unsubscribeProxy(request, shop);
     if (url.pathname === BACKUPS_PATH) return backupFiles(request, shop, env);
     if (url.pathname === CATALOG_FEED_PATH && shop.catalog === true) return catalogFeed(request, shop, env, { waitUntil: (p) => ctx.waitUntil(p) });
