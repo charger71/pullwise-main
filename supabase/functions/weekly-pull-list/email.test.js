@@ -267,3 +267,42 @@ console.log('email background color tests passed');
   assert.ok(!none.html.includes('height:66px'), 'no empty boxes when the email has no covers');
   console.log('shop-domain picture tests passed');
 }
+
+// Responsive + light/dark: every email type declares both schemes, fits a phone, and carries the hooks for a dark palette
+{
+  const { emailHead } = await import('./email.js');
+  const shop = { shop_name: 'Shop', colors: { primary: '#982c21' } };
+  const sec = sections([{ id: 1, quantity: 1, status: 'arrived', arrived_on: '2026-10-01', source: 'manual', item: { title: 'T' } }], { today: '2026-10-05' });
+  const arr = { fresh: [{ title: 'T', variant: null, quantity: 1, price: 4.99, holdUntil: null }], waiting: [{ title: 'W', variant: null, quantity: 1, price: 4.99, holdUntil: null }], series: 0 };
+  const mails = {
+    weekly: build({ customer: {}, sections: sec, shop, today: '2026-10-05', manageUrl: 'https://s.com/account.html', unsubscribeUrl: 'u' }),
+    arrival: buildArrival({ customer: {}, arrival: arr, shop, manageUrl: 'https://s.com/account.html', unsubscribeUrl: 'u' }),
+    message: buildMessage({ shop, subject: 'Hi', message: 'Hello' }),
+  };
+  for (const [name, { html }] of Object.entries(mails)) {
+    assert.match(html, /<head>[\s\S]*<meta name="viewport" content="width=device-width, initial-scale=1">/, `${name}: viewport`);
+    assert.ok(html.includes('<meta name="color-scheme" content="light dark">') && html.includes('supported-color-schemes'), `${name}: both schemes declared`);
+    assert.ok(html.includes('@media (prefers-color-scheme:dark)') && html.includes('@media (max-width:520px)'), `${name}: dark + phone rules`);
+    for (const c of ['pw-page', 'pw-body', 'pw-text', 'pw-muted', 'pw-pad', 'pw-outer']) assert.ok(html.includes(c), `${name}: ${c}`);
+    assert.ok(!html.includes('class="${') && !html.includes('undefined'), `${name}: no unfilled class`);
+    assert.match(html, /max-width:600px;width:100%/, `${name}: fluid container`);
+  }
+  assert.ok(mails.weekly.html.includes('pw-title') && mails.arrival.html.includes('pw-title') && mails.arrival.html.includes('class="pw-muted" style="margin:24px 0 4px'), 'section titles can follow dark');
+  assert.ok(mails.weekly.html.includes('class="pw-btn"'), 'button can fill a phone');
+  // Dark palette: light surfaces turn dark and stay readable; a dark body the shop chose is kept; brand header/button colors aren't touched
+  const night = (o) => emailLook({ shop_name: 'S', ...o }).night;
+  const def = night({ colors: { primary: '#982c21' } });
+  assert.equal(def.page, '#121212'); assert.equal(def.body, '#1e1e1e'); assert.equal(def.text, '#ffffff');
+  assert.ok(contrast2(def.text, def.body) >= 7 && contrast2(def.muted, def.body) >= 4.5, 'dark text readable');
+  assert.equal(night({ email_body_color: '#101820' }).body, '#101820');
+  assert.equal(night({ email_body_color: '#101820' }).text, '#ffffff');
+  assert.ok(contrast2(def.title, def.body) >= 3, 'dark section title readable');
+  assert.ok(!emailHead(emailLook(shop)).includes('#982c21') || emailHead(emailLook(shop)).includes('pw-title'), 'brand color only reaches titles');
+  console.log('responsive and dark mode tests passed');
+}
+function contrast2(a, b) {
+  const lum = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+
+}
