@@ -94,8 +94,9 @@ Every shop's own domain also serves these images at `https://<shop domain>/__img
 the bucket; nothing to set up in Cloudflare per shop, since each domain is already attached to the Worker). Mail sent
 from a shop's domain should load pictures from that same domain, not from `images.pullwise.shop`, which is more likely to
 be filed as spam: the pull-list emails do this: covers that are in R2 load from `<shop domain>/__img/…`, and the logo from
-`<shop domain>/__email-logo` (the Worker fetches the logo set in Admin → Emails, else the site logo). Covers kept elsewhere
-(Supabase Storage, a distributor's site) are left out of mail rather than loaded from another domain.
+`<shop domain>/__email-logo` (the Worker fetches the logo set in Admin → Emails, else the site logo). Covers a shop imported itself live in its own Supabase Storage; the Worker serves those
+at `<shop domain>/__sb/covers/…` (only `covers/` and `series/` pictures of that shop's own project, kept in Cloudflare's
+cache for a week). Covers on any other site (a distributor's) are left out of mail rather than loaded from another domain.
 The unsubscribe and "Skip this one" links go the same way: `<shop domain>/__unsubscribe?u=…` (the Worker hands the request
 to the shop's own `weekly-pull-list` function), so the mail links only to the shop's domain. This needs the
 function's `SITE_URL` secret to be the shop's own domain; `MEDIA_PUBLIC_URL` (optional, default `https://images.pullwise.shop`)

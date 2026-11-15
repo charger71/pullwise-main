@@ -161,14 +161,35 @@ export const EMAIL_LOGO_PATH = '/__email-logo';
 /** The unsubscribe and "Skip this one" links of the shop's emails, on its own domain (worker/unsubscribe.js). */
 export const UNSUBSCRIBE_PATH = '/__unsubscribe';
 
+/** A request path with its %-escapes decoded, or null when they're malformed (decodeURIComponent would throw). */
+function decodedPath(pathname) {
+  try { return decodeURIComponent(pathname); } catch { return null; }
+}
+const typeOfName = (name) => Object.keys(MEDIA_TYPES).find((t) => MEDIA_TYPES[t].test(name.toLowerCase()));
+
 /** The R2 key in a /__img/ address ("catalog/covers/lunar/A-1.jpg"), or null. Shop id first, then a path mediaPath accepts. */
 export function mediaKey(pathname) {
-  if (!pathname.startsWith(MEDIA_SERVE_PATH)) return null;
-  const parts = pathname.slice(MEDIA_SERVE_PATH.length).split('/');
+  const decoded = decodedPath(pathname);
+  if (!decoded?.startsWith(MEDIA_SERVE_PATH)) return null;
+  const parts = decoded.slice(MEDIA_SERVE_PATH.length).split('/');
   const rest = parts.slice(1).join('/');
   if (parts.length < 3 || !/^[a-z0-9][a-z0-9-]*$/.test(parts[0])) return null;
-  const type = Object.keys(MEDIA_TYPES).find((t) => MEDIA_TYPES[t].test(rest.toLowerCase()));
+  const type = typeOfName(rest);
   return type && mediaPath(rest, type) ? `${parts[0]}/${rest}` : null;
+}
+
+/** Where every shop's own domain serves the covers kept in that shop's own Supabase Storage: https://<shop domain>/__sb/covers/… (worker/media.js mediaFromStorage). */
+export const STORAGE_SERVE_PATH = '/__sb/';
+/** The bucket those covers live in (js/media-store.js). */
+export const STORAGE_BUCKET = 'media';
+
+/** The object path in a /__sb/ address ("covers/lunar/ABC-1f2e.jpg"), or null: only covers/ and series/ pictures, as mediaPath allows. */
+export function storagePath(pathname) {
+  const decoded = decodedPath(pathname);
+  if (!decoded?.startsWith(STORAGE_SERVE_PATH)) return null;
+  const rest = decoded.slice(STORAGE_SERVE_PATH.length);
+  const type = typeOfName(rest);
+  return type ? mediaPath(rest, type) : null;
 }
 
 /** Public address of an object the Worker stored for a shop. */

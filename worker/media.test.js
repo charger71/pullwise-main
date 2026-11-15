@@ -1,7 +1,7 @@
 // node worker/media.test.js
 import assert from 'node:assert/strict';
-import { mediaUpload, mediaServe, emailLogo, emailLogoSource } from './media.js';
-import { mediaPath, mediaUrl, mediaKey, ownDomainImage, configJs } from './shop-page.js';
+import { mediaUpload, mediaServe, mediaFromStorage, emailLogo, emailLogoSource } from './media.js';
+import { mediaPath, mediaUrl, mediaKey, storagePath, ownDomainImage, configJs } from './shop-page.js';
 import { putMedia, storesInR2 } from '../js/media-store.js';
 
 // Paths
@@ -108,3 +108,56 @@ assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, img('image/png', 30
 assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, img('image/png', 200, { 'Content-Length': '99999999' }))).status, 404);
 assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, async () => { throw new Error('down'); })).status, 404);
 assert.equal((await emailLogo(logoReq('POST'), { logo_url: SUPA }, img())).status, 405);
+
+// Malformed %-escapes are a 404, not a crash
+assert.equal(mediaKey('/__img/catalog/covers/%E0%A4%A.jpg'), null);
+assert.equal(storagePath('/__sb/covers/%E0%A4%A.jpg'), null);
+assert.equal((await mediaServe(new Request('https://shop.com/__img/catalog/covers/%E0%A4%A.jpg'), { MEDIA: bucket })).status, 404);
+
+// Covers in the shop's own Supabase Storage on its domain (/__sb/)
+assert.equal(storagePath('/__sb/covers/lunar/ABC-1f2e.jpg'), 'covers/lunar/ABC-1f2e.jpg');
+assert.equal(storagePath('/__sb/covers/lunar/ABC-1f2e-sm.webp'), 'covers/lunar/ABC-1f2e-sm.webp');
+assert.equal(storagePath('/__sb/series/k1-saga.png'), 'series/k1-saga.png');
+for (const p of ['/__sb/library/a.jpg', '/__sb/brand/logo.png', '/__sb/covers/../library/a.jpg', '/__sb/covers/%2e%2e/a.jpg', '/__sb/covers/a.svg', '/__sb/covers/.hidden.jpg', '/__sb/covers//a.jpg', '/__sb/covers', '/__sb/', '/__img/covers/a.jpg', '/__sb/covers/a b.jpg']) assert.equal(storagePath(p), null, p);
+
+const sbShop = { id: 'a', supabaseUrl: 'https://abc.supabase.co' };
+const sbFetched = [];
+const sbUpstream = (type = 'image/jpeg', status = 200, extra = {}) => async (url, init) => { sbFetched.push({ url: String(url), init }); return new Response('jpgbytes', { status, headers: { 'Content-Type': type, ...extra } }); };
+const memoryCache = () => { const m = new Map(); return { m, match: async (r) => m.get(r.url)?.clone(), put: async (r, res) => { m.set(r.url, res); } }; };
+const sbReq = (path, method = 'GET') => new Request(`https://shop.com/__sb/${path}`, { method });
+const waited = [];
+let cache = memoryCache();
+let cover = await mediaFromStorage(sbReq('covers/lunar/A-1.jpg'), sbShop, { fetchFn: sbUpstream(), cache, waitUntil: (p) => waited.push(p) });
+assert.equal(cover.status, 200);
+assert.equal(sbFetched.at(-1).url, 'https://abc.supabase.co/storage/v1/object/public/media/covers/lunar/A-1.jpg');
+assert.equal(sbFetched.at(-1).init.redirect, 'manual');
+assert.equal(cover.headers.get('Content-Type'), 'image/jpeg');
+assert.equal(cover.headers.get('Cache-Control'), 'public, max-age=604800');
+assert.equal(cover.headers.get('X-Content-Type-Options'), 'nosniff');
+assert.equal(await cover.text(), 'jpgbytes');
+await Promise.all(waited);
+assert.equal(cache.m.size, 1, 'kept in the cache');
+// The second request is answered from the cache, not Supabase
+const fetchesBefore = sbFetched.length;
+cover = await mediaFromStorage(sbReq('covers/lunar/A-1.jpg'), sbShop, { fetchFn: sbUpstream(), cache, waitUntil: (p) => waited.push(p) });
+assert.equal(await cover.text(), 'jpgbytes');
+assert.equal(sbFetched.length, fetchesBefore);
+// HEAD: headers only
+cover = await mediaFromStorage(sbReq('covers/lunar/B-2.jpg', 'HEAD'), sbShop, { fetchFn: sbUpstream('image/png'), cache: memoryCache() });
+assert.equal(cover.status, 200);
+assert.equal(cover.headers.get('Content-Type'), 'image/png');
+assert.equal(await cover.text(), '');
+// Refused: other folders and hosts never reach Supabase; wrong types, big files, redirects, errors and outages are a 404
+const sbBefore = sbFetched.length;
+for (const p of ['library/a.jpg', 'covers/../library/a.jpg', 'covers/a.svg', 'brand/logo.png']) assert.equal((await mediaFromStorage(sbReq(p), sbShop, { fetchFn: sbUpstream(), cache: memoryCache() })).status, 404, p);
+assert.equal(sbFetched.length, sbBefore, 'none of those reached Supabase');
+const fresh = () => ({ cache: memoryCache() });
+assert.equal((await mediaFromStorage(sbReq('covers/a.jpg'), sbShop, { fetchFn: sbUpstream('text/html'), ...fresh() })).status, 404);
+assert.equal((await mediaFromStorage(sbReq('covers/a.jpg'), sbShop, { fetchFn: sbUpstream('image/svg+xml'), ...fresh() })).status, 404);
+assert.equal((await mediaFromStorage(sbReq('covers/a.jpg'), sbShop, { fetchFn: sbUpstream('image/jpeg', 200, { 'Content-Length': '99999999' }), ...fresh() })).status, 404);
+assert.equal((await mediaFromStorage(sbReq('covers/a.jpg'), sbShop, { fetchFn: sbUpstream('image/jpeg', 302), ...fresh() })).status, 404);
+assert.equal((await mediaFromStorage(sbReq('covers/a.jpg'), sbShop, { fetchFn: sbUpstream('image/jpeg', 404), ...fresh() })).status, 404);
+assert.equal((await mediaFromStorage(sbReq('covers/a.jpg'), sbShop, { fetchFn: async () => { throw new Error('down'); }, ...fresh() })).status, 404);
+assert.equal((await mediaFromStorage(sbReq('covers/a.jpg', 'PUT'), sbShop, { fetchFn: sbUpstream(), ...fresh() })).status, 405);
+// Works without a cache too
+assert.equal((await mediaFromStorage(sbReq('covers/a.jpg'), sbShop, { fetchFn: sbUpstream(), cache: null })).status, 200);

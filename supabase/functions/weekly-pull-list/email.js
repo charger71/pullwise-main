@@ -6,6 +6,18 @@ import { followedSeries, discountFor, totals, tiersFrom } from './discount.js';
 // Kept in step with worker/shop-page.js (a Supabase function is deployed on its own, so it can't import from worker/);
 // email.test.js checks they agree.
 export const EMAIL_LOGO_PATH = '/__email-logo';
+export const STORAGE_SERVE_PATH = '/__sb/';
+/** A cover kept in the shop's own Supabase Storage ("media" bucket, covers/ or series/), as the same picture on the shop's domain; else the address as it was. */
+export function ownDomainStorage(url, storageBase, siteBase) {
+  const prefix = `${String(storageBase ?? '').replace(/\/+$/, '')}/storage/v1/object/public/media/`;
+  const own = String(siteBase ?? '').replace(/\/+$/, '');
+  if (!storageBase || !own || typeof url !== 'string' || !url.startsWith(prefix)) return url;
+  const path = url.slice(prefix.length);
+  // The same rules as the Worker (worker/shop-page.js storagePath): covers/ or series/, plain names, an image extension.
+  const parts = path.split('/');
+  const ok = ['covers', 'series'].includes(parts[0]) && parts.length >= 2 && parts.every((p) => /^[A-Za-z0-9_][A-Za-z0-9._-]*$/.test(p)) && /\.(jpe?g|png|webp|gif)$/i.test(parts.at(-1)) && path.length <= 300;
+  return ok ? `${own}${STORAGE_SERVE_PATH}${path}` : url;
+}
 export function ownDomainImage(url, publicBase, siteBase) {
   const base = String(publicBase ?? '').replace(/\/+$/, '');
   const own = String(siteBase ?? '').replace(/\/+$/, '');
@@ -223,22 +235,22 @@ export function subject(sec, shopName) {
 const COVER_W = 44;
 const COVER_H = 66;
 // The title's small thumbnail when it has one (a lighter file), else its cover; either only when it is on the shared images
-// domain, so it can come from the shop's own.
-const coverSrc = (e, siteUrl, mediaBase) => {
+// domain or in the shop's own Supabase Storage, so it can come from the shop's own domain.
+const coverSrc = (e, siteUrl, mediaBase, storageBase) => {
   if (!/^https:\/\//.test(siteUrl)) return null;
   for (const url of [e.coverThumb, e.cover]) {
-    const src = url ? ownDomainImage(url, mediaBase, siteUrl) : null;
+    const src = url ? ownDomainStorage(ownDomainImage(url, mediaBase, siteUrl), storageBase, siteUrl) : null;
     if (src && src !== url) return src;
   }
   return null;
 };
 /** Whether any title in the list has a cover served from the shop's own domain: only then do the rows get a cover column. */
-const anyCover = (entries, siteUrl, mediaBase) => entries.some((e) => coverSrc(e, siteUrl, mediaBase));
+const anyCover = (entries, siteUrl, mediaBase, storageBase) => entries.some((e) => coverSrc(e, siteUrl, mediaBase, storageBase));
 
 /** A title's cover box: the picture when it can come from the shop's own domain, else an empty box the same size (when the email shows covers). */
-function coverCell(e, look, siteUrl, mediaBase, show) {
+function coverCell(e, look, siteUrl, mediaBase, storageBase, show) {
   if (!show) return '';
-  const src = coverSrc(e, siteUrl, mediaBase);
+  const src = coverSrc(e, siteUrl, mediaBase, storageBase);
   const box = `display:block;width:${COVER_W}px;height:${COVER_H}px;background:${look.rule};border-radius:3px`;
   const inner = src
     ? `<img class="pw-fill" src="${esc(src)}" width="${COVER_W}" height="${COVER_H}" alt="" style="${box};border:0;object-fit:cover">`
@@ -267,7 +279,7 @@ const SECTION_TITLES = {
 };
 
 /** @returns {{ subject: string, html: string, text: string }} */
-export function build({ customer, sections: sec, shop, today, manageUrl, unsubscribeUrl, app = true, skipUrl = null, siteUrl = '', mediaBase = '' }) {
+export function build({ customer, sections: sec, shop, today, manageUrl, unsubscribeUrl, app = true, skipUrl = null, siteUrl = '', mediaBase = '', storageBase = '' }) {
   const look = emailLook(shop, siteUrl);
   const accent = /^#[0-9a-f]{6}$/i.test(shop.colors?.accent ?? '') ? shop.colors.accent : '#ffd100';
   const subj = subject(sec, shop.shop_name);
@@ -277,14 +289,14 @@ export function build({ customer, sections: sec, shop, today, manageUrl, unsubsc
   const appUrl = manageUrl.replace(/\/account\.html$/, '/app'); // the shop's pull list app, next to the account page
   const shipNote = customer.ship_arrivals ? 'We’ll ship your ready books to the address on your profile.' : null;
 
-  const showCovers = anyCover([...sec.ready, ...sec.soon, ...sec.later], siteUrl, mediaBase);
+  const showCovers = anyCover([...sec.ready, ...sec.soon, ...sec.later], siteUrl, mediaBase, storageBase);
   const block = (key) => {
     if (!sec[key].length) return '';
     const rows = sec[key]
       .map((e) => {
         const l = line(e, key);
         const skip = skipUrl && e.skipId ? skipUrl(e.skipId) : null;
-        return titleRow(coverCell(e, look, siteUrl, mediaBase, showCovers), `<strong>${esc(e.title)}</strong>${e.isNew ? ` <span style="background:${accent};color:#161616;font-size:11px;font-weight:bold;padding:1px 6px;border-radius:3px">NEW</span>` : ''}
+        return titleRow(coverCell(e, look, siteUrl, mediaBase, storageBase, showCovers), `<strong>${esc(e.title)}</strong>${e.isNew ? ` <span style="background:${accent};color:#161616;font-size:11px;font-weight:bold;padding:1px 6px;border-radius:3px">NEW</span>` : ''}
           ${l.bits ? `<br><span class="pw-muted" style="color:${look.muted};font-size:13px">${esc(l.bits)}</span>` : ''}
           ${skip ? `<br><a href="${esc(skip)}" class="pw-text" style="color:${look.text};font-size:13px;font-weight:bold">Skip this one</a> <span class="pw-muted" style="color:${look.muted};font-size:13px">(takes it off your list)</span>` : ''}`, look);
       })
@@ -384,7 +396,7 @@ export function hoursLines(hours = []) {
 const money = (n) => `$${Number(n).toFixed(2)}`;
 
 /** @returns {{ subject: string, html: string, text: string }} */
-export function buildArrival({ customer, arrival, shop, manageUrl, unsubscribeUrl, sample = false, siteUrl = '', mediaBase = '' }) {
+export function buildArrival({ customer, arrival, shop, manageUrl, unsubscribeUrl, sample = false, siteUrl = '', mediaBase = '', storageBase = '' }) {
   const look = emailLook(shop, siteUrl);
   const accent = /^#[0-9a-f]{6}$/i.test(shop.colors?.accent ?? '') ? shop.colors.accent : '#ffd100';
   const { fresh, waiting } = arrival;
@@ -399,11 +411,11 @@ export function buildArrival({ customer, arrival, shop, manageUrl, unsubscribeUr
   const off = tier.pct ? ` Less your ${tier.pct}% pull list discount (−${money(discount)}) from ${money(subtotal)}.` : '';
   const priced = fresh.filter((e) => e.price != null).length;
 
-  const showCovers = anyCover([...fresh, ...waiting], siteUrl, mediaBase);
+  const showCovers = anyCover([...fresh, ...waiting], siteUrl, mediaBase, storageBase);
   const bits = (e) => [e.variant, e.quantity > 1 && `${e.quantity} copies`, e.holdUntil && `held until ${dayLabel(e.holdUntil, { month: 'short', day: 'numeric' })}`].filter(Boolean).join(' · ');
   const rows = (list) =>
     list
-      .map((e) => titleRow(coverCell(e, look, siteUrl, mediaBase, showCovers), `<strong>${esc(e.title)}</strong>${bits(e) ? `<br><span class="pw-muted" style="color:${look.muted};font-size:13px">${esc(bits(e))}</span>` : ''}`, look))
+      .map((e) => titleRow(coverCell(e, look, siteUrl, mediaBase, storageBase, showCovers), `<strong>${esc(e.title)}</strong>${bits(e) ? `<br><span class="pw-muted" style="color:${look.muted};font-size:13px">${esc(bits(e))}</span>` : ''}`, look))
       .join('');
   const block = (title, list, color, cls) =>
     list.length ? `<h2 class="${cls}" style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${color}">${esc(title)} (${list.length})</h2><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows(list)}</table>` : '';

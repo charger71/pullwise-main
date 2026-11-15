@@ -3,7 +3,7 @@
 // (MEDIA_PUBLIC_URL). Only the shop's signed-in staff can upload: the caller's Supabase token must pass that
 // shop's is_staff(). Objects are stored under the shop's id, so shops never overwrite each other's files.
 
-import { mediaPath, mediaUrl, mediaKey } from './shop-page.js';
+import { mediaPath, mediaUrl, mediaKey, storagePath, STORAGE_BUCKET } from './shop-page.js';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
@@ -36,7 +36,7 @@ export async function mediaUpload(request, shop, env, fetchFn = fetch) {
 // shop's domain can load its pictures from that domain. No Cloudflare setup per shop: the domain already points here.
 export async function mediaServe(request, env) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('GET only', { status: 405, headers: { Allow: 'GET, HEAD' } });
-  const key = env.MEDIA ? mediaKey(decodeURIComponent(new URL(request.url).pathname)) : null;
+  const key = env.MEDIA ? mediaKey(new URL(request.url).pathname) : null;
   const object = key ? await env.MEDIA.get(key) : null;
   if (!object) return new Response('Not found', { status: 404, headers: { 'Cache-Control': 'public, max-age=60' } });
   const headers = new Headers({
@@ -67,4 +67,32 @@ export function emailLogoSource(settings = {}) {
   const url = settings.email_logo_url || settings.logo_url;
   if (!/^https:\/\//.test(url ?? '')) return null;
   return url.includes('/storage/v1/object/public/') ? `${url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')}?width=96&height=96&resize=contain` : url;
+}
+
+// GET /__sb/covers/… on a shop's own domain: a cover kept in that shop's own Supabase Storage (titles the shop imported itself),
+// so mail sent from the shop's domain can show it without linking to supabase.co. The same stored file, not a resized copy
+// (importing already makes a small "-sm" copy beside every cover). Only covers/ and series/ pictures of this shop's own project:
+// the address is built from the shop's Supabase URL and a path that passed mediaPath, so nothing in the request picks the host
+// or reaches another folder. Files have a content fingerprint in their name, so they're kept in Cloudflare's cache for a week.
+const MAX_COVER_BYTES = 5 * 1024 * 1024;
+const COVER_TYPES = /^image\/(jpeg|png|webp|gif)$/;
+const notFound = () => new Response('Not found', { status: 404, headers: { 'Cache-Control': 'public, max-age=60' } });
+
+export async function mediaFromStorage(request, shop, { fetchFn = fetch, cache = globalThis.caches?.default, waitUntil = () => {} } = {}) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('GET only', { status: 405, headers: { Allow: 'GET, HEAD' } });
+  const path = storagePath(new URL(request.url).pathname);
+  if (!path) return notFound();
+
+  const key = new Request(request.url, { method: 'GET' });
+  const hit = await cache?.match(key).catch(() => null);
+  if (hit) return request.method === 'HEAD' ? new Response(null, { status: hit.status, headers: hit.headers }) : hit;
+
+  const res = await fetchFn(`${shop.supabaseUrl}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`, { redirect: 'manual', signal: AbortSignal.timeout(5000) }).catch(() => null);
+  const type = (res?.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase();
+  if (!res?.ok || !COVER_TYPES.test(type) || Number(res.headers.get('Content-Length') ?? 0) > MAX_COVER_BYTES) return notFound();
+
+  const headers = { 'Content-Type': type, 'Cache-Control': 'public, max-age=604800', 'X-Content-Type-Options': 'nosniff' };
+  const out = new Response(res.body, { headers });
+  if (cache) waitUntil(cache.put(key, out.clone()).catch(() => {}));
+  return request.method === 'HEAD' ? new Response(null, { headers }) : out;
 }

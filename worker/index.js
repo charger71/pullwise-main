@@ -9,6 +9,7 @@
 //  * An address with no file gets 404.html (wrangler.jsonc's not_found_handling), branded like the other pages.
 //  * PUT /__media stores covers and series images in R2 for shops using it (worker/media.js).
 //  * GET /__img/<shop id>/covers/… serves those R2 images from the shop's own domain, for email (worker/media.js).
+//  * GET /__sb/covers/… serves covers kept in the shop's own Supabase Storage from its own domain, for email (worker/media.js).
 //  * GET /__email-logo is the shop's email logo on its own domain (worker/media.js).
 //  * /__unsubscribe is the unsubscribe and skip links of its emails on its own domain (worker/unsubscribe.js).
 //  * GET /__backups lists and serves the shop's nightly backup files to its owners (worker/backups.js).
@@ -20,11 +21,11 @@
 //    run in demo mode.
 
 import SHOPS from '../shops.json';
-import { mediaUpload, mediaServe, emailLogo } from './media.js';
+import { mediaUpload, mediaServe, mediaFromStorage, emailLogo } from './media.js';
 import { unsubscribeProxy } from './unsubscribe.js';
 import { BACKUPS_PATH, backupFiles } from './backups.js';
 import { CATALOG_FEED_PATH, catalogFeed } from './catalog-feed.js';
-import { MEDIA_UPLOAD_PATH, MEDIA_SERVE_PATH, EMAIL_LOGO_PATH, UNSUBSCRIBE_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { MEDIA_UPLOAD_PATH, MEDIA_SERVE_PATH, STORAGE_SERVE_PATH, EMAIL_LOGO_PATH, UNSUBSCRIBE_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
 const CACHE_SECONDS = 60;
@@ -56,6 +57,7 @@ export default {
     }
     if (url.pathname === MEDIA_UPLOAD_PATH) return mediaUpload(request, shop, env);
     if (url.pathname.startsWith(MEDIA_SERVE_PATH)) return mediaServe(request, env);
+    if (url.pathname.startsWith(STORAGE_SERVE_PATH)) return mediaFromStorage(request, shop, { waitUntil: (p) => ctx.waitUntil(p) });
     if (url.pathname === EMAIL_LOGO_PATH) return emailLogo(request, (await shopData(shop, ctx))?.settings);
     if (url.pathname === UNSUBSCRIBE_PATH) return unsubscribeProxy(request, shop);
     if (url.pathname === BACKUPS_PATH) return backupFiles(request, shop, env);

@@ -333,6 +333,25 @@ console.log('email background color tests passed');
   const sec2 = sections([{ id: 1, quantity: 1, status: 'arrived', arrived_on: '2026-10-01', source: 'manual', item: { title: 'T', cover_url: 'c', cover_thumb_url: 't' } }], { today: '2026-10-05' });
   assert.equal(sec2.ready[0].coverThumb, 't');
   assert.equal(arrivalSections([{ quantity: 1, status: 'arrived', item: { title: 'T', cover_url: 'c', cover_thumb_url: 't' } }], {}).fresh[0].coverThumb, 't');
+  // Covers in the shop's own Supabase Storage come from its domain too (/__sb/), and only the paths the Worker serves
+  const { ownDomainStorage, STORAGE_SERVE_PATH } = await import('./email.js');
+  const { storagePath, STORAGE_SERVE_PATH: workerSb } = await import('../../../worker/shop-page.js');
+  assert.equal(STORAGE_SERVE_PATH, workerSb, 'same /__sb/ path as the Worker');
+  const SB = 'https://abc.supabase.co';
+  const P = `${SB}/storage/v1/object/public/media/`;
+  assert.equal(ownDomainStorage(`${P}covers/lunar/A-1.jpg`, SB, 'https://s.com/'), 'https://s.com/__sb/covers/lunar/A-1.jpg');
+  for (const path of ['covers/lunar/A-1.jpg', 'covers/lunar/A-1-sm.webp', 'series/k-saga.png', 'library/a.jpg', 'brand/logo.png', 'covers/../library/a.jpg', 'covers/a.svg', 'covers/a.jpg?width=96']) {
+    const out = ownDomainStorage(`${P}${path}`, SB, 'https://s.com');
+    const rewritten = out !== `${P}${path}`;
+    assert.equal(rewritten, !!storagePath(`/__sb/${path.split('?')[0]}`) && !path.includes('?'), `${path}: the email rewrites exactly what the Worker serves`);
+  }
+  assert.equal(ownDomainStorage('https://other.supabase.co/storage/v1/object/public/media/covers/a.jpg', SB, 'https://s.com'), 'https://other.supabase.co/storage/v1/object/public/media/covers/a.jpg', 'another project is left alone');
+  assert.equal(ownDomainStorage(`${P}covers/a.jpg`, '', 'https://s.com'), `${P}covers/a.jpg`);
+  const own = (x) => buildArrival({ customer: {}, arrival: { fresh: [e('T', x)], waiting: [], series: 0 }, shop, manageUrl: 'https://s.com/account.html', unsubscribeUrl: 'u', siteUrl: 'https://s.com', mediaBase: 'https://images.x.com', storageBase: SB }).html;
+  assert.ok(own({ cover: `${P}covers/lunar/A-1.jpg`, coverThumb: `${P}covers/lunar/A-1-sm.jpg` }).includes('src="https://s.com/__sb/covers/lunar/A-1-sm.jpg"'), 'the small copy');
+  assert.ok(own({ cover: `${P}covers/lunar/A-1.jpg` }).includes('src="https://s.com/__sb/covers/lunar/A-1.jpg"'));
+  assert.ok(!own({ cover: `${P}library/a.jpg` }).includes('height:66px'), 'a picture the Worker doesn’t serve stays out');
+  assert.ok(!own({ cover: `${P}covers/lunar/A-1.jpg` }).includes('supabase.co'), 'no supabase.co in the mail');
   console.log('lang, title, preview text and thumbnail tests passed');
 }
 function contrast2(a, b) {
