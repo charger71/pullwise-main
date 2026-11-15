@@ -253,7 +253,15 @@ console.log('email background color tests passed');
   const mail = buildArrival({ customer: { first_name: 'Jo' }, arrival: arr, shop: { shop_name: 'Shop', logo_url: L }, manageUrl: 'https://shop.com/account.html', unsubscribeUrl: 'u', siteUrl: 'https://shop.com', mediaBase: 'https://images.x.com' });
   assert.ok(mail.html.includes('src="https://shop.com/__img/catalog/covers/lunar/A-1.jpg"'), 'R2 cover on the shop domain');
   assert.ok(mail.html.includes('src="https://shop.com/__email-logo"'), 'logo on the shop domain');
-  assert.equal((mail.html.match(/<img /g) ?? []).length, 2, 'logo + the one cover that can be served from the shop domain');
+  assert.equal((mail.html.match(/<img /g) ?? []).length, 3, 'logo + the one cover that can be served from the shop domain, once for Outlook and once for the rest');
+  // Outlook (Word engine) stretches an image to its width AND height attributes and ignores object-fit: it gets the width only
+  const mso = /<!--\[if mso\]>(<img [^>]*>)<!\[endif\]-->/.exec(mail.html)?.[1];
+  const rest = /<!--\[if !mso\]><!-->(<img [^>]*>)<!--<!\[endif\]-->/.exec(mail.html)?.[1];
+  assert.ok(mso && rest, 'both versions of the cover');
+  assert.ok(mso.includes('src="https://shop.com/__img/catalog/covers/lunar/A-1.jpg"') && mso.includes('width="44"'), 'Outlook: the picture at 44 wide');
+  assert.ok(!/height/i.test(mso) && !mso.includes('object-fit'), 'Outlook: no height, so a cover that isn’t 2:3 keeps its shape');
+  assert.ok(rest.includes('width="44" height="66"') && rest.includes('object-fit:cover'), 'others: fixed box, cropped to fit');
+  assert.ok(mail.html.includes('<td width="56" height="66" valign="top"'), 'the cell holds the row steady');
   // Every title gets a same-size box (picture or empty), so text doesn't shift when covers load
   assert.equal((mail.html.match(/width:44px;height:66px/g) ?? []).length, 3, 'one fixed-size cover box per title');
   assert.ok(mail.html.includes('width="44" height="66"'), 'the picture carries its size');
