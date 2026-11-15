@@ -247,15 +247,20 @@ const coverSrc = (e, siteUrl, mediaBase, storageBase) => {
 /** Whether any title in the list has a cover served from the shop's own domain: only then do the rows get a cover column. */
 const anyCover = (entries, siteUrl, mediaBase, storageBase) => entries.some((e) => coverSrc(e, siteUrl, mediaBase, storageBase));
 
-/** A title's cover box: the picture when it can come from the shop's own domain, else an empty box the same size (when the email shows covers). */
+/**
+ * A title's cover box: the picture when it can come from the shop's own domain, else an empty box the same size (when the email
+ * shows covers). Most mail apps get the picture filling the fixed box (object-fit: cover crops one that isn't 2:3). Outlook for
+ * Windows (the Word engine, matched by [if mso]) ignores object-fit and stretches an image to its width AND height attributes,
+ * so it gets the width alone and keeps the cover's own shape; the cell's height holds the row steady until it loads.
+ */
 function coverCell(e, look, siteUrl, mediaBase, storageBase, show) {
   if (!show) return '';
   const src = coverSrc(e, siteUrl, mediaBase, storageBase);
   const box = `display:block;width:${COVER_W}px;height:${COVER_H}px;background:${look.rule};border-radius:3px`;
   const inner = src
-    ? `<img class="pw-fill" src="${esc(src)}" width="${COVER_W}" height="${COVER_H}" alt="" style="${box};border:0;object-fit:cover">`
+    ? `<!--[if mso]><img src="${esc(src)}" width="${COVER_W}" alt="" style="display:block;border:0"><![endif]--><!--[if !mso]><!--><img class="pw-fill" src="${esc(src)}" width="${COVER_W}" height="${COVER_H}" alt="" style="${box};border:0;object-fit:cover"><!--<![endif]-->`
     : `<div class="pw-fill" style="${box};font-size:0;line-height:0">&nbsp;</div>`;
-  return `<td width="${COVER_W + 12}" valign="top" class="pw-rule" style="padding:8px 12px 8px 0;border-bottom:1px solid ${look.rule}">${inner}</td>`;
+  return `<td width="${COVER_W + 12}" height="${COVER_H}" valign="top" class="pw-rule" style="padding:8px 12px 8px 0;border-bottom:1px solid ${look.rule}">${inner}</td>`;
 }
 /** One title's row: [cover] details. The details cell carries the row's bottom rule. */
 const titleRow = (cover, inner, look) => `<tr>${cover}<td class="pw-text pw-rule" style="padding:8px 0;border-bottom:1px solid ${look.rule};font:15px/1.4 Arial,Helvetica,sans-serif;color:${look.text}">${inner}</td></tr>`;
