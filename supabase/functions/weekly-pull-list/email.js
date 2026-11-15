@@ -151,10 +151,26 @@ export function subject(sec, shopName) {
   return `Your ${shopName} pull list: ${parts.join(', ')}`;
 }
 
-/** The cover as a small picture in a title's row, only when it can be served from the shop's own domain; else ''. */
-function coverCell(e, look, siteUrl, mediaBase) {
+// A cover is 2:3. Its box has a fixed size, with a quiet fill, so the title and details sit in the same place before the picture
+// loads (or while a mail app's preview holds it back) and nothing jumps when it arrives.
+const COVER_W = 44;
+const COVER_H = 66;
+const coverSrc = (e, siteUrl, mediaBase) => {
   const src = e.cover && /^https:\/\//.test(siteUrl) ? ownDomainImage(e.cover, mediaBase, siteUrl) : null;
-  return src && src !== e.cover ? `<td width="56" valign="top" style="padding:8px 12px 8px 0;border-bottom:1px solid ${look.rule}"><img src="${esc(src)}" width="44" alt="" style="display:block;border:0;width:44px;height:auto;border-radius:3px"></td>` : '';
+  return src && src !== e.cover ? src : null;
+};
+/** Whether any title in the list has a cover served from the shop's own domain: only then do the rows get a cover column. */
+const anyCover = (entries, siteUrl, mediaBase) => entries.some((e) => coverSrc(e, siteUrl, mediaBase));
+
+/** A title's cover box: the picture when it can come from the shop's own domain, else an empty box the same size (when the email shows covers). */
+function coverCell(e, look, siteUrl, mediaBase, show) {
+  if (!show) return '';
+  const src = coverSrc(e, siteUrl, mediaBase);
+  const box = `display:block;width:${COVER_W}px;height:${COVER_H}px;background:${look.rule};border-radius:3px`;
+  const inner = src
+    ? `<img src="${esc(src)}" width="${COVER_W}" height="${COVER_H}" alt="" style="${box};border:0;object-fit:cover">`
+    : `<div style="${box};font-size:0;line-height:0">&nbsp;</div>`;
+  return `<td width="${COVER_W + 12}" valign="top" style="padding:8px 12px 8px 0;border-bottom:1px solid ${look.rule}">${inner}</td>`;
 }
 /** One title's row: [cover] details. The details cell carries the row's bottom rule. */
 const titleRow = (cover, inner, look) => `<tr>${cover}<td style="padding:8px 0;border-bottom:1px solid ${look.rule};font:15px/1.4 Arial,Helvetica,sans-serif;color:${look.text}">${inner}</td></tr>`;
@@ -188,13 +204,14 @@ export function build({ customer, sections: sec, shop, today, manageUrl, unsubsc
   const appUrl = manageUrl.replace(/\/account\.html$/, '/app'); // the shop's pull list app, next to the account page
   const shipNote = customer.ship_arrivals ? 'We’ll ship your ready books to the address on your profile.' : null;
 
+  const showCovers = anyCover([...sec.ready, ...sec.soon, ...sec.later], siteUrl, mediaBase);
   const block = (key) => {
     if (!sec[key].length) return '';
     const rows = sec[key]
       .map((e) => {
         const l = line(e, key);
         const skip = skipUrl && e.skipId ? skipUrl(e.skipId) : null;
-        return titleRow(coverCell(e, look, siteUrl, mediaBase), `<strong>${esc(e.title)}</strong>${e.isNew ? ` <span style="background:${accent};color:#161616;font-size:11px;font-weight:bold;padding:1px 6px;border-radius:3px">NEW</span>` : ''}
+        return titleRow(coverCell(e, look, siteUrl, mediaBase, showCovers), `<strong>${esc(e.title)}</strong>${e.isNew ? ` <span style="background:${accent};color:#161616;font-size:11px;font-weight:bold;padding:1px 6px;border-radius:3px">NEW</span>` : ''}
           ${l.bits ? `<br><span style="color:${look.muted};font-size:13px">${esc(l.bits)}</span>` : ''}
           ${skip ? `<br><a href="${esc(skip)}" style="color:${look.text};font-size:13px;font-weight:bold">Skip this one</a> <span style="color:${look.muted};font-size:13px">(takes it off your list)</span>` : ''}`, look);
       })
@@ -308,10 +325,11 @@ export function buildArrival({ customer, arrival, shop, manageUrl, unsubscribeUr
   const off = tier.pct ? ` Less your ${tier.pct}% pull list discount (−${money(discount)}) from ${money(subtotal)}.` : '';
   const priced = fresh.filter((e) => e.price != null).length;
 
+  const showCovers = anyCover([...fresh, ...waiting], siteUrl, mediaBase);
   const bits = (e) => [e.variant, e.quantity > 1 && `${e.quantity} copies`, e.holdUntil && `held until ${dayLabel(e.holdUntil, { month: 'short', day: 'numeric' })}`].filter(Boolean).join(' · ');
   const rows = (list) =>
     list
-      .map((e) => titleRow(coverCell(e, look, siteUrl, mediaBase), `<strong>${esc(e.title)}</strong>${bits(e) ? `<br><span style="color:${look.muted};font-size:13px">${esc(bits(e))}</span>` : ''}`, look))
+      .map((e) => titleRow(coverCell(e, look, siteUrl, mediaBase, showCovers), `<strong>${esc(e.title)}</strong>${bits(e) ? `<br><span style="color:${look.muted};font-size:13px">${esc(bits(e))}</span>` : ''}`, look))
       .join('');
   const block = (title, list, color) =>
     list.length ? `<h2 style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${color}">${esc(title)} (${list.length})</h2><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows(list)}</table>` : '';

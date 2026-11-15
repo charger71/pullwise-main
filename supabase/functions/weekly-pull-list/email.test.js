@@ -254,10 +254,16 @@ console.log('email background color tests passed');
   assert.ok(mail.html.includes('src="https://shop.com/__img/catalog/covers/lunar/A-1.jpg"'), 'R2 cover on the shop domain');
   assert.ok(mail.html.includes('src="https://shop.com/__email-logo"'), 'logo on the shop domain');
   assert.equal((mail.html.match(/<img /g) ?? []).length, 2, 'logo + the one cover that can be served from the shop domain');
+  // Every title gets a same-size box (picture or empty), so text doesn't shift when covers load
+  assert.equal((mail.html.match(/width:44px;height:66px/g) ?? []).length, 3, 'one fixed-size cover box per title');
+  assert.ok(mail.html.includes('width="44" height="66"'), 'the picture carries its size');
   assert.ok(!mail.html.includes('supabase.co') && !mail.html.includes('images.x.com'), 'no other domain in the mail');
   const sec = sections([{ id: 1, quantity: 1, status: 'arrived', arrived_on: '2026-10-01', source: 'manual', item: { title: 'T', cover_url: 'https://images.x.com/catalog/covers/a.jpg' } }], { today: '2026-10-05' });
   assert.equal(sec.ready[0].cover, 'https://images.x.com/catalog/covers/a.jpg');
   const weekly = build({ customer: {}, sections: sec, shop: { shop_name: 'Shop' }, today: '2026-10-05', manageUrl: 'https://shop.com/account.html', unsubscribeUrl: 'u', siteUrl: 'https://shop.com', mediaBase: 'https://images.x.com' });
   assert.ok(weekly.html.includes('src="https://shop.com/__img/catalog/covers/a.jpg"'));
+  // No title with a servable cover: no cover column at all
+  const none = buildArrival({ customer: {}, arrival: { fresh: [entry(null), entry('https://abc.supabase.co/c.jpg')], waiting: [], series: 0 }, shop: { shop_name: 'Shop' }, manageUrl: 'https://shop.com/account.html', unsubscribeUrl: 'u', siteUrl: 'https://shop.com', mediaBase: 'https://images.x.com' });
+  assert.ok(!none.html.includes('height:66px'), 'no empty boxes when the email has no covers');
   console.log('shop-domain picture tests passed');
 }
