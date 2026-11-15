@@ -24,6 +24,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { build, sections, buildArrival, arrivalSections, buildMessage, asTest, splitClaims, withLocation } from './email.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+// Pictures in mail load from the shop's own domain (SITE_URL), not the shared images domain or Supabase: see worker/media.js.
+const SITE = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
+const MEDIA_BASE = (Deno.env.get('MEDIA_PUBLIC_URL') ?? 'https://images.pullwise.shop').replace(/\/$/, '');
 const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 
 /**
@@ -153,7 +156,7 @@ async function sendMessage(body: { to?: string; subject?: string; message?: stri
   if (error) throw error;
   const from = shop.pull_list_email_from || Deno.env.get('RESEND_FROM');
   if (!from) return json(500, { error: 'Set the From address in Admin → Emails first.' });
-  const m = buildMessage({ shop, subject, message });
+  const m = buildMessage({ shop, subject, message, siteUrl: SITE });
   const customerId = Number.isInteger(body.customer_id) ? body.customer_id! : null;
   const res = await resend('/emails', { from, to: [to], ...(shop.email ? { reply_to: shop.email, bcc: [shop.email] } : {}), subject: m.subject, html: m.html, text: m.text });
   if (!res.ok) {
@@ -209,7 +212,7 @@ async function sendEventNotice(eventId: number, kind: 'reminder' | 'cancelled') 
     const message = kind === 'cancelled'
       ? `Hi ${su.name},\n\nWe're sorry: ${ev.title} on ${when} has been cancelled.\n\nYour signup has been released, and nothing more is needed from you. Questions? Just reply to this email or call the shop${evShop.phone ? ` at ${evShop.phone}` : ''}.`
       : `Hi ${su.name},\n\nA reminder that you're signed up for ${ev.title}.\n\nWhen: ${when}\nWhere: ${where}\nSpots held: ${people}\n\nEvent details: ${siteUrl}/event.html?id=${ev.id}\n\nCan't make it? Just reply to this email or call the shop${evShop.phone ? ` at ${evShop.phone}` : ''} so we can free up your spot.`;
-    const mail = buildMessage({ shop: evShop, subject, message });
+    const mail = buildMessage({ shop: evShop, subject, message, siteUrl: SITE });
     let failure: string | null = null;
     try {
       const res = await resend('/emails', { from, to: [su.email], subject, html: mail.html, text: mail.text, ...(shop.email ? { reply_to: shop.email } : {}) });
@@ -240,12 +243,12 @@ async function sendEventSignup(signupId: number) {
 
   const confirmSubject = `You're signed up: ${ev.title}`;
   const confirm = buildMessage({
-    shop: evShop, subject: confirmSubject,
+    siteUrl: SITE, shop: evShop, subject: confirmSubject,
     message: `Hi ${su.name},\n\nYou're signed up for ${ev.title}.\n\nWhen: ${when}\nWhere: ${where}\nSpots held: ${people}\n\nEvent details: ${siteUrl}/event.html?id=${ev.id}\n\nNeed to change or cancel? Just reply to this email or call the shop${evShop.phone ? ` at ${evShop.phone}` : ''}.`,
   });
   const noteSubject = `Event signup: ${su.name} for ${ev.title}`;
   const noteText = `${su.name} signed up for ${ev.title} (${when}).\n\nPeople: ${su.party_size}\nEmail: ${su.email}\nPhone: ${su.phone}${su.notes ? `\nNotes: ${su.notes}` : ''}\n\nReply to this email to answer ${su.name} directly. See everyone signed up in Admin → Events.`;
-  const note = buildMessage({ shop, subject: noteSubject, message: noteText });
+  const note = buildMessage({ shop, subject: noteSubject, message: noteText, siteUrl: SITE });
   const staffTo = [...new Set([shop.email, ...(Deno.env.get('STAFF_CC') ?? '').split(',').map((s) => s.trim()).filter(Boolean)].filter(Boolean))];
 
   const rows: LogRow[] = [];
@@ -283,7 +286,7 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
   for (let offset = 0; ; offset += 1000) {
     const { data, error: lErr } = await admin
       .from('reservations')
-      .select('id,quantity,status,arrived_on,source,created_at,item:items(title,issue_number,variant,release_date,foc_date,price,series_key),order:reservation_orders!inner(customer_id)')
+      .select('id,quantity,status,arrived_on,source,created_at,item:items(title,issue_number,variant,release_date,foc_date,price,series_key,cover_url),order:reservation_orders!inner(customer_id)')
       .in('status', ACTIVE)
       .not('order.customer_id', 'is', null)
       .order('id')
@@ -307,7 +310,7 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
     const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}`;
     // Skip links carry the customer's private token, so a staff test or preview gets none.
     const skipUrl = forStaff ? null : (lineId: number) => `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}&skip=${lineId}`;
-    return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, app, skipUrl }) };
+    return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, app, skipUrl, siteUrl: SITE, mediaBase: MEDIA_BASE }) };
   };
 
   if (mode === 'preview' || mode === 'test') {
@@ -392,7 +395,7 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
 
   const customers = await allCustomers(admin, 'id,first_name,name,email,ship_arrivals,notify_arrivals,unsubscribe_token,home_location_id');
 
-  const select = 'id,quantity,status,arrived_on,arrival_notified_at,location_id,item:items(title,issue_number,variant,price,series_key),order:reservation_orders!inner(customer_id)';
+  const select = 'id,quantity,status,arrived_on,arrival_notified_at,location_id,item:items(title,issue_number,variant,price,series_key,cover_url),order:reservation_orders!inner(customer_id)';
   const lines = new Map<number, any[]>();
   for (let offset = 0; ; offset += 1000) {
     const { data, error: lErr } = await admin.from('reservations').select(select).in('status', ACTIVE).not('order.customer_id', 'is', null).order('id').range(offset, offset + 999);
@@ -414,7 +417,7 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
     const waiting = customerLines.find((l) => l.status === 'arrived' && !l.arrival_notified_at);
     const shop = withLocation(shopBase, locs.byId.get(waiting?.location_id ?? c.home_location_id) ?? locs.fallback, { multi: locs.multi });
     const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : unsubUrl(c); // a test must not carry the customer's real link
-    return { unsubscribeUrl, ids: customerLines.filter((l) => l.status === 'arrived' && !l.arrival_notified_at).map((l) => l.id), ...buildArrival({ customer: c, arrival, shop, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, sample }) };
+    return { unsubscribeUrl, ids: customerLines.filter((l) => l.status === 'arrived' && !l.arrival_notified_at).map((l) => l.id), ...buildArrival({ customer: c, arrival, shop, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, sample, siteUrl: SITE, mediaBase: MEDIA_BASE }) };
   };
 
   if (mode === 'arrivals_preview' || mode === 'arrivals_test') {

@@ -234,3 +234,30 @@ console.log('claim tests passed');
   assert.match(mail.html, /background:#203040/);
 }
 console.log('email background color tests passed');
+
+// Shop-domain pictures: logo and covers load from the shop's own domain
+{
+  const { ownDomainImage: workerOwn, EMAIL_LOGO_PATH: workerLogoPath } = await import('../../../worker/shop-page.js');
+  const { ownDomainImage: mailOwn, EMAIL_LOGO_PATH: mailLogoPath, emailLook: look2 } = await import('./email.js');
+  assert.equal(mailLogoPath, workerLogoPath, 'logo path matches the Worker');
+  for (const u of ['https://images.x.com/catalog/covers/a.jpg', 'https://other.com/a.jpg', 'https://images.x.com.evil.io/a.jpg']) {
+    assert.equal(mailOwn(u, 'https://images.x.com/', 'https://shop.com/'), workerOwn(u, 'https://images.x.com/', 'https://shop.com/'), u);
+  }
+  const L = 'https://x.supabase.co/storage/v1/object/public/media/brand/logo.png';
+  assert.equal(look2({ logo_url: L }, 'https://shop.com/').logo, 'https://shop.com/__email-logo');
+  assert.match(look2({ logo_url: L }, '').logo, /render\/image\/public/); // no site address known: as before
+  assert.equal(look2({}, 'https://shop.com').logo, null);
+
+  const entry = (cover) => ({ title: 'Saga #1', variant: null, quantity: 1, price: 4.99, cover, holdUntil: null });
+  const arr = { fresh: [entry('https://images.x.com/catalog/covers/lunar/A-1.jpg'), { ...entry('https://abc.supabase.co/storage/v1/object/public/m/c.jpg'), title: 'Other #2' }, { ...entry(null), title: 'None #3' }], waiting: [], series: 0 };
+  const mail = buildArrival({ customer: { first_name: 'Jo' }, arrival: arr, shop: { shop_name: 'Shop', logo_url: L }, manageUrl: 'https://shop.com/account.html', unsubscribeUrl: 'u', siteUrl: 'https://shop.com', mediaBase: 'https://images.x.com' });
+  assert.ok(mail.html.includes('src="https://shop.com/__img/catalog/covers/lunar/A-1.jpg"'), 'R2 cover on the shop domain');
+  assert.ok(mail.html.includes('src="https://shop.com/__email-logo"'), 'logo on the shop domain');
+  assert.equal((mail.html.match(/<img /g) ?? []).length, 2, 'logo + the one cover that can be served from the shop domain');
+  assert.ok(!mail.html.includes('supabase.co') && !mail.html.includes('images.x.com'), 'no other domain in the mail');
+  const sec = sections([{ id: 1, quantity: 1, status: 'arrived', arrived_on: '2026-10-01', source: 'manual', item: { title: 'T', cover_url: 'https://images.x.com/catalog/covers/a.jpg' } }], { today: '2026-10-05' });
+  assert.equal(sec.ready[0].cover, 'https://images.x.com/catalog/covers/a.jpg');
+  const weekly = build({ customer: {}, sections: sec, shop: { shop_name: 'Shop' }, today: '2026-10-05', manageUrl: 'https://shop.com/account.html', unsubscribeUrl: 'u', siteUrl: 'https://shop.com', mediaBase: 'https://images.x.com' });
+  assert.ok(weekly.html.includes('src="https://shop.com/__img/catalog/covers/a.jpg"'));
+  console.log('shop-domain picture tests passed');
+}

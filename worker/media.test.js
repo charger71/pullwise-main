@@ -1,7 +1,7 @@
 // node worker/media.test.js
 import assert from 'node:assert/strict';
-import { mediaUpload } from './media.js';
-import { mediaPath, mediaUrl, configJs } from './shop-page.js';
+import { mediaUpload, mediaServe, emailLogo, emailLogoSource } from './media.js';
+import { mediaPath, mediaUrl, mediaKey, ownDomainImage, configJs } from './shop-page.js';
 import { putMedia, storesInR2 } from '../js/media-store.js';
 
 // Paths
@@ -68,3 +68,43 @@ assert.equal(await putMedia(sb, 'brand/logo.png', new Uint8Array(3), { contentTy
 await assert.rejects(putMedia(sb, 'covers/a.jpg', new Uint8Array(3), { contentType: 'image/jpeg' }, '/__media', async () => new Response(JSON.stringify({ error: 'Only staff can upload images.' }), { status: 403 })), /Only staff/);
 
 console.log('media upload tests passed');
+
+// Shop-domain copies: same R2 objects, served from /__img/ on any shop domain
+assert.equal(ownDomainImage('https://images.x.com/catalog/covers/a.jpg', 'https://images.x.com/', 'https://shop.com/'), 'https://shop.com/__img/catalog/covers/a.jpg');
+assert.equal(ownDomainImage('https://abc.supabase.co/logo.png', 'https://images.x.com', 'https://shop.com'), 'https://abc.supabase.co/logo.png');
+assert.equal(ownDomainImage('https://images.x.com.evil.io/a.jpg', 'https://images.x.com', 'https://shop.com'), 'https://images.x.com.evil.io/a.jpg');
+assert.equal(ownDomainImage('https://images.x.com/a.jpg', '', 'https://shop.com'), 'https://images.x.com/a.jpg');
+assert.equal(mediaKey('/__img/catalog/covers/lunar/A-1.jpg'), 'catalog/covers/lunar/A-1.jpg');
+for (const p of ['/__img/catalog/brand/a.jpg', '/__img/catalog/covers/../a.jpg', '/__img/covers/a.jpg', '/__img/catalog/covers/a.svg', '/__img/CAT/covers/a.jpg', '/other/catalog/covers/a.jpg']) assert.equal(mediaKey(p), null, p);
+
+const bucket = { get: async (key) => (stored.has(key) ? { body: 'bytes', httpEtag: '"e1"', httpMetadata: { contentType: 'image/jpeg', cacheControl: 'public, max-age=3600' } } : null) };
+let served = await mediaServe(new Request('https://shop.com/__img/catalog/covers/lunar/A-1.jpg'), { MEDIA: bucket });
+assert.equal(served.status, 200);
+assert.equal(served.headers.get('Content-Type'), 'image/jpeg');
+assert.equal(served.headers.get('Cache-Control'), 'public, max-age=3600');
+assert.equal(await served.text(), 'bytes');
+assert.equal((await mediaServe(new Request('https://shop.com/__img/catalog/covers/lunar/A-1.jpg', { method: 'HEAD' }), { MEDIA: bucket })).status, 200);
+assert.equal((await mediaServe(new Request('https://shop.com/__img/catalog/covers/none.jpg'), { MEDIA: bucket })).status, 404);
+assert.equal((await mediaServe(new Request('https://shop.com/__img/catalog/brand/x.jpg'), { MEDIA: bucket })).status, 404);
+assert.equal((await mediaServe(new Request('https://shop.com/__img/catalog/covers/lunar/A-1.jpg'), {})).status, 404);
+assert.equal((await mediaServe(new Request('https://shop.com/__img/catalog/covers/lunar/A-1.jpg', { method: 'PUT', body: 'x' }), { MEDIA: bucket })).status, 405);
+
+// Email logo on the shop's domain
+const SUPA = 'https://x.supabase.co/storage/v1/object/public/media/brand/logo.png';
+assert.equal(emailLogoSource({ logo_url: SUPA }), 'https://x.supabase.co/storage/v1/render/image/public/media/brand/logo.png?width=96&height=96&resize=contain');
+assert.equal(emailLogoSource({ logo_url: SUPA, email_logo_url: 'https://e.com/l.png' }), 'https://e.com/l.png');
+assert.equal(emailLogoSource({ logo_url: 'http://insecure/l.png' }), null);
+assert.equal(emailLogoSource({}), null);
+const img = (type = 'image/png', status = 200, extra = {}) => async (url, init) => { assert.equal(init.redirect, 'manual'); return new Response('png', { status, headers: { 'Content-Type': type, ...extra } }); };
+const logoReq = (method = 'GET') => new Request('https://shop.com/__email-logo', { method });
+let logo = await emailLogo(logoReq(), { logo_url: SUPA }, img());
+assert.equal(logo.status, 200);
+assert.equal(logo.headers.get('Content-Type'), 'image/png');
+assert.equal(await logo.text(), 'png');
+assert.equal((await emailLogo(logoReq(), {}, img())).status, 404);                                  // no logo set
+assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, img('text/html'))).status, 404);       // not an image
+assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, img('image/svg+xml'))).status, 404);   // no SVG (can carry script)
+assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, img('image/png', 302))).status, 404);  // redirects aren't followed
+assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, img('image/png', 200, { 'Content-Length': '99999999' }))).status, 404);
+assert.equal((await emailLogo(logoReq(), { logo_url: SUPA }, async () => { throw new Error('down'); })).status, 404);
+assert.equal((await emailLogo(logoReq('POST'), { logo_url: SUPA }, img())).status, 405);
