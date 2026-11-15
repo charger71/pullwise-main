@@ -105,6 +105,49 @@ must match `wrangler.jsonc` if you changed that.
 New covers uploaded in an R2 shop's admin (Import, a title's cover, a series cover) go through the site Worker
 (`PUT /__media`, staff only) straight into the bucket under the shop's id.
 
+## Emails: pictures and links on the shop's own domain
+
+The pull-list emails (weekly, "your books are in", and staff / event messages) load their logo and cover thumbnails from, and
+link their unsubscribe and "Skip this one" buttons to, the **shop's own domain**. Mail whose pictures and links sit on a
+different domain from the sender is more likely to be filed as spam. Every shop domain's Worker serves:
+
+| Address on the shop's domain | What it is |
+| --- | --- |
+| `/__img/<shop id>/covers/…` | Covers in the R2 bucket (the master catalog's covers, which shops link to) |
+| `/__sb/covers/…` | Covers kept in that shop's own Supabase Storage (titles the shop imported itself) |
+| `/__email-logo` | The logo set in Admin → Emails, else the site logo |
+| `/__unsubscribe?u=…` | The unsubscribe and skip links, handed on to the shop's own `weekly-pull-list` function |
+
+**Deploying it.** Nothing to run by hand: merging to `main` runs the Deploy workflow (see Deploys above), which updates each
+shop's Edge Functions (this includes `weekly-pull-list`), then the Workers, canary first.
+
+1. Merge to `main`, then open Actions → **Deploy** and check that the canary, every shop's functions and database, and the live
+   checks all passed. The functions go out before the main Worker, so for a few minutes an email sent in between could link to
+   an address the Worker doesn't serve yet; the weekly and arrival emails are sent on a schedule, so this only matters if one fires then.
+2. **`SITE_URL`.** Each shop's `weekly-pull-list` function reads its `SITE_URL` secret to find the shop's domain. It must be the
+   shop's own main domain, the first one in `shops.json`, with `https://` and no trailing slash. Shops made with the Add shop
+   button or `npm run add-shop` already have it. For one set up by hand: `supabase secrets set SITE_URL=https://<domain> --project-ref <ref>`.
+   (`supabase secrets list` shows names only, not values, so the test email below is how to check it.) Without it the email falls back to the old
+   Supabase addresses and leaves covers out.
+3. **`MEDIA_PUBLIC_URL`** only if you changed the images domain from `https://images.pullwise.shop` (also in `wrangler.jsonc`):
+   `supabase secrets set MEDIA_PUBLIC_URL=https://<images domain> --project-ref <ref>`.
+
+**Checking it.** In each shop's Admin → Emails, send yourself a test, then in your mail app:
+
+- View the message source (or hover each picture and button). Every address should be on the shop's domain: the logo at
+  `/__email-logo`, covers at `/__img/…` or `/__sb/…`. There should be no `supabase.co` and no `images.pullwise.shop`.
+  A test email has no real unsubscribe or skip links (it points at the account page), so check that one separately, below.
+- The logo and covers show, and the title and details don't move when the pictures load.
+- Dark mode (turn on your mail app's dark theme) and a phone-width window both read cleanly.
+- In **desktop Outlook for Windows**, a cover or logo that isn't 2:3 / square isn't stretched.
+- Open `https://<shop domain>/__unsubscribe?u=00000000-0000-0000-0000-000000000000`. It should show an "Unsubscribe from the
+  weekly pull list email?" page. A made-up token matches nobody, so pressing its button changes nothing.
+
+**If something is wrong.** Fix forward. Don't roll the Worker back to a version from before this change
+(`npx wrangler rollback`): the emails already sent link to `/__unsubscribe`, `/__email-logo`, `/__img/…` and `/__sb/…` on the
+shop's domain, so an older Worker would break their pictures and, worse, their unsubscribe links, until it is rolled forward again.
+Don't unset a shop's `SITE_URL` to switch this off either: the emails' "Log in" link and the calendar feed are built from it.
+
 ## The master catalog (once, for the whole fleet)
 
 Create the catalog like any shop: with the button, pick **catalog**; or from your computer, add `--catalog`. Give it a
