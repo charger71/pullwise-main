@@ -155,7 +155,7 @@ Edge Functions (deploy with `supabase functions deploy <name>`):
 | `js/reservation-list.js` | The customer's in-progress reservation list (localStorage) |
 | `js/content.js` | Loads, sanitizes and shows staff-edited page text (`pages`, `faqs` tables) |
 | `js/page-defaults.js` | Starting page text and FAQ (demo mode, new shops) and the list of editable blocks |
-| `admin/` | Staff admin: `admin.js` (sign-in, routing), `lib.js` (shared helpers), `filters.js` (safe `.or()` search filters), `backup.js` (backup/restore/customer export logic), `sections/*.js`, `pull-list-pdf.js` and `order-sheet-pdf.js` (printable PDFs, built in the browser) |
+| `admin/` | Staff admin: `admin.js` (sign-in, routing), `lib.js` (shared helpers), `editor.js` (the rich text editor), `images.js` (pictures and uploads), `filters.js` (safe `.or()` search filters), `backup.js` (backup/restore/customer export logic), `sections/*.js`, `pull-list-pdf.js` and `order-sheet-pdf.js` (printable PDFs, built in the browser) |
 | `worker/` | The site Worker: serves every shop, generates `js/config.js` per domain and writes page titles, icons and the home banner into the HTML (`shop-page.js`, with tests), stores R2 images (`media.js`) and serves owners their nightly backups (`backups.js`) |
 | `shops.json` | Every shop: id, domains, Supabase URL, anon key (public), project ref |
 | `tools/` | `add-shop.mjs` (`npm run add-shop`: set up a new shop end to end), `deploy-plan.mjs` and `smoke-site.mjs` (the deploy workflow), `check-migrations.js`, `test-migrations.sh`, `restore.mjs` (backup file → SQL, for the terminal), `backup-shops.mjs` (the nightly automatic backup), `stamp-version.js` |

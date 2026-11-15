@@ -5,7 +5,7 @@
 // Read-only; links out to the sections where things get changed.
 
 import { $, esc, must, withCustomers, solidIcon, findGuestMatches, setStatus, fmtDate, fmtDateTime, sortableTable, friendlyError, setupTabs, listLocations, fmtTime, hintSlot, switchHtml } from '../lib.js';
-import { lastReserveDay } from '../../js/site.js';
+import { lastReserveDay } from '../../js/dates.js';
 import { lastBackup } from '../backup.js';
 import { LINE_STATUS_SHORT } from '../../js/labels.js';
 import { addDays } from '../../js/dates.js';

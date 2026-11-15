@@ -10,12 +10,12 @@ import { SOCIAL_ICONS, LINK_ICON } from './social-icons.js';
 import { fillContent } from './content.js';
 import { initCustomer } from './customer.js';
 import { readCache, writeCache, sameData } from './cache.js';
-import { esc, itemTitle, heroHeadlineHtml, sizedImage, LOGO_WIDTH, HERO_WIDTH, formatPhone, prefersReducedMotion, chatOn } from './util.js';
-import { ITEM_STATUS } from './labels.js';
+import { esc, itemTitle, heroHeadlineHtml, sizedImage, LOGO_WIDTH, HERO_WIDTH, formatPhone, prefersReducedMotion, chatOn, price } from './util.js';
+import { ITEM_STATUS, ITEM_BADGES } from './labels.js';
 import { offHrefs, slugOfPage, orderMenu, customHref, customSlugHere } from './optional-pages.js';
-import { localDate, addDays, todayIn, lastReserveDay } from './dates.js';
+import { localDate, addDays, todayIn, lastReserveDay, setShopTimeZone, shopTimeZone, shopToday, daysUntil, cutoffPassed, fmtDateIn, fmtTimeIn } from './dates.js';
 
-export { esc, itemTitle, heroHeadlineHtml, sizedImage, HERO_WIDTH, localDate, addDays, lastReserveDay };
+export { esc, itemTitle, heroHeadlineHtml, sizedImage, HERO_WIDTH, localDate, addDays, lastReserveDay, price, ITEM_BADGES, shopToday, daysUntil, cutoffPassed };
 
 // My Pull List is always the last link; the rest follow settings.menu_order (Admin → Pages), see renderHeader.
 const NAV = [
@@ -96,70 +96,30 @@ export function motionMs(token) {
   return (/ms$/.test(v) ? parseFloat(v) : parseFloat(v) * 1000) || 0;
 }
 
-export const price = (n) => (n == null ? '' : `$${Number(n).toFixed(2)}`);
-
-// Dates like "today" and event times follow the shop's timezone (from settings, set in initPage) so the
-// site's cutoffs match what the database enforces and a visitor elsewhere sees the shop's local times.
-let shopTimeZone;
-
-/** The zone if the browser knows it, else undefined (the browser's own), so a typo in settings can't break dates. */
-const knownZone = (tz) => {
-  try {
-    return tz ? new Intl.DateTimeFormat('en-US', { timeZone: tz }).resolvedOptions().timeZone : undefined;
-  } catch {
-    return undefined;
-  }
-};
+// Dates like "today" and event times follow the shop's timezone (from settings, set in initPage and kept in
+// js/dates.js) so the site's cutoffs match what the database enforces and a visitor elsewhere sees the shop's local times.
 
 /** A date for display. Plain YYYY-MM-DD dates are calendar days and shown as-is; timestamps in shop time. */
-export const fmtDate = (iso, opts = { month: 'short', day: 'numeric' }) =>
-  !iso ? ''
-  : iso.length === 10 ? new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { ...opts, timeZone: 'UTC' })
-  : new Date(iso).toLocaleDateString(undefined, { ...opts, timeZone: shopTimeZone });
+export const fmtDate = (iso, opts) => fmtDateIn(iso, opts, shopTimeZone());
 
 /** A timestamp's time of day, in shop time. */
-export const fmtTime = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: shopTimeZone });
+export const fmtTime = (iso) => fmtTimeIn(iso, shopTimeZone());
 
 /** An all-day event is entered as midnight to 11:59 PM (shop time): lists show its date, not a time. */
 export const isAllDay = (e) => {
   if (!e?.ends_at) return false;
-  const clock = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: shopTimeZone });
+  const clock = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: shopTimeZone() });
   return clock(e.starts_at) === '00:00' && clock(e.ends_at) === '23:59';
 };
 
 /** An event's time for a list: "6:00 PM–8:00 PM", or "All day". */
 export const eventTimes = (e) => (isAllDay(e) ? 'All day' : `${fmtTime(e.starts_at)}${e.ends_at ? `–${fmtTime(e.ends_at)}` : ''}`);
 
-/** Today's date in the shop's timezone, as YYYY-MM-DD. */
-export const shopToday = () => todayIn(shopTimeZone);
-
 /** Earliest FOC date still open for reservations today (shop time): the day after this Saturday. Pass the
  *  shop's timezone when calling before initPage has set it. */
-export const openFocFrom = (timeZone = shopTimeZone) => {
+export const openFocFrom = (timeZone = shopTimeZone()) => {
   const today = todayIn(timeZone);
   return addDays(today, 7 - localDate(today).getDay());
-};
-
-/** Whole days from today (shop time) until an ISO date (negative if past). */
-export const daysUntil = (iso) => Math.round((localDate(iso) - localDate(shopToday())) / 86400000);
-
-// Reservations close at midnight (shop time) on the Saturday before a title's FOC
-// (usually a Monday), so the shop has time to collect and place the order. The
-// database enforces the same rule in create_reservation_order().
-export const cutoffPassed = (item) => !!item?.foc_date && daysUntil(lastReserveDay(item.foc_date)) < 0;
-
-// Collector badges staff tick on a title (an import ticks some itself: js/import/distributors.js autoBadges).
-// Order here is display order. The database allows only these (items_badges_chk).
-export const ITEM_BADGES = {
-  first_appearance: '1st Appearance',
-  key_issue: 'Key Issue',
-  first_issue: 'First Issue',
-  final_issue: 'Final Issue',
-  milestone: 'Milestone Issue',
-  one_shot: 'One-Shot',
-  limited_series: 'Limited Series',
-  facsimile: 'Facsimile',
-  blind_bag: 'Blind Bag',
 };
 
 export const badge = (status) => {
@@ -444,6 +404,14 @@ function fillSettings(s) {
   document.title = pageTitle.trim() ? `${s.shop_name} — ${pageTitle}` : `${s.shop_name} — ${s.tagline ?? ''}`;
 }
 
+const SCHEMA_DAYS = { Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday', Fr: 'Friday', Sa: 'Saturday', Su: 'Sunday' };
+/** Opening hours (settings.hours, or a location's) as schema.org OpeningHoursSpecification entries. */
+const schemaHours = (hours) =>
+  (hours ?? []).map((h) => ({ '@type': 'OpeningHoursSpecification', dayOfWeek: h.days.map((d) => `https://schema.org/${SCHEMA_DAYS[d]}`), opens: h.open, closes: h.close }));
+/** A schema.org PostalAddress for a shop or location, or undefined without a street. */
+const schemaAddress = (a) =>
+  a.street ? { '@type': 'PostalAddress', streetAddress: a.street, addressLocality: a.city, addressRegion: a.region, postalCode: a.postal_code, addressCountry: a.country } : undefined;
+
 function injectSchema(s) {
   const data = {
     '@context': 'https://schema.org',
@@ -454,15 +422,8 @@ function injectSchema(s) {
     email: s.email || undefined,
     image: s.logo_url || undefined,
     foundingDate: s.founded_year ? String(s.founded_year) : undefined,
-    address: s.street
-      ? { '@type': 'PostalAddress', streetAddress: s.street, addressLocality: s.city, addressRegion: s.region, postalCode: s.postal_code, addressCountry: s.country }
-      : undefined,
-    openingHoursSpecification: (s.hours ?? []).map((h) => ({
-      '@type': 'OpeningHoursSpecification',
-      dayOfWeek: h.days.map((d) => `https://schema.org/${{ Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday', Fr: 'Friday', Sa: 'Saturday', Su: 'Sunday' }[d]}`),
-      opens: h.open,
-      closes: h.close,
-    })),
+    address: schemaAddress(s),
+    openingHoursSpecification: schemaHours(s.hours),
     sameAs: socialEntries(s).map(([, url]) => url),
   };
   // Several locations: one Store per location, so search engines see each address and its hours.
@@ -472,13 +433,8 @@ function injectSchema(s) {
         '@id': `${SITE_URL}#location-${l.id}`,
         name: `${s.shop_name} : ${l.name}`,
         telephone: l.phone || undefined,
-        address: l.street ? { '@type': 'PostalAddress', streetAddress: l.street, addressLocality: l.city, addressRegion: l.region, postalCode: l.postal_code, addressCountry: l.country } : undefined,
-        openingHoursSpecification: (l.hours ?? []).map((h) => ({
-          '@type': 'OpeningHoursSpecification',
-          dayOfWeek: h.days.map((d) => `https://schema.org/${{ Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday', Fr: 'Friday', Sa: 'Saturday', Su: 'Sunday' }[d]}`),
-          opens: h.open,
-          closes: h.close,
-        })),
+        address: schemaAddress(l),
+        openingHoursSpecification: schemaHours(l.hours),
       }))
     : null;
   const tag = document.createElement('script');
@@ -739,7 +695,7 @@ export async function initPage() {
     if (self && offList.includes(self)) return location.replace('404.html');
     const off = offHrefs(offList);
     document.documentElement.dataset.off = offList.join(' '); // css/site.css hides links to them in page text
-    shopTimeZone = knownZone(s.timezone);
+    setShopTimeZone(s.timezone);
     // The built-in fallback has no colors or fonts: leave the Worker's theme alone until the real settings arrive.
     if (s !== FALLBACK_SETTINGS) applyTheme(s);
     if (app) renderAppHeader(s);

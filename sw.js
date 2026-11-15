@@ -58,7 +58,9 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((open) => {
       const app = open.find((c) => new URL(c.url).pathname.startsWith('/app'));
-      return app ? app.navigate(target).then((c) => (c ?? app).focus()) : self.clients.openWindow(target);
+      if (!app) return self.clients.openWindow(target);
+      // navigate() refuses a window this worker doesn't control (opened before it took over): open a new one then.
+      return app.navigate(target).then((c) => (c ?? app).focus()).catch(() => self.clients.openWindow(target));
     }),
   );
 });

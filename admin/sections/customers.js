@@ -5,9 +5,8 @@
 // Every change is recorded in pull_list_log and shown under "Recent changes".
 
 import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
-import { cutoffPassed } from '../../js/site.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
-import { todayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
+import { todayIn, stampIn, holdUntil as holdDate, cutoffPassed } from '../../js/dates.js';
 import { adminHash } from '../route.js';
 import { followedSeries, discountFor, tiersFrom, totals } from '../../js/discount.js';
 

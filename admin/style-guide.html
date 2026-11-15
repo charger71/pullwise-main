@@ -378,7 +378,7 @@
 &lt;/div&gt;
 const quill = makeEditor($('[data-body]', el), 'body', $('#p-body-label', el)); // 'lede' for a short intro
 setHtml(quill, saved); … getHtml(quill)</pre>
-            <p class="admin-hint mt-8"><code>makeEditor</code> (lib.js) builds the Quill toolbar, names its icon buttons for screen readers, ties the editor to the label, and adds image, video, table and divider tools. <code>'body'</code> gives a tall editor (<code>editor--body</code>), <code>'lede'</code> a short one (<code>editor--lede</code>). Quill loads from a CDN, so it isn't live on this page.</p>
+            <p class="admin-hint mt-8"><code>makeEditor</code> (editor.js) builds the Quill toolbar, names its icon buttons for screen readers, ties the editor to the label, and adds image, video, table and divider tools. <code>'body'</code> gives a tall editor (<code>editor--body</code>), <code>'lede'</code> a short one (<code>editor--lede</code>). Quill loads from a CDN, so it isn't live on this page.</p>
           </div>
           <div class="sg-item" data-code>
             <h3>Picture list (Media)</h3>
@@ -1012,7 +1012,7 @@ text-muted · text-danger · text-success · text-right · font-mono · nowrap</
         <section class="sg-section" id="patterns">
           <h2>Rules</h2>
           <ul class="sg-rules">
-            <li><strong>Where code lives:</strong> shared components in <code>admin/base.css</code> and <code>admin/admin.css</code>; one screen per file in <code>admin/sections/</code>; helpers (<code>esc</code>, <code>toast</code>, <code>openDialog</code>, <code>hintFold</code>, <code>sortableTable</code>) in <code>admin/lib.js</code>.</li>
+            <li><strong>Where code lives:</strong> shared components in <code>admin/base.css</code> and <code>admin/admin.css</code>; one screen per file in <code>admin/sections/</code>; helpers (<code>esc</code>, <code>toast</code>, <code>openDialog</code>, <code>hintFold</code>, <code>sortableTable</code>) in <code>admin/lib.js</code>, the rich text editor (<code>makeEditor</code>) in <code>admin/editor.js</code>, pictures and uploads (<code>imageField</code>, <code>uploadImage</code>) in <code>admin/images.js</code>.</li>
             <li><strong>One look for each job:</strong> headers are the slate band; actions are buttons from the Buttons section; states are pills. If you need something that is not here, add it here first.</li>
             <li><strong>Breakpoints:</strong> phone up to 599px, tablet 600–899px, desktop from 900px, wide from 1200px. Small tablets split at 700px and the narrowest phones at 380px. Use <code>max-width: 599/699/899/1199px</code> or <code>min-width: 600/700/900/1200px</code>; <code>consistency.test.js</code> rejects any other width.</li>
             <li><strong>Tap targets:</strong> <code>--tap-btn</code> (48px) for buttons and <code>--tap</code> (44px) for small buttons and fields on phones; clickable fold headers <code>--tap-head</code> (52px).</li>
