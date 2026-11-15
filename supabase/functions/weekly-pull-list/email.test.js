@@ -254,10 +254,90 @@ console.log('email background color tests passed');
   assert.ok(mail.html.includes('src="https://shop.com/__img/catalog/covers/lunar/A-1.jpg"'), 'R2 cover on the shop domain');
   assert.ok(mail.html.includes('src="https://shop.com/__email-logo"'), 'logo on the shop domain');
   assert.equal((mail.html.match(/<img /g) ?? []).length, 2, 'logo + the one cover that can be served from the shop domain');
+  // Every title gets a same-size box (picture or empty), so text doesn't shift when covers load
+  assert.equal((mail.html.match(/width:44px;height:66px/g) ?? []).length, 3, 'one fixed-size cover box per title');
+  assert.ok(mail.html.includes('width="44" height="66"'), 'the picture carries its size');
   assert.ok(!mail.html.includes('supabase.co') && !mail.html.includes('images.x.com'), 'no other domain in the mail');
   const sec = sections([{ id: 1, quantity: 1, status: 'arrived', arrived_on: '2026-10-01', source: 'manual', item: { title: 'T', cover_url: 'https://images.x.com/catalog/covers/a.jpg' } }], { today: '2026-10-05' });
   assert.equal(sec.ready[0].cover, 'https://images.x.com/catalog/covers/a.jpg');
   const weekly = build({ customer: {}, sections: sec, shop: { shop_name: 'Shop' }, today: '2026-10-05', manageUrl: 'https://shop.com/account.html', unsubscribeUrl: 'u', siteUrl: 'https://shop.com', mediaBase: 'https://images.x.com' });
   assert.ok(weekly.html.includes('src="https://shop.com/__img/catalog/covers/a.jpg"'));
+  // No title with a servable cover: no cover column at all
+  const none = buildArrival({ customer: {}, arrival: { fresh: [entry(null), entry('https://abc.supabase.co/c.jpg')], waiting: [], series: 0 }, shop: { shop_name: 'Shop' }, manageUrl: 'https://shop.com/account.html', unsubscribeUrl: 'u', siteUrl: 'https://shop.com', mediaBase: 'https://images.x.com' });
+  assert.ok(!none.html.includes('height:66px'), 'no empty boxes when the email has no covers');
   console.log('shop-domain picture tests passed');
+}
+
+// Responsive + light/dark: every email type declares both schemes, fits a phone, and carries the hooks for a dark palette
+{
+  const { emailHead } = await import('./email.js');
+  const shop = { shop_name: 'Shop', colors: { primary: '#982c21' } };
+  const sec = sections([{ id: 1, quantity: 1, status: 'arrived', arrived_on: '2026-10-01', source: 'manual', item: { title: 'T' } }], { today: '2026-10-05' });
+  const arr = { fresh: [{ title: 'T', variant: null, quantity: 1, price: 4.99, holdUntil: null }], waiting: [{ title: 'W', variant: null, quantity: 1, price: 4.99, holdUntil: null }], series: 0 };
+  const mails = {
+    weekly: build({ customer: {}, sections: sec, shop, today: '2026-10-05', manageUrl: 'https://s.com/account.html', unsubscribeUrl: 'u' }),
+    arrival: buildArrival({ customer: {}, arrival: arr, shop, manageUrl: 'https://s.com/account.html', unsubscribeUrl: 'u' }),
+    message: buildMessage({ shop, subject: 'Hi', message: 'Hello' }),
+  };
+  for (const [name, { html }] of Object.entries(mails)) {
+    assert.match(html, /<head>[\s\S]*<meta name="viewport" content="width=device-width, initial-scale=1">/, `${name}: viewport`);
+    assert.ok(html.includes('<meta name="color-scheme" content="light dark">') && html.includes('supported-color-schemes'), `${name}: both schemes declared`);
+    assert.ok(html.includes('@media (prefers-color-scheme:dark)') && html.includes('@media (max-width:520px)'), `${name}: dark + phone rules`);
+    for (const c of ['pw-page', 'pw-body', 'pw-text', 'pw-muted', 'pw-pad', 'pw-outer']) assert.ok(html.includes(c), `${name}: ${c}`);
+    assert.ok(!html.includes('class="${') && !html.includes('undefined'), `${name}: no unfilled class`);
+    assert.match(html, /max-width:600px;width:100%/, `${name}: fluid container`);
+  }
+  assert.ok(mails.weekly.html.includes('pw-title') && mails.arrival.html.includes('pw-title') && mails.arrival.html.includes('class="pw-muted" style="margin:24px 0 4px'), 'section titles can follow dark');
+  assert.ok(mails.weekly.html.includes('class="pw-btn"'), 'button can fill a phone');
+  // Dark palette: light surfaces turn dark and stay readable; a dark body the shop chose is kept; brand header/button colors aren't touched
+  const night = (o) => emailLook({ shop_name: 'S', ...o }).night;
+  const def = night({ colors: { primary: '#982c21' } });
+  assert.equal(def.page, '#121212'); assert.equal(def.body, '#1e1e1e'); assert.equal(def.text, '#ffffff');
+  assert.ok(contrast2(def.text, def.body) >= 7 && contrast2(def.muted, def.body) >= 4.5, 'dark text readable');
+  assert.equal(night({ email_body_color: '#101820' }).body, '#101820');
+  assert.equal(night({ email_body_color: '#101820' }).text, '#ffffff');
+  assert.ok(contrast2(def.title, def.body) >= 3, 'dark section title readable');
+  assert.ok(!emailHead(emailLook(shop)).includes('#982c21') || emailHead(emailLook(shop)).includes('pw-title'), 'brand color only reaches titles');
+  console.log('responsive and dark mode tests passed');
+}
+
+// Accessible and inbox-friendly basics: lang, title, hidden preview text; the small thumbnail wins when the shop's domain can serve it
+{
+  const shop = { shop_name: 'Shop <Comics>' };
+  const e = (title, extra = {}) => ({ title, variant: null, quantity: 1, price: 4.99, holdUntil: null, ...extra });
+  const pre = (html) => /<div style="display:none;[^"]*">([^<]*)/.exec(html)?.[1].replace(/(&zwnj;&nbsp;)+$/, '');
+  const arrival = (fresh, customer = {}) => buildArrival({ customer, arrival: { fresh, waiting: [], series: 0 }, shop, manageUrl: 'https://s.com/account.html', unsubscribeUrl: 'u' });
+  const a = arrival([e('Saga #1'), e('Batman #2'), e('Spawn #3'), e('Daredevil #4')]);
+  assert.ok(a.html.startsWith('<!doctype html><html lang="en">'));
+  assert.ok(a.html.includes(`<title>${'Your books are in at Shop &lt;Comics&gt;: 4 titles ready for pickup'}</title>`), 'title is the subject, escaped');
+  assert.equal(pre(a.html), 'Saga #1, Batman #2 and 2 more are ready for pickup at Shop &lt;Comics&gt;');
+  assert.ok(a.html.indexOf('display:none;max-height:0') < a.html.indexOf('Hi,'), 'preview text comes first in the body');
+  assert.equal(pre(arrival([e('Saga #1')]).html), 'Saga #1 is ready for pickup at Shop &lt;Comics&gt;');
+  assert.equal(pre(arrival([e('Saga #1')], { ship_arrivals: true }).html), 'Saga #1 has arrived and will be shipped to you');
+  const lines = (s) => sections([{ id: 1, quantity: 1, status: s, arrived_on: '2026-10-01', source: 'manual', item: { title: 'T', release_date: s === 'ordered' ? '2026-10-07' : '2026-12-01' } }], { today: '2026-10-05' });
+  const weekly = (sec) => build({ customer: {}, sections: sec, shop, today: '2026-10-05', manageUrl: 'https://s.com/account.html', unsubscribeUrl: 'u' });
+  assert.equal(pre(weekly(lines('arrived')).html), 'T is ready for pickup at Shop &lt;Comics&gt;');
+  assert.equal(pre(weekly(lines('ordered')).html), 'Coming this week: T');
+  assert.equal(pre(weekly(lines('open')).html), 'Coming up: T');
+  const m = buildMessage({ shop, subject: 'Your order', message: '  Hi Jane,\n\nYour   book is in. '.repeat(20) });
+  assert.ok(m.html.includes('<html lang="en">') && m.html.includes('<title>Your order</title>'));
+  assert.ok(pre(m.html).startsWith('Hi Jane, Your book is in.') && pre(m.html).length <= 110);
+
+  // Thumbnail: used when it is on the images domain; the cover otherwise; none when neither is
+  const mail = (x) => arrival([e('T', x)]).html.replace(/<div[^>]*display:none[\s\S]*?<\/div>/, '');
+  const opts = { siteUrl: 'https://s.com', mediaBase: 'https://images.x.com' };
+  const withCovers = (x) => buildArrival({ customer: {}, arrival: { fresh: [e('T', x)], waiting: [], series: 0 }, shop, manageUrl: 'https://s.com/account.html', unsubscribeUrl: 'u', ...opts }).html;
+  assert.ok(withCovers({ cover: 'https://images.x.com/catalog/covers/full.jpg', coverThumb: 'https://images.x.com/catalog/covers/thumb.jpg' }).includes('src="https://s.com/__img/catalog/covers/thumb.jpg"'));
+  assert.ok(withCovers({ cover: 'https://images.x.com/catalog/covers/full.jpg', coverThumb: 'https://abc.supabase.co/t.jpg' }).includes('src="https://s.com/__img/catalog/covers/full.jpg"'));
+  assert.ok(!withCovers({ cover: 'https://abc.supabase.co/c.jpg', coverThumb: 'https://abc.supabase.co/t.jpg' }).includes('height:66px'));
+  const sec2 = sections([{ id: 1, quantity: 1, status: 'arrived', arrived_on: '2026-10-01', source: 'manual', item: { title: 'T', cover_url: 'c', cover_thumb_url: 't' } }], { today: '2026-10-05' });
+  assert.equal(sec2.ready[0].coverThumb, 't');
+  assert.equal(arrivalSections([{ quantity: 1, status: 'arrived', item: { title: 'T', cover_url: 'c', cover_thumb_url: 't' } }], {}).fresh[0].coverThumb, 't');
+  console.log('lang, title, preview text and thumbnail tests passed');
+}
+function contrast2(a, b) {
+  const lum = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+
 }

@@ -158,6 +158,9 @@ export function ownDomainImage(url, publicBase, siteBase) {
 /** The shop's email logo on its own domain (worker/index.js fetches the staff-set image and serves it). */
 export const EMAIL_LOGO_PATH = '/__email-logo';
 
+/** The unsubscribe and "Skip this one" links of the shop's emails, on its own domain (worker/unsubscribe.js). */
+export const UNSUBSCRIBE_PATH = '/__unsubscribe';
+
 /** The R2 key in a /__img/ address ("catalog/covers/lunar/A-1.jpg"), or null. Shop id first, then a path mediaPath accepts. */
 export function mediaKey(pathname) {
   if (!pathname.startsWith(MEDIA_SERVE_PATH)) return null;

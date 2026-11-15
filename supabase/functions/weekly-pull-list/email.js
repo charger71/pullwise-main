@@ -55,6 +55,7 @@ export function sections(lines, { today, holdDays = 30, follows = [] }) {
       out: l.item.release_date,
       note: SOURCE_NOTE[l.source] ?? null,
       cover: l.item.cover_url ?? null,
+      coverThumb: l.item.cover_thumb_url ?? null,
       isNew: ['series', 'artist', 'variant', 'staff'].includes(l.source) && String(l.created_at ?? '').slice(0, 10) >= weekAgo,
     };
     if (l.status === 'arrived') {
@@ -132,7 +133,73 @@ export function emailLook(shop, siteUrl = '') {
     buttonText: textOn(button),
     // Section titles sit on the body color, so a button color that doesn't stand out from it falls back to plain text.
     title: contrast(button, body) >= 3 ? button : textOn(body),
+    night: nightPalette({ page, body, button }),
   };
+}
+
+/**
+ * The colors a mail app in dark mode gets (@media (prefers-color-scheme: dark), below). The shop's brand colors (header
+ * band, button) are kept; a light page or body turns dark, and a page or body the shop already made dark is left as it
+ * is. Text, muted text, rules and section titles are worked out again for the dark body so they stay readable.
+ */
+function nightPalette({ page, body, button }) {
+  const nightPage = luminance(page) > 0.2 ? '#121212' : page;
+  const nightBody = luminance(body) > 0.2 ? '#1e1e1e' : body;
+  const light = textOn(nightBody) === '#ffffff';
+  return {
+    page: nightPage,
+    body: nightBody,
+    text: textOn(nightBody),
+    muted: light ? '#c9c9c9' : '#5b5b5b',
+    rule: light ? '#4a4a4a' : '#eeeeee',
+    title: contrast(button, nightBody) >= 3 ? button : textOn(nightBody),
+  };
+}
+
+/**
+ * Hidden "preview text": what an inbox shows after the subject. Without it the inbox shows the greeting ("Hi Jo, …"). The
+ * filler stops the app pulling the first lines of the visible email in after it.
+ */
+const preheader = (text) => `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:transparent;opacity:0">${esc(text)}${'&zwnj;&nbsp;'.repeat(40)}</div>`;
+
+/** "Absolute Batman #25, Saga #70 and 3 more" */
+function titlesBlurb(entries, max = 2) {
+  const names = entries.slice(0, max).map((e) => e.title);
+  const more = entries.length - names.length;
+  return names.join(', ') + (more > 0 ? ` and ${more} more` : '');
+}
+
+/**
+ * The <head> of every email: a phone-width viewport, a declaration that the email has both a light and a dark look, and the
+ * rules for both. Colors in the markup are inline (so every mail app shows the light look); the pw-* classes let a dark-mode
+ * app swap them, and a narrow screen tighten the padding. Apps that ignore <style> (some Outlooks) just show the light look.
+ */
+export function emailHead(look, title = '') {
+  const n = look.night;
+  return `<meta charset="utf-8">
+<title>${esc(title)}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<style>
+:root{color-scheme:light dark;supported-color-schemes:light dark}
+body{-webkit-text-size-adjust:100%;margin:0}
+img{-ms-interpolation-mode:bicubic}
+@media (max-width:520px){
+.pw-outer{padding:8px!important}
+.pw-pad{padding-left:16px!important;padding-right:16px!important}
+.pw-btn{display:block!important}
+}
+@media (prefers-color-scheme:dark){
+.pw-page{background:${n.page}!important}
+.pw-body{background:${n.body}!important}
+.pw-text{color:${n.text}!important}
+.pw-muted{color:${n.muted}!important}
+.pw-title{color:${n.title}!important}
+.pw-rule{border-color:${n.rule}!important}
+.pw-fill{background:${n.rule}!important}
+}
+</style>`;
 }
 
 /** The coloured band at the top of every email: logo (when there is one) and the shop name. */
@@ -151,13 +218,35 @@ export function subject(sec, shopName) {
   return `Your ${shopName} pull list: ${parts.join(', ')}`;
 }
 
-/** The cover as a small picture in a title's row, only when it can be served from the shop's own domain; else ''. */
-function coverCell(e, look, siteUrl, mediaBase) {
-  const src = e.cover && /^https:\/\//.test(siteUrl) ? ownDomainImage(e.cover, mediaBase, siteUrl) : null;
-  return src && src !== e.cover ? `<td width="56" valign="top" style="padding:8px 12px 8px 0;border-bottom:1px solid ${look.rule}"><img src="${esc(src)}" width="44" alt="" style="display:block;border:0;width:44px;height:auto;border-radius:3px"></td>` : '';
+// A cover is 2:3. Its box has a fixed size, with a quiet fill, so the title and details sit in the same place before the picture
+// loads (or while a mail app's preview holds it back) and nothing jumps when it arrives.
+const COVER_W = 44;
+const COVER_H = 66;
+// The title's small thumbnail when it has one (a lighter file), else its cover; either only when it is on the shared images
+// domain, so it can come from the shop's own.
+const coverSrc = (e, siteUrl, mediaBase) => {
+  if (!/^https:\/\//.test(siteUrl)) return null;
+  for (const url of [e.coverThumb, e.cover]) {
+    const src = url ? ownDomainImage(url, mediaBase, siteUrl) : null;
+    if (src && src !== url) return src;
+  }
+  return null;
+};
+/** Whether any title in the list has a cover served from the shop's own domain: only then do the rows get a cover column. */
+const anyCover = (entries, siteUrl, mediaBase) => entries.some((e) => coverSrc(e, siteUrl, mediaBase));
+
+/** A title's cover box: the picture when it can come from the shop's own domain, else an empty box the same size (when the email shows covers). */
+function coverCell(e, look, siteUrl, mediaBase, show) {
+  if (!show) return '';
+  const src = coverSrc(e, siteUrl, mediaBase);
+  const box = `display:block;width:${COVER_W}px;height:${COVER_H}px;background:${look.rule};border-radius:3px`;
+  const inner = src
+    ? `<img class="pw-fill" src="${esc(src)}" width="${COVER_W}" height="${COVER_H}" alt="" style="${box};border:0;object-fit:cover">`
+    : `<div class="pw-fill" style="${box};font-size:0;line-height:0">&nbsp;</div>`;
+  return `<td width="${COVER_W + 12}" valign="top" class="pw-rule" style="padding:8px 12px 8px 0;border-bottom:1px solid ${look.rule}">${inner}</td>`;
 }
 /** One title's row: [cover] details. The details cell carries the row's bottom rule. */
-const titleRow = (cover, inner, look) => `<tr>${cover}<td style="padding:8px 0;border-bottom:1px solid ${look.rule};font:15px/1.4 Arial,Helvetica,sans-serif;color:${look.text}">${inner}</td></tr>`;
+const titleRow = (cover, inner, look) => `<tr>${cover}<td class="pw-text pw-rule" style="padding:8px 0;border-bottom:1px solid ${look.rule};font:15px/1.4 Arial,Helvetica,sans-serif;color:${look.text}">${inner}</td></tr>`;
 
 const line = (e, kind) => {
   const bits = [
@@ -188,37 +277,38 @@ export function build({ customer, sections: sec, shop, today, manageUrl, unsubsc
   const appUrl = manageUrl.replace(/\/account\.html$/, '/app'); // the shop's pull list app, next to the account page
   const shipNote = customer.ship_arrivals ? 'We’ll ship your ready books to the address on your profile.' : null;
 
+  const showCovers = anyCover([...sec.ready, ...sec.soon, ...sec.later], siteUrl, mediaBase);
   const block = (key) => {
     if (!sec[key].length) return '';
     const rows = sec[key]
       .map((e) => {
         const l = line(e, key);
         const skip = skipUrl && e.skipId ? skipUrl(e.skipId) : null;
-        return titleRow(coverCell(e, look, siteUrl, mediaBase), `<strong>${esc(e.title)}</strong>${e.isNew ? ` <span style="background:${accent};color:#161616;font-size:11px;font-weight:bold;padding:1px 6px;border-radius:3px">NEW</span>` : ''}
-          ${l.bits ? `<br><span style="color:${look.muted};font-size:13px">${esc(l.bits)}</span>` : ''}
-          ${skip ? `<br><a href="${esc(skip)}" style="color:${look.text};font-size:13px;font-weight:bold">Skip this one</a> <span style="color:${look.muted};font-size:13px">(takes it off your list)</span>` : ''}`, look);
+        return titleRow(coverCell(e, look, siteUrl, mediaBase, showCovers), `<strong>${esc(e.title)}</strong>${e.isNew ? ` <span style="background:${accent};color:#161616;font-size:11px;font-weight:bold;padding:1px 6px;border-radius:3px">NEW</span>` : ''}
+          ${l.bits ? `<br><span class="pw-muted" style="color:${look.muted};font-size:13px">${esc(l.bits)}</span>` : ''}
+          ${skip ? `<br><a href="${esc(skip)}" class="pw-text" style="color:${look.text};font-size:13px;font-weight:bold">Skip this one</a> <span class="pw-muted" style="color:${look.muted};font-size:13px">(takes it off your list)</span>` : ''}`, look);
       })
       .join('');
-    return `<h2 style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${look.title}">${SECTION_TITLES[key]} (${sec[key].length})</h2>
+    return `<h2 class="pw-title" style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${look.title}">${SECTION_TITLES[key]} (${sec[key].length})</h2>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>`;
   };
 
-  const html = `<!doctype html><html><body style="margin:0;background:${look.page}">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${look.page}"><tr><td align="center" style="padding:16px">
-    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:${look.body};border-radius:6px">
+  const html = `<!doctype html><html lang="en"><head>${emailHead(look, subj)}</head><body class="pw-page" style="margin:0;background:${look.page}">${preheader(sec.ready.length ? `${titlesBlurb(sec.ready)} ${sec.ready.length === 1 ? 'is' : 'are'} ready for pickup at ${shop.shop_name}` : sec.soon.length ? `Coming this week: ${titlesBlurb(sec.soon)}` : `Coming up: ${titlesBlurb(sec.later)}`)}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="pw-page" style="background:${look.page}"><tr><td align="center" class="pw-outer" style="padding:16px">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="pw-body" style="max-width:600px;width:100%;background:${look.body};border-radius:6px">
       ${header(shop, look)}
-      <tr><td style="padding:24px">
-        <p style="margin:0 0 8px;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${esc(hello)}</p>
-        <p style="margin:0;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">Here’s your pull list for the week of ${esc(dayLabel(today, { month: 'long', day: 'numeric' }))}.${shipNote ? ` ${esc(shipNote)}` : ''}</p>
+      <tr><td class="pw-pad" style="padding:24px">
+        <p class="pw-text" style="margin:0 0 8px;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${esc(hello)}</p>
+        <p class="pw-text" style="margin:0;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">Here’s your pull list for the week of ${esc(dayLabel(today, { month: 'long', day: 'numeric' }))}.${shipNote ? ` ${esc(shipNote)}` : ''}</p>
         ${block('ready')}${block('soon')}${block('later')}
-        ${tier.line ? `<p style="margin:20px 0 0;font:14px/1.4 Arial,Helvetica,sans-serif;color:${look.text}"><strong>${esc(tier.line)}</strong></p>` : ''}
-        <p style="margin:28px 0 0;text-align:center"><a href="${esc(manageUrl)}" style="display:inline-block;background:${look.button};color:${look.buttonText};text-decoration:none;font:bold 16px Arial,Helvetica,sans-serif;padding:12px 22px;border-radius:4px">Log in to edit your pull list</a></p>
-        <p style="margin:12px 0 0;text-align:center;font:13px/1.4 Arial,Helvetica,sans-serif;color:${look.muted}">Change quantities, remove titles, or follow a series or artist. Changes close at midnight the Saturday before each order cutoff.</p>
-        ${app ? `<p style="margin:16px 0 0;text-align:center;font:14px/1.4 Arial,Helvetica,sans-serif;color:${look.text}">On your phone? <a href="${esc(appUrl)}" style="color:${look.text};font-weight:bold">Get ${esc(shop.shop_name)}’s app</a>: your list in one tap, and a notification when your books are in.</p>` : ''}
+        ${tier.line ? `<p class="pw-text" style="margin:20px 0 0;font:14px/1.4 Arial,Helvetica,sans-serif;color:${look.text}"><strong>${esc(tier.line)}</strong></p>` : ''}
+        <p style="margin:28px 0 0;text-align:center"><a href="${esc(manageUrl)}" class="pw-btn" style="display:inline-block;background:${look.button};color:${look.buttonText};text-decoration:none;font:bold 16px Arial,Helvetica,sans-serif;padding:12px 22px;border-radius:4px">Log in to edit your pull list</a></p>
+        <p class="pw-muted" style="margin:12px 0 0;text-align:center;font:13px/1.4 Arial,Helvetica,sans-serif;color:${look.muted}">Change quantities, remove titles, or follow a series or artist. Changes close at midnight the Saturday before each order cutoff.</p>
+        ${app ? `<p class="pw-text" style="margin:16px 0 0;text-align:center;font:14px/1.4 Arial,Helvetica,sans-serif;color:${look.text}">On your phone? <a href="${esc(appUrl)}" class="pw-text" style="color:${look.text};font-weight:bold">Get ${esc(shop.shop_name)}’s app</a>: your list in one tap, and a notification when your books are in.</p>` : ''}
       </td></tr>
-      <tr><td style="padding:16px 24px;border-top:1px solid ${look.rule};font:12px/1.5 Arial,Helvetica,sans-serif;color:${look.muted}">
+      <tr><td class="pw-muted pw-rule pw-pad" style="padding:16px 24px;border-top:1px solid ${look.rule};font:12px/1.5 Arial,Helvetica,sans-serif;color:${look.muted}">
         ${esc(shop.shop_name)}${addr.length ? ` · ${esc(addr.join(', '))}` : ''}${shop.phone ? ` · ${esc(shop.phone)}` : ''}<br>
-        You’re getting this because you have a pull list at ${esc(shop.shop_name)}. <a href="${esc(unsubscribeUrl)}" style="color:${look.muted}">Unsubscribe</a> from this weekly email (you can also turn it off in your profile).
+        You’re getting this because you have a pull list at ${esc(shop.shop_name)}. <a href="${esc(unsubscribeUrl)}" class="pw-muted" style="color:${look.muted}">Unsubscribe</a> from this weekly email (you can also turn it off in your profile).
       </td></tr>
     </table>
   </td></tr></table></body></html>`;
@@ -249,6 +339,7 @@ export function arrivalSections(lines, { holdDays = 30, follows = [] }) {
     quantity: l.quantity,
     price: l.item.price,
     cover: l.item.cover_url ?? null,
+    coverThumb: l.item.cover_thumb_url ?? null,
     holdUntil: l.arrived_on ? addDays(l.arrived_on, holdDays) : null,
   });
   const arrived = lines.filter((l) => l.item && l.status === 'arrived');
@@ -308,32 +399,33 @@ export function buildArrival({ customer, arrival, shop, manageUrl, unsubscribeUr
   const off = tier.pct ? ` Less your ${tier.pct}% pull list discount (−${money(discount)}) from ${money(subtotal)}.` : '';
   const priced = fresh.filter((e) => e.price != null).length;
 
+  const showCovers = anyCover([...fresh, ...waiting], siteUrl, mediaBase);
   const bits = (e) => [e.variant, e.quantity > 1 && `${e.quantity} copies`, e.holdUntil && `held until ${dayLabel(e.holdUntil, { month: 'short', day: 'numeric' })}`].filter(Boolean).join(' · ');
   const rows = (list) =>
     list
-      .map((e) => titleRow(coverCell(e, look, siteUrl, mediaBase), `<strong>${esc(e.title)}</strong>${bits(e) ? `<br><span style="color:${look.muted};font-size:13px">${esc(bits(e))}</span>` : ''}`, look))
+      .map((e) => titleRow(coverCell(e, look, siteUrl, mediaBase, showCovers), `<strong>${esc(e.title)}</strong>${bits(e) ? `<br><span class="pw-muted" style="color:${look.muted};font-size:13px">${esc(bits(e))}</span>` : ''}`, look))
       .join('');
-  const block = (title, list, color) =>
-    list.length ? `<h2 style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${color}">${esc(title)} (${list.length})</h2><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows(list)}</table>` : '';
+  const block = (title, list, color, cls) =>
+    list.length ? `<h2 class="${cls}" style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${color}">${esc(title)} (${list.length})</h2><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows(list)}</table>` : '';
 
   const subj = `${sample ? '[Sample] ' : ''}${arrivalSubject(fresh.length, shop.shop_name)}`;
-  const html = `<!doctype html><html><body style="margin:0;background:${look.page}">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${look.page}"><tr><td align="center" style="padding:16px">
-    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:${look.body};border-radius:6px">
+  const html = `<!doctype html><html lang="en"><head>${emailHead(look, subj)}</head><body class="pw-page" style="margin:0;background:${look.page}">${preheader(customer.ship_arrivals ? `${titlesBlurb(fresh)} ${fresh.length === 1 ? 'has' : 'have'} arrived and will be shipped to you` : `${titlesBlurb(fresh)} ${fresh.length === 1 ? 'is' : 'are'} ready for pickup at ${shop.shop_name}`)}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="pw-page" style="background:${look.page}"><tr><td align="center" class="pw-outer" style="padding:16px">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="pw-body" style="max-width:600px;width:100%;background:${look.body};border-radius:6px">
       ${header(shop, look)}
-      <tr><td style="padding:24px">
-        <p style="margin:0 0 8px;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${esc(hello)}</p>
-        <p style="margin:0;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}"><strong>Your books are in!</strong> ${esc(intro)}</p>
-        ${block(customer.ship_arrivals ? 'Just arrived' : 'Ready for pickup', fresh, look.title)}
-        ${priced ? `<p style="margin:12px 0 0;font:14px/1.4 Arial,Helvetica,sans-serif;color:${look.text}"><strong>Estimated total ${money(estimate)}</strong> <span style="color:${look.muted}">at cover price${priced < fresh.length ? ` (${fresh.length - priced} without a price not counted)` : ''}, before tax.${esc(off)}</span></p>` : ''}
-        ${tier.line ? `<p style="margin:8px 0 0;font:14px/1.4 Arial,Helvetica,sans-serif;color:${look.text}">${esc(tier.line)}</p>` : ''}
-        ${block('Still waiting for you', waiting, look.muted)}
-        ${hours.length ? `<p style="margin:24px 0 4px;font:bold 14px Arial,Helvetica,sans-serif;color:${look.text}">Come by</p><p style="margin:0;font:14px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${hours.map(esc).join('<br>')}${addr.length ? `<br>${esc(addr.join(', '))}` : ''}</p>` : ''}
-        <p style="margin:28px 0 0;text-align:center"><a href="${esc(manageUrl)}" style="display:inline-block;background:${look.button};color:${look.buttonText};text-decoration:none;font:bold 16px Arial,Helvetica,sans-serif;padding:12px 22px;border-radius:4px">View my pull list</a></p>
+      <tr><td class="pw-pad" style="padding:24px">
+        <p class="pw-text" style="margin:0 0 8px;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${esc(hello)}</p>
+        <p class="pw-text" style="margin:0;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}"><strong>Your books are in!</strong> ${esc(intro)}</p>
+        ${block(customer.ship_arrivals ? 'Just arrived' : 'Ready for pickup', fresh, look.title, 'pw-title')}
+        ${priced ? `<p class="pw-text" style="margin:12px 0 0;font:14px/1.4 Arial,Helvetica,sans-serif;color:${look.text}"><strong>Estimated total ${money(estimate)}</strong> <span class="pw-muted" style="color:${look.muted}">at cover price${priced < fresh.length ? ` (${fresh.length - priced} without a price not counted)` : ''}, before tax.${esc(off)}</span></p>` : ''}
+        ${tier.line ? `<p class="pw-text" style="margin:8px 0 0;font:14px/1.4 Arial,Helvetica,sans-serif;color:${look.text}">${esc(tier.line)}</p>` : ''}
+        ${block('Still waiting for you', waiting, look.muted, 'pw-muted')}
+        ${hours.length ? `<p class="pw-text" style="margin:24px 0 4px;font:bold 14px Arial,Helvetica,sans-serif;color:${look.text}">Come by</p><p class="pw-text" style="margin:0;font:14px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${hours.map(esc).join('<br>')}${addr.length ? `<br>${esc(addr.join(', '))}` : ''}</p>` : ''}
+        <p style="margin:28px 0 0;text-align:center"><a href="${esc(manageUrl)}" class="pw-btn" style="display:inline-block;background:${look.button};color:${look.buttonText};text-decoration:none;font:bold 16px Arial,Helvetica,sans-serif;padding:12px 22px;border-radius:4px">View my pull list</a></p>
       </td></tr>
-      <tr><td style="padding:16px 24px;border-top:1px solid ${look.rule};font:12px/1.5 Arial,Helvetica,sans-serif;color:${look.muted}">
+      <tr><td class="pw-muted pw-rule pw-pad" style="padding:16px 24px;border-top:1px solid ${look.rule};font:12px/1.5 Arial,Helvetica,sans-serif;color:${look.muted}">
         ${esc(shop.shop_name)}${addr.length ? ` · ${esc(addr.join(', '))}` : ''}${shop.phone ? ` · ${esc(shop.phone)}` : ''}<br>
-        You get this when titles on your pull list arrive. <a href="${esc(unsubscribeUrl)}" style="color:${look.muted}">Stop these “your books are in” emails</a> (you can also turn them off in your profile).
+        You get this when titles on your pull list arrive. <a href="${esc(unsubscribeUrl)}" class="pw-muted" style="color:${look.muted}">Stop these “your books are in” emails</a> (you can also turn them off in your profile).
       </td></tr>
     </table>
   </td></tr></table></body></html>`;
@@ -347,14 +439,14 @@ export function buildArrival({ customer, arrival, shop, manageUrl, unsubscribeUr
 export function buildMessage({ shop, subject, message, siteUrl = '' }) {
   const look = emailLook(shop, siteUrl);
   const addr = [shop.street, [shop.city, shop.region].filter(Boolean).join(', '), shop.postal_code].filter(Boolean);
-  const paragraphs = String(message).trim().split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${esc(p).replace(/\n/g, '<br>')}</p>`).join('');
-  const html = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:${look.page}">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${look.page}"><tr><td align="center" style="padding:16px">
-    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:${look.body};border-radius:6px">
+  const paragraphs = String(message).trim().split(/\n{2,}/).map((p) => `<p class="pw-text" style="margin:0 0 14px;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${esc(p).replace(/\n/g, '<br>')}</p>`).join('');
+  const html = `<!doctype html><html lang="en"><head>${emailHead(look, subject)}</head><body class="pw-page" style="margin:0;background:${look.page}">${preheader(String(message).trim().replace(/\s+/g, ' ').slice(0, 110))}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="pw-page" style="background:${look.page}"><tr><td align="center" class="pw-outer" style="padding:16px">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="pw-body" style="max-width:600px;width:100%;background:${look.body};border-radius:6px">
       ${header(shop, look)}
-      <tr><td style="padding:24px">
+      <tr><td class="pw-pad" style="padding:24px">
         ${paragraphs}
-        <p style="margin:24px 0 0;border-top:1px solid ${look.rule};padding-top:14px;font:13px/1.5 Arial,Helvetica,sans-serif;color:${look.muted}">
+        <p class="pw-muted pw-rule" style="margin:24px 0 0;border-top:1px solid ${look.rule};padding-top:14px;font:13px/1.5 Arial,Helvetica,sans-serif;color:${look.muted}">
           ${esc(shop.shop_name)}${addr.length ? ` · ${esc(addr.join(', '))}` : ''}${shop.phone ? ` · ${esc(shop.phone)}` : ''}<br>Just reply to this email to reach us.
         </p>
       </td></tr>
