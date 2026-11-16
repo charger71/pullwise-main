@@ -66,7 +66,8 @@ export function trustRowFrom(get, has) {
 }
 
 export const ACCOUNT_STATE = { unapproved: 'Waiting for approval', approved: 'Approved', proven: 'Proven' };
-export const CADENCE = { weekly: 'Weekly pickup', monthly: 'Monthly pickup', exempt: 'Exempt from pickup reminders' };
+/** The pickup cadence picker on a customer's page: [value, label]. */
+export const CADENCE_OPTIONS = [['weekly', 'Weekly'], ['monthly', 'Monthly'], ['exempt', 'Exempt (no reminders or pauses)']];
 
 const SETTING_LABEL = {
   pickup_pause_enabled: 'Pause pulls for unclaimed books',

@@ -5,12 +5,12 @@
 // Every change is recorded in pull_list_log and shown under "Recent changes".
 // The Unclaimed tab and the pickup indicator (account state, pause, books waiting) read staff_pickup_summary().
 
-import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
+import { $, $$, esc, uid, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { todayIn, stampIn, holdUntil as holdDate, cutoffPassed } from '../../js/dates.js';
 import { adminHash } from '../route.js';
 import { followedSeries, discountFor, tiersFrom, totals } from '../../js/discount.js';
-import { dollars, ageLabel, ACCOUNT_STATE, standingChange, standingActions } from '../trust.js';
+import { dollars, ageLabel, ACCOUNT_STATE, CADENCE_OPTIONS, standingChange, standingActions } from '../trust.js';
 
 const SOURCE = { manual: 'Customer', variant: 'Customer (all covers)', series: 'Series follow', artist: 'Artist follow', staff: 'Staff' };
 const ITEM_FIELDS = 'id,title,issue_number,variant,publisher,price,series_key,foc_date,release_date,status';
@@ -405,12 +405,27 @@ async function loadStanding(el, c) {
   const { data, error } = await sb.rpc('staff_pickup_summary', { p_ids: [c.id] });
   if (error || !data?.length) return void (box.hidden = true);
   const r = data[0];
+  const cadenceId = uid('cu-cadence');
   box.innerHTML = `<span class="cust-standing__pills">${standingPills(r, true)}</span><span class="cust-standing__facts">${esc(waitingText(r))}</span>
-    <span class="cust-standing__actions">${standingActions(r).map(([a, label]) => `<button class="btn btn--ghost btn--small" type="button" data-standing-act="${a}">${label}</button>`).join('')}</span>`;
+    <span class="cust-standing__actions"><span class="cust-standing__cadence"><label for="${cadenceId}">Pickup</label><select id="${cadenceId}" class="select--small" data-cadence title="How often this customer usually picks up: sets when the unclaimed-books reminder and pause happen">${CADENCE_OPTIONS.map(([v, label]) => `<option value="${v}"${v === r.pickup_cadence ? ' selected' : ''}>${label}</option>`).join('')}</select></span>${standingActions(r).map(([a, label]) => `<button class="btn btn--ghost btn--small" type="button" data-standing-act="${a}">${label}</button>`).join('')}</span>`;
   box.hidden = false;
   box.onclick = (e) => {
     const btn = e.target.closest('[data-standing-act]');
     if (btn) confirmStanding(el, c, btn.dataset.standingAct);
+  };
+  // Saves the moment it changes (like a switch on its own screen), and goes back if the save fails.
+  $('[data-cadence]', box).onchange = async (e) => {
+    const sel = e.currentTarget;
+    sel.disabled = true;
+    const { error } = await sb.rpc('staff_set_cadence', { p_customer: c.id, p_cadence: sel.value, p_reason: null });
+    if (error) {
+      sel.value = r.pickup_cadence;
+      sel.disabled = false;
+      return toast(friendlyError(error), 'error');
+    }
+    toast(`Pickup cadence: ${sel.options[sel.selectedIndex].text}`);
+    loadStanding(el, c);
+    loadStandingLog(el, c);
   };
 }
 

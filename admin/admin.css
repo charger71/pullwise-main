@@ -563,7 +563,9 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .cust-standing__pills { display: inline-flex; flex-wrap: wrap; gap: var(--sp-6); }
 .cust-standing__pills:empty { display: none; }
 .cust-standing__facts { color: var(--muted); font-size: var(--fs-sm); }
-.cust-standing__actions { display: inline-flex; flex-wrap: wrap; gap: var(--sp-8); margin-left: auto; }
+.cust-standing__actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-left: auto; }
+.cust-standing__cadence { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-sm); }
+.cust-standing__cadence select { width: auto; }
 /* Customers → Unclaimed: phone and email stacked in one cell. */
 .cust-unclaimed__contact { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
 .cust-icon { display: inline-flex; }
