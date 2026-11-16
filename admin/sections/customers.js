@@ -3,12 +3,14 @@
 // Quantity and status changes are plain updates (staff have full access to reservations);
 // adding titles goes through staff_pull_list_add(), which can also add past the cutoff.
 // Every change is recorded in pull_list_log and shown under "Recent changes".
+// The Unclaimed tab and the pickup indicator (account state, pause, books waiting) read staff_pickup_summary().
 
 import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { todayIn, stampIn, holdUntil as holdDate, cutoffPassed } from '../../js/dates.js';
 import { adminHash } from '../route.js';
 import { followedSeries, discountFor, tiersFrom, totals } from '../../js/discount.js';
+import { dollars, ageLabel, ACCOUNT_STATE } from '../trust.js';
 
 const SOURCE = { manual: 'Customer', variant: 'Customer (all covers)', series: 'Series follow', artist: 'Artist follow', staff: 'Staff' };
 const ITEM_FIELDS = 'id,title,issue_number,variant,publisher,price,series_key,foc_date,release_date,status';
@@ -224,8 +226,9 @@ function renderList(el) {
       <button type="button" class="admin-tab" role="tab" data-show="">All Customers</button>
       <button type="button" class="admin-tab" role="tab" data-show="new_week">New This Week <span class="admin-tab__badge" data-new-count hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-show="to_fix">Needs Attention</button>
+      <button type="button" class="admin-tab" role="tab" data-show="unclaimed">Unclaimed</button>
     </div>
-    <form class="filters admin-filters" role="search" aria-label="Find customers">
+    ${state.show === 'unclaimed' ? unclaimedHtml() : `<form class="filters admin-filters" role="search" aria-label="Find customers">
       <div class="field field--search"><label for="c-q">Customer</label><input id="c-q" name="q" type="search" placeholder="Name, phone, email or #pickup code" value="${esc(state.q)}"></div>
     </form>
     <p class="results-count" role="status" data-count></p>
@@ -235,12 +238,13 @@ function renderList(el) {
       <tbody data-rows></tbody>
     </table></div>
     <div class="admin-pager"><button class="btn btn--ghost" type="button" data-prev>← Previous</button><span data-page></span><button class="btn btn--ghost" type="button" data-next>Next →</button></div>
-    <div class="admin-actions cust-export">${phone ? `<details class="cust-more"><summary>Export &amp; print</summary><div class="cust-more__body">${exportControls}</div></details>` : exportControls}</div>`;
+    <div class="admin-actions cust-export">${phone ? `<details class="cust-more"><summary>Export &amp; print</summary><div class="cust-more__body">${exportControls}</div></details>` : exportControls}</div>`}`;
   const form = $('form', el);
   const markShowTab = () => $$('[data-show]', el).forEach((b) => b.setAttribute('aria-selected', b.dataset.show === state.show));
   markShowTab();
   $$('[data-show]', el).forEach((b) =>
     b.addEventListener('click', () => {
+      const redraw = (b.dataset.show === 'unclaimed') !== (state.show === 'unclaimed'); // the Unclaimed tab has its own table
       state.show = b.dataset.show;
       state.offset = 0;
       try {
@@ -248,10 +252,20 @@ function renderList(el) {
       } catch {
         /* remembering the tab is optional */
       }
+      if (redraw) return renderList(el);
       markShowTab();
       loadList(el);
     }),
   );
+  $$('[data-new]', el).forEach((b) => b.addEventListener('click', () => ((state.customerId = 'new'), renderCustomer(el))));
+  $('[data-scan]', el)?.addEventListener('click', () => scanPickupCode(el));
+  // How many customers signed up in the last 7 days, shown on the tab.
+  sb.from('customer_list').select('id', { count: 'exact', head: true }).not('user_id', 'is', null).gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString())
+    .then(({ count }) => {
+      const badge = $('[data-new-count]', el);
+      if (badge && count) (badge.textContent = count), (badge.hidden = false);
+    });
+  if (state.show === 'unclaimed') return loadUnclaimed(el);
   let timer;
   form.addEventListener('input', (e) => {
     clearTimeout(timer);
@@ -277,11 +291,6 @@ function renderList(el) {
   $('[data-next]', el).addEventListener('click', () => turnPage(state.offset + PAGE));
   $('[data-export-all]', el).addEventListener('click', (e) => exportAll(e.currentTarget, $('[data-export-history]', el).checked));
   $('[data-export-customers]', el).addEventListener('click', (e) => exportCustomersPdf(e.currentTarget));
-  $('[data-scan]', el)?.addEventListener('click', () => scanPickupCode(el));
-  $('[data-new]', el).addEventListener('click', () => {
-    state.customerId = 'new';
-    renderCustomer(el);
-  });
   $('[data-rows]', el).addEventListener('click', (e) => {
     if (e.target.closest('[data-email-to]')) return; // the email link opens the compose box
     const row = e.target.closest('[data-open]');
@@ -290,12 +299,6 @@ function renderList(el) {
     state.customerId = Number(row.dataset.open);
     renderCustomer(el);
   });
-  // How many customers signed up in the last 7 days, shown on the tab.
-  sb.from('customer_list').select('id', { count: 'exact', head: true }).not('user_id', 'is', null).gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString())
-    .then(({ count }) => {
-      const badge = $('[data-new-count]', el);
-      if (badge && count) (badge.textContent = count), (badge.hidden = false);
-    });
   loadList(el);
 }
 
@@ -338,10 +341,89 @@ async function loadList(el) {
             <td class="center card-key card-label">${c.ready_count ? `<span class="pill pill--arrived">${c.ready_count}</span>` : '<span class="card__meta">–</span>'}</td>
             <td class="center card-key card-label">${c.active_count || '<span class="card__meta">–</span>'}</td>
             <td class="card__meta nowrap card-label" data-label="Updated">${c.last_updated ? esc(fmtDate(c.last_updated)) : ''}</td>
-            <td class="nowrap card-wide col-cust-status"><span class="cust-status"><span class="cust-icons">${statusIcons(c)}</span>${needsFix(c) ? `<a class="btn btn--primary btn--small" href="#customers" data-open="${c.id}" aria-label="Fix ${esc(listName(c))}">${solidIcon('fix', 16)} Fix</a>` : ''}</span></td></tr>`;
+            <td class="nowrap card-wide col-cust-status"><span class="cust-status"><span class="cust-icons">${statusIcons(c)}</span><span class="cust-standing__pills" data-standing-pills="${c.id}"></span>${needsFix(c) ? `<a class="btn btn--primary btn--small" href="#customers" data-open="${c.id}" aria-label="Fix ${esc(listName(c))}">${solidIcon('fix', 16)} Fix</a>` : ''}</span></td></tr>`;
         })
         .join('')
     : `<tr><td colspan="7" class="empty">${state.q ? 'No customers match.' : 'No customers yet.'}</td></tr>`;
+  if (data.length) fillStandingPills(body, data.map((c) => c.id));
+}
+
+// ---------------------------------------------------------------------------
+// Pickups and account trust: the pills on the list, the indicator on a customer's page, and the Unclaimed tab.
+// Customers never see any of this (it comes from staff-only tables through staff_pickup_summary()).
+// ---------------------------------------------------------------------------
+
+const STATE_PILL = { unapproved: 'warn', approved: 'info', proven: 'done' };
+
+/** The account-state and pause pills. `all` also shows Proven (on the customer's page; the list shows only exceptions). */
+const standingPills = (r, all = false) =>
+  [
+    r.paused_at && `<span class="pill pill--danger">Paused${r.paused_reason === 'auto' ? ' · auto' : ''}</span>`,
+    (all || r.account_state !== 'proven') && `<span class="pill pill--${STATE_PILL[r.account_state] ?? 'off'}">${ACCOUNT_STATE[r.account_state] ?? esc(r.account_state)}</span>`,
+  ].filter(Boolean).join('');
+
+async function fillStandingPills(body, ids) {
+  const { data, error } = await sb.rpc('staff_pickup_summary', { p_ids: ids });
+  if (error) return; // the pills are extra; the list still works without them
+  for (const r of data) {
+    const slot = body.querySelector(`[data-standing-pills="${r.customer_id}"]`);
+    if (slot) slot.innerHTML = standingPills(r);
+  }
+}
+
+/** "2 books waiting (3 copies) · $8.49 · oldest 9 days · last pickup Nov 3", or nothing waiting. */
+const waitingText = (r) =>
+  [
+    r.unclaimed_count
+      ? `${r.unclaimed_count} ${r.unclaimed_count === 1 ? 'book' : 'books'} waiting${r.unclaimed_copies !== r.unclaimed_count ? ` (${r.unclaimed_copies} copies)` : ''} · ${dollars(r.unclaimed_cents)} · oldest ${ageLabel(r.oldest_age_days)}`
+      : 'Nothing waiting for pickup',
+    r.last_pickup_at ? `last pickup ${fmtDate(r.last_pickup_at)}` : 'no pickups yet',
+  ].join(' · ');
+
+async function loadStanding(el, c) {
+  const box = $('[data-standing]', el);
+  if (!box) return;
+  const { data, error } = await sb.rpc('staff_pickup_summary', { p_ids: [c.id] });
+  if (error || !data?.length) return void (box.hidden = true);
+  const r = data[0];
+  box.innerHTML = `<span class="cust-standing__pills">${standingPills(r, true)}</span><span class="cust-standing__facts">${esc(waitingText(r))}</span>`;
+  box.hidden = false;
+}
+
+const unclaimedHtml = () => `
+    <p class="admin-hint">Customers with books received and not picked up. Ages are how long the oldest book has really waited.</p>
+    <p class="results-count" role="status" data-count></p>
+    <div class="admin-table-wrap"><table class="admin-table cust-unclaimed cards">
+      <thead><tr><th scope="col" data-sort>Name</th><th scope="col">Contact</th><th scope="col" class="center" data-sort="num" data-first="desc">Books</th><th scope="col" class="text-right" data-sort="num" data-first="desc">Value</th><th scope="col" data-sort="num" data-first="desc">Oldest</th><th scope="col" data-sort="num" data-first="desc">Last pickup</th><th scope="col">Status</th></tr></thead>
+      <tbody data-rows><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+    </table></div>`;
+
+async function loadUnclaimed(el) {
+  const body = $('[data-rows]', el);
+  const { data, error } = await sb.rpc('staff_pickup_summary', { p_ids: null });
+  if (error) return void (body.innerHTML = `<tr><td colspan="7" class="form-error">${esc(friendlyError(error))}</td></tr>`);
+  const rows = [...data].sort((a, b) => b.oldest_age_days - a.oldest_age_days || b.unclaimed_cents - a.unclaimed_cents);
+  const total = rows.reduce((n, r) => n + Number(r.unclaimed_cents), 0);
+  $('[data-count]', el).textContent = rows.length ? `${rows.length} ${rows.length === 1 ? 'customer' : 'customers'} · ${dollars(total)} waiting` : '';
+  body.innerHTML = rows.length
+    ? rows.map((r) => `<tr class="is-clickable" data-open="${r.customer_id}">
+          <td class="card-title" data-sort="${esc(listName(r))}"><a href="#customers" data-open="${r.customer_id}"><strong>${esc(listName(r))}</strong></a></td>
+          <td class="card-line"><span class="cust-unclaimed__contact">${r.phone ? `<a href="tel:${esc(r.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(r.phone))}</a>` : ''}${r.email ? `<button type="button" class="admin-link-button" data-email-to="${esc(r.email)}" data-email-name="${esc(r.first_name || r.name || '')}" data-email-customer="${r.customer_id}">${esc(r.email)}</button>` : ''}</span></td>
+          <td class="center card-key card-label" data-label="Books" data-sort="${r.unclaimed_count}">${r.unclaimed_count}${r.unclaimed_copies !== r.unclaimed_count ? `<span class="card__meta"> (${r.unclaimed_copies} copies)</span>` : ''}</td>
+          <td class="text-right nowrap card-label" data-label="Value" data-sort="${r.unclaimed_cents}">${dollars(r.unclaimed_cents)}</td>
+          <td class="nowrap card-label" data-label="Oldest" data-sort="${r.oldest_age_days}">${esc(ageLabel(r.oldest_age_days))}<span class="card__meta"> · since ${esc(fmtDate(r.oldest_received_on))}</span></td>
+          <td class="nowrap card__meta card-label" data-label="Last pickup" data-sort="${r.last_pickup_at ? Date.parse(r.last_pickup_at) : ''}">${r.last_pickup_at ? esc(fmtDate(r.last_pickup_at)) : 'Never'}</td>
+          <td class="card-wide"><span class="cust-standing__pills">${standingPills(r)}</span></td></tr>`).join('')
+    : '<tr><td colspan="7" class="empty">Nothing is waiting for pickup. Every received book has been picked up.</td></tr>';
+  if (rows.length) sortableTable($('table', el), { sort: '4', dir: 'desc' });
+  body.addEventListener('click', (e) => {
+    if (e.target.closest('[data-email-to], a[href^="tel:"]')) return;
+    const row = e.target.closest('[data-open]');
+    if (!row) return;
+    e.preventDefault();
+    state.customerId = Number(row.dataset.open);
+    renderCustomer(el);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -394,6 +476,7 @@ async function renderCustomer(el) {
   el.innerHTML = `
     <p><a class="btn btn--ghost btn--small" href="#customers" data-back>← Back to customers</a></p>
     <div class="admin-title-row cust-title-row"><h1>${isNew ? 'New Customer' : esc(c.name || c.email || '(no name)')}</h1>${isNew ? '' : `<div class="cust-contact">${c.phone ? `<a class="cust-contact__phone" href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(c.phone))}</a>` : ''}${c.email ? `<a class="btn btn--ghost btn--small" href="mailto:${esc(c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email customer</a>` : ''}</div>`}</div>
+    ${isNew ? '' : `<p class="cust-standing" data-standing hidden></p>`}
     ${isNew ? '' : `<div class="admin-tabs cust-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-ctab="pull">Pull List</button>
       <button type="button" class="admin-tab" role="tab" data-ctab="profile">Profile</button>
@@ -577,6 +660,7 @@ async function renderCustomer(el) {
   if (c.email) mountEmailForm($('[data-compose]', el), { to: c.email, name: c.first_name || c.name, customerId: c.id });
   loadOrders(el, c);
   loadLog(el, c);
+  loadStanding(el, c);
   setupFollows(el, c);
 }
 

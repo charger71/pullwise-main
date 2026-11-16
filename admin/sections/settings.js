@@ -1,13 +1,15 @@
 // Shop settings: everything customer pages read from the settings row — name,
-// contact, hours, socials, map, logo, colors and fonts, and the reservation rules.
+// contact, hours, socials, map, logo, colors and fonts, and the reservation rules — plus the pickup and new-account
+// rules (trust_settings, staff-only, so not on the public settings row).
 
 import { SOCIAL_ICONS } from '../../js/social-icons.js';
 import { tiersFrom } from '../../js/discount.js';
 import { SUPABASE_URL, APP_ENABLED } from '../../js/config.js';
 import { putMedia } from '../../js/media-store.js';
 import { contrast, colorVars, FONT_LIBRARY, FONT_SLOTS, SPACING, SIZES, letterSpacing, sizeScale, fontScale, isFontUpload } from '../../js/theme-vars.js';
-import { $, $$, esc, must, toast, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, uid, db, slugify, switchHtml, hintSlot } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, fmtDateTime, uid, db, slugify, switchHtml, hintSlot } from '../lib.js';
 import { imageField } from '../images.js';
+import { capField, trustRowFrom, settingChange, DAY_FIELDS } from '../trust.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
@@ -18,16 +20,21 @@ const PREVIEW_TRACKING = { display: '--pv-display-tracking', heading: '--pv-head
 const PREVIEW_SCALE = { display: '--pv-display-scale', heading: '--pv-heading-scale', body: '--pv-body-scale' };
 const FONT_MAX_KB = 500; // a font is downloaded before the page's text shows in it, so keep uploads small
 
+const TRUST_LOG_SHOW = 8;
+
 let dirty = false;
 let previewFaces; // <style> with the font preview's @font-face rules
 export const hasUnsavedChanges = () => dirty;
 
 export async function mount(el, { sb }) {
   dirty = false;
-  const [s, notice] = await Promise.all([
+  const [s, notice, trust, trustLog] = await Promise.all([
     must(sb.from('settings').select('*').eq('id', 1).single()),
     // The staff notice has its own staff-only table (settings can be read by anyone).
     must(sb.from('staff_notice').select('notice').eq('id', 1).maybeSingle()),
+    // So do the pickup and new-account rules.
+    must(sb.from('trust_settings').select('*').eq('id', 1).single()),
+    must(sb.from('trust_settings_log').select('setting,from_value,to_value,staff_name,created_at').order('created_at', { ascending: false }).limit(TRUST_LOG_SHOW)),
   ]);
   const field = settingsField({ ...s, admin_notice: notice?.notice });
 
@@ -39,6 +46,7 @@ export async function mount(el, { sb }) {
       <button type="button" class="admin-tab" role="tab" data-tab="look">Logo, Colors &amp; Fonts</button>
       <button type="button" class="admin-tab" role="tab" data-tab="online">Online</button>
       <button type="button" class="admin-tab" role="tab" data-tab="stock">Pre-Orders &amp; Stock</button>
+      <button type="button" class="admin-tab" role="tab" data-tab="trust">Pickups &amp; Accounts</button>
     </div>
     <form class="admin-form settings-form" novalidate>
       <div data-tabpane="shop">
@@ -141,6 +149,7 @@ export async function mount(el, { sb }) {
         <p class="field__hint">Each tier starts at a number of different series on the customer’s active pull list and gives that percent off the cover-price total until the next tier starts. Start numbers must go up. Toys and anything without a series don’t count toward the number.</p>
       </div></section>
       </div>
+      <div data-tabpane="trust">${trustPane(trust, trustLog)}</div>
 
       <div class="admin-actions sticky-actions">
         <button class="btn btn--primary" type="submit">Save settings</button>
@@ -178,7 +187,9 @@ export async function mount(el, { sb }) {
     look: 'The logo, colors and fonts of the website. Text colors are checked so they stay readable. Press Save settings when you’re done.',
     online: 'Links to the shop’s social media, Google Analytics, live chat and any extra code for the footer. Press Save settings when you’re done.',
     stock: 'How pre-orders and stock work for customers, and the discount pull list customers get. Press Save settings when you’re done.',
+    trust: 'Keeps the shop from ordering books for customers who don’t pick up, and for fake accounts. Customers never see any of this. Press Save settings when you’re done.',
   });
+  setupTrustPane(form);
 
   $('[data-link-auto]', form).addEventListener('change', (e) => ($('#c-link', form).disabled = e.target.checked));
 
@@ -240,6 +251,8 @@ export async function mount(el, { sb }) {
     const mapUrl = text('map_embed_url');
     if (mapUrl && !/^https:\/\/(www\.)?google\.com\/maps\/embed\?/.test(mapUrl)) return setStatus(status, 'The custom map link should be a Google Maps embed link (https://www.google.com/maps/embed?…).', 'error');
     if (typeof fontPicks === 'string') return setStatus(status, fontPicks, 'error');
+    const trustRow = readTrust(f);
+    if (typeof trustRow === 'string') return setStatus(status, trustRow, 'error');
 
     const row = {
       shop_name: text('shop_name'), tagline: text('tagline'), hero_headline: text('hero_headline'), copyright_text: text('copyright_text'), footer_scripts: text('footer_scripts'), chat_available: f.has('chat_available'), maintenance_mode: f.has('maintenance_mode'), maintenance_message: text('maintenance_message'), chat_greeting: text('chat_greeting'), founded_year: int('founded_year', null),
@@ -259,6 +272,8 @@ export async function mount(el, { sb }) {
       const notSaved = () => Object.assign(new Error('You may have been signed out. Sign in again, then save once more.'), { code: 'P0001' });
       if (!(await must(sb.from('settings').update(row).eq('id', 1).select('id')))?.length) throw notSaved();
       if (!(await must(sb.from('staff_notice').update({ notice: adminNotice }).eq('id', 1).select('id')))?.length) throw notSaved();
+      if (!(await must(sb.from('trust_settings').update(trustRow).eq('id', 1).select('id')))?.length) throw notSaved();
+      await refreshTrust(sb, form); // turning the ladder on moves its start date; the change history grows
       dirty = false;
       window.dispatchEvent(new CustomEvent('admin-notice', { detail: adminNotice }));
       window.dispatchEvent(new CustomEvent('chat-available', { detail: row.chat_available }));
@@ -268,6 +283,64 @@ export async function mount(el, { sb }) {
       setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
     }
   });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Pickups & Accounts (trust_settings): the two switches, the weekly limit, and the reminder / pause days.
+// ---------------------------------------------------------------------------------------------------------------------
+
+const DAY_LABEL = { warning_days: 'reminder email after', pause_days: 'pause after', monthly_warning_days: 'reminder email after', monthly_pause_days: 'pause after' };
+
+function trustPane(t, log) {
+  const field = settingsField({ ...t, unproven_weekly_cap: capField(t.unproven_weekly_cap_cents) });
+  const days = DAY_FIELDS.flatMap(([warn, pause, label]) => [warn, pause].map((k) =>
+    field(k, `${label} customers: ${DAY_LABEL[k]} (days)`, 'type="number" min="1" max="365" step="1" inputmode="numeric" required data-ladder')));
+  return `
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Unclaimed Books</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
+        <div class="field span-2">${switchHtml('Pause pulls for unclaimed books', { name: 'pickup_pause_enabled', checked: t.pickup_pause_enabled })}
+          <p class="field__hint">On: when a customer’s books have been waiting too long, they get a friendly “your books are waiting” email, and later their pull list is paused (no new titles from follows, no new pre-orders, and nothing new is ordered for them) until they pick up. Off: no reminder emails and no automatic pauses. The Unclaimed list on Customers and pausing a customer by hand work either way.</p></div>
+        ${days.join('')}
+        <p class="field__hint span-2" data-ladder>Counted from the day the oldest waiting book came in. Set each customer to weekly, monthly or exempt on their page.</p>
+        <div class="field span-2" data-ladder><label><input type="checkbox" name="auto_resume_on_pickup"${t.auto_resume_on_pickup ? ' checked' : ''}> Un-pause automatically when everything waiting is picked up</label>
+          <p class="field__hint">Only for automatic pauses. A customer paused by hand stays paused until staff resume them.</p></div>
+        ${field('reliability_started_at', 'Count waiting days from', 'type="date" required data-ladder', 'Books that came in before this date count from it, so nobody is paused for old history. Turning the switch on sets it to today. The Unclaimed list still shows how long books have really waited.')}
+      </div></div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>New Accounts</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
+        <div class="field span-2">${switchHtml('Verify new accounts', { name: 'verification_enabled', checked: t.verification_enabled })}
+          <p class="field__hint">On: a new account can build a list, but nothing is ordered for them until staff approve it. Then a weekly limit applies until their first pickup. Off: new accounts count straight away, with no approval and no limit. Turning this on never affects accounts that already exist.</p></div>
+        ${field('unproven_weekly_cap', 'Weekly limit before first pickup ($)', 'inputmode="decimal" maxlength="12" placeholder="No limit" data-verify', 'Per order cutoff week, at the price the customer pays, titles added by follows included. Titles over the limit wait for staff approval instead of being refused. Blank or 0: no limit.')}
+      </div></div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Change History</h2></div><div class="fold__body" data-trust-log>${trustLogHtml(log)}</div></section>`;
+}
+
+const trustLogHtml = (rows) =>
+  rows.length
+    ? `<ul class="job-log">${rows.map((r) => `<li><span class="job-log__when">${esc(fmtDateTime(r.created_at))}</span><span>${esc(r.staff_name ?? 'Automatic')}</span><span class="job-log__msg">${esc(settingChange(r))}</span></li>`).join('')}</ul>${rows.length === TRUST_LOG_SHOW ? `<p class="field__hint">Showing the latest ${TRUST_LOG_SHOW} changes.</p>` : ''}`
+    : '<p class="empty">No changes yet.</p>';
+
+/** Hide the day counts while the ladder is off, and the limit while verification is off (their values are kept). */
+function setupTrustPane(form) {
+  const sync = () => {
+    const ladder = form.elements.pickup_pause_enabled.checked;
+    const verify = form.elements.verification_enabled.checked;
+    $$('[data-ladder]', form).forEach((n) => ((n.closest('.field') ?? n).hidden = !ladder));
+    $$('[data-verify]', form).forEach((n) => ((n.closest('.field') ?? n).hidden = !verify));
+  };
+  form.elements.pickup_pause_enabled.addEventListener('change', sync);
+  form.elements.verification_enabled.addEventListener('change', sync);
+  sync();
+}
+
+/** The trust_settings row from the form, or a message saying what to fix. Hidden fields still send their values. */
+const readTrust = (f) => trustRowFrom((k) => f.get(k), (k) => f.has(k));
+
+async function refreshTrust(sb, form) {
+  const [t, log] = await Promise.all([
+    must(sb.from('trust_settings').select('reliability_started_at').eq('id', 1).single()),
+    must(sb.from('trust_settings_log').select('setting,from_value,to_value,staff_name,created_at').order('created_at', { ascending: false }).limit(TRUST_LOG_SHOW)),
+  ]);
+  form.elements.reliability_started_at.value = t.reliability_started_at;
+  $('[data-trust-log]', form).innerHTML = trustLogHtml(log);
 }
 
 /** One font slot: built-in fonts that suit it, or the shop's own file (uploaded on the spot). */

@@ -558,6 +558,13 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 }
 .cust-status { display: inline-flex; align-items: center; gap: var(--sp-12); }
 .cust-icons { display: inline-flex; gap: var(--sp-8); align-items: center; }
+/* Pickup indicator under a customer's name: account-state and pause pills, then what's waiting. Staff only. */
+.cust-standing { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6) var(--sp-12); margin: 0 0 var(--sp-12); }
+.cust-standing__pills { display: inline-flex; flex-wrap: wrap; gap: var(--sp-6); }
+.cust-standing__pills:empty { display: none; }
+.cust-standing__facts { color: var(--muted); font-size: var(--fs-sm); }
+/* Customers → Unclaimed: phone and email stacked in one cell. */
+.cust-unclaimed__contact { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
 .cust-icon { display: inline-flex; }
 .cust-icon.is-alert { color: var(--alert-icon); }
 .cust-legend { list-style: none; margin: 0 0 var(--sp-8); padding: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sp-4) var(--sp-16); font-size: var(--fs-xs); color: var(--muted); }

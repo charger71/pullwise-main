@@ -18,6 +18,8 @@ const TABLE_ROWS = {
     { id: 2, name: 'Second Store', street: '2 Oak St', city: 'Village', region: 'KY', postal_code: '40001', phone: null, hours: [], map_embed_url: null, is_default: false },
   ],
   staff_notice: [{ id: 1, notice: '' }],
+  trust_settings: [{ id: 1, pickup_pause_enabled: true, verification_enabled: true, unproven_weekly_cap_cents: 4000, warning_days: 7, pause_days: 14, monthly_warning_days: 21, monthly_pause_days: 35, auto_resume_on_pickup: true, reliability_started_at: '2026-11-01' }],
+  trust_settings_log: [{ setting: 'verification_enabled', from_value: 'false', to_value: 'true', staff_name: 'Test Owner', created_at: '2026-11-01T15:00:00Z' }],
   staff: [{ user_id: 'u1', name: 'Test Owner', is_owner: true }],
   // Import → Recent Runs, the Backup Log (the made-up client ignores filters, so every log shows all).
   job_log: [
@@ -32,6 +34,8 @@ const RPC_DATA = {
   backup_meta: { tables: [], migration: '1' },
   backup_page: { count: 0, rows: [] },
   media_usage: [],
+  // Customers → Unclaimed and the pickup indicator.
+  staff_pickup_summary: [{ customer_id: 1, first_name: 'Jane', last_name: 'Smith', name: 'Jane Smith', email: 'jane@example.com', phone: '5550100', account_state: 'approved', unapproved_reason: null, paused_at: '2026-11-10T15:00:00Z', paused_reason: 'auto', pickup_cadence: 'weekly', unclaimed_count: 2, unclaimed_copies: 3, unclaimed_cents: 1248, oldest_received_on: '2026-10-31', oldest_age_days: 16, warning_on: '2026-11-07', pause_on: '2026-11-14', last_pickup_at: '2026-10-30T18:00:00Z' }],
 };
 
 /** A Supabase query builder that answers every call with empty (or canned) data. */
