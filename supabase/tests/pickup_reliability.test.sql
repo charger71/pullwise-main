@@ -23,6 +23,9 @@ insert into public.customers (first_name, last_name, email, phone, user_id) valu
 insert into public.customers (first_name, last_name, email, phone, ship_arrivals) values
   ('Sam', 'Shipper', 'sam@example.com', '(555) 300-2000', true);
 
+-- These checks are about existing accounts: phase 3 makes a new signup wait for approval, so start them proven.
+update public.customer_standing set account_state = 'proven', unapproved_reason = null;
+
 do $$
 declare
   c     public.customers;

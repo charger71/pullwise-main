@@ -18,6 +18,7 @@ const PAGE = 25;
 let sb;
 let isOwner = false; // only owners can delete a customer
 let settings;
+let trust = { verification_enabled: false, unproven_weekly_cap_cents: null }; // trust_settings: the Approvals tab shows only while verification is on
 let state = { q: '', location: '', show: '', sort: 'name', dir: 'asc', offset: 0, customerId: null, showCancelled: false };
 
 // What the Pull List panel is showing right now, so its Export button matches the screen.
@@ -92,7 +93,10 @@ const fileSlug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').repl
 export async function mount(el, ctx) {
   sb = ctx.sb;
   isOwner = ctx.isOwner === true;
-  settings = await must(sb.from('settings').select('max_copies_per_title,hold_days,timezone,shop_name,colors,phone,logo_url,discount_enabled,discount_tiers').eq('id', 1).single());
+  [settings, trust] = await Promise.all([
+    must(sb.from('settings').select('max_copies_per_title,hold_days,timezone,shop_name,colors,phone,logo_url,discount_enabled,discount_tiers').eq('id', 1).single()),
+    sb.from('trust_settings').select('verification_enabled,unproven_weekly_cap_cents').eq('id', 1).maybeSingle().then(({ data }) => data ?? trust, () => trust),
+  ]);
   // "View customer" on the Reservations page hands over which customer to open.
   let handedOff = false;
   try {
@@ -118,6 +122,7 @@ export async function mount(el, ctx) {
     /* start on All customers */
   }
   if (['no_email', 'link_guests'].includes(state.show)) state.show = 'to_fix'; // the two old tabs, from a link or a remembered choice
+  if (state.show === 'approvals' && !trust.verification_enabled) state.show = ''; // verification switched off: no approval queue
   // A customer's pickup code in the app (js/pages/account.js) is a link to #customers/<id>: scanning it opens them.
   if (/^\d+$/.test(ctx.arg ?? '')) {
     state.customerId = Number(ctx.arg);
@@ -227,8 +232,9 @@ function renderList(el) {
       <button type="button" class="admin-tab" role="tab" data-show="new_week">New This Week <span class="admin-tab__badge" data-new-count hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-show="to_fix">Needs Attention</button>
       <button type="button" class="admin-tab" role="tab" data-show="unclaimed">Unclaimed</button>
+      ${trust.verification_enabled ? '<button type="button" class="admin-tab" role="tab" data-show="approvals">Approvals <span class="admin-tab__badge" data-approval-count hidden></span></button>' : ''}
     </div>
-    ${state.show === 'unclaimed' ? unclaimedHtml() : `<form class="filters admin-filters" role="search" aria-label="Find customers">
+    ${state.show === 'unclaimed' ? unclaimedHtml() : state.show === 'approvals' ? approvalsHtml() : `<form class="filters admin-filters" role="search" aria-label="Find customers">
       <div class="field field--search"><label for="c-q">Customer</label><input id="c-q" name="q" type="search" placeholder="Name, phone, email or #pickup code" value="${esc(state.q)}"></div>
     </form>
     <p class="results-count" role="status" data-count></p>
@@ -244,7 +250,8 @@ function renderList(el) {
   markShowTab();
   $$('[data-show]', el).forEach((b) =>
     b.addEventListener('click', () => {
-      const redraw = (b.dataset.show === 'unclaimed') !== (state.show === 'unclaimed'); // the Unclaimed tab has its own table
+      const own = (v) => ['unclaimed', 'approvals'].includes(v) ? v : 'list'; // Unclaimed and Approvals have their own tables
+      const redraw = own(b.dataset.show) !== own(state.show);
       state.show = b.dataset.show;
       state.offset = 0;
       try {
@@ -265,7 +272,9 @@ function renderList(el) {
       const badge = $('[data-new-count]', el);
       if (badge && count) (badge.textContent = count), (badge.hidden = false);
     });
+  if (trust.verification_enabled) countApprovals(el);
   if (state.show === 'unclaimed') return loadUnclaimed(el);
+  if (state.show === 'approvals') return loadApprovals(el);
   let timer;
   form.addEventListener('input', (e) => {
     clearTimeout(timer);
@@ -462,6 +471,93 @@ async function loadStandingLog(el, c) {
     : '<p class="empty">No changes to the account or pull list status yet.</p>';
 }
 
+// ---------------------------------------------------------------------------
+// Approvals (only while Verify new accounts is on): accounts waiting, titles over the weekly limit, guest orders.
+// ---------------------------------------------------------------------------
+
+const approvalsHtml = () => `
+    <p class="admin-hint">Nothing here is ordered until you approve it. Customers never see this list.</p>
+    <div data-approvals aria-busy="true"><p class="empty">Loading…</p></div>`;
+
+/** The number on the Approvals tab: everything waiting for a decision. */
+async function countApprovals(el) {
+  const rpc = (name) => sb.rpc(name).then(({ data }) => data?.length ?? 0, () => 0);
+  const [a, t, g] = await Promise.all([rpc('staff_waiting_accounts'), rpc('staff_over_cap_lines'), rpc('staff_waiting_guest_orders')]);
+  const badge = $('[data-approval-count]', el);
+  if (badge) (badge.textContent = a + t + g), (badge.hidden = !(a + t + g));
+}
+
+const contactCell = (r, customerId) =>
+  `<span class="cust-unclaimed__contact">${r.phone ? `<a href="tel:${esc(r.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(r.phone))}</a>` : ''}${r.email ? `<button type="button" class="admin-link-button" data-email-to="${esc(r.email)}" data-email-name="${esc(r.first_name || r.name || '')}"${customerId ? ` data-email-customer="${customerId}"` : ''}>${esc(r.email)}</button>` : ''}</span>`;
+const askedFor = (n, copies, cents) => (n ? `${n} ${n === 1 ? 'title' : 'titles'}${copies !== n ? ` (${copies} copies)` : ''} · ${dollars(cents)}` : 'Nothing yet');
+
+async function loadApprovals(el) {
+  const box = $('[data-approvals]', el);
+  const [accounts, lines, guests] = await Promise.all(['staff_waiting_accounts', 'staff_over_cap_lines', 'staff_waiting_guest_orders'].map((n) => sb.rpc(n)));
+  box.removeAttribute('aria-busy');
+  const error = accounts.error ?? lines.error ?? guests.error;
+  if (error) return void (box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
+  const cap = trust.unproven_weekly_cap_cents ? dollars(trust.unproven_weekly_cap_cents) : null;
+  box.innerHTML = `
+    <section class="fold fold--compact fold--static"><div class="fold__head"><h2>New Accounts<span class="fold__note">${accounts.data.length || 'None'} waiting</span></h2></div><div class="fold__body">
+      ${accounts.data.length ? `<div class="admin-table-wrap"><table class="admin-table cards">
+        <thead><tr><th scope="col">Name</th><th scope="col">Contact</th><th scope="col">Signed up</th><th scope="col">Asked for</th><th scope="col"><span class="visually-hidden">Approve</span></th></tr></thead>
+        <tbody>${accounts.data.map((r) => `<tr>
+          <td class="card-title"><a href="#customers" data-open="${r.customer_id}"><strong>${esc(listName(r))}</strong></a>${r.unapproved_reason === 'staff' ? ' <span class="pill pill--warn">Unverified by staff</span>' : ''}</td>
+          <td class="card-line">${contactCell(r, r.customer_id)}</td>
+          <td class="nowrap card__meta card-label" data-label="Signed up">${esc(fmtDate(r.created_at))}</td>
+          <td class="card-label" data-label="Asked for">${esc(askedFor(r.open_titles, r.open_copies, r.open_cents))}</td>
+          <td class="nowrap card-foot"><button class="btn btn--primary btn--small" type="button" data-approve-account="${r.customer_id}">Approve</button></td></tr>`).join('')}</tbody>
+      </table></div>` : '<p class="empty">No accounts waiting for approval.</p>'}
+    </div></section>
+    <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Titles Over the Weekly Limit<span class="fold__note">${cap ? `${cap} per cutoff week before a first pickup` : 'No weekly limit set'}</span></h2></div><div class="fold__body">
+      ${lines.data.length ? `<div class="admin-table-wrap"><table class="admin-table cards">
+        <thead><tr><th scope="col">Title</th><th scope="col">Customer</th><th scope="col">Cutoff</th><th scope="col" class="text-right">Price</th><th scope="col" class="text-right">Week so far</th><th scope="col"><span class="visually-hidden">Approve</span></th></tr></thead>
+        <tbody>${lines.data.map((r) => `<tr>
+          <td class="card-title"><strong>${esc(r.title)}</strong>${r.quantity > 1 ? `<span class="card__meta"> × ${r.quantity}</span>` : ''}</td>
+          <td class="card-line"><a href="#customers" data-open="${r.customer_id}">${esc(r.customer_name ?? '')}</a></td>
+          <td class="nowrap card-label" data-label="Cutoff">${esc(fmtDate(r.foc_date, { weekday: 'short', month: 'short', day: 'numeric' }))}</td>
+          <td class="text-right nowrap card-label" data-label="Price">${dollars(r.line_cents)}</td>
+          <td class="text-right nowrap card-label" data-label="Week so far">${dollars(r.week_cents)}</td>
+          <td class="nowrap card-foot"><button class="btn btn--primary btn--small" type="button" data-approve-line="${r.reservation_id}">Approve</button></td></tr>`).join('')}</tbody>
+      </table></div>` : '<p class="empty">No titles over the weekly limit.</p>'}
+    </div></section>
+    <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Guest Orders<span class="fold__note">Orders from people without an account that don’t match an approved customer</span></h2></div><div class="fold__body">
+      ${guests.data.length ? `<div class="admin-table-wrap"><table class="admin-table cards">
+        <thead><tr><th scope="col">Name</th><th scope="col">Contact</th><th scope="col">Placed</th><th scope="col">Asked for</th><th scope="col"><span class="visually-hidden">Approve</span></th></tr></thead>
+        <tbody>${guests.data.map((r) => `<tr>
+          <td class="card-title"><strong>${esc(r.name)}</strong><span class="card__meta"> · Order #${r.order_id}</span></td>
+          <td class="card-line">${contactCell(r)}</td>
+          <td class="nowrap card__meta card-label" data-label="Placed">${esc(fmtDate(r.created_at))}</td>
+          <td class="card-label" data-label="Asked for">${esc(askedFor(r.open_titles, r.open_copies, r.open_cents))}</td>
+          <td class="nowrap card-foot"><button class="btn btn--primary btn--small" type="button" data-approve-guest="${r.order_id}">Approve</button></td></tr>`).join('')}</tbody>
+      </table></div>` : '<p class="empty">No guest orders waiting.</p>'}
+    </div></section>`;
+  box.onclick = async (e) => {
+    const open = e.target.closest('[data-open]');
+    if (open) {
+      e.preventDefault();
+      state.customerId = Number(open.dataset.open);
+      return renderCustomer(el);
+    }
+    const btn = e.target.closest('[data-approve-account], [data-approve-line], [data-approve-guest]');
+    if (!btn) return;
+    btn.disabled = true;
+    const { error: err } = btn.dataset.approveAccount
+      ? await sb.rpc('staff_set_account_state', { p_customer: Number(btn.dataset.approveAccount), p_state: 'approved', p_reason: null })
+      : btn.dataset.approveLine
+        ? await sb.rpc('staff_approve_cap_lines', { p_ids: [Number(btn.dataset.approveLine)] })
+        : await sb.rpc('staff_approve_guest_order', { p_order: Number(btn.dataset.approveGuest) });
+    if (err) {
+      btn.disabled = false;
+      return toast(friendlyError(err), 'error');
+    }
+    toast(btn.dataset.approveAccount ? 'Account approved' : btn.dataset.approveLine ? 'Title approved' : 'Guest order approved');
+    loadApprovals(el);
+    countApprovals(el);
+  };
+}
+
 const unclaimedHtml = () => `
     <p class="admin-hint">Customers with books received and not picked up. Ages are how long the oldest book has really waited.</p>
     <p class="results-count" role="status" data-count></p>
@@ -480,7 +576,7 @@ async function loadUnclaimed(el) {
   body.innerHTML = rows.length
     ? rows.map((r) => `<tr class="is-clickable" data-open="${r.customer_id}">
           <td class="card-title" data-sort="${esc(listName(r))}"><a href="#customers" data-open="${r.customer_id}"><strong>${esc(listName(r))}</strong></a></td>
-          <td class="card-line"><span class="cust-unclaimed__contact">${r.phone ? `<a href="tel:${esc(r.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(r.phone))}</a>` : ''}${r.email ? `<button type="button" class="admin-link-button" data-email-to="${esc(r.email)}" data-email-name="${esc(r.first_name || r.name || '')}" data-email-customer="${r.customer_id}">${esc(r.email)}</button>` : ''}</span></td>
+          <td class="card-line">${contactCell(r, r.customer_id)}</td>
           <td class="center card-key card-label" data-label="Books" data-sort="${r.unclaimed_count}">${r.unclaimed_count}${r.unclaimed_copies !== r.unclaimed_count ? `<span class="card__meta"> (${r.unclaimed_copies} copies)</span>` : ''}</td>
           <td class="text-right nowrap card-label" data-label="Value" data-sort="${r.unclaimed_cents}">${dollars(r.unclaimed_cents)}</td>
           <td class="nowrap card-label" data-label="Oldest" data-sort="${r.oldest_age_days}">${esc(ageLabel(r.oldest_age_days))}<span class="card__meta"> · since ${esc(fmtDate(r.oldest_received_on))}</span></td>
@@ -766,6 +862,11 @@ async function loadOrders(el, c) {
       must(lineQuery().not('status', 'in', `(${inPlay.join(',')})`).limit(500)),
     ]);
     const lines = [...current, ...history];
+    // Titles over the weekly limit (staff-only flags): only open lines can be.
+    const openIds = current.filter((l) => l.status === 'open').map((l) => l.id);
+    const flags = openIds.length ? await sb.from('line_cap_flags').select('reservation_id,status').in('reservation_id', openIds).then(({ data }) => data ?? [], () => []) : [];
+    const capOf = new Map(flags.map((f) => [f.reservation_id, f.status]));
+    for (const l of lines) l.cap = capOf.get(l.id) ?? null;
     const disc = discountInfo(await must(sb.from('subscriptions').select('kind,key').eq('customer_id', c.id).eq('kind', 'series')));
     const unlinked = await findUnlinked(c);
     const staffNames = new Map((await must(sb.from('staff').select('user_id,name'))).map((m) => [m.user_id, m.name]));
@@ -791,6 +892,16 @@ async function loadOrders(el, c) {
       if (fold) return toggleGroup(fold);
       const rm = e.target.closest('[data-remove]');
       if (rm) return editLine(el, c, lines, { target: rm, remove: true });
+      const cap = e.target.closest('[data-approve-cap]');
+      if (cap) {
+        cap.disabled = true;
+        const { error } = await sb.rpc('staff_approve_cap_lines', { p_ids: [Number(cap.dataset.approveCap)] });
+        if (error) return (cap.disabled = false), toast(friendlyError(error), 'error');
+        toast('Approved over the weekly limit');
+        loadOrders(el, c);
+        loadLog(el, c);
+        return;
+      }
       if (e.target.closest('[data-link]')) {
         try {
           await must(sb.from('reservation_orders').update({ customer_id: c.id }).in('id', unlinked.map((o) => o.id)));
@@ -898,7 +1009,7 @@ function lineRow(l, c, staffNames, alt = false) {
   const tip = `Last updated ${fmtDateTime(l.updated_at)}${l.updated_via ? ` by ${whoLabel(l, c, staffNames)}` : ''}`;
   const rowClass = [l.status === 'cancelled' && 'is-hidden', alt && 'is-alt'].filter(Boolean).join(' ');
   return `<tr${rowClass ? ` class="${rowClass}"` : ''}${autoAddedRecently(l) ? ' data-auto-new' : ''} title="${esc(tip)}">
-    <td class="cl-title">${autoAddedRecently(l) ? `<span class="pill pill--new" title="Added automatically by a follow on ${esc(fmtDateTime(l.created_at))}">New</span> ` : ''}${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}${l.updated_via && l.updated_via !== 'customer' ? `<br><span class="cust-updated">Updated ${esc(fmtDateTime(l.updated_at))} by ${esc(whoLabel(l, c, staffNames))}</span>` : ''}${closed ? '<br><span class="cust-warn">Order cutoff has passed — the order may already be in</span>' : ''}</td>
+    <td class="cl-title">${autoAddedRecently(l) ? `<span class="pill pill--new" title="Added automatically by a follow on ${esc(fmtDateTime(l.created_at))}">New</span> ` : ''}${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}${l.updated_via && l.updated_via !== 'customer' ? `<br><span class="cust-updated">Updated ${esc(fmtDateTime(l.updated_at))} by ${esc(whoLabel(l, c, staffNames))}</span>` : ''}${closed ? '<br><span class="cust-warn">Order cutoff has passed — the order may already be in</span>' : ''}${l.cap === 'over_cap' ? `<br><span class="cust-warn">Over the weekly limit: not ordered until approved</span> <button class="admin-link-button" type="button" data-approve-cap="${l.id}">Approve</button>` : l.cap === 'approved' ? '<br><span class="cust-updated">Approved over the weekly limit</span>' : ''}</td>
     <td class="nowrap cl-out">${fmtDate(l.item?.release_date, { month: 'short', day: 'numeric' })}</td>
     <td class="cl-qty"><label class="visually-hidden" for="cq-${l.id}">Copies of ${esc(l.item?.title ?? '')}</label>
       <input id="cq-${l.id}" class="cust-qty" type="number" inputmode="numeric" min="1" max="100" value="${l.quantity}" data-qty="${l.id}"></td>

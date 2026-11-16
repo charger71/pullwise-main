@@ -22,6 +22,9 @@ insert into public.customers (first_name, last_name, email, phone, user_id) valu
   ('Dana', 'Reader', 'dana@example.com', '(555) 300-1000', '00000000-0000-0000-0000-0000000000c1'),
   ('Eli',  'Other',  'eli@example.com',  '(555) 300-2000', '00000000-0000-0000-0000-0000000000c2');
 
+-- These checks are about existing accounts: phase 3 makes a new signup wait for approval, so start them proven.
+update public.customer_standing set account_state = 'proven', unapproved_reason = null;
+
 create temp table ids as
 select (select id from public.customers where email = 'dana@example.com') as dana,
        (select id from public.customers where email = 'eli@example.com') as eli,
@@ -217,7 +220,7 @@ $$;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
 do $$
 begin
-  assert public.my_account_notice() is null, 'unapproved is not on hold (phase 3 adds its own notice)';
+  assert public.my_account_notice() = 'waiting', 'an unverified customer sees the neutral waiting notice, not on hold';
   assert public.pull_list_add((select id from public.items where title = 'SPAWN' and issue_number = '402'), 1) is not null, 'an unapproved customer can still build a list';
 end;
 $$;

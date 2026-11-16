@@ -678,6 +678,7 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
     ${waiting.length ? `<p class="notice account-move">You have ${waiting.length} ${waiting.length === 1 ? 'title' : 'titles'} on a guest pull list on this device. <button class="btn btn--primary" type="button" data-move>Add ${waiting.length === 1 ? 'it' : 'them'} to my pull list</button></p>` : ''}
     <p class="form-error" role="alert" data-error></p>
     ${notice === 'on_hold' ? '<p class="notice" role="status">Your pull list is on hold for now, so new titles can’t be added and follows won’t add new issues. Titles the shop has already ordered for you are still yours. Questions? Get in touch with the shop.</p>' : ''}
+    ${notice === 'waiting' ? '<p class="notice" role="status">Thanks for signing up! We’re waiting for the shop to confirm your account. You can keep building your list in the meantime.</p>' : ''}
     ${freshNote}
     ${summary}
     ${section('Ready for pickup', ready, APP ? pickupCard(customerId) : '')}
