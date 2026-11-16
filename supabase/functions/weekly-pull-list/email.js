@@ -512,3 +512,71 @@ export function splitClaims(items, claimedIds) {
   }
   return { send, release };
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Unclaimed books: the ladder's warning ("your books are waiting") and pause emails (public.pickup_ladder_run queues
+// them; index.ts mode "pickup_notices" sends them). The subject and intro are the shop's own words from
+// trust_settings, with placeholders; the list of books, the total and the shop's hours are added here.
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** "{shop_name}" etc. replaced from `vars`; an unknown placeholder is left as typed so staff can see it in a preview. */
+export const fillCopy = (text, vars) => String(text ?? '').replace(/\{([a-z_]+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+
+const daysBetween = (from, to) => Math.round((parse(to).getTime() - parse(from).getTime()) / 86400000);
+
+/** The placeholder values for one customer's notice. Amounts are integer cents. */
+export function pickupVars({ customer, shop, count, cents, oldest, pauseOn = null, today }) {
+  return {
+    first_name: customer.first_name || 'there',
+    shop_name: shop.shop_name,
+    count: plural(count, 'book'),
+    total: money(Number(cents) / 100),
+    days: oldest ? Math.max(daysBetween(oldest, today), 0) : 0,
+    pause_date: pauseOn ? dayLabel(pauseOn, { weekday: 'long', month: 'long', day: 'numeric' }) : 'soon',
+  };
+}
+
+/**
+ * One customer's warning or pause email. `lines`: their books waiting for pickup (reservations with item), `copy`:
+ * { subject, intro } with placeholders. Transactional, so there's no unsubscribe link: it's about books they reserved.
+ * @returns {{ subject: string, html: string, text: string }}
+ */
+export function buildPickupNotice({ customer, lines, shop, copy, pauseOn = null, today, manageUrl, sample = false, siteUrl = '', mediaBase = '', storageBase = '' }) {
+  const look = emailLook(shop, siteUrl);
+  const books = lines
+    .filter((l) => l.item)
+    .map((l) => ({ title: titleOf(l.item), variant: l.item.variant, quantity: l.quantity, price: l.item.price, cover: l.item.cover_url ?? null, coverThumb: l.item.cover_thumb_url ?? null, arrived: l.arrived_on }))
+    .sort((a, b) => (a.arrived ?? '').localeCompare(b.arrived ?? '') || a.title.localeCompare(b.title));
+  const cents = books.reduce((n, b) => n + Math.round(Number(b.price ?? 0) * 100) * b.quantity, 0);
+  const oldest = books.map((b) => b.arrived).filter(Boolean).sort()[0] ?? null;
+  const vars = pickupVars({ customer, shop, count: books.reduce((n, b) => n + b.quantity, 0), cents, oldest, pauseOn, today });
+  const subj = `${sample ? '[Sample] ' : ''}${fillCopy(copy.subject, vars)}`;
+  const intro = fillCopy(copy.intro, vars);
+  const hello = customer.first_name ? `Hi ${customer.first_name},` : 'Hi,';
+  const addr = [shop.street, [shop.city, shop.region].filter(Boolean).join(', ') + (shop.postal_code ? ` ${shop.postal_code}` : '')].filter((l) => l && l.trim());
+  const hours = hoursLines(shop.hours);
+  const showCovers = anyCover(books, siteUrl, mediaBase, storageBase);
+  const bits = (b) => [b.variant, b.quantity > 1 && `${b.quantity} copies`, b.arrived && `waiting since ${dayLabel(b.arrived, { month: 'short', day: 'numeric' })}`, b.price != null && money(b.price * b.quantity)].filter(Boolean).join(' · ');
+  const rows = books.map((b) => titleRow(coverCell(b, look, siteUrl, mediaBase, storageBase, showCovers), `<strong>${esc(b.title)}</strong>${bits(b) ? `<br><span class="pw-muted" style="color:${look.muted};font-size:13px">${esc(bits(b))}</span>` : ''}`, look)).join('');
+  const why = 'This is about books you reserved, so we send it even if other emails are turned off.';
+
+  const html = `<!doctype html><html lang="en"><head>${emailHead(look, subj)}</head><body class="pw-page" style="margin:0;background:${look.page}">${preheader(intro.slice(0, 110))}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="pw-page" style="background:${look.page}"><tr><td align="center" class="pw-outer" style="padding:16px">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="pw-body" style="max-width:600px;width:100%;background:${look.body};border-radius:6px">
+      ${header(shop, look)}
+      <tr><td class="pw-pad" style="padding:24px">
+        <p class="pw-text" style="margin:0 0 8px;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${esc(hello)}</p>
+        <p class="pw-text" style="margin:0;font:16px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${esc(intro)}</p>
+        ${books.length ? `<h2 class="pw-title" style="margin:24px 0 4px;font:bold 17px Arial,Helvetica,sans-serif;color:${look.title}">Waiting for you (${books.length})</h2><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>
+        <p class="pw-text" style="margin:12px 0 0;font:14px/1.4 Arial,Helvetica,sans-serif;color:${look.text}"><strong>Total ${esc(vars.total)}</strong> <span class="pw-muted" style="color:${look.muted}">before tax.</span></p>` : ''}
+        ${hours.length ? `<p class="pw-text" style="margin:24px 0 4px;font:bold 14px Arial,Helvetica,sans-serif;color:${look.text}">Come by</p><p class="pw-text" style="margin:0;font:14px/1.5 Arial,Helvetica,sans-serif;color:${look.text}">${hours.map(esc).join('<br>')}${addr.length ? `<br>${esc(addr.join(', '))}` : ''}</p>` : ''}
+        <p style="margin:28px 0 0;text-align:center"><a href="${esc(manageUrl)}" class="pw-btn" style="display:inline-block;background:${look.button};color:${look.buttonText};text-decoration:none;font:bold 16px Arial,Helvetica,sans-serif;padding:12px 22px;border-radius:4px">View my pull list</a></p>
+      </td></tr>
+      <tr><td class="pw-muted pw-rule pw-pad" style="padding:16px 24px;border-top:1px solid ${look.rule};font:12px/1.5 Arial,Helvetica,sans-serif;color:${look.muted}">
+        ${esc(shop.shop_name)}${addr.length ? ` · ${esc(addr.join(', '))}` : ''}${shop.phone ? ` · ${esc(shop.phone)}` : ''}<br>${esc(why)}
+      </td></tr>
+    </table>
+  </td></tr></table></body></html>`;
+  const text = `${hello}\n\n${intro}\n\n${books.length ? `WAITING FOR YOU (${books.length})\n${books.map((b) => `- ${b.title}${bits(b) ? `\n  ${bits(b)}` : ''}`).join('\n')}\n\nTotal ${vars.total} before tax.\n\n` : ''}${hours.length ? `Come by:\n${hours.join('\n')}${addr.length ? `\n${addr.join(', ')}` : ''}\n\n` : ''}View my pull list: ${manageUrl}\n\n--\n${shop.shop_name}${shop.phone ? `, ${shop.phone}` : ''}\n${why}\n`;
+  return { subject: subj, html, text };
+}

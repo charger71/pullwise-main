@@ -198,7 +198,7 @@ so you can look around before connecting anything. `npm test` runs the test suit
    ```
 
    That's all the database needs: the migrations turn on pg_cron and pg_net and schedule the hourly jobs
-   (status flip, subscriptions, weekly and arrival emails).
+   (status flip, subscriptions, weekly and arrival emails, and the unclaimed-books reminders and pauses).
 
 ## 3. Auth
 
@@ -240,7 +240,7 @@ Secrets (`supabase secrets set NAME=value …`; never put these in code):
 | `SITE_URL` | calendar feed, emails | `https://<your site>` (no trailing slash) |
 | `RESEND_API_KEY` | all emails | From Resend, after verifying your sending domain (SPF + DKIM) |
 | `RESEND_FROM` | emails (fallback) | e.g. `Your Shop <hello@yourshop.com>`; Shop Settings' From address wins when set |
-| `CRON_SECRET` | weekly / arrival / event emails | A long random string |
+| `CRON_SECRET` | weekly / arrival / event / unclaimed-books emails | A long random string |
 | `STAFF_CC` | optional | Comma-separated extra addresses that get copies of sell inquiries and event signups (the shop email in Shop Settings always does) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | app and staff chat notifications | A pair from `node tools/vapid-keys.mjs`. One pair serves every shop; keep it (a new pair makes every customer turn notifications on again) |
 | `VAPID_SUBJECT` | app notifications | `mailto:` address push services can reach you at, e.g. `mailto:support@yourdomain.com` |
@@ -327,6 +327,9 @@ Sign in at `https://<your site>/admin/` as the owner, then:
    screenshots for Android's install sheet (Logo, Colors & Fonts → Pull List App).
 2. **Pages / FAQ**: rewrite the About text and anything else that doesn't fit your shop.
 3. **Emails**: set the From address, preview, send yourself a test, then turn on the weekly and "your books are in" emails.
+   The unclaimed-books reminder and pause emails use the same From address and sending hours; they follow
+   Shop Settings → Pickups & Accounts → "Pause pulls for unclaimed books" (on for a new shop), where an owner also sets their
+   words, the reminder and pause days, and "Verify new accounts" with its weekly limit.
 4. **Import**: drop in your first distributor FOC sheets.
 5. **Backup**: nightly backups start on their own once the shop is in shops.json; check the next day that Backup → Backup Log lists one (see `BACKUPS.md`).
 

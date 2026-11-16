@@ -539,9 +539,11 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
       .select('id,quantity,status,source,arrived_on,created_at,updated_at,updated_via,item:items(id,title,issue_number,variant,publisher,price,series_key,release_date,foc_date,cover_url,cover_thumb_url),order:reservation_orders!inner(customer_id)')
       .eq('order.customer_id', customerId)
       .order('created_at', { ascending: false });
-  const [current, history] = await Promise.all([
+  const [current, history, notice] = await Promise.all([
     lineQuery().in('status', [...LIVE, 'not_ordered']),
     lineQuery().not('status', 'in', `(${[...LIVE, 'not_ordered', 'cancelled'].join(',')})`).limit(PAST_SHOWN),
+    // A neutral word from the shop when the list is on hold; never a reason, a score or a date.
+    sb.rpc('my_account_notice').then(({ data }) => data, () => null),
   ]);
   const error = current.error ?? history.error;
   if (error) return void (el.innerHTML = `<p class="form-error" role="alert">${pull.errorHtml(pull.customerError(error))}</p>`);
@@ -675,6 +677,8 @@ async function loadOrders(sb, customerId, seenBefore = null, { focus } = {}) {
     ${last ? `<p class="card__meta account-lastupdate">Last updated ${esc(whenLabel(last.updated_at, settings.timezone))} ${esc(BY[last.updated_via] ?? '')}</p>` : ''}
     ${waiting.length ? `<p class="notice account-move">You have ${waiting.length} ${waiting.length === 1 ? 'title' : 'titles'} on a guest pull list on this device. <button class="btn btn--primary" type="button" data-move>Add ${waiting.length === 1 ? 'it' : 'them'} to my pull list</button></p>` : ''}
     <p class="form-error" role="alert" data-error></p>
+    ${notice === 'on_hold' ? '<p class="notice" role="status">Your pull list is on hold for now, so new titles can’t be added and follows won’t add new issues. Titles the shop has already ordered for you are still yours. Questions? Get in touch with the shop.</p>' : ''}
+    ${notice === 'waiting' ? '<p class="notice" role="status">Thanks for signing up! We’re waiting for the shop to confirm your account. You can keep building your list in the meantime.</p>' : ''}
     ${freshNote}
     ${summary}
     ${section('Ready for pickup', ready, APP ? pickupCard(customerId) : '')}

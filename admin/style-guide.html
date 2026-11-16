@@ -628,6 +628,15 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
               <span class="pill pill--failed">Failed</span>
             </div></div>
           </div>
+          <div class="sg-item" data-code>
+            <h3>Customer standing (pickups and accounts)</h3>
+            <p>Under a customer’s name, <code>.cust-standing</code>: the account state and any pause as pills, what is waiting in muted text, then the staff actions at the end (<code>.cust-standing__actions</code>): the pickup cadence picker (<code>.cust-standing__cadence</code>, a small select that saves the moment it changes and says so in a toast), and small ghost buttons that each open a confirm dialog with an optional staff-only reason. Paused is <code>pill--danger</code>; the states are Waiting for approval <code>pill--warn</code>, Approved <code>pill--info</code> and Proven <code>pill--done</code>. Lists (Customers, Unclaimed) show only the exceptions: a pause, or an account that isn’t proven yet. Staff only: customers never see any of it.</p>
+            <div class="sg-demo">
+              <p class="cust-standing"><span class="cust-standing__pills"><span class="pill pill--danger">Paused · auto</span><span class="pill pill--info">Approved</span></span><span class="cust-standing__facts">2 books waiting (3 copies) · $12.48 · oldest 16 days · last pickup Oct 30</span><span class="cust-standing__actions"><span class="cust-standing__cadence"><label for="sg-cadence">Pickup</label><select id="sg-cadence" class="select--small"><option>Weekly</option><option>Monthly</option><option>Exempt (no reminders or pauses)</option></select></span><button class="btn btn--ghost btn--small" type="button">Resume pull list</button><button class="btn btn--ghost btn--small" type="button">Mark proven</button><button class="btn btn--ghost btn--small" type="button">Unverify account</button></span></p>
+              <p class="cust-standing"><span class="cust-standing__pills"><span class="pill pill--done">Proven</span></span><span class="cust-standing__facts">Nothing waiting for pickup · last pickup Nov 12</span></p>
+              <p class="cust-standing"><span class="cust-standing__pills"><span class="pill pill--warn">Waiting for approval</span></span><span class="cust-standing__facts">Nothing waiting for pickup · no pickups yet</span></p>
+            </div>
+          </div>
         </section>
 
         <!-- ===================================================== -->

@@ -164,7 +164,7 @@ function renderTiles(box, lines, recent) {
   const days = recent.map((o) => dayKey(o.created_at));
   const thisWeek = days.filter((d) => d >= weekStart).length;
   const lastWeek = days.filter((d) => d >= prevStart && d < weekStart).length;
-  const copies = (status) => lines.filter((l) => l.status === status).reduce((n, l) => n + l.quantity, 0);
+  const copies = (status) => lines.filter((l) => l.status === status && (status !== 'open' || l.counts_for_order !== false)).reduce((n, l) => n + l.quantity, 0);
   const overdueBefore = addDays(t, -(settings.hold_days ?? 30));
   const overdue = lines.filter((l) => l.status === 'arrived' && l.arrived_on && l.arrived_on < overdueBefore);
   const pickupOrders = new Set(lines.filter((l) => l.status === 'arrived').map((l) => l.order_id)).size;
@@ -233,7 +233,7 @@ async function renderCutoff(box, lines, stale = () => false) {
   const foc = next[0].foc_date;
   const titles = await count(items().in('status', UPCOMING).eq('foc_date', foc).eq('hidden', false));
   if (stale()) return;
-  const onFoc = lines.filter((l) => l.status === 'open' && l.item?.foc_date === foc);
+  const onFoc = lines.filter((l) => l.status === 'open' && l.counts_for_order !== false && l.item?.foc_date === foc);
   const copies = onFoc.reduce((n, l) => n + l.quantity, 0);
   const daysLeft = Math.round((new Date(`${foc}T12:00:00`) - new Date(`${t}T12:00:00`)) / 86400000);
   box.innerHTML = `
@@ -324,6 +324,7 @@ const JOB_NAMES = {
   'apply-subscriptions': 'Pull list follows',
   'weekly-pull-list': 'Weekly pull list email',
   'arrival-email': '“Your books are in” email',
+  'pickup-ladder': 'Unclaimed books reminders and pauses',
 };
 const JOB_HINTS = {
   'flip-item-statuses': 'moves titles to New This Wednesday, Just Arrived and in-store on their dates',
