@@ -25,7 +25,7 @@ import { mediaUpload, mediaServe, mediaFromStorage, emailLogo } from './media.js
 import { unsubscribeProxy } from './unsubscribe.js';
 import { BACKUPS_PATH, backupFiles } from './backups.js';
 import { CATALOG_FEED_PATH, catalogFeed } from './catalog-feed.js';
-import { MEDIA_UPLOAD_PATH, MEDIA_SERVE_PATH, STORAGE_SERVE_PATH, EMAIL_LOGO_PATH, UNSUBSCRIBE_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { MEDIA_UPLOAD_PATH, MEDIA_SERVE_PATH, STORAGE_SERVE_PATH, EMAIL_LOGO_PATH, UNSUBSCRIBE_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, sitemapXml, robotsTxt, SITEMAP_MAX_POSTS, SITEMAP_MAX_EVENTS } from './shop-page.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
 const CACHE_SECONDS = 60;
@@ -37,6 +37,8 @@ const KEEP_SECONDS = 7 * 24 * 3600;
 // so an outage doesn't add the timeout to every page.
 const RETRY_SECONDS = 15;
 const memo = new Map(); // shop id → { at (when it was fetched), data, retryAt? }, per Worker instance, in front of the shared cache
+const SITEMAP_SECONDS = 600;
+const sitemapMemo = new Map(); // shop id → { at, data }: the posts and events the sitemap lists
 
 /** A page request without its conditional headers: a 304 would leave nothing to rewrite (and the browser's copy has the old titles). */
 function wholeFile(request) {
@@ -70,7 +72,10 @@ export default {
       const links = assetLinks(shop);
       return links ? text(JSON.stringify(links), 'application/json', request) : new Response('Not found', { status: 404 });
     }
-    if (url.pathname === '/sitemap.xml') return text(sitemapXml(shop, (await shopData(shop, ctx))?.settings?.disabled_pages ?? []), 'application/xml', request);
+    if (url.pathname === '/sitemap.xml') {
+      const off = (await shopData(shop, ctx))?.settings?.disabled_pages ?? [];
+      return text(sitemapXml(shop, off, await sitemapData(shop, off)), 'application/xml', request);
+    }
     if (url.pathname === '/robots.txt') {
       const res = await env.ASSETS.fetch(new Request(new URL('/robots.txt', url), { method: 'GET' }));
       return res.ok ? text(robotsTxt(shop, await res.text()), 'text/plain', request) : res;
@@ -153,6 +158,38 @@ async function cachedShopData(shop) {
 }
 
 const shopDataKey = (shop) => new Request(`https://shop-data.internal/v2/${encodeURIComponent(shop.id)}`);
+
+/**
+ * The published news posts and the upcoming (next six months), not-cancelled events for /sitemap.xml. Asked for only
+ * when the sitemap is, kept ten minutes per Worker instance, and left out (the fixed pages still list) if the shop's
+ * database is slow or down. Nothing here goes into shopData, which every page view reads.
+ */
+async function sitemapData(shop, off) {
+  const now = Date.now();
+  const hit = sitemapMemo.get(shop.id);
+  if (hit && now - hit.at < SITEMAP_SECONDS * 1000) return hit.data;
+  const iso = new Date(now).toISOString();
+  const get = async (path) => {
+    const r = await fetch(`${shop.supabaseUrl}/rest/v1/${path}`, {
+      headers: { apikey: shop.anonKey, Authorization: `Bearer ${shop.anonKey}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!r.ok) throw new Error(`${path}: ${r.status}`);
+    return r.json();
+  };
+  try {
+    const [posts, events] = await Promise.all([
+      off.includes('news') ? [] : get(`posts?select=slug,updated_at&published_at=lte.${iso}&order=published_at.desc&limit=${SITEMAP_MAX_POSTS}`),
+      off.includes('calendar') ? [] : get(`events?select=id&cancelled_at=is.null&starts_at=gte.${iso}&starts_at=lt.${new Date(now + 183 * 864e5).toISOString()}&order=starts_at.asc&limit=${SITEMAP_MAX_EVENTS}`),
+    ]);
+    const data = { posts, events };
+    sitemapMemo.set(shop.id, { at: now, data });
+    return data;
+  } catch (err) {
+    console.error(`sitemap data for ${shop.id}: ${err.message}`);
+    return hit?.data ?? {};
+  }
+}
 
 /**
  * The shop's settings and page titles, at most CACHE_SECONDS old. If Supabase fails: the last good copy (kept for

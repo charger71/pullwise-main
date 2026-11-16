@@ -3,7 +3,7 @@
 
 import { esc, sizedImage, heroHeadlineHtml, HERO_WIDTH, LOGO_WIDTH } from '../js/util.js';
 import { themeCss, fontPreloads } from '../js/theme-vars.js';
-import { offHrefs } from '../js/optional-pages.js';
+import { offHrefs, postHref } from '../js/optional-pages.js';
 
 /** The shop whose domain this is, or null (then the site runs on the static js/config.js: demo mode). */
 export function findShop(shops, hostname) {
@@ -292,15 +292,40 @@ export function headTags(file, settings, supabaseUrl) {
   return tags;
 }
 
-// The fixed public pages, for the sitemap. Posts, events and staff-made pages come and go with the database
-// and aren't listed; search, account and survey pages aren't meant for search results.
+// The fixed public pages, for the sitemap. Staff-made pages come and go with the database and aren't listed; search,
+// account and survey pages aren't meant for search results. News posts and upcoming events are added from the database
+// (worker/index.js sitemapData).
 export const SITEMAP_PAGES = ['', 'pre-orders.html', 'new-arrivals.html', 'we-buy-comics.html', 'calendar.html', 'blog.html', 'contact.html',
   'about.html', 'gift-cards.html', 'how-to.html', 'faq.html', 'privacy.html', 'terms.html'];
 
-/** /sitemap.xml for one shop, on its main domain, without the pages it switched off (`off`: settings.disabled_pages). */
-export function sitemapXml(shop, off = []) {
+/** How many posts and events the sitemap lists at most (the Worker asks the database for no more). */
+export const SITEMAP_MAX_POSTS = 1000;
+export const SITEMAP_MAX_EVENTS = 500;
+
+const POST_SLUG = /^[A-Za-z0-9_-]+$/; // the same addresses postSlugOf serves
+const DAY = /^\d{4}-\d{2}-\d{2}/;
+
+/**
+ * /sitemap.xml for one shop, on its main domain, without the pages it switched off (`off`: settings.disabled_pages).
+ * `extra` adds what the database holds: `posts` ([{ slug, updated_at }], at /news/<slug>) and `events` ([{ id }], at
+ * event.html?id=<id>). Posts go with News and events with Calendar when a shop switches those off. Anything that
+ * isn't a plain slug or number is skipped, and every address is escaped.
+ */
+export function sitemapXml(shop, off = [], extra = {}) {
   const gone = offHrefs(off);
-  const urls = SITEMAP_PAGES.filter((p) => !gone.has(p)).map((p) => `  <url><loc>${esc(`${siteUrl(shop)}/${p}`)}</loc></url>`);
+  const base = siteUrl(shop);
+  const entry = (loc, lastmod) => `  <url><loc>${esc(loc)}</loc>${lastmod && DAY.test(lastmod) ? `<lastmod>${esc(lastmod.slice(0, 10))}</lastmod>` : ''}</url>`;
+  const urls = SITEMAP_PAGES.filter((p) => !gone.has(p)).map((p) => entry(`${base}/${p}`));
+  if (!off.includes('news')) {
+    for (const post of (extra.posts ?? []).slice(0, SITEMAP_MAX_POSTS)) {
+      if (POST_SLUG.test(post?.slug ?? '')) urls.push(entry(`${base}${postHref(post.slug)}`, post.updated_at));
+    }
+  }
+  if (!off.includes('calendar')) {
+    for (const event of (extra.events ?? []).slice(0, SITEMAP_MAX_EVENTS)) {
+      if (Number.isInteger(event?.id) && event.id > 0) urls.push(entry(`${base}/event.html?id=${event.id}`));
+    }
+  }
   return ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">', ...urls, '</urlset>', ''].join('\n');
 }
 
