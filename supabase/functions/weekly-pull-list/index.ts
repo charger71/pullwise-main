@@ -14,6 +14,9 @@
 //           new event signup)   emails the customer a confirmation and the shop a notification
 //   POST  { "mode": "event_reminder" | "event_cancelled", "event_id": n }  (cron secret only; public.event_reminder_tick sends the
 //           reminder the day before, public.event_cancel_email_trigger the cancellation notice)   emails everyone signed up
+//   POST  { "mode": "pickup_notices" }  (cron secret only; public.pickup_ladder_tick calls this hourly when the
+//           unclaimed-books ladder has queued emails)   the "your books are waiting" warning and the pause email
+//   POST  staff { "mode": "pickup_preview" | "pickup_test", "stage": "warning" | "pause" }   preview / send-to-me for them
 //   GET/POST ?u=<unsubscribe token>[&k=arrivals]   the unsubscribe page and its one-click POST
 //           (k=arrivals stops only the arrival emails; otherwise the weekly email)
 //
@@ -21,7 +24,7 @@
 // Deploy with:  supabase functions deploy weekly-pull-list --no-verify-jwt
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { build, sections, buildArrival, arrivalSections, buildMessage, asTest, splitClaims, withLocation } from './email.js';
+import { build, sections, buildArrival, arrivalSections, buildMessage, asTest, splitClaims, withLocation, buildPickupNotice, addDays } from './email.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 // Pictures in mail load from the shop's own domain (SITE_URL), not the shared images domain or Supabase: see worker/media.js.
@@ -131,14 +134,16 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.json().catch(() => ({}));
-  const mode = isCron ? (['arrivals', 'event_signup', 'event_reminder', 'event_cancelled'].includes(body.mode) ? body.mode : 'send') : body.mode;
-  if (!['preview', 'test', 'send', 'arrivals', 'arrivals_preview', 'arrivals_test', 'message', 'event_signup', 'event_reminder', 'event_cancelled'].includes(mode)) return json(400, { error: 'Unknown mode.' });
-  if (['event_signup', 'event_reminder', 'event_cancelled'].includes(mode) && !isCron) return json(403, { error: 'Not allowed.' });
+  const mode = isCron ? (['arrivals', 'event_signup', 'event_reminder', 'event_cancelled', 'pickup_notices'].includes(body.mode) ? body.mode : 'send') : body.mode;
+  if (!['preview', 'test', 'send', 'arrivals', 'arrivals_preview', 'arrivals_test', 'message', 'event_signup', 'event_reminder', 'event_cancelled', 'pickup_notices', 'pickup_preview', 'pickup_test'].includes(mode)) return json(400, { error: 'Unknown mode.' });
+  if (['event_signup', 'event_reminder', 'event_cancelled', 'pickup_notices'].includes(mode) && !isCron) return json(403, { error: 'Not allowed.' });
 
   try {
     if (mode === 'event_signup') return await sendEventSignup(Number(body.signup_id));
     if (mode === 'event_reminder' || mode === 'event_cancelled') return await sendEventNotice(Number(body.event_id), mode === 'event_cancelled' ? 'cancelled' : 'reminder');
     if (mode === 'message') return await sendMessage(body, staffEmail);
+    if (mode === 'pickup_notices') return await sendPickupNotices();
+    if (mode === 'pickup_preview' || mode === 'pickup_test') return await previewPickup(mode, body.stage === 'pause' ? 'pause' : 'warning', staffEmail);
     if (mode.startsWith('arrivals')) return await runArrivals(mode, body.customer_id, staffEmail);
     return await run(mode, body.customer_id, staffEmail, isCron);
   } catch (err) {
@@ -146,6 +151,100 @@ Deno.serve(async (req) => {
     return json(500, { error: err instanceof Error ? err.message : String(err) });
   }
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Unclaimed books (public.pickup_ladder_run queues them in pickup_notices; this sends them)
+// ---------------------------------------------------------------------------------------------------------------------
+
+const PICKUP_LINE = 'id,quantity,arrived_on,location_id,item:items(title,issue_number,variant,price,cover_url,cover_thumb_url),order:reservation_orders!inner(customer_id)';
+const pickupCopy = (t: Record<string, any>, stage: 'warning' | 'pause') =>
+  stage === 'pause' ? { subject: t.pickup_pause_subject, intro: t.pickup_pause_intro } : { subject: t.pickup_warning_subject, intro: t.pickup_warning_intro };
+
+/** A customer's books waiting for pickup. */
+async function waitingLines(customerId: number) {
+  const { data, error } = await admin.from('reservations').select(PICKUP_LINE).eq('status', 'arrived').eq('order.customer_id', customerId).order('arrived_on');
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * Send every queued warning / pause email. Each is claimed first (queued → sending), so two runs never send one twice.
+ * The switch is checked again here: off, the queue is dropped. A customer who has picked up everything since is
+ * skipped. A failed send goes back in the queue for the next hour, up to three tries.
+ */
+async function sendPickupNotices() {
+  const { data: trust, error: tErr } = await admin.from('trust_settings').select('*').eq('id', 1).single();
+  if (tErr) throw tErr;
+  if (!trust.pickup_pause_enabled) {
+    await admin.from('pickup_notices').update({ status: 'skipped', error: 'Pause pulls for unclaimed books is off' }).eq('status', 'queued');
+    return json(200, { sent: 0, skipped: 'switch off' });
+  }
+  const { data: claimed, error: cErr } = await admin.from('pickup_notices').update({ status: 'sending' }).eq('status', 'queued').select('*');
+  if (cErr) throw cErr;
+  if (!claimed?.length) return json(200, { sent: 0 });
+  const { data: shopBase, error: sErr } = await loadShop();
+  if (sErr) throw sErr;
+  const locs = await loadLocations();
+  const from = shopBase.pull_list_email_from || Deno.env.get('RESEND_FROM');
+  const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
+  const runId = crypto.randomUUID();
+  let sent = 0;
+  let failed = 0;
+  for (const n of claimed) {
+    const finish = (patch: Record<string, unknown>) => admin.from('pickup_notices').update(patch).eq('id', n.id);
+    try {
+      const { data: c } = await admin.from('customers').select('id,first_name,name,email,home_location_id').eq('id', n.customer_id).single();
+      const lines = c?.email ? await waitingLines(c.id) : [];
+      if (!c?.email || !lines.length) {
+        await finish({ status: 'skipped', error: c?.email ? 'Picked up before it was sent' : 'No email address' });
+        continue;
+      }
+      const shop = withLocation(shopBase, locs.byId.get(lines[0].location_id ?? c.home_location_id) ?? locs.fallback, { multi: locs.multi });
+      const mail = buildPickupNotice({ customer: c, lines, shop, copy: pickupCopy(trust, n.stage), pauseOn: n.pause_on, today: today(shop), manageUrl: `${siteUrl}/account.html`, siteUrl: SITE, mediaBase: MEDIA_BASE, storageBase: SUPABASE_URL });
+      await sendOne({ from, replyTo: shop.email || undefined, to: c.email, subject: mail.subject, html: mail.html, text: mail.text, kind: `pickup_${n.stage}`, customerId: c.id, sentBy: n.stage === 'pause' ? 'Pickup pause' : 'Pickup reminder', runId });
+      await finish({ status: 'sent', sent_at: new Date().toISOString(), error: null, attempts: n.attempts + 1 });
+      sent++;
+    } catch (err) {
+      const msg = (err instanceof Error ? err.message : String(err)).slice(0, 500);
+      await finish({ status: n.attempts + 1 >= 3 ? 'failed' : 'queued', error: msg, attempts: n.attempts + 1 });
+      failed++;
+    }
+    await new Promise((r) => setTimeout(r, 600)); // Resend allows ~2 requests a second
+  }
+  return json(200, { sent, failed });
+}
+
+/** Preview / send-to-me: a customer with books waiting (the most first), or a sample from someone's open titles. */
+async function previewPickup(mode: string, stage: 'warning' | 'pause', staffEmail: string | null) {
+  const { data: trust, error: tErr } = await admin.from('trust_settings').select('*').eq('id', 1).single();
+  if (tErr) throw tErr;
+  const { data: shop, error: sErr } = await loadShop();
+  if (sErr) throw sErr;
+  const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
+  const { data: waiting, error: wErr } = await admin.from('reservations').select(PICKUP_LINE).eq('status', 'arrived').not('order.customer_id', 'is', null).order('arrived_on').limit(500);
+  if (wErr) throw wErr;
+  const byCustomer = new Map<number, any[]>();
+  for (const l of waiting ?? []) byCustomer.set((l.order as { customer_id: number }).customer_id, [...(byCustomer.get((l.order as { customer_id: number }).customer_id) ?? []), l]);
+  let pick = [...byCustomer].sort((a, b) => b[1].length - a[1].length)[0];
+  let sample = false;
+  if (!pick) {
+    const { data: open } = await admin.from('reservations').select(PICKUP_LINE).in('status', ['open', 'ordered']).not('order.customer_id', 'is', null).limit(4);
+    if (!open?.length) return json(404, { error: 'No customer has anything on their pull list to show yet.' });
+    const t = today(shop);
+    pick = [(open[0].order as { customer_id: number }).customer_id, open.map((l) => ({ ...l, arrived_on: addDays(t, -(trust.warning_days ?? 7)) }))];
+    sample = true;
+  }
+  const [customerId, lines] = pick;
+  const { data: c } = await admin.from('customers').select('id,first_name,name,email').eq('id', customerId).single();
+  const oldest = lines.map((l) => l.arrived_on).filter(Boolean).sort()[0] ?? today(shop);
+  const pauseOn = addDays(oldest > trust.reliability_started_at ? oldest : trust.reliability_started_at, trust.pause_days);
+  let mail = buildPickupNotice({ customer: c ?? {}, lines, shop, copy: pickupCopy(trust, stage), pauseOn, today: today(shop), manageUrl: `${siteUrl}/account.html`, sample, siteUrl: SITE, mediaBase: MEDIA_BASE, storageBase: SUPABASE_URL });
+  mail = { ...mail, ...asTest(mail, c?.name ?? c?.email) };
+  if (mode === 'pickup_preview') return json(200, { subject: mail.subject, html: mail.html, customer: c?.name ?? c?.email, sample });
+  if (!staffEmail) return json(400, { error: 'Your account has no email address to send the test to.' });
+  await sendOne({ from: shop.pull_list_email_from || Deno.env.get('RESEND_FROM'), replyTo: shop.email || undefined, to: staffEmail, subject: `[Test] ${mail.subject}`, html: mail.html, text: mail.text, kind: 'test', sentBy: staffEmail });
+  return json(200, { sent: 1, to: staffEmail, customer: c?.name ?? c?.email, sample });
+}
 
 /** One email from a staff member to one customer. Replies go to the shop email, which also gets a blind copy. */
 async function sendMessage(body: { to?: string; subject?: string; message?: string; customer_id?: number }, staffEmail: string | null) {

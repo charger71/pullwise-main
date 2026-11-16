@@ -324,6 +324,7 @@ const JOB_NAMES = {
   'apply-subscriptions': 'Pull list follows',
   'weekly-pull-list': 'Weekly pull list email',
   'arrival-email': '“Your books are in” email',
+  'pickup-ladder': 'Unclaimed books reminders and pauses',
 };
 const JOB_HINTS = {
   'flip-item-statuses': 'moves titles to New This Wednesday, Just Arrived and in-store on their dates',

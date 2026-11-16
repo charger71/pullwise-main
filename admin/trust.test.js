@@ -21,14 +21,17 @@ assert.equal(capField(null), '');
 assert.equal(capField(0), '');
 
 const form = (over = {}) => {
-  const v = { warning_days: '7', pause_days: '14', monthly_warning_days: '21', monthly_pause_days: '35', unproven_weekly_cap: '40', reliability_started_at: '2026-11-16', pickup_pause_enabled: 'on', verification_enabled: 'on', auto_resume_on_pickup: 'on', ...over };
+  const v = { warning_days: '7', pause_days: '14', monthly_warning_days: '21', monthly_pause_days: '35', unproven_weekly_cap: '40', reliability_started_at: '2026-11-16', pickup_pause_enabled: 'on', verification_enabled: 'on', auto_resume_on_pickup: 'on', pickup_warning_subject: ' Waiting at {shop_name} ', pickup_warning_intro: 'Hi', pickup_pause_subject: 'On hold', pickup_pause_intro: 'Paused', ...over };
   return [(k) => v[k], (k) => v[k] === 'on'];
 };
 assert.deepEqual(trustRowFrom(...form()), {
   pickup_pause_enabled: true, verification_enabled: true, auto_resume_on_pickup: true,
   warning_days: 7, pause_days: 14, monthly_warning_days: 21, monthly_pause_days: 35,
   unproven_weekly_cap_cents: 4000, reliability_started_at: '2026-11-16',
+  pickup_warning_subject: 'Waiting at {shop_name}', pickup_warning_intro: 'Hi', pickup_pause_subject: 'On hold', pickup_pause_intro: 'Paused',
 });
+assert.match(trustRowFrom(...form({ pickup_pause_subject: '  ' })), /pause email’s subject can’t be blank/);
+assert.match(trustRowFrom(...form({ pickup_warning_intro: 'x'.repeat(2001) })), /too long/);
 assert.equal(trustRowFrom(...form({ verification_enabled: undefined, unproven_weekly_cap: '' })).verification_enabled, false);
 assert.equal(trustRowFrom(...form({ unproven_weekly_cap: '' })).unproven_weekly_cap_cents, null);
 assert.match(trustRowFrom(...form({ warning_days: '14' })), /reminder before their pause/);

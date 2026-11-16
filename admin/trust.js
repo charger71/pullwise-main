@@ -20,6 +20,13 @@ export function centsFromDollars(text) {
 /** The cap as the dollar field shows it: "40.00", or blank for no cap. */
 export const capField = (cents) => (cents ? (cents / 100).toFixed(2) : '');
 
+export const EMAIL_FIELDS = [
+  ['pickup_warning_subject', 'The reminder email’s subject', 200],
+  ['pickup_warning_intro', 'The reminder email’s message', 2000],
+  ['pickup_pause_subject', 'The pause email’s subject', 200],
+  ['pickup_pause_intro', 'The pause email’s message', 2000],
+];
+
 export const DAY_FIELDS = [
   ['warning_days', 'pause_days', 'Weekly'],
   ['monthly_warning_days', 'monthly_pause_days', 'Monthly'],
@@ -46,6 +53,12 @@ export function trustRowFrom(get, has) {
   const cap = centsFromDollars(get('unproven_weekly_cap'));
   if (cap === undefined) return 'The weekly limit should be a dollar amount, like 40 or 40.00. Leave it blank for no limit.';
   row.unproven_weekly_cap_cents = cap;
+  for (const [k, label, max] of EMAIL_FIELDS) {
+    const v = String(get(k) ?? '').trim();
+    if (!v) return `${label} can’t be blank.`;
+    if (v.length > max) return `${label} is too long (${max} characters at most).`;
+    row[k] = v;
+  }
   const start = String(get('reliability_started_at') ?? '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return 'Pick the date to count waiting days from.';
   row.reliability_started_at = start;
@@ -65,6 +78,10 @@ const SETTING_LABEL = {
   monthly_pause_days: 'Monthly pause day',
   auto_resume_on_pickup: 'Un-pause when everything is picked up',
   reliability_started_at: 'Count waiting days from',
+  pickup_warning_subject: 'Reminder email subject',
+  pickup_warning_intro: 'Reminder email message',
+  pickup_pause_subject: 'Pause email subject',
+  pickup_pause_intro: 'Pause email message',
 };
 
 /** One settings-log value as staff read it. */

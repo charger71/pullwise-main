@@ -18,7 +18,7 @@ const PAGE = 25;
 let sb;
 let isOwner = false; // only owners can delete a customer
 let settings;
-let trust = { verification_enabled: false, unproven_weekly_cap_cents: null }; // trust_settings: the Approvals tab shows only while verification is on
+let trust = { verification_enabled: false, unproven_weekly_cap_cents: null, pickup_pause_enabled: false }; // trust_settings: the Approvals tab shows only while verification is on
 let state = { q: '', location: '', show: '', sort: 'name', dir: 'asc', offset: 0, customerId: null, showCancelled: false };
 
 // What the Pull List panel is showing right now, so its Export button matches the screen.
@@ -95,7 +95,7 @@ export async function mount(el, ctx) {
   isOwner = ctx.isOwner === true;
   [settings, trust] = await Promise.all([
     must(sb.from('settings').select('max_copies_per_title,hold_days,timezone,shop_name,colors,phone,logo_url,discount_enabled,discount_tiers').eq('id', 1).single()),
-    sb.from('trust_settings').select('verification_enabled,unproven_weekly_cap_cents').eq('id', 1).maybeSingle().then(({ data }) => data ?? trust, () => trust),
+    sb.from('trust_settings').select('verification_enabled,unproven_weekly_cap_cents,pickup_pause_enabled').eq('id', 1).maybeSingle().then(({ data }) => data ?? trust, () => trust),
   ]);
   // "View customer" on the Reservations page hands over which customer to open.
   let handedOff = false;
@@ -380,6 +380,15 @@ async function fillStandingPills(body, ids) {
   }
 }
 
+/** Where the customer is on the automatic ladder, or '' (switch off, exempt, paused by staff, nothing waiting). */
+const ladderText = (r) => {
+  if (!trust.pickup_pause_enabled || !r.unclaimed_count || r.pickup_cadence === 'exempt') return '';
+  if (r.paused_reason === 'auto') return `paused automatically ${fmtDate(r.paused_at)}`;
+  if (r.paused_at) return '';
+  if (r.warning_sent_at) return `reminder sent ${fmtDate(r.warning_sent_at)} · pauses ${fmtDate(r.pause_on)}`;
+  return r.warning_on ? `reminder ${fmtDate(r.warning_on)} · pauses ${fmtDate(r.pause_on)}` : '';
+};
+
 /** "2 books waiting (3 copies) · $8.49 · oldest 9 days · last pickup Nov 3", or nothing waiting. */
 const waitingText = (r) =>
   [
@@ -387,7 +396,8 @@ const waitingText = (r) =>
       ? `${r.unclaimed_count} ${r.unclaimed_count === 1 ? 'book' : 'books'} waiting${r.unclaimed_copies !== r.unclaimed_count ? ` (${r.unclaimed_copies} copies)` : ''} · ${dollars(r.unclaimed_cents)} · oldest ${ageLabel(r.oldest_age_days)}`
       : 'Nothing waiting for pickup',
     r.last_pickup_at ? `last pickup ${fmtDate(r.last_pickup_at)}` : 'no pickups yet',
-  ].join(' · ');
+    ladderText(r),
+  ].filter(Boolean).join(' · ');
 
 async function loadStanding(el, c) {
   const box = $('[data-standing]', el);
@@ -562,7 +572,7 @@ const unclaimedHtml = () => `
     <p class="admin-hint">Customers with books received and not picked up. Ages are how long the oldest book has really waited.</p>
     <p class="results-count" role="status" data-count></p>
     <div class="admin-table-wrap"><table class="admin-table cust-unclaimed cards">
-      <thead><tr><th scope="col" data-sort>Name</th><th scope="col">Contact</th><th scope="col" class="center" data-sort="num" data-first="desc">Books</th><th scope="col" class="text-right" data-sort="num" data-first="desc">Value</th><th scope="col" data-sort="num" data-first="desc">Oldest</th><th scope="col" data-sort="num" data-first="desc">Last pickup</th><th scope="col">Status</th></tr></thead>
+      <thead><tr><th scope="col" data-sort>Name</th><th scope="col">Contact</th><th scope="col" class="center" data-sort="num" data-first="desc">Books</th><th scope="col" class="text-right" data-sort="num" data-first="desc">Value</th><th scope="col" data-sort="num" data-first="desc">Oldest</th><th scope="col" data-sort="num" data-first="desc">Last pickup</th><th scope="col">Status</th>${trust.pickup_pause_enabled ? '<th scope="col">Reminder &amp; pause</th>' : ''}</tr></thead>
       <tbody data-rows><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
     </table></div>`;
 
@@ -581,8 +591,8 @@ async function loadUnclaimed(el) {
           <td class="text-right nowrap card-label" data-label="Value" data-sort="${r.unclaimed_cents}">${dollars(r.unclaimed_cents)}</td>
           <td class="nowrap card-label" data-label="Oldest" data-sort="${r.oldest_age_days}">${esc(ageLabel(r.oldest_age_days))}<span class="card__meta"> · since ${esc(fmtDate(r.oldest_received_on))}</span></td>
           <td class="nowrap card__meta card-label" data-label="Last pickup" data-sort="${r.last_pickup_at ? Date.parse(r.last_pickup_at) : ''}">${r.last_pickup_at ? esc(fmtDate(r.last_pickup_at)) : 'Never'}</td>
-          <td class="card-wide"><span class="cust-standing__pills">${standingPills(r)}</span></td></tr>`).join('')
-    : '<tr><td colspan="7" class="empty">Nothing is waiting for pickup. Every received book has been picked up.</td></tr>';
+          <td class="card-wide"><span class="cust-standing__pills">${standingPills(r)}</span></td>${trust.pickup_pause_enabled ? `<td class="card__meta card-label" data-label="Reminder & pause">${esc(r.pickup_cadence === 'exempt' ? 'Exempt' : ladderText(r) || '–')}</td>` : ''}</tr>`).join('')
+    : `<tr><td colspan="${trust.pickup_pause_enabled ? 8 : 7}" class="empty">Nothing is waiting for pickup. Every received book has been picked up.</td></tr>`;
   if (rows.length) sortableTable($('table', el), { sort: '4', dir: 'desc' });
   body.addEventListener('click', (e) => {
     if (e.target.closest('[data-email-to], a[href^="tel:"]')) return;

@@ -304,6 +304,11 @@ function trustPane(t, log) {
         <div class="field span-2" data-ladder><label><input type="checkbox" name="auto_resume_on_pickup"${t.auto_resume_on_pickup ? ' checked' : ''}> Un-pause automatically when everything waiting is picked up</label>
           <p class="field__hint">Only for automatic pauses. A customer paused by hand stays paused until staff resume them.</p></div>
         ${field('reliability_started_at', 'Count waiting days from', 'type="date" required data-ladder', 'Books that came in before this date count from it, so nobody is paused for old history. Turning the switch on sets it to today. The Unclaimed list still shows how long books have really waited.')}
+        <p class="field__hint span-2" data-ladder>The two emails, in your words. Type <code>{first_name}</code>, <code>{shop_name}</code>, <code>{count}</code> (“3 books”), <code>{total}</code> (“$12.48”), <code>{days}</code> (days the oldest book has waited) or <code>{pause_date}</code> (the reminder only) and they’re filled in for each customer. The list of books, the total and your hours are added below. Preview them on the Emails screen.</p>
+        ${field('pickup_warning_subject', 'Reminder email: subject', 'maxlength="200" required data-ladder', '', 'field--full')}
+        ${trustText('pickup_warning_intro', 'Reminder email: message', t.pickup_warning_intro)}
+        ${field('pickup_pause_subject', 'Pause email: subject', 'maxlength="200" required data-ladder', '', 'field--full')}
+        ${trustText('pickup_pause_intro', 'Pause email: message', t.pickup_pause_intro)}
       </div></div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>New Accounts</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         <div class="field span-2">${switchHtml('Verify new accounts', { name: 'verification_enabled', checked: t.verification_enabled })}
@@ -312,6 +317,9 @@ function trustPane(t, log) {
       </div></div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Change History</h2></div><div class="fold__body" data-trust-log>${trustLogHtml(log)}</div></section>`;
 }
+
+const trustText = (name, label, value) =>
+  `<div class="field field--full" data-ladder><label for="s-${name}">${label}</label><textarea id="s-${name}" name="${name}" rows="3" maxlength="2000" required>${esc(value)}</textarea></div>`;
 
 const trustLogHtml = (rows) =>
   rows.length
