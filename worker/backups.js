@@ -57,7 +57,7 @@ export async function backupFiles(request, shop, env, fetchFn = fetch) {
     });
   }
 
-  const objects = [...(await listAll(env.BACKUPS, `daily/${shop.id}/`)), ...(await listAll(env.BACKUPS, `monthly/${shop.id}/`)), ...(await listAll(env.BACKUPS, `weekly/${shop.id}/`))];
+  const objects = (await Promise.all(['daily', 'monthly', 'weekly'].map((kind) => listAll(env.BACKUPS, `${kind}/${shop.id}/`)))).flat();
   const files = objects
     .map((o) => { const f = backupKey(o.key, shop.id); return f && { ...f, size: o.size }; })
     .filter(Boolean)

@@ -6,7 +6,8 @@
 
 import { readWorkbook, parseSheet } from '../../js/import/distributors.js';
 import { planImport, applyImport, logImport } from '../../js/import/apply.js';
-import { $, esc, must, setStatus, toast, fmtDate, processImage, loadScript, solidIcon, friendlyError, setupTabs, hintFold, uid, downloadCsv, loadRunLog, hintSlot } from '../lib.js';
+import { $, esc, must, setStatus, toast, fmtDate, loadScript, solidIcon, friendlyError, setupTabs, hintFold, uid, downloadCsv, loadRunLog, hintSlot } from '../lib.js';
+import { processImage } from '../images.js';
 import { tally } from '../../js/util.js';
 import { todayIn, addDays } from '../../js/dates.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../js/config.js';

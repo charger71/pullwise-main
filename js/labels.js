@@ -24,3 +24,17 @@ export const LINE_STATUS_CUSTOMER = { ...LINE_STATUS, open: 'On your list', not_
 
 /** Compact wording for tables, pills and CSV exports. */
 export const LINE_STATUS_SHORT = { ...LINE_STATUS, released: 'Released' };
+
+// Collector badges staff tick on a title (an import ticks some itself: js/import/distributors.js autoBadges).
+// Order here is display order. The database allows only these (items_badges_chk).
+export const ITEM_BADGES = {
+  first_appearance: '1st Appearance',
+  key_issue: 'Key Issue',
+  first_issue: 'First Issue',
+  final_issue: 'Final Issue',
+  milestone: 'Milestone Issue',
+  one_shot: 'One-Shot',
+  limited_series: 'Limited Series',
+  facsimile: 'Facsimile',
+  blind_bag: 'Blind Bag',
+};

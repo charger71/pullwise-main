@@ -670,7 +670,7 @@ async function renderReady(body) {
 async function loadToOrderData() {
   const lines = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items(${ITEM_FIELDS})`).eq('status', 'open').eq('reorder', false)).order('id').range(from, from + 999);
+    const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items(${ITEM_FIELDS})`).eq('status', 'open').eq('reorder', false).eq('counts_for_order', true)).order('id').range(from, from + 999);
     if (error) throw fromError(error);
     lines.push(...data);
     if (data.length < 1000) break;
@@ -694,6 +694,22 @@ async function loadToOrderData() {
   for (let i = 0; i < ids.length; i += 300)
     for (const m of await must(sb.from('items').select('id,upc,isbn,sku,distributor').in('id', ids.slice(i, i + 300)))) meta.set(m.id, m);
   return { lines, groups, focs: [...groups.keys()].sort(), meta };
+}
+
+/**
+ * Open lines the database holds back from the ordering numbers (counts_for_order is false: a paused customer's titles
+ * before their cutoff, or an account waiting for approval): { copies, customers }.
+ */
+async function loadHeld() {
+  let copies = 0;
+  const orders = new Set();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await atLocation(sb.from('reservations').select('quantity,order_id').eq('status', 'open').eq('reorder', false).eq('counts_for_order', false)).order('id').range(from, from + 999);
+    if (error) throw fromError(error);
+    for (const l of data) (copies += l.quantity), orders.add(l.order_id);
+    if (data.length < 1000) break;
+  }
+  return { copies, customers: orders.size };
 }
 
 /**
@@ -750,16 +766,19 @@ async function renderToOrder(body) {
     <div data-groups aria-busy="true">
     </div>`;
   const box = $('[data-groups]', body);
-  let loaded, early;
+  let loaded, early, held;
   try {
-    [loaded, early] = await Promise.all([loadToOrderData(), loadOrderedEarly()]);
+    [loaded, early, held] = await Promise.all([loadToOrderData(), loadOrderedEarly(), loadHeld()]);
   } catch (err) {
     box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
     return;
   }
   box.removeAttribute('aria-busy');
+  const heldNote = held.copies
+    ? `<p class="admin-hint">Not counted: ${held.copies} ${held.copies === 1 ? 'copy' : 'copies'} for ${held.customers} ${held.customers === 1 ? 'customer' : 'customers'} whose pull list is paused or whose account is waiting for approval. They count again if the customer is resumed or approved before the cutoff. See Customers → Unclaimed.</p>`
+    : '';
   if (!loaded && !early.size) {
-    box.innerHTML = '<p class="empty">Nothing waiting to be ordered.</p>';
+    box.innerHTML = `${heldNote}<p class="empty">Nothing waiting to be ordered.</p>`;
     return;
   }
   const allGroups = loaded?.groups ?? new Map();
@@ -783,7 +802,7 @@ async function renderToOrder(body) {
     // listed (a new week's cutoffs), the first opens again.
     const keepOpen = toOrderOpen && shown.some((f) => toOrderOpen.has(f)) ? toOrderOpen : new Set((focs.length ? focs : shown).slice(0, 1));
     const from = dist === 'all' ? '' : ` from ${distributorName(dist === 'none' ? null : dist)}`;
-    box.innerHTML = (focs.length ? '' : `<p class="empty">Nothing waiting to be ordered${esc(from)}.</p>`) + shown
+    box.innerHTML = heldNote + (focs.length ? '' : `<p class="empty">Nothing waiting to be ordered${esc(from)}.</p>`) + shown
       .map((foc) => {
         const rows = [...(groups.get(foc)?.values() ?? [])].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
         const ordered = [...(done.get(foc)?.values() ?? [])].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
@@ -888,7 +907,7 @@ ${rows.length ? `        <div class="admin-actions toorder__actions"><button cla
 async function markNotOrdered(body, itemId, btn) {
   btn.disabled = true;
   try {
-    const lines = await must(atLocation(sb.from('reservations').select('id,quantity,item:items(title,issue_number,variant)').eq('status', 'open').eq('reorder', false).eq('item_id', itemId)));
+    const lines = await must(atLocation(sb.from('reservations').select('id,quantity,item:items(title,issue_number,variant)').eq('status', 'open').eq('reorder', false).eq('counts_for_order', true).eq('item_id', itemId)));
     if (!lines.length) {
       toast('Nothing is waiting to be ordered for that title any more.', 'error');
       return void renderToOrder(body);
@@ -1197,7 +1216,10 @@ let reorderFor = null;
  */
 async function loadReorders(status) {
   const [lines, stock] = await Promise.all([
-    fetchAll(() => atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items(${REORDER_ITEM})`).eq('reorder', true).eq('status', status)).order('id')),
+    fetchAll(() => {
+      const q = atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items(${REORDER_ITEM})`).eq('reorder', true).eq('status', status));
+      return (status === 'open' ? q.eq('counts_for_order', true) : q).order('id');
+    }),
     fetchAll(() => atLocation(sb.from('stock_reorders').select(`id,quantity,item:items(${REORDER_ITEM})`).eq('status', status)).order('id')),
   ]);
   const rows = new Map();

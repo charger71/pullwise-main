@@ -4,7 +4,8 @@
 import { PAGE_BLOCKS } from '../../js/page-defaults.js';
 import { PLACEHOLDERS } from '../../js/content.js';
 import { OPTIONAL_PAGES, RESERVED_SLUGS, orderMenu, customHref } from '../../js/optional-pages.js';
-import { $, esc, must, hintFold, setStatus, makeEditor, setHtml, getHtml, toast, solidIcon, friendlyError, setupTabs, fmtTime, fmtDate, fmtDateTime, sortableTable, switchHtml } from '../lib.js';
+import { $, esc, must, hintFold, setStatus, toast, solidIcon, friendlyError, setupTabs, fmtTime, fmtDate, fmtDateTime, sortableTable, switchHtml } from '../lib.js';
+import { makeEditor, setHtml, getHtml } from '../editor.js';
 import { adminHash } from '../route.js';
 
 // Where each block shows on the public site, for the "View page" link.

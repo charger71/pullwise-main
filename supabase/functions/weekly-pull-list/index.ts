@@ -14,6 +14,9 @@
 //           new event signup)   emails the customer a confirmation and the shop a notification
 //   POST  { "mode": "event_reminder" | "event_cancelled", "event_id": n }  (cron secret only; public.event_reminder_tick sends the
 //           reminder the day before, public.event_cancel_email_trigger the cancellation notice)   emails everyone signed up
+//   POST  { "mode": "pickup_notices" }  (cron secret only; public.pickup_ladder_tick calls this hourly when the
+//           unclaimed-books ladder has queued emails)   the "your books are waiting" warning and the pause email
+//   POST  staff { "mode": "pickup_preview" | "pickup_test", "stage": "warning" | "pause" }   preview / send-to-me for them
 //   GET/POST ?u=<unsubscribe token>[&k=arrivals]   the unsubscribe page and its one-click POST
 //           (k=arrivals stops only the arrival emails; otherwise the weekly email)
 //
@@ -21,9 +24,15 @@
 // Deploy with:  supabase functions deploy weekly-pull-list --no-verify-jwt
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { build, sections, buildArrival, arrivalSections, buildMessage, asTest, splitClaims, withLocation } from './email.js';
+import { build, sections, buildArrival, arrivalSections, buildMessage, asTest, splitClaims, withLocation, buildPickupNotice, addDays } from './email.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+// Pictures in mail load from the shop's own domain (SITE_URL), not the shared images domain or Supabase: see worker/media.js.
+const SITE = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
+// Unsubscribe and "Skip this one" links: on the shop's own domain when we know it (the Worker hands them to this function,
+// worker/unsubscribe.js), so the mail doesn't link to supabase.co. Without SITE_URL, straight to this function.
+const emailLink = (query: string) => (SITE ? `${SITE}/__unsubscribe?${query}` : `${SUPABASE_URL}/functions/v1/weekly-pull-list?${query}`);
+const MEDIA_BASE = (Deno.env.get('MEDIA_PUBLIC_URL') ?? 'https://images.pullwise.shop').replace(/\/$/, '');
 const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 
 /**
@@ -106,6 +115,7 @@ async function seriesFollows(db: typeof admin) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
   const url = new URL(req.url);
+  if (url.searchParams.has('u') && url.searchParams.has('skip')) return skipTitle(req, url.searchParams.get('u')!, url.searchParams.get('skip')!);
   if (url.searchParams.has('u')) return unsubscribe(req, url.searchParams.get('u')!, url.searchParams.get('k') === 'arrivals' ? 'arrivals' : 'weekly');
   if (req.method !== 'POST') return json(405, { error: 'POST only' });
 
@@ -124,14 +134,16 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.json().catch(() => ({}));
-  const mode = isCron ? (['arrivals', 'event_signup', 'event_reminder', 'event_cancelled'].includes(body.mode) ? body.mode : 'send') : body.mode;
-  if (!['preview', 'test', 'send', 'arrivals', 'arrivals_preview', 'arrivals_test', 'message', 'event_signup', 'event_reminder', 'event_cancelled'].includes(mode)) return json(400, { error: 'Unknown mode.' });
-  if (['event_signup', 'event_reminder', 'event_cancelled'].includes(mode) && !isCron) return json(403, { error: 'Not allowed.' });
+  const mode = isCron ? (['arrivals', 'event_signup', 'event_reminder', 'event_cancelled', 'pickup_notices'].includes(body.mode) ? body.mode : 'send') : body.mode;
+  if (!['preview', 'test', 'send', 'arrivals', 'arrivals_preview', 'arrivals_test', 'message', 'event_signup', 'event_reminder', 'event_cancelled', 'pickup_notices', 'pickup_preview', 'pickup_test'].includes(mode)) return json(400, { error: 'Unknown mode.' });
+  if (['event_signup', 'event_reminder', 'event_cancelled', 'pickup_notices'].includes(mode) && !isCron) return json(403, { error: 'Not allowed.' });
 
   try {
     if (mode === 'event_signup') return await sendEventSignup(Number(body.signup_id));
     if (mode === 'event_reminder' || mode === 'event_cancelled') return await sendEventNotice(Number(body.event_id), mode === 'event_cancelled' ? 'cancelled' : 'reminder');
     if (mode === 'message') return await sendMessage(body, staffEmail);
+    if (mode === 'pickup_notices') return await sendPickupNotices();
+    if (mode === 'pickup_preview' || mode === 'pickup_test') return await previewPickup(mode, body.stage === 'pause' ? 'pause' : 'warning', staffEmail);
     if (mode.startsWith('arrivals')) return await runArrivals(mode, body.customer_id, staffEmail);
     return await run(mode, body.customer_id, staffEmail, isCron);
   } catch (err) {
@@ -139,6 +151,100 @@ Deno.serve(async (req) => {
     return json(500, { error: err instanceof Error ? err.message : String(err) });
   }
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Unclaimed books (public.pickup_ladder_run queues them in pickup_notices; this sends them)
+// ---------------------------------------------------------------------------------------------------------------------
+
+const PICKUP_LINE = 'id,quantity,arrived_on,location_id,item:items(title,issue_number,variant,price,cover_url,cover_thumb_url),order:reservation_orders!inner(customer_id)';
+const pickupCopy = (t: Record<string, any>, stage: 'warning' | 'pause') =>
+  stage === 'pause' ? { subject: t.pickup_pause_subject, intro: t.pickup_pause_intro } : { subject: t.pickup_warning_subject, intro: t.pickup_warning_intro };
+
+/** A customer's books waiting for pickup. */
+async function waitingLines(customerId: number) {
+  const { data, error } = await admin.from('reservations').select(PICKUP_LINE).eq('status', 'arrived').eq('order.customer_id', customerId).order('arrived_on');
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * Send every queued warning / pause email. Each is claimed first (queued → sending), so two runs never send one twice.
+ * The switch is checked again here: off, the queue is dropped. A customer who has picked up everything since is
+ * skipped. A failed send goes back in the queue for the next hour, up to three tries.
+ */
+async function sendPickupNotices() {
+  const { data: trust, error: tErr } = await admin.from('trust_settings').select('*').eq('id', 1).single();
+  if (tErr) throw tErr;
+  if (!trust.pickup_pause_enabled) {
+    await admin.from('pickup_notices').update({ status: 'skipped', error: 'Pause pulls for unclaimed books is off' }).eq('status', 'queued');
+    return json(200, { sent: 0, skipped: 'switch off' });
+  }
+  const { data: claimed, error: cErr } = await admin.from('pickup_notices').update({ status: 'sending' }).eq('status', 'queued').select('*');
+  if (cErr) throw cErr;
+  if (!claimed?.length) return json(200, { sent: 0 });
+  const { data: shopBase, error: sErr } = await loadShop();
+  if (sErr) throw sErr;
+  const locs = await loadLocations();
+  const from = shopBase.pull_list_email_from || Deno.env.get('RESEND_FROM');
+  const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
+  const runId = crypto.randomUUID();
+  let sent = 0;
+  let failed = 0;
+  for (const n of claimed) {
+    const finish = (patch: Record<string, unknown>) => admin.from('pickup_notices').update(patch).eq('id', n.id);
+    try {
+      const { data: c } = await admin.from('customers').select('id,first_name,name,email,home_location_id').eq('id', n.customer_id).single();
+      const lines = c?.email ? await waitingLines(c.id) : [];
+      if (!c?.email || !lines.length) {
+        await finish({ status: 'skipped', error: c?.email ? 'Picked up before it was sent' : 'No email address' });
+        continue;
+      }
+      const shop = withLocation(shopBase, locs.byId.get(lines[0].location_id ?? c.home_location_id) ?? locs.fallback, { multi: locs.multi });
+      const mail = buildPickupNotice({ customer: c, lines, shop, copy: pickupCopy(trust, n.stage), pauseOn: n.pause_on, today: today(shop), manageUrl: `${siteUrl}/account.html`, siteUrl: SITE, mediaBase: MEDIA_BASE, storageBase: SUPABASE_URL });
+      await sendOne({ from, replyTo: shop.email || undefined, to: c.email, subject: mail.subject, html: mail.html, text: mail.text, kind: `pickup_${n.stage}`, customerId: c.id, sentBy: n.stage === 'pause' ? 'Pickup pause' : 'Pickup reminder', runId });
+      await finish({ status: 'sent', sent_at: new Date().toISOString(), error: null, attempts: n.attempts + 1 });
+      sent++;
+    } catch (err) {
+      const msg = (err instanceof Error ? err.message : String(err)).slice(0, 500);
+      await finish({ status: n.attempts + 1 >= 3 ? 'failed' : 'queued', error: msg, attempts: n.attempts + 1 });
+      failed++;
+    }
+    await new Promise((r) => setTimeout(r, 600)); // Resend allows ~2 requests a second
+  }
+  return json(200, { sent, failed });
+}
+
+/** Preview / send-to-me: a customer with books waiting (the most first), or a sample from someone's open titles. */
+async function previewPickup(mode: string, stage: 'warning' | 'pause', staffEmail: string | null) {
+  const { data: trust, error: tErr } = await admin.from('trust_settings').select('*').eq('id', 1).single();
+  if (tErr) throw tErr;
+  const { data: shop, error: sErr } = await loadShop();
+  if (sErr) throw sErr;
+  const siteUrl = (Deno.env.get('SITE_URL') ?? '').replace(/\/$/, '');
+  const { data: waiting, error: wErr } = await admin.from('reservations').select(PICKUP_LINE).eq('status', 'arrived').not('order.customer_id', 'is', null).order('arrived_on').limit(500);
+  if (wErr) throw wErr;
+  const byCustomer = new Map<number, any[]>();
+  for (const l of waiting ?? []) byCustomer.set((l.order as { customer_id: number }).customer_id, [...(byCustomer.get((l.order as { customer_id: number }).customer_id) ?? []), l]);
+  let pick = [...byCustomer].sort((a, b) => b[1].length - a[1].length)[0];
+  let sample = false;
+  if (!pick) {
+    const { data: open } = await admin.from('reservations').select(PICKUP_LINE).in('status', ['open', 'ordered']).not('order.customer_id', 'is', null).limit(4);
+    if (!open?.length) return json(404, { error: 'No customer has anything on their pull list to show yet.' });
+    const t = today(shop);
+    pick = [(open[0].order as { customer_id: number }).customer_id, open.map((l) => ({ ...l, arrived_on: addDays(t, -(trust.warning_days ?? 7)) }))];
+    sample = true;
+  }
+  const [customerId, lines] = pick;
+  const { data: c } = await admin.from('customers').select('id,first_name,name,email').eq('id', customerId).single();
+  const oldest = lines.map((l) => l.arrived_on).filter(Boolean).sort()[0] ?? today(shop);
+  const pauseOn = addDays(oldest > trust.reliability_started_at ? oldest : trust.reliability_started_at, trust.pause_days);
+  let mail = buildPickupNotice({ customer: c ?? {}, lines, shop, copy: pickupCopy(trust, stage), pauseOn, today: today(shop), manageUrl: `${siteUrl}/account.html`, sample, siteUrl: SITE, mediaBase: MEDIA_BASE, storageBase: SUPABASE_URL });
+  mail = { ...mail, ...asTest(mail, c?.name ?? c?.email) };
+  if (mode === 'pickup_preview') return json(200, { subject: mail.subject, html: mail.html, customer: c?.name ?? c?.email, sample });
+  if (!staffEmail) return json(400, { error: 'Your account has no email address to send the test to.' });
+  await sendOne({ from: shop.pull_list_email_from || Deno.env.get('RESEND_FROM'), replyTo: shop.email || undefined, to: staffEmail, subject: `[Test] ${mail.subject}`, html: mail.html, text: mail.text, kind: 'test', sentBy: staffEmail });
+  return json(200, { sent: 1, to: staffEmail, customer: c?.name ?? c?.email, sample });
+}
 
 /** One email from a staff member to one customer. Replies go to the shop email, which also gets a blind copy. */
 async function sendMessage(body: { to?: string; subject?: string; message?: string; customer_id?: number }, staffEmail: string | null) {
@@ -152,7 +258,7 @@ async function sendMessage(body: { to?: string; subject?: string; message?: stri
   if (error) throw error;
   const from = shop.pull_list_email_from || Deno.env.get('RESEND_FROM');
   if (!from) return json(500, { error: 'Set the From address in Admin → Emails first.' });
-  const m = buildMessage({ shop, subject, message });
+  const m = buildMessage({ shop, subject, message, siteUrl: SITE });
   const customerId = Number.isInteger(body.customer_id) ? body.customer_id! : null;
   const res = await resend('/emails', { from, to: [to], ...(shop.email ? { reply_to: shop.email, bcc: [shop.email] } : {}), subject: m.subject, html: m.html, text: m.text });
   if (!res.ok) {
@@ -208,7 +314,7 @@ async function sendEventNotice(eventId: number, kind: 'reminder' | 'cancelled') 
     const message = kind === 'cancelled'
       ? `Hi ${su.name},\n\nWe're sorry: ${ev.title} on ${when} has been cancelled.\n\nYour signup has been released, and nothing more is needed from you. Questions? Just reply to this email or call the shop${evShop.phone ? ` at ${evShop.phone}` : ''}.`
       : `Hi ${su.name},\n\nA reminder that you're signed up for ${ev.title}.\n\nWhen: ${when}\nWhere: ${where}\nSpots held: ${people}\n\nEvent details: ${siteUrl}/event.html?id=${ev.id}\n\nCan't make it? Just reply to this email or call the shop${evShop.phone ? ` at ${evShop.phone}` : ''} so we can free up your spot.`;
-    const mail = buildMessage({ shop: evShop, subject, message });
+    const mail = buildMessage({ shop: evShop, subject, message, siteUrl: SITE });
     let failure: string | null = null;
     try {
       const res = await resend('/emails', { from, to: [su.email], subject, html: mail.html, text: mail.text, ...(shop.email ? { reply_to: shop.email } : {}) });
@@ -239,12 +345,12 @@ async function sendEventSignup(signupId: number) {
 
   const confirmSubject = `You're signed up: ${ev.title}`;
   const confirm = buildMessage({
-    shop: evShop, subject: confirmSubject,
+    siteUrl: SITE, shop: evShop, subject: confirmSubject,
     message: `Hi ${su.name},\n\nYou're signed up for ${ev.title}.\n\nWhen: ${when}\nWhere: ${where}\nSpots held: ${people}\n\nEvent details: ${siteUrl}/event.html?id=${ev.id}\n\nNeed to change or cancel? Just reply to this email or call the shop${evShop.phone ? ` at ${evShop.phone}` : ''}.`,
   });
   const noteSubject = `Event signup: ${su.name} for ${ev.title}`;
   const noteText = `${su.name} signed up for ${ev.title} (${when}).\n\nPeople: ${su.party_size}\nEmail: ${su.email}\nPhone: ${su.phone}${su.notes ? `\nNotes: ${su.notes}` : ''}\n\nReply to this email to answer ${su.name} directly. See everyone signed up in Admin → Events.`;
-  const note = buildMessage({ shop, subject: noteSubject, message: noteText });
+  const note = buildMessage({ shop, subject: noteSubject, message: noteText, siteUrl: SITE });
   const staffTo = [...new Set([shop.email, ...(Deno.env.get('STAFF_CC') ?? '').split(',').map((s) => s.trim()).filter(Boolean)].filter(Boolean))];
 
   const rows: LogRow[] = [];
@@ -282,7 +388,7 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
   for (let offset = 0; ; offset += 1000) {
     const { data, error: lErr } = await admin
       .from('reservations')
-      .select('quantity,status,arrived_on,source,created_at,item:items(title,issue_number,variant,release_date,foc_date,price,series_key),order:reservation_orders!inner(customer_id)')
+      .select('id,quantity,status,arrived_on,source,created_at,item:items(title,issue_number,variant,release_date,foc_date,price,series_key,cover_url,cover_thumb_url),order:reservation_orders!inner(customer_id)')
       .in('status', ACTIVE)
       .not('order.customer_id', 'is', null)
       .order('id')
@@ -303,8 +409,10 @@ async function run(mode: string, customerId: number | undefined, staffEmail: str
     const shop = withLocation(shopBase, locs.byId.get(c.home_location_id) ?? locs.fallback, { multi: locs.multi });
     const sec = sections((lines.get(c.id) ?? []) as never[], { today, holdDays: shop.hold_days ?? 30, follows: follows.get(c.id) });
     if (!sec) return null;
-    const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}`;
-    return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, app }) };
+    const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : emailLink(`u=${c.unsubscribe_token}`);
+    // Skip links carry the customer's private token, so a staff test or preview gets none.
+    const skipUrl = forStaff ? null : (lineId: number) => emailLink(`u=${c.unsubscribe_token}&skip=${lineId}`);
+    return { unsubscribeUrl, ...build({ customer: c, sections: sec, shop, today, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, app, skipUrl, siteUrl: SITE, mediaBase: MEDIA_BASE, storageBase: SUPABASE_URL }) };
   };
 
   if (mode === 'preview' || mode === 'test') {
@@ -389,7 +497,7 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
 
   const customers = await allCustomers(admin, 'id,first_name,name,email,ship_arrivals,notify_arrivals,unsubscribe_token,home_location_id');
 
-  const select = 'id,quantity,status,arrived_on,arrival_notified_at,location_id,item:items(title,issue_number,variant,price,series_key),order:reservation_orders!inner(customer_id)';
+  const select = 'id,quantity,status,arrived_on,arrival_notified_at,location_id,item:items(title,issue_number,variant,price,series_key,cover_url,cover_thumb_url),order:reservation_orders!inner(customer_id)';
   const lines = new Map<number, any[]>();
   for (let offset = 0; ; offset += 1000) {
     const { data, error: lErr } = await admin.from('reservations').select(select).in('status', ACTIVE).not('order.customer_id', 'is', null).order('id').range(offset, offset + 999);
@@ -402,7 +510,7 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
   }
 
   const follows = await seriesFollows(admin);
-  const unsubUrl = (c: (typeof customers)[number]) => `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}&k=arrivals`;
+  const unsubUrl = (c: (typeof customers)[number]) => emailLink(`u=${c.unsubscribe_token}&k=arrivals`);
   const locs = await loadLocations();
   const compose = (c: (typeof customers)[number], customerLines: any[], sample = false, forStaff = false) => {
     const arrival = arrivalSections(customerLines, { holdDays, follows: follows.get(c.id) });
@@ -411,7 +519,7 @@ async function runArrivals(mode: string, customerId: number | undefined, staffEm
     const waiting = customerLines.find((l) => l.status === 'arrived' && !l.arrival_notified_at);
     const shop = withLocation(shopBase, locs.byId.get(waiting?.location_id ?? c.home_location_id) ?? locs.fallback, { multi: locs.multi });
     const unsubscribeUrl = forStaff ? `${siteUrl}/account.html` : unsubUrl(c); // a test must not carry the customer's real link
-    return { unsubscribeUrl, ids: customerLines.filter((l) => l.status === 'arrived' && !l.arrival_notified_at).map((l) => l.id), ...buildArrival({ customer: c, arrival, shop, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, sample }) };
+    return { unsubscribeUrl, ids: customerLines.filter((l) => l.status === 'arrived' && !l.arrival_notified_at).map((l) => l.id), ...buildArrival({ customer: c, arrival, shop, manageUrl: `${siteUrl}/account.html`, unsubscribeUrl, sample, siteUrl: SITE, mediaBase: MEDIA_BASE, storageBase: SUPABASE_URL }) };
   };
 
   if (mode === 'arrivals_preview' || mode === 'arrivals_test') {
@@ -571,4 +679,50 @@ async function unsubscribe(req: Request, token: string, kind: 'weekly' | 'arriva
     return page('You’re unsubscribed', `<p>You won’t get the ${what} any more. Your pull list itself hasn’t changed. You can turn it back on any time in your profile.</p>`);
   }
   return page(`Unsubscribe from the ${what}?`, `<form method="post"><button style="font:bold 16px Arial;padding:12px 20px;cursor:pointer">Yes, unsubscribe me</button></form>`);
+}
+
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+
+/**
+ * "Skip this one" from the weekly email or a notification: takes a title a follow added off the customer's pull list
+ * and remembers it so the follow doesn't add it back (public.skip_followed_line). A GET only shows what it would skip
+ * and a button: mail scanners open links, and that must not skip anything. A POST does it; the page answers in HTML,
+ * or in JSON for the app's notification button (which asks with Accept: application/json or a text/plain body).
+ */
+async function skipTitle(req: Request, token: string, lineParam: string) {
+  const line = /^\d{1,15}$/.test(lineParam) ? Number(lineParam) : 0;
+  const wantsJson = req.method === 'POST' && !(req.headers.get('content-type') ?? '').includes('form');
+  const answer = (result: string, title: string, heading: string, body: string) =>
+    wantsJson ? json(200, { result, title }) : page(heading, `<p>${body}</p>`);
+  const bad = () => answer('invalid', '', 'Link not recognised', 'This link isn’t valid any more. Log in to your account to change your pull list.');
+  if (!UUID.test(token) || !line) return bad();
+  if (req.method === 'POST') {
+    const { data, error } = await admin.rpc('skip_followed_line', { p_token: token, p_line: line });
+    if (error) {
+      console.error('skip_followed_line', error);
+      return wantsJson ? json(500, { error: 'Try again.' }) : page('Something went wrong', '<p>We couldn’t skip that title. Please try again, or log in to your account to remove it.</p>');
+    }
+    const { result, title } = data as { result: string; title?: string };
+    const t = esc(title ?? 'That title');
+    if (result === 'skipped') return answer(result, title ?? '', 'Skipped', `${t} is off your pull list, and it won’t be added again. You still follow the series or artist, so their other issues will keep coming.`);
+    if (result === 'already') return answer(result, title ?? '', 'Already skipped', `${t} isn’t on your pull list any more.`);
+    if (result === 'closed') return answer(result, title ?? '', 'Too late to skip', `The order for ${t} is already in. Please call the shop to change it.`);
+    return bad();
+  }
+  // A GET names the title first (the token proves who is asking; nothing is changed).
+  const { data: who } = await admin.from('customers').select('id').eq('unsubscribe_token', token).maybeSingle();
+  const { data: row } = who
+    ? await admin
+        .from('reservations')
+        .select('status,source,item:items(title,issue_number),order:reservation_orders!inner(customer_id)')
+        .eq('id', line)
+        .eq('order.customer_id', who.id)
+        .in('source', ['series', 'artist'])
+        .maybeSingle()
+    : { data: null };
+  const item = row?.item as { title: string; issue_number: string | null } | null | undefined;
+  if (!row || !item) return bad();
+  const name = esc(item.title + (item.issue_number ? ` #${item.issue_number}` : ''));
+  if (row.status === 'cancelled') return page('Already skipped', `<p>${name} isn’t on your pull list any more.</p>`);
+  return page(`Skip ${name}?`, `<p>It will come off your pull list and won’t be added again. You’ll still follow the series or artist.</p><form method="post"><button style="font:bold 16px Arial;padding:12px 20px;cursor:pointer">Yes, skip it</button></form>`);
 }

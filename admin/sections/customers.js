@@ -3,12 +3,14 @@
 // Quantity and status changes are plain updates (staff have full access to reservations);
 // adding titles goes through staff_pull_list_add(), which can also add past the cutoff.
 // Every change is recorded in pull_list_log and shown under "Recent changes".
+// The Unclaimed tab and the pickup indicator (account state, pause, books waiting) read staff_pickup_summary().
 
-import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
-import { cutoffPassed } from '../../js/site.js';
+import { $, $$, esc, uid, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
-import { todayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
+import { todayIn, stampIn, holdUntil as holdDate, cutoffPassed } from '../../js/dates.js';
 import { adminHash } from '../route.js';
+import { followedSeries, discountFor, tiersFrom, totals } from '../../js/discount.js';
+import { dollars, ageLabel, ACCOUNT_STATE, CADENCE_OPTIONS, standingChange, standingActions } from '../trust.js';
 
 const SOURCE = { manual: 'Customer', variant: 'Customer (all covers)', series: 'Series follow', artist: 'Artist follow', staff: 'Staff' };
 const ITEM_FIELDS = 'id,title,issue_number,variant,publisher,price,series_key,foc_date,release_date,status';
@@ -16,6 +18,7 @@ const PAGE = 25;
 let sb;
 let isOwner = false; // only owners can delete a customer
 let settings;
+let trust = { verification_enabled: false, unproven_weekly_cap_cents: null, pickup_pause_enabled: false }; // trust_settings: the Approvals tab shows only while verification is on
 let state = { q: '', location: '', show: '', sort: 'name', dir: 'asc', offset: 0, customerId: null, showCancelled: false };
 
 // What the Pull List panel is showing right now, so its Export button matches the screen.
@@ -90,7 +93,10 @@ const fileSlug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').repl
 export async function mount(el, ctx) {
   sb = ctx.sb;
   isOwner = ctx.isOwner === true;
-  settings = await must(sb.from('settings').select('max_copies_per_title,hold_days,timezone,shop_name,colors,phone,logo_url,discount_enabled,discount_tiers').eq('id', 1).single());
+  [settings, trust] = await Promise.all([
+    must(sb.from('settings').select('max_copies_per_title,hold_days,timezone,shop_name,colors,phone,logo_url,discount_enabled,discount_tiers').eq('id', 1).single()),
+    sb.from('trust_settings').select('verification_enabled,unproven_weekly_cap_cents,pickup_pause_enabled').eq('id', 1).maybeSingle().then(({ data }) => data ?? trust, () => trust),
+  ]);
   // "View customer" on the Reservations page hands over which customer to open.
   let handedOff = false;
   try {
@@ -116,6 +122,7 @@ export async function mount(el, ctx) {
     /* start on All customers */
   }
   if (['no_email', 'link_guests'].includes(state.show)) state.show = 'to_fix'; // the two old tabs, from a link or a remembered choice
+  if (state.show === 'approvals' && !trust.verification_enabled) state.show = ''; // verification switched off: no approval queue
   // A customer's pickup code in the app (js/pages/account.js) is a link to #customers/<id>: scanning it opens them.
   if (/^\d+$/.test(ctx.arg ?? '')) {
     state.customerId = Number(ctx.arg);
@@ -224,8 +231,10 @@ function renderList(el) {
       <button type="button" class="admin-tab" role="tab" data-show="">All Customers</button>
       <button type="button" class="admin-tab" role="tab" data-show="new_week">New This Week <span class="admin-tab__badge" data-new-count hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-show="to_fix">Needs Attention</button>
+      <button type="button" class="admin-tab" role="tab" data-show="unclaimed">Unclaimed</button>
+      ${trust.verification_enabled ? '<button type="button" class="admin-tab" role="tab" data-show="approvals">Approvals <span class="admin-tab__badge" data-approval-count hidden></span></button>' : ''}
     </div>
-    <form class="filters admin-filters" role="search" aria-label="Find customers">
+    ${state.show === 'unclaimed' ? unclaimedHtml() : state.show === 'approvals' ? approvalsHtml() : `<form class="filters admin-filters" role="search" aria-label="Find customers">
       <div class="field field--search"><label for="c-q">Customer</label><input id="c-q" name="q" type="search" placeholder="Name, phone, email or #pickup code" value="${esc(state.q)}"></div>
     </form>
     <p class="results-count" role="status" data-count></p>
@@ -235,12 +244,14 @@ function renderList(el) {
       <tbody data-rows></tbody>
     </table></div>
     <div class="admin-pager"><button class="btn btn--ghost" type="button" data-prev>← Previous</button><span data-page></span><button class="btn btn--ghost" type="button" data-next>Next →</button></div>
-    <div class="admin-actions cust-export">${phone ? `<details class="cust-more"><summary>Export &amp; print</summary><div class="cust-more__body">${exportControls}</div></details>` : exportControls}</div>`;
+    <div class="admin-actions cust-export">${phone ? `<details class="cust-more"><summary>Export &amp; print</summary><div class="cust-more__body">${exportControls}</div></details>` : exportControls}</div>`}`;
   const form = $('form', el);
   const markShowTab = () => $$('[data-show]', el).forEach((b) => b.setAttribute('aria-selected', b.dataset.show === state.show));
   markShowTab();
   $$('[data-show]', el).forEach((b) =>
     b.addEventListener('click', () => {
+      const own = (v) => ['unclaimed', 'approvals'].includes(v) ? v : 'list'; // Unclaimed and Approvals have their own tables
+      const redraw = own(b.dataset.show) !== own(state.show);
       state.show = b.dataset.show;
       state.offset = 0;
       try {
@@ -248,10 +259,22 @@ function renderList(el) {
       } catch {
         /* remembering the tab is optional */
       }
+      if (redraw) return renderList(el);
       markShowTab();
       loadList(el);
     }),
   );
+  $$('[data-new]', el).forEach((b) => b.addEventListener('click', () => ((state.customerId = 'new'), renderCustomer(el))));
+  $('[data-scan]', el)?.addEventListener('click', () => scanPickupCode(el));
+  // How many customers signed up in the last 7 days, shown on the tab.
+  sb.from('customer_list').select('id', { count: 'exact', head: true }).not('user_id', 'is', null).gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString())
+    .then(({ count }) => {
+      const badge = $('[data-new-count]', el);
+      if (badge && count) (badge.textContent = count), (badge.hidden = false);
+    });
+  if (trust.verification_enabled) countApprovals(el);
+  if (state.show === 'unclaimed') return loadUnclaimed(el);
+  if (state.show === 'approvals') return loadApprovals(el);
   let timer;
   form.addEventListener('input', (e) => {
     clearTimeout(timer);
@@ -277,11 +300,6 @@ function renderList(el) {
   $('[data-next]', el).addEventListener('click', () => turnPage(state.offset + PAGE));
   $('[data-export-all]', el).addEventListener('click', (e) => exportAll(e.currentTarget, $('[data-export-history]', el).checked));
   $('[data-export-customers]', el).addEventListener('click', (e) => exportCustomersPdf(e.currentTarget));
-  $('[data-scan]', el)?.addEventListener('click', () => scanPickupCode(el));
-  $('[data-new]', el).addEventListener('click', () => {
-    state.customerId = 'new';
-    renderCustomer(el);
-  });
   $('[data-rows]', el).addEventListener('click', (e) => {
     if (e.target.closest('[data-email-to]')) return; // the email link opens the compose box
     const row = e.target.closest('[data-open]');
@@ -290,12 +308,6 @@ function renderList(el) {
     state.customerId = Number(row.dataset.open);
     renderCustomer(el);
   });
-  // How many customers signed up in the last 7 days, shown on the tab.
-  sb.from('customer_list').select('id', { count: 'exact', head: true }).not('user_id', 'is', null).gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString())
-    .then(({ count }) => {
-      const badge = $('[data-new-count]', el);
-      if (badge && count) (badge.textContent = count), (badge.hidden = false);
-    });
   loadList(el);
 }
 
@@ -338,10 +350,273 @@ async function loadList(el) {
             <td class="center card-key card-label">${c.ready_count ? `<span class="pill pill--arrived">${c.ready_count}</span>` : '<span class="card__meta">–</span>'}</td>
             <td class="center card-key card-label">${c.active_count || '<span class="card__meta">–</span>'}</td>
             <td class="card__meta nowrap card-label" data-label="Updated">${c.last_updated ? esc(fmtDate(c.last_updated)) : ''}</td>
-            <td class="nowrap card-wide col-cust-status"><span class="cust-status"><span class="cust-icons">${statusIcons(c)}</span>${needsFix(c) ? `<a class="btn btn--primary btn--small" href="#customers" data-open="${c.id}" aria-label="Fix ${esc(listName(c))}">${solidIcon('fix', 16)} Fix</a>` : ''}</span></td></tr>`;
+            <td class="nowrap card-wide col-cust-status"><span class="cust-status"><span class="cust-icons">${statusIcons(c)}</span><span class="cust-standing__pills" data-standing-pills="${c.id}"></span>${needsFix(c) ? `<a class="btn btn--primary btn--small" href="#customers" data-open="${c.id}" aria-label="Fix ${esc(listName(c))}">${solidIcon('fix', 16)} Fix</a>` : ''}</span></td></tr>`;
         })
         .join('')
     : `<tr><td colspan="7" class="empty">${state.q ? 'No customers match.' : 'No customers yet.'}</td></tr>`;
+  if (data.length) fillStandingPills(body, data.map((c) => c.id));
+}
+
+// ---------------------------------------------------------------------------
+// Pickups and account trust: the pills on the list, the indicator on a customer's page, and the Unclaimed tab.
+// Customers never see any of this (it comes from staff-only tables through staff_pickup_summary()).
+// ---------------------------------------------------------------------------
+
+const STATE_PILL = { unapproved: 'warn', approved: 'info', proven: 'done' };
+
+/** The account-state and pause pills. `all` also shows Proven (on the customer's page; the list shows only exceptions). */
+const standingPills = (r, all = false) =>
+  [
+    r.paused_at && `<span class="pill pill--danger">Paused${r.paused_reason === 'auto' ? ' · auto' : ''}</span>`,
+    (all || r.account_state !== 'proven') && `<span class="pill pill--${STATE_PILL[r.account_state] ?? 'off'}">${ACCOUNT_STATE[r.account_state] ?? esc(r.account_state)}</span>`,
+  ].filter(Boolean).join('');
+
+async function fillStandingPills(body, ids) {
+  const { data, error } = await sb.rpc('staff_pickup_summary', { p_ids: ids });
+  if (error) return; // the pills are extra; the list still works without them
+  for (const r of data) {
+    const slot = body.querySelector(`[data-standing-pills="${r.customer_id}"]`);
+    if (slot) slot.innerHTML = standingPills(r);
+  }
+}
+
+/** Where the customer is on the automatic ladder, or '' (switch off, exempt, paused by staff, nothing waiting). */
+const ladderText = (r) => {
+  if (!trust.pickup_pause_enabled || !r.unclaimed_count || r.pickup_cadence === 'exempt') return '';
+  if (r.paused_reason === 'auto') return `paused automatically ${fmtDate(r.paused_at)}`;
+  if (r.paused_at) return '';
+  if (r.warning_sent_at) return `reminder sent ${fmtDate(r.warning_sent_at)} · pauses ${fmtDate(r.pause_on)}`;
+  return r.warning_on ? `reminder ${fmtDate(r.warning_on)} · pauses ${fmtDate(r.pause_on)}` : '';
+};
+
+/** "2 books waiting (3 copies) · $8.49 · oldest 9 days · last pickup Nov 3", or nothing waiting. */
+const waitingText = (r) =>
+  [
+    r.unclaimed_count
+      ? `${r.unclaimed_count} ${r.unclaimed_count === 1 ? 'book' : 'books'} waiting${r.unclaimed_copies !== r.unclaimed_count ? ` (${r.unclaimed_copies} copies)` : ''} · ${dollars(r.unclaimed_cents)} · oldest ${ageLabel(r.oldest_age_days)}`
+      : 'Nothing waiting for pickup',
+    r.last_pickup_at ? `last pickup ${fmtDate(r.last_pickup_at)}` : 'no pickups yet',
+    ladderText(r),
+  ].filter(Boolean).join(' · ');
+
+async function loadStanding(el, c) {
+  const box = $('[data-standing]', el);
+  if (!box) return;
+  const { data, error } = await sb.rpc('staff_pickup_summary', { p_ids: [c.id] });
+  if (error || !data?.length) return void (box.hidden = true);
+  const r = data[0];
+  const cadenceId = uid('cu-cadence');
+  box.innerHTML = `<span class="cust-standing__pills">${standingPills(r, true)}</span><span class="cust-standing__facts">${esc(waitingText(r))}</span>
+    <span class="cust-standing__actions"><span class="cust-standing__cadence"><label for="${cadenceId}">Pickup</label><select id="${cadenceId}" class="select--small" data-cadence title="How often this customer usually picks up: sets when the unclaimed-books reminder and pause happen">${CADENCE_OPTIONS.map(([v, label]) => `<option value="${v}"${v === r.pickup_cadence ? ' selected' : ''}>${label}</option>`).join('')}</select></span>${standingActions(r).map(([a, label]) => `<button class="btn btn--ghost btn--small" type="button" data-standing-act="${a}">${label}</button>`).join('')}</span>`;
+  box.hidden = false;
+  box.onclick = (e) => {
+    const btn = e.target.closest('[data-standing-act]');
+    if (btn) confirmStanding(el, c, btn.dataset.standingAct);
+  };
+  // Saves the moment it changes (like a switch on its own screen), and goes back if the save fails.
+  $('[data-cadence]', box).onchange = async (e) => {
+    const sel = e.currentTarget;
+    sel.disabled = true;
+    const { error } = await sb.rpc('staff_set_cadence', { p_customer: c.id, p_cadence: sel.value, p_reason: null });
+    if (error) {
+      sel.value = r.pickup_cadence;
+      sel.disabled = false;
+      return toast(friendlyError(error), 'error');
+    }
+    toast(`Pickup cadence: ${sel.options[sel.selectedIndex].text}`);
+    loadStanding(el, c);
+    loadStandingLog(el, c);
+  };
+}
+
+// What each staff action does, in the words the confirm dialog uses. Every action works whichever way the Shop
+// Settings switches are set, and is logged with who, when and the reason.
+const STANDING_ACT = {
+  pause: {
+    title: 'Pause pull list',
+    text: 'No new titles from follows and no new pre-orders (you can still add titles here), and titles whose order cutoff hasn’t passed aren’t ordered for them. Books already ordered or in the shop stay held. They stay paused until staff resume them.',
+    go: 'Pause', rpc: 'staff_pause_customer', done: 'Pull list paused',
+  },
+  resume: {
+    title: 'Resume pull list',
+    text: 'Follows add new issues again, they can pre-order again, and titles before their order cutoff are ordered as usual.',
+    go: 'Resume', rpc: 'staff_resume_customer', done: 'Pull list resumed',
+  },
+  unverify: {
+    title: 'Unverify account',
+    text: 'The account goes back to waiting for approval. They can still build a list, but none of their titles are ordered until the account is approved again. It stays unverified until staff approve it, whatever the Verify new accounts setting.',
+    go: 'Unverify', rpc: 'staff_set_account_state', state: 'unapproved', done: 'Account unverified',
+  },
+  approve: {
+    title: 'Approve account',
+    text: 'Their titles are ordered from now on (with the weekly limit before their first pickup, when Verify new accounts is on).',
+    go: 'Approve', rpc: 'staff_set_account_state', state: 'approved', done: 'Account approved',
+  },
+  prove: {
+    title: 'Mark account proven',
+    text: 'Their titles are ordered with no weekly limit, as if they had already picked up.',
+    go: 'Mark proven', rpc: 'staff_set_account_state', state: 'proven', done: 'Account marked proven',
+  },
+};
+
+function confirmStanding(el, c, act) {
+  const a = STANDING_ACT[act];
+  const name = c.name || c.email || 'this customer';
+  const d = openDialog(`${a.title}: ${name}`, `
+    <p>${esc(a.text)}</p>
+    <p class="admin-hint">Customers never see this, or the reason.</p>
+    <div class="field"><label for="st-reason">Reason (optional, staff only)</label><textarea id="st-reason" rows="2" maxlength="500"></textarea></div>
+    <p class="form-error" role="alert" data-st-error></p>
+    <div class="admin-actions"><button class="btn ${act === 'pause' || act === 'unverify' ? 'btn--danger' : 'btn--primary'}" type="button" data-go>${a.go}</button><button class="btn btn--ghost" type="button" data-cancel>Cancel</button></div>`);
+  $('[data-cancel]', d).addEventListener('click', () => d.close());
+  $('[data-go]', d).addEventListener('click', async (e) => {
+    e.currentTarget.disabled = true;
+    const args = { p_customer: c.id, p_reason: $('#st-reason', d).value.trim() || null, ...(a.state ? { p_state: a.state } : {}) };
+    const { error } = await sb.rpc(a.rpc, args);
+    if (error) {
+      e.currentTarget.disabled = false;
+      return void ($('[data-st-error]', d).textContent = friendlyError(error));
+    }
+    d.close();
+    toast(a.done);
+    loadStanding(el, c);
+    loadStandingLog(el, c);
+  });
+}
+
+/** Changes tab: every change to the account state, pause and pickup cadence, newest first. */
+async function loadStandingLog(el, c) {
+  const box = $('[data-standing-log]', el);
+  if (!box) return;
+  const SHOW = 10;
+  const { data: rows, error } = await sb.from('customer_standing_log').select('field,from_value,to_value,reason,staff_name,created_at').eq('customer_id', c.id).order('created_at', { ascending: false }).limit(SHOW);
+  if (error) return void (box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
+  box.innerHTML = rows.length
+    ? `<ul class="job-log">${rows.map((r) => `<li><span class="job-log__when">${esc(fmtDateTime(r.created_at))}</span><span>${esc(r.staff_name ?? 'Automatic')}</span><span class="job-log__msg">${esc(standingChange(r))}${r.reason ? ` · ${esc(r.reason)}` : ''}</span></li>`).join('')}</ul>${rows.length === SHOW ? `<p class="cust-log__more">Showing the latest ${SHOW}.</p>` : ''}`
+    : '<p class="empty">No changes to the account or pull list status yet.</p>';
+}
+
+// ---------------------------------------------------------------------------
+// Approvals (only while Verify new accounts is on): accounts waiting, titles over the weekly limit, guest orders.
+// ---------------------------------------------------------------------------
+
+const approvalsHtml = () => `
+    <p class="admin-hint">Nothing here is ordered until you approve it. Customers never see this list.</p>
+    <div data-approvals aria-busy="true"><p class="empty">Loading…</p></div>`;
+
+/** The number on the Approvals tab: everything waiting for a decision. */
+async function countApprovals(el) {
+  const rpc = (name) => sb.rpc(name).then(({ data }) => data?.length ?? 0, () => 0);
+  const [a, t, g] = await Promise.all([rpc('staff_waiting_accounts'), rpc('staff_over_cap_lines'), rpc('staff_waiting_guest_orders')]);
+  const badge = $('[data-approval-count]', el);
+  if (badge) (badge.textContent = a + t + g), (badge.hidden = !(a + t + g));
+}
+
+const contactCell = (r, customerId) =>
+  `<span class="cust-unclaimed__contact">${r.phone ? `<a href="tel:${esc(r.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(r.phone))}</a>` : ''}${r.email ? `<button type="button" class="admin-link-button" data-email-to="${esc(r.email)}" data-email-name="${esc(r.first_name || r.name || '')}"${customerId ? ` data-email-customer="${customerId}"` : ''}>${esc(r.email)}</button>` : ''}</span>`;
+const askedFor = (n, copies, cents) => (n ? `${n} ${n === 1 ? 'title' : 'titles'}${copies !== n ? ` (${copies} copies)` : ''} · ${dollars(cents)}` : 'Nothing yet');
+
+async function loadApprovals(el) {
+  const box = $('[data-approvals]', el);
+  const [accounts, lines, guests] = await Promise.all(['staff_waiting_accounts', 'staff_over_cap_lines', 'staff_waiting_guest_orders'].map((n) => sb.rpc(n)));
+  box.removeAttribute('aria-busy');
+  const error = accounts.error ?? lines.error ?? guests.error;
+  if (error) return void (box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
+  const cap = trust.unproven_weekly_cap_cents ? dollars(trust.unproven_weekly_cap_cents) : null;
+  box.innerHTML = `
+    <section class="fold fold--compact fold--static"><div class="fold__head"><h2>New Accounts<span class="fold__note">${accounts.data.length || 'None'} waiting</span></h2></div><div class="fold__body">
+      ${accounts.data.length ? `<div class="admin-table-wrap"><table class="admin-table cards">
+        <thead><tr><th scope="col">Name</th><th scope="col">Contact</th><th scope="col">Signed up</th><th scope="col">Asked for</th><th scope="col"><span class="visually-hidden">Approve</span></th></tr></thead>
+        <tbody>${accounts.data.map((r) => `<tr>
+          <td class="card-title"><a href="#customers" data-open="${r.customer_id}"><strong>${esc(listName(r))}</strong></a>${r.unapproved_reason === 'staff' ? ' <span class="pill pill--warn">Unverified by staff</span>' : ''}</td>
+          <td class="card-line">${contactCell(r, r.customer_id)}</td>
+          <td class="nowrap card__meta card-label" data-label="Signed up">${esc(fmtDate(r.created_at))}</td>
+          <td class="card-label" data-label="Asked for">${esc(askedFor(r.open_titles, r.open_copies, r.open_cents))}</td>
+          <td class="nowrap card-foot"><button class="btn btn--primary btn--small" type="button" data-approve-account="${r.customer_id}">Approve</button></td></tr>`).join('')}</tbody>
+      </table></div>` : '<p class="empty">No accounts waiting for approval.</p>'}
+    </div></section>
+    <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Titles Over the Weekly Limit<span class="fold__note">${cap ? `${cap} per cutoff week before a first pickup` : 'No weekly limit set'}</span></h2></div><div class="fold__body">
+      ${lines.data.length ? `<div class="admin-table-wrap"><table class="admin-table cards">
+        <thead><tr><th scope="col">Title</th><th scope="col">Customer</th><th scope="col">Cutoff</th><th scope="col" class="text-right">Price</th><th scope="col" class="text-right">Week so far</th><th scope="col"><span class="visually-hidden">Approve</span></th></tr></thead>
+        <tbody>${lines.data.map((r) => `<tr>
+          <td class="card-title"><strong>${esc(r.title)}</strong>${r.quantity > 1 ? `<span class="card__meta"> × ${r.quantity}</span>` : ''}</td>
+          <td class="card-line"><a href="#customers" data-open="${r.customer_id}">${esc(r.customer_name ?? '')}</a></td>
+          <td class="nowrap card-label" data-label="Cutoff">${esc(fmtDate(r.foc_date, { weekday: 'short', month: 'short', day: 'numeric' }))}</td>
+          <td class="text-right nowrap card-label" data-label="Price">${dollars(r.line_cents)}</td>
+          <td class="text-right nowrap card-label" data-label="Week so far">${dollars(r.week_cents)}</td>
+          <td class="nowrap card-foot"><button class="btn btn--primary btn--small" type="button" data-approve-line="${r.reservation_id}">Approve</button></td></tr>`).join('')}</tbody>
+      </table></div>` : '<p class="empty">No titles over the weekly limit.</p>'}
+    </div></section>
+    <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Guest Orders<span class="fold__note">Orders from people without an account that don’t match an approved customer</span></h2></div><div class="fold__body">
+      ${guests.data.length ? `<div class="admin-table-wrap"><table class="admin-table cards">
+        <thead><tr><th scope="col">Name</th><th scope="col">Contact</th><th scope="col">Placed</th><th scope="col">Asked for</th><th scope="col"><span class="visually-hidden">Approve</span></th></tr></thead>
+        <tbody>${guests.data.map((r) => `<tr>
+          <td class="card-title"><strong>${esc(r.name)}</strong><span class="card__meta"> · Order #${r.order_id}</span></td>
+          <td class="card-line">${contactCell(r)}</td>
+          <td class="nowrap card__meta card-label" data-label="Placed">${esc(fmtDate(r.created_at))}</td>
+          <td class="card-label" data-label="Asked for">${esc(askedFor(r.open_titles, r.open_copies, r.open_cents))}</td>
+          <td class="nowrap card-foot"><button class="btn btn--primary btn--small" type="button" data-approve-guest="${r.order_id}">Approve</button></td></tr>`).join('')}</tbody>
+      </table></div>` : '<p class="empty">No guest orders waiting.</p>'}
+    </div></section>`;
+  box.onclick = async (e) => {
+    const open = e.target.closest('[data-open]');
+    if (open) {
+      e.preventDefault();
+      state.customerId = Number(open.dataset.open);
+      return renderCustomer(el);
+    }
+    const btn = e.target.closest('[data-approve-account], [data-approve-line], [data-approve-guest]');
+    if (!btn) return;
+    btn.disabled = true;
+    const { error: err } = btn.dataset.approveAccount
+      ? await sb.rpc('staff_set_account_state', { p_customer: Number(btn.dataset.approveAccount), p_state: 'approved', p_reason: null })
+      : btn.dataset.approveLine
+        ? await sb.rpc('staff_approve_cap_lines', { p_ids: [Number(btn.dataset.approveLine)] })
+        : await sb.rpc('staff_approve_guest_order', { p_order: Number(btn.dataset.approveGuest) });
+    if (err) {
+      btn.disabled = false;
+      return toast(friendlyError(err), 'error');
+    }
+    toast(btn.dataset.approveAccount ? 'Account approved' : btn.dataset.approveLine ? 'Title approved' : 'Guest order approved');
+    loadApprovals(el);
+    countApprovals(el);
+  };
+}
+
+const unclaimedHtml = () => `
+    <p class="admin-hint">Customers with books received and not picked up. Ages are how long the oldest book has really waited.</p>
+    <p class="results-count" role="status" data-count></p>
+    <div class="admin-table-wrap"><table class="admin-table cust-unclaimed cards">
+      <thead><tr><th scope="col" data-sort>Name</th><th scope="col">Contact</th><th scope="col" class="center" data-sort="num" data-first="desc">Books</th><th scope="col" class="text-right" data-sort="num" data-first="desc">Value</th><th scope="col" data-sort="num" data-first="desc">Oldest</th><th scope="col" data-sort="num" data-first="desc">Last pickup</th><th scope="col">Status</th>${trust.pickup_pause_enabled ? '<th scope="col">Reminder &amp; pause</th>' : ''}</tr></thead>
+      <tbody data-rows><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+    </table></div>`;
+
+async function loadUnclaimed(el) {
+  const body = $('[data-rows]', el);
+  const { data, error } = await sb.rpc('staff_pickup_summary', { p_ids: null });
+  if (error) return void (body.innerHTML = `<tr><td colspan="7" class="form-error">${esc(friendlyError(error))}</td></tr>`);
+  const rows = [...data].sort((a, b) => b.oldest_age_days - a.oldest_age_days || b.unclaimed_cents - a.unclaimed_cents);
+  const total = rows.reduce((n, r) => n + Number(r.unclaimed_cents), 0);
+  $('[data-count]', el).textContent = rows.length ? `${rows.length} ${rows.length === 1 ? 'customer' : 'customers'} · ${dollars(total)} waiting` : '';
+  body.innerHTML = rows.length
+    ? rows.map((r) => `<tr class="is-clickable" data-open="${r.customer_id}">
+          <td class="card-title" data-sort="${esc(listName(r))}"><a href="#customers" data-open="${r.customer_id}"><strong>${esc(listName(r))}</strong></a></td>
+          <td class="card-line">${contactCell(r, r.customer_id)}</td>
+          <td class="center card-key card-label" data-label="Books" data-sort="${r.unclaimed_count}">${r.unclaimed_count}${r.unclaimed_copies !== r.unclaimed_count ? `<span class="card__meta"> (${r.unclaimed_copies} copies)</span>` : ''}</td>
+          <td class="text-right nowrap card-label" data-label="Value" data-sort="${r.unclaimed_cents}">${dollars(r.unclaimed_cents)}</td>
+          <td class="nowrap card-label" data-label="Oldest" data-sort="${r.oldest_age_days}">${esc(ageLabel(r.oldest_age_days))}<span class="card__meta"> · since ${esc(fmtDate(r.oldest_received_on))}</span></td>
+          <td class="nowrap card__meta card-label" data-label="Last pickup" data-sort="${r.last_pickup_at ? Date.parse(r.last_pickup_at) : ''}">${r.last_pickup_at ? esc(fmtDate(r.last_pickup_at)) : 'Never'}</td>
+          <td class="card-wide"><span class="cust-standing__pills">${standingPills(r)}</span></td>${trust.pickup_pause_enabled ? `<td class="card__meta card-label" data-label="Reminder & pause">${esc(r.pickup_cadence === 'exempt' ? 'Exempt' : ladderText(r) || '–')}</td>` : ''}</tr>`).join('')
+    : `<tr><td colspan="${trust.pickup_pause_enabled ? 8 : 7}" class="empty">Nothing is waiting for pickup. Every received book has been picked up.</td></tr>`;
+  if (rows.length) sortableTable($('table', el), { sort: '4', dir: 'desc' });
+  body.addEventListener('click', (e) => {
+    if (e.target.closest('[data-email-to], a[href^="tel:"]')) return;
+    const row = e.target.closest('[data-open]');
+    if (!row) return;
+    e.preventDefault();
+    state.customerId = Number(row.dataset.open);
+    renderCustomer(el);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -394,6 +669,7 @@ async function renderCustomer(el) {
   el.innerHTML = `
     <p><a class="btn btn--ghost btn--small" href="#customers" data-back>← Back to customers</a></p>
     <div class="admin-title-row cust-title-row"><h1>${isNew ? 'New Customer' : esc(c.name || c.email || '(no name)')}</h1>${isNew ? '' : `<div class="cust-contact">${c.phone ? `<a class="cust-contact__phone" href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(c.phone))}</a>` : ''}${c.email ? `<a class="btn btn--ghost btn--small" href="mailto:${esc(c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email customer</a>` : ''}</div>`}</div>
+    ${isNew ? '' : `<p class="cust-standing" data-standing hidden></p>`}
     ${isNew ? '' : `<div class="admin-tabs cust-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-ctab="pull">Pull List</button>
       <button type="button" class="admin-tab" role="tab" data-ctab="profile">Profile</button>
@@ -495,6 +771,10 @@ async function renderCustomer(el) {
           <div class="fold__head"><h2 id="cu-log">Recent Changes</h2><span class="card__meta cust-profile__sum" data-log-sum></span></div>
           <div class="fold__body" data-log></div>
         </section>
+        <section class="fold fold--compact fold--static cust-profile cust-log">
+          <div class="fold__head"><h2 id="cu-standing-log">Account &amp; Pause History</h2><span class="card__meta cust-profile__sum">Staff only</span></div>
+          <div class="fold__body" data-standing-log></div>
+        </section>
         </div>
       `}
       </div>
@@ -577,6 +857,8 @@ async function renderCustomer(el) {
   if (c.email) mountEmailForm($('[data-compose]', el), { to: c.email, name: c.first_name || c.name, customerId: c.id });
   loadOrders(el, c);
   loadLog(el, c);
+  loadStanding(el, c);
+  loadStandingLog(el, c);
   setupFollows(el, c);
 }
 
@@ -605,6 +887,12 @@ async function loadOrders(el, c) {
       must(lineQuery().not('status', 'in', `(${inPlay.join(',')})`).limit(500)),
     ]);
     const lines = [...current, ...history];
+    // Titles over the weekly limit (staff-only flags): only open lines can be.
+    const openIds = current.filter((l) => l.status === 'open').map((l) => l.id);
+    const flags = openIds.length ? await sb.from('line_cap_flags').select('reservation_id,status').in('reservation_id', openIds).then(({ data }) => data ?? [], () => []) : [];
+    const capOf = new Map(flags.map((f) => [f.reservation_id, f.status]));
+    for (const l of lines) l.cap = capOf.get(l.id) ?? null;
+    const disc = discountInfo(await must(sb.from('subscriptions').select('kind,key').eq('customer_id', c.id).eq('kind', 'series')));
     const unlinked = await findUnlinked(c);
     const staffNames = new Map((await must(sb.from('staff').select('user_id,name'))).map((m) => [m.user_id, m.name]));
     const latest = lines.reduce((a, l) => (!a || l.updated_at > a.updated_at ? l : a), null);
@@ -619,16 +907,26 @@ async function loadOrders(el, c) {
     box.innerHTML = `
       ${unlinked.length ? `<p class="notice cust-link">${unlinked.length} earlier guest ${unlinked.length === 1 ? 'order matches' : 'orders match'} this customer’s phone or email but ${unlinked.length === 1 ? 'isn’t' : 'aren’t'} linked yet.
         <button class="btn btn--primary btn--small" type="button" data-link>Link ${unlinked.length === 1 ? 'it' : 'them'}</button></p>` : ''}
-      ${shown.length ? summaryChips(shown) : ''}
+      ${shown.length ? summaryChips(shown, disc) : ''}
       ${shown.length ? `<div class="admin-table-wrap"><table class="admin-table cust-lines">
         <thead><tr><th scope="col">Title</th><th scope="col" class="cl-out">Out</th><th scope="col" class="cl-qty">Qty</th><th scope="col" class="cl-status">Status</th><th scope="col" class="cl-by">Added by</th><th scope="col" class="cl-rm"><span class="visually-hidden">Remove</span></th></tr></thead>
-        ${groupedRows(shown, c, staffNames)}</table></div>` : '<p class="empty">Nothing on this customer’s pull list yet.</p>'}`;
+        ${groupedRows(shown, c, staffNames)}</table></div>${discountTotals(shown, disc)}` : '<p class="empty">Nothing on this customer’s pull list yet.</p>'}`;
     box.onchange = (e) => editLine(el, c, lines, e);
     box.onclick = async (e) => {
       const fold = e.target.closest('[data-fold-group]');
       if (fold) return toggleGroup(fold);
       const rm = e.target.closest('[data-remove]');
       if (rm) return editLine(el, c, lines, { target: rm, remove: true });
+      const cap = e.target.closest('[data-approve-cap]');
+      if (cap) {
+        cap.disabled = true;
+        const { error } = await sb.rpc('staff_approve_cap_lines', { p_ids: [Number(cap.dataset.approveCap)] });
+        if (error) return (cap.disabled = false), toast(friendlyError(error), 'error');
+        toast('Approved over the weekly limit');
+        loadOrders(el, c);
+        loadLog(el, c);
+        return;
+      }
       if (e.target.closest('[data-link]')) {
         try {
           await must(sb.from('reservation_orders').update({ customer_id: c.id }).in('id', unlinked.map((o) => o.id)));
@@ -649,11 +947,29 @@ async function loadOrders(el, c) {
 
 const ACTIVE_STATUSES = ['open', 'ordered', 'reordered', 'arrived'];
 
+/** The customer's pull list discount from their series follows: { on, series, pct, next }. `on` is false when the program is off. */
+function discountInfo(follows) {
+  const tiers = tiersFrom(settings);
+  return { on: tiers.length > 0, series: followedSeries(follows), ...discountFor(followedSeries(follows), tiers) };
+}
+const money = (n) => `$${n.toFixed(2)}`;
+
+/** Subtotal at cover price, the pull list discount and the estimated total: the same math as the customer's My Pull List and the printed list. */
+function discountTotals(lines, disc) {
+  const { subtotal, discount, total } = totals(lines, disc.on ? disc.pct : 0);
+  if (!subtotal) return '';
+  const unpriced = lines.filter((l) => ACTIVE_STATUSES.includes(l.status) && l.item?.price == null).length;
+  return `<dl class="cust-totals"><dt>Subtotal (cover price)</dt><dd>${money(subtotal)}</dd>
+    ${disc.on && disc.pct ? `<dt>Pull list discount (${disc.pct}%)</dt><dd>−${money(discount)}</dd>` : ''}
+    <dt><strong>Estimated total</strong></dt><dd><strong>${money(total)}</strong></dd></dl>
+    <p class="card__meta">Active titles only; tax not included${unpriced ? `; ${unpriced} without a price not counted` : ''}.</p>`;
+}
+
 /** Open titles a series/artist follow added in the last week (the hourly sweep, or when the follow was made). */
 const autoAddedRecently = (l) => ['series', 'artist'].includes(l.source) && l.status === 'open' && Date.now() - new Date(l.created_at) < 7 * 864e5;
 
 /** "1 ready for pickup · 3 open · 1 ordered · 2 past": the state of the list at a glance. */
-function summaryChips(lines) {
+function summaryChips(lines, disc) {
   const n = (fn) => lines.filter(fn).length;
   const chip = (count, label, cls) => (count ? `<span class="pill pill--${cls}">${count} ${label}</span>` : '');
   const copies = lines.filter((l) => ACTIVE_STATUSES.includes(l.status)).reduce((sum, l) => sum + l.quantity, 0);
@@ -665,8 +981,10 @@ function summaryChips(lines) {
     chip(n((l) => l.status === 'not_ordered'), 'not ordered', 'not_ordered'),
     chip(n((l) => !ACTIVE_STATUSES.includes(l.status) && l.status !== 'not_ordered'), 'past', 'released'),
     chip(n(autoAddedRecently), 'new from follows this week', 'new'),
+    disc.on && disc.pct ? `<span class="pill pill--done" title="${disc.series} series followed">${disc.pct}% discount</span>` : '',
   ].join(' ');
-  return `<p class="cust-chips">${chips}${copies ? ` <span class="card__meta">${copies} ${copies === 1 ? 'copy' : 'copies'} active</span>` : ''}</p>`;
+  const why = disc.on ? ` <span class="card__meta">${disc.series} series followed${disc.next ? ` · follow ${disc.next.more} more for ${disc.next.pct}%` : ''}</span>` : '';
+  return `<p class="cust-chips">${chips}${why}${copies ? ` <span class="card__meta">${copies} ${copies === 1 ? 'copy' : 'copies'} active</span>` : ''}</p>`;
 }
 
 // Folded pull list groups, remembered on this device; Past starts folded.
@@ -716,7 +1034,7 @@ function lineRow(l, c, staffNames, alt = false) {
   const tip = `Last updated ${fmtDateTime(l.updated_at)}${l.updated_via ? ` by ${whoLabel(l, c, staffNames)}` : ''}`;
   const rowClass = [l.status === 'cancelled' && 'is-hidden', alt && 'is-alt'].filter(Boolean).join(' ');
   return `<tr${rowClass ? ` class="${rowClass}"` : ''}${autoAddedRecently(l) ? ' data-auto-new' : ''} title="${esc(tip)}">
-    <td class="cl-title">${autoAddedRecently(l) ? `<span class="pill pill--new" title="Added automatically by a follow on ${esc(fmtDateTime(l.created_at))}">New</span> ` : ''}${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}${l.updated_via && l.updated_via !== 'customer' ? `<br><span class="cust-updated">Updated ${esc(fmtDateTime(l.updated_at))} by ${esc(whoLabel(l, c, staffNames))}</span>` : ''}${closed ? '<br><span class="cust-warn">Order cutoff has passed — the order may already be in</span>' : ''}</td>
+    <td class="cl-title">${autoAddedRecently(l) ? `<span class="pill pill--new" title="Added automatically by a follow on ${esc(fmtDateTime(l.created_at))}">New</span> ` : ''}${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}${l.updated_via && l.updated_via !== 'customer' ? `<br><span class="cust-updated">Updated ${esc(fmtDateTime(l.updated_at))} by ${esc(whoLabel(l, c, staffNames))}</span>` : ''}${closed ? '<br><span class="cust-warn">Order cutoff has passed — the order may already be in</span>' : ''}${l.cap === 'over_cap' ? `<br><span class="cust-warn">Over the weekly limit: not ordered until approved</span> <button class="admin-link-button" type="button" data-approve-cap="${l.id}">Approve</button>` : l.cap === 'approved' ? '<br><span class="cust-updated">Approved over the weekly limit</span>' : ''}</td>
     <td class="nowrap cl-out">${fmtDate(l.item?.release_date, { month: 'short', day: 'numeric' })}</td>
     <td class="cl-qty"><label class="visually-hidden" for="cq-${l.id}">Copies of ${esc(l.item?.title ?? '')}</label>
       <input id="cq-${l.id}" class="cust-qty" type="number" inputmode="numeric" min="1" max="100" value="${l.quantity}" data-qty="${l.id}"></td>
@@ -887,14 +1205,18 @@ function setupFollows(el, c) {
 
   const load = async () => {
     try {
-      const subs = await must(sb.from('subscriptions').select('id,kind,label,role,quantity,all_covers').eq('customer_id', c.id).order('label'));
-      list.innerHTML = subs.length
+      const subs = await must(sb.from('subscriptions').select('id,kind,key,label,role,quantity,all_covers').eq('customer_id', c.id).order('label'));
+      const d = discountInfo(subs);
+      const discLine = !d.on
+        ? '<p class="admin-hint">The pull list discount is switched off in Shop Settings.</p>'
+        : `<p class="cust-disc"><strong>${d.pct ? `${d.pct}% pull list discount` : 'No discount yet'}</strong> · ${d.series} series ${d.series === 1 ? 'counts' : 'count'} (artist follows don’t)${d.next ? ` · ${d.next.more} more series ${d.next.more === 1 ? 'reaches' : 'reach'} ${d.next.pct}%` : ' · top tier'}</p>`;
+      list.innerHTML = discLine + (subs.length
         ? `<ul class="job-log cust-follows">${subs
             .map((f) => `<li><span><strong>${esc(f.label)}</strong> <span class="card__meta">${f.kind === 'series' ? (f.all_covers ? 'Series · every cover' : 'Series · main cover') : ROLE_LABEL[f.role]} · ${f.quantity} ${f.quantity === 1 ? 'copy' : 'copies'} of each</span></span>
               <span class="cust-follows__act">${f.kind === 'series' ? `<label><input type="checkbox" data-fall="${f.id}" data-label="${esc(f.label)}"${f.all_covers ? ' checked' : ''}> All covers<span class="visually-hidden"> of ${esc(f.label)}</span></label>` : ''}
               <button class="btn btn--danger btn--small" type="button" data-unfollow="${f.id}" data-label="${esc(f.label)}" aria-label="Unfollow ${esc(f.label)}">${solidIcon('unfollow', 16)} Unfollow</button></span></li>`)
             .join('')}</ul>`
-        : '<p class="empty">Not following anything.</p>';
+        : '<p class="empty">Not following anything.</p>');
       const fc = $('[data-follow-count]', el);
       if (fc) fc.textContent = subs.length ? `${subs.length} ${subs.length === 1 ? 'follow' : 'follows'}` : 'Not following anything';
     } catch (err) {

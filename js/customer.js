@@ -140,33 +140,42 @@ async function softRefresh(sb) {
   }
 }
 
+let refreshRun = 0; // the latest refresh() call: an older one that answers late must not replace a newer list
+
 export async function refresh(sb) {
   sb ??= await supabase();
   if (!customer) return;
+  const mine = ++refreshRun;
   if (!customer.id) {
     // Signed in, but the account page's setup form isn't finished, so there's no customer record (or list) yet.
     lines = new Map();
     subs = [];
     return notify();
   }
-  const { data, error } = await sb
-    .from('reservations')
-    .select('id,item_id,quantity,status,source,created_at,order:reservation_orders!inner(customer_id)')
-    .eq('order.customer_id', customer.id)
-    .in('status', ACTIVE);
-  if (error) throw customerError(error);
-  lines = new Map(data.map((r) => [r.item_id, { id: r.id, quantity: r.quantity, status: r.status, source: r.source, created_at: r.created_at }]));
-  const { data: seen } = await sb.from('pull_list_seen').select('seen_at').eq('customer_id', customer.id).maybeSingle();
-  seenAt = seen?.seen_at ?? null;
-  const { data: follows, error: followError } = await sb.from('subscriptions').select('id,kind,key,label,role,quantity,all_covers').eq('customer_id', customer.id).order('label');
-  if (followError) throw customerError(followError);
-  subs = follows;
+  const id = customer.id;
+  // The list, the last visit and the follows don't depend on each other: asked for together, every page waits once.
+  const [list, seen, followed] = await Promise.all([
+    sb
+      .from('reservations')
+      .select('id,item_id,quantity,status,source,created_at,order:reservation_orders!inner(customer_id)')
+      .eq('order.customer_id', id)
+      .in('status', ACTIVE),
+    sb.from('pull_list_seen').select('seen_at').eq('customer_id', id).maybeSingle(),
+    sb.from('subscriptions').select('id,kind,key,label,role,quantity,all_covers').eq('customer_id', id).order('label'),
+  ]);
+  if (list.error) throw customerError(list.error);
+  if (followed.error) throw customerError(followed.error);
+  let follows = followed.data;
   const seriesKeys = follows.filter((f) => f.kind === 'series').map((f) => f.key);
   if (seriesKeys.length) {
     const { data: covers } = await sb.from('series_catalog').select('key,cover_url').in('key', seriesKeys).not('cover_url', 'is', null);
     const byKey = new Map((covers ?? []).map((c) => [c.key, c.cover_url]));
-    subs = follows.map((f) => (f.kind === 'series' ? { ...f, cover: byKey.get(f.key) ?? null } : f));
+    follows = follows.map((f) => (f.kind === 'series' ? { ...f, cover: byKey.get(f.key) ?? null } : f));
   }
+  if (mine !== refreshRun || customer?.id !== id) return; // a newer refresh (or a sign-out) has the say now
+  lines = new Map(list.data.map((r) => [r.item_id, { id: r.id, quantity: r.quantity, status: r.status, source: r.source, created_at: r.created_at }]));
+  seenAt = seen.data?.seen_at ?? null;
+  subs = follows;
   notify();
 }
 

@@ -90,8 +90,63 @@ shop's visitors load the catalog's covers. Logos, banners, event photos and the 
 4. Existing images: Actions → **Move images to R2** → Run workflow, first with "dry run" ticked to see the count, then
    without. It copies them into the bucket and rewrites the addresses; shops pick them up on their next hourly sync.
 
+Every shop's own domain also serves these images at `https://<shop domain>/__img/<shop id>/covers/…` (the Worker reads
+the bucket; nothing to set up in Cloudflare per shop, since each domain is already attached to the Worker). Mail sent
+from a shop's domain should load pictures from that same domain, not from `images.pullwise.shop`, which is more likely to
+be filed as spam: the pull-list emails do this: covers that are in R2 load from `<shop domain>/__img/…`, and the logo from
+`<shop domain>/__email-logo` (the Worker fetches the logo set in Admin → Emails, else the site logo, and keeps it in Cloudflare's cache; a changed logo shows at once). Covers a shop imported itself live in its own Supabase Storage; the Worker serves those
+at `<shop domain>/__sb/covers/…` (only `covers/` and `series/` pictures of that shop's own project, kept in Cloudflare's
+cache for a week). Covers on any other site (a distributor's) are left out of mail rather than loaded from another domain.
+The unsubscribe and "Skip this one" links go the same way: `<shop domain>/__unsubscribe?u=…` (the Worker hands the request
+to the shop's own `weekly-pull-list` function), so the mail links only to the shop's domain. This needs the
+function's `SITE_URL` secret to be the shop's own domain; `MEDIA_PUBLIC_URL` (optional, default `https://images.pullwise.shop`)
+must match `wrangler.jsonc` if you changed that.
+
 New covers uploaded in an R2 shop's admin (Import, a title's cover, a series cover) go through the site Worker
 (`PUT /__media`, staff only) straight into the bucket under the shop's id.
+
+## Emails: pictures and links on the shop's own domain
+
+The pull-list emails (weekly, "your books are in", and staff / event messages) load their logo and cover thumbnails from, and
+link their unsubscribe and "Skip this one" buttons to, the **shop's own domain**. Mail whose pictures and links sit on a
+different domain from the sender is more likely to be filed as spam. Every shop domain's Worker serves:
+
+| Address on the shop's domain | What it is |
+| --- | --- |
+| `/__img/<shop id>/covers/…` | Covers in the R2 bucket (the master catalog's covers, which shops link to) |
+| `/__sb/covers/…` | Covers kept in that shop's own Supabase Storage (titles the shop imported itself) |
+| `/__email-logo` | The logo set in Admin → Emails, else the site logo |
+| `/__unsubscribe?u=…` | The unsubscribe and skip links, handed on to the shop's own `weekly-pull-list` function |
+
+**Deploying it.** Nothing to run by hand: merging to `main` runs the Deploy workflow (see Deploys above), which updates each
+shop's Edge Functions (this includes `weekly-pull-list`), then the Workers, canary first.
+
+1. Merge to `main`, then open Actions → **Deploy** and check that the canary, every shop's functions and database, and the live
+   checks all passed. The functions go out before the main Worker, so for a few minutes an email sent in between could link to
+   an address the Worker doesn't serve yet; the weekly and arrival emails are sent on a schedule, so this only matters if one fires then.
+2. **`SITE_URL`.** Each shop's `weekly-pull-list` function reads its `SITE_URL` secret to find the shop's domain. It must be the
+   shop's own main domain, the first one in `shops.json`, with `https://` and no trailing slash. Shops made with the Add shop
+   button or `npm run add-shop` already have it. For one set up by hand: `supabase secrets set SITE_URL=https://<domain> --project-ref <ref>`.
+   (`supabase secrets list` shows names only, not values, so the test email below is how to check it.) Without it the email falls back to the old
+   Supabase addresses and leaves covers out.
+3. **`MEDIA_PUBLIC_URL`** only if you changed the images domain from `https://images.pullwise.shop` (also in `wrangler.jsonc`):
+   `supabase secrets set MEDIA_PUBLIC_URL=https://<images domain> --project-ref <ref>`.
+
+**Checking it.** In each shop's Admin → Emails, send yourself a test, then in your mail app:
+
+- View the message source (or hover each picture and button). Every address should be on the shop's domain: the logo at
+  `/__email-logo`, covers at `/__img/…` or `/__sb/…`. There should be no `supabase.co` and no `images.pullwise.shop`.
+  A test email has no real unsubscribe or skip links (it points at the account page), so check that one separately, below.
+- The logo and covers show, and the title and details don't move when the pictures load.
+- Dark mode (turn on your mail app's dark theme) and a phone-width window both read cleanly.
+- In **desktop Outlook for Windows**, a cover or logo that isn't 2:3 / square isn't stretched.
+- Open `https://<shop domain>/__unsubscribe?u=00000000-0000-0000-0000-000000000000`. It should show an "Unsubscribe from the
+  weekly pull list email?" page. A made-up token matches nobody, so pressing its button changes nothing.
+
+**If something is wrong.** Fix forward. Don't roll the Worker back to a version from before this change
+(`npx wrangler rollback`): the emails already sent link to `/__unsubscribe`, `/__email-logo`, `/__img/…` and `/__sb/…` on the
+shop's domain, so an older Worker would break their pictures and, worse, their unsubscribe links, until it is rolled forward again.
+Don't unset a shop's `SITE_URL` to switch this off either: the emails' "Log in" link and the calendar feed are built from it.
 
 ## The master catalog (once, for the whole fleet)
 
@@ -143,7 +198,7 @@ so you can look around before connecting anything. `npm test` runs the test suit
    ```
 
    That's all the database needs: the migrations turn on pg_cron and pg_net and schedule the hourly jobs
-   (status flip, subscriptions, weekly and arrival emails).
+   (status flip, subscriptions, weekly and arrival emails, and the unclaimed-books reminders and pauses).
 
 ## 3. Auth
 
@@ -185,7 +240,7 @@ Secrets (`supabase secrets set NAME=value …`; never put these in code):
 | `SITE_URL` | calendar feed, emails | `https://<your site>` (no trailing slash) |
 | `RESEND_API_KEY` | all emails | From Resend, after verifying your sending domain (SPF + DKIM) |
 | `RESEND_FROM` | emails (fallback) | e.g. `Your Shop <hello@yourshop.com>`; Shop Settings' From address wins when set |
-| `CRON_SECRET` | weekly / arrival / event emails | A long random string |
+| `CRON_SECRET` | weekly / arrival / event / unclaimed-books emails | A long random string |
 | `STAFF_CC` | optional | Comma-separated extra addresses that get copies of sell inquiries and event signups (the shop email in Shop Settings always does) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | app and staff chat notifications | A pair from `node tools/vapid-keys.mjs`. One pair serves every shop; keep it (a new pair makes every customer turn notifications on again) |
 | `VAPID_SUBJECT` | app notifications | `mailto:` address push services can reach you at, e.g. `mailto:support@yourdomain.com` |
@@ -272,6 +327,9 @@ Sign in at `https://<your site>/admin/` as the owner, then:
    screenshots for Android's install sheet (Logo, Colors & Fonts → Pull List App).
 2. **Pages / FAQ**: rewrite the About text and anything else that doesn't fit your shop.
 3. **Emails**: set the From address, preview, send yourself a test, then turn on the weekly and "your books are in" emails.
+   The unclaimed-books reminder and pause emails use the same From address and sending hours; they follow
+   Shop Settings → Pickups & Accounts → "Pause pulls for unclaimed books" (on for a new shop), where an owner also sets their
+   words, the reminder and pause days, and "Verify new accounts" with its weekly limit.
 4. **Import**: drop in your first distributor FOC sheets.
 5. **Backup**: nightly backups start on their own once the shop is in shops.json; check the next day that Backup → Backup Log lists one (see `BACKUPS.md`).
 

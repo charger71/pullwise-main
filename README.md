@@ -71,6 +71,14 @@ the weekly email, so there is nothing extra to set up beyond the migration and r
 - Customers can turn it off in their profile ("Email me when my books are ready for pickup") or with the link in
   the email; staff can set it on the customer's page.
 
+**Skip.** A title a follow added gets a one-tap "Skip this one" in the weekly email (while it is new and still open
+for changes) and a Skip button on the app notification that announces a single new title. Both use the customer's
+private `unsubscribe_token` and the line id: `weekly-pull-list?u=<token>&skip=<line>`. A GET shows the title and a
+button (mail scanners open links); the POST calls `skip_followed_line()`, which cancels the line and remembers the
+removal in `pull_list_exclusions`, exactly like Remove in the app. It refuses titles the customer added themselves
+and anything past the order cutoff. In emails the link is on the shop's own domain (`<shop domain>/__unsubscribe?u=<token>&skip=<line>`,
+handed on by the Worker, `worker/unsubscribe.js`); the app notification calls the function directly. Staff test and preview emails carry no Skip links.
+
 Email logic lives in `supabase/functions/weekly-pull-list/email.js`; run its tests with
 `node supabase/functions/weekly-pull-list/email.test.js`.
 
@@ -155,7 +163,7 @@ Edge Functions (deploy with `supabase functions deploy <name>`):
 | `js/reservation-list.js` | The customer's in-progress reservation list (localStorage) |
 | `js/content.js` | Loads, sanitizes and shows staff-edited page text (`pages`, `faqs` tables) |
 | `js/page-defaults.js` | Starting page text and FAQ (demo mode, new shops) and the list of editable blocks |
-| `admin/` | Staff admin: `admin.js` (sign-in, routing), `lib.js` (shared helpers), `filters.js` (safe `.or()` search filters), `backup.js` (backup/restore/customer export logic), `sections/*.js`, `pull-list-pdf.js` and `order-sheet-pdf.js` (printable PDFs, built in the browser) |
+| `admin/` | Staff admin: `admin.js` (sign-in, routing), `lib.js` (shared helpers), `editor.js` (the rich text editor), `images.js` (pictures and uploads), `filters.js` (safe `.or()` search filters), `backup.js` (backup/restore/customer export logic), `sections/*.js`, `pull-list-pdf.js` and `order-sheet-pdf.js` (printable PDFs, built in the browser) |
 | `worker/` | The site Worker: serves every shop, generates `js/config.js` per domain and writes page titles, icons and the home banner into the HTML (`shop-page.js`, with tests), stores R2 images (`media.js`) and serves owners their nightly backups (`backups.js`) |
 | `shops.json` | Every shop: id, domains, Supabase URL, anon key (public), project ref |
 | `tools/` | `add-shop.mjs` (`npm run add-shop`: set up a new shop end to end), `deploy-plan.mjs` and `smoke-site.mjs` (the deploy workflow), `check-migrations.js`, `test-migrations.sh`, `restore.mjs` (backup file → SQL, for the terminal), `backup-shops.mjs` (the nightly automatic backup), `stamp-version.js` |
@@ -175,7 +183,7 @@ npm test
 Runs the date helpers (`js/dates.test.js`), the email tests (`supabase/functions/weekly-pull-list/email.test.js`), the
 staff-management rules, import exclusions, the error-message translator (`js/errors.test.js`), the admin search filters
 (`admin/filters.test.js`), backup/restore logic (`admin/backup.test.js`, `tools/restore.test.js`), the site Worker's page
-logic (`worker/shop-page.test.js`), and the migration rules (`tools/check-migrations.js` and its tests).
+logic (`worker/shop-page.test.js`), the catalog feed (`worker/catalog-feed.test.js`), and the migration rules (`tools/check-migrations.js` and its tests).
 
 **Migrations on a blank database:** `tools/test-migrations.sh` (needs Docker and the Supabase CLI) starts Supabase's own
 Postgres image, runs `supabase db push --include-seed` the way a new shop is installed, checks a second push changes
@@ -187,6 +195,26 @@ GitHub Actions (`.github/workflows/ci.yml`) runs both on every pull request and 
 http://localhost:8080/admin/smoke.html. It opens every admin screen against made-up data and reports any that fail to
 load. It never touches the real database. Add `?break=1` to make the made-up database fail on purpose; most screens
 should then be reported as failed, which shows the test itself works.
+
+## Catalog feed (JSON)
+
+The master catalog (catalog.pullwise.shop) serves a public, read-only JSON feed of titles open for pre-order, so other
+tools can read the catalog without running the site's JavaScript. It is built by the Worker (`worker/catalog-feed.js`)
+from the same public data the Pre-Orders page shows, using only the public anon key and a fixed list of columns.
+
+```bash
+curl 'https://catalog.pullwise.shop/catalog.json'                                  # everything open for pre-order
+curl 'https://catalog.pullwise.shop/catalog.json?foc=2026-11-16'                   # final order cutoff on that date
+curl 'https://catalog.pullwise.shop/catalog.json?release=2026-12-09'               # on sale on that date
+curl 'https://catalog.pullwise.shop/catalog.json?q=absolute+batman'                # title or series, any case
+curl 'https://catalog.pullwise.shop/catalog.json?foc=2026-11-16&q=batman&limit=50&offset=50'
+```
+
+`foc`, `release` and `q` combine. `limit` is 1–1000 (default 500); when more results exist the response has a `next`
+address. Dates must be real `YYYY-MM-DD` dates; bad input gets a `400` with `{ "error": { "code", "message" } }`.
+Responses are cached for 5 minutes, allow `GET` from any origin, and are rate limited per client (`429`).
+Fields with no data are `null`; `creators` has only `cover_artist`, because the catalog doesn't record writers or artists
+separately. Other shops' domains don't serve the feed.
 
 ## Status and plans
 
@@ -229,6 +257,8 @@ ways (address, phone, hours, map), so staff can edit either; the shop name is sh
 a `location_id` that defaults to the default location: `reservations`, `events`, `customers.home_location_id`, and
 `staff.location_id` (null = every location). Weekly and arrival emails and the public site read address, phone and
 hours from the default location (`withLocation` in `weekly-pull-list/email.js`, `getSettings` in `js/data.js`).
+
+Several locations are an upper-tier feature, switched per shop with `"locations": true` in `shops.json` (the same way as `"app"`; `add-shop --locations`). Without it the shop has its one location (Shop Settings), the admin has no Locations screen and no location filters, and customers never see a pickup picker, even if more locations exist in the database. The switch is read by `js/config.js` (`LOCATIONS_ENABLED`, written by the Worker).
 
 To add a second location, owners use Admin → Locations → Add a location. Other locations are edited only there. Staff set a customer's pickup location on the customer's Profile tab. With two or more locations, a customer picks one home location (Account → My Profile, and at first sign-in); that is
 where their pull list is picked up. New lines follow it (`reservations_set_location`), changing it moves lines that

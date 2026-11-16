@@ -495,7 +495,7 @@ A short list staff put in order: the main menu and the footer links (Admin → P
 The rich-text editor for page text, news, events and FAQ answers (Quill, loaded from a CDN, so it has no live preview here).
 
 - Markup: \`<div class="editor-block"><label id="p-body-label">Text</label><p class="editor-block__hint">What this text is for, in one line.</p><div data-body></div></div>\`.
-- \`makeEditor(el, 'body' | 'lede', label)\` from lib.js builds the toolbar, names its icon buttons for screen readers, ties the editor to the label and adds image, video, table and divider tools. \`'body'\` is tall (\`.editor--body\`), \`'lede'\` short (\`.editor--lede\`). Read and write with \`setHtml\` / \`getHtml\`.
+- \`makeEditor(el, 'body' | 'lede', label)\` from editor.js builds the toolbar, names its icon buttons for screen readers, ties the editor to the label and adds image, video, table and divider tools. \`'body'\` is tall (\`.editor--body\`), \`'lede'\` short (\`.editor--lede\`). Read and write with \`setHtml\` / \`getHtml\`.
 - What staff write shows on the storefront under \`.prose\` / \`[data-content]\`: a quote becomes a gold callout, staff text colors map to readable storefront colors.`,
     html: null,
   },

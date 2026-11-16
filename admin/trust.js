@@ -1,0 +1,133 @@
+// Pickup reliability and account trust: the small pure pieces the admin screens share (money in cents, the settings
+// form, the wording of account states and the settings log). The rules themselves live in the database
+// (supabase/migrations/20270316000000_pickup_reliability.sql and later); nothing here decides who is paused or capped.
+
+/** "$40.00" from 4000 cents. */
+export const dollars = (cents) => `$${(Number(cents || 0) / 100).toFixed(2)}`;
+
+/**
+ * Whole cents from what staff typed as dollars ("40", "$40.00", "12.5"). Blank or 0 → null (no cap).
+ * Returns undefined when it isn't an amount.
+ */
+export function centsFromDollars(text) {
+  const t = String(text ?? '').trim().replace(/^\$\s*/, '').replace(/,/g, '');
+  if (!t) return null;
+  if (!/^\d{1,7}(\.\d{0,2})?$/.test(t)) return undefined;
+  const cents = Math.round(Number(t) * 100);
+  return cents === 0 ? null : cents;
+}
+
+/** The cap as the dollar field shows it: "40.00", or blank for no cap. */
+export const capField = (cents) => (cents ? (cents / 100).toFixed(2) : '');
+
+export const EMAIL_FIELDS = [
+  ['pickup_warning_subject', 'The reminder email’s subject', 200],
+  ['pickup_warning_intro', 'The reminder email’s message', 2000],
+  ['pickup_pause_subject', 'The pause email’s subject', 200],
+  ['pickup_pause_intro', 'The pause email’s message', 2000],
+];
+
+export const DAY_FIELDS = [
+  ['warning_days', 'pause_days', 'Weekly'],
+  ['monthly_warning_days', 'monthly_pause_days', 'Monthly'],
+];
+
+/**
+ * The trust_settings row to save from the settings form, or a message saying what to fix.
+ * `get(name)` reads a field's text, `has(name)` whether a checkbox is ticked.
+ */
+export function trustRowFrom(get, has) {
+  const row = {
+    pickup_pause_enabled: has('pickup_pause_enabled'),
+    verification_enabled: has('verification_enabled'),
+    auto_resume_on_pickup: has('auto_resume_on_pickup'),
+  };
+  for (const [warn, pause, label] of DAY_FIELDS) {
+    for (const k of [warn, pause]) {
+      const n = Number(get(k));
+      if (!Number.isInteger(n) || n < 1 || n > 365) return `${label} reminder and pause days need to be whole numbers from 1 to 365.`;
+      row[k] = n;
+    }
+    if (row[warn] >= row[pause]) return `${label} customers need their reminder before their pause: make the reminder day smaller than the pause day.`;
+  }
+  const cap = centsFromDollars(get('unproven_weekly_cap'));
+  if (cap === undefined) return 'The weekly limit should be a dollar amount, like 40 or 40.00. Leave it blank for no limit.';
+  row.unproven_weekly_cap_cents = cap;
+  for (const [k, label, max] of EMAIL_FIELDS) {
+    const v = String(get(k) ?? '').trim();
+    if (!v) return `${label} can’t be blank.`;
+    if (v.length > max) return `${label} is too long (${max} characters at most).`;
+    row[k] = v;
+  }
+  const start = String(get('reliability_started_at') ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return 'Pick the date to count waiting days from.';
+  row.reliability_started_at = start;
+  return row;
+}
+
+export const ACCOUNT_STATE = { unapproved: 'Waiting for approval', approved: 'Approved', proven: 'Proven' };
+/** The pickup cadence picker on a customer's page: [value, label]. */
+export const CADENCE_OPTIONS = [['weekly', 'Weekly'], ['monthly', 'Monthly'], ['exempt', 'Exempt (no reminders or pauses)']];
+
+const SETTING_LABEL = {
+  pickup_pause_enabled: 'Pause pulls for unclaimed books',
+  verification_enabled: 'Verify new accounts',
+  unproven_weekly_cap_cents: 'Weekly limit before first pickup',
+  warning_days: 'Weekly reminder day',
+  pause_days: 'Weekly pause day',
+  monthly_warning_days: 'Monthly reminder day',
+  monthly_pause_days: 'Monthly pause day',
+  auto_resume_on_pickup: 'Un-pause when everything is picked up',
+  reliability_started_at: 'Count waiting days from',
+  pickup_warning_subject: 'Reminder email subject',
+  pickup_warning_intro: 'Reminder email message',
+  pickup_pause_subject: 'Pause email subject',
+  pickup_pause_intro: 'Pause email message',
+};
+
+/** One settings-log value as staff read it. */
+function settingValue(setting, v) {
+  if (v == null || v === '') return setting === 'unproven_weekly_cap_cents' ? 'no limit' : 'blank';
+  if (v === 'true') return 'On';
+  if (v === 'false') return 'Off';
+  if (setting === 'unproven_weekly_cap_cents') return Number(v) ? dollars(v) : 'no limit';
+  if (setting.endsWith('_days')) return `day ${v}`;
+  return v;
+}
+
+/** "Verify new accounts: On → Off" for a trust_settings_log row. */
+export const settingChange = (r) =>
+  `${SETTING_LABEL[r.setting] ?? r.setting}: ${settingValue(r.setting, r.from_value)} → ${settingValue(r.setting, r.to_value)}`;
+
+/** "9 days" / "1 day" / "today". */
+export const ageLabel = (days) => (days == null ? '' : days <= 0 ? 'today' : `${days} ${days === 1 ? 'day' : 'days'}`);
+
+const STANDING_VALUE = {
+  active: 'Active',
+  'paused (manual)': 'Paused by staff',
+  'paused (auto)': 'Paused automatically',
+  'unapproved (staff)': 'Unverified by staff',
+  'unapproved (signup)': 'Waiting for approval (new account)',
+  approved: 'Approved',
+  proven: 'Proven',
+  weekly: 'Weekly pickup',
+  monthly: 'Monthly pickup',
+  exempt: 'Exempt',
+};
+const STANDING_FIELD = { paused: 'Pull list', account_state: 'Account', pickup_cadence: 'Pickup cadence' };
+
+/** "Pull list: Active → Paused by staff" for a customer_standing_log row. */
+export const standingChange = (r) =>
+  `${STANDING_FIELD[r.field] ?? r.field}: ${STANDING_VALUE[r.from_value] ?? r.from_value ?? '–'} → ${STANDING_VALUE[r.to_value] ?? r.to_value ?? '–'}`;
+
+/**
+ * The staff actions offered for a customer's standing, in order: [action, button label].
+ * Every action works whichever way the switches are set.
+ */
+export function standingActions(r) {
+  const out = [r.paused_at ? ['resume', 'Resume pull list'] : ['pause', 'Pause pull list']];
+  if (r.account_state === 'unapproved') out.push(['approve', 'Approve account'], ['prove', 'Mark proven']);
+  if (r.account_state === 'approved') out.push(['prove', 'Mark proven']);
+  if (r.account_state !== 'unapproved' || r.unapproved_reason !== 'staff') out.push(['unverify', 'Unverify account']);
+  return out;
+}

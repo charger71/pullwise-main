@@ -2,7 +2,9 @@
 // schedule, sender, and preview / test / send-now tools. Saves only its own
 // settings columns, so it never touches the Shop Settings fields.
 
-import { $, $$, esc, must, toast, setStatus, openDialog, makeEditor, setHtml, getHtml, imageField, settingsField, formReaders, fmtDateTime, debounce, friendlyError, setupTabs, fmtTime, toListTop, hintSlot } from '../lib.js';
+import { $, $$, esc, must, toast, setStatus, openDialog, settingsField, formReaders, fmtDateTime, debounce, friendlyError, setupTabs, fmtTime, toListTop, hintSlot } from '../lib.js';
+import { makeEditor, setHtml, getHtml } from '../editor.js';
+import { imageField } from '../images.js';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const hourLabel = (h) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
@@ -20,6 +22,8 @@ export async function mount(el, { sb }) {
   dirty = false;
   textDirty = false;
   const s = await must(sb.from('settings').select('*').eq('id', 1).single());
+  // The unclaimed-books emails' switch and words live in trust_settings (Shop Settings → Pickups & Accounts).
+  const trust = (await sb.from('trust_settings').select('pickup_pause_enabled').eq('id', 1).maybeSingle()).data ?? { pickup_pause_enabled: false };
   const signup = await must(sb.from('pages').select('lede_html').eq('slug', 'home-newsletter').maybeSingle());
   const field = settingsField(s);
 
@@ -128,6 +132,24 @@ export async function mount(el, { sb }) {
         </div>
       </div>
     </section>
+    <section class="fold fold--compact fold--static">
+      <div class="fold__head"><h2>Unclaimed Books Emails<span class="fold__note">${trust.pickup_pause_enabled ? `Automatic: ${hourLabel(s.arrival_email_after_hour)} to ${hourLabel(s.arrival_email_before_hour % 24)}` : 'Off: Pause pulls for unclaimed books is off'}</span></h2></div>
+      <div class="fold__body">
+        <div class="email-tools">
+          <p class="field__hint">A friendly “your books are waiting” reminder, then an email when the pull list is paused. They go out on their own, in the same hours as “your books are in”, to customers whose books have waited too long. Customers get them even with their other emails turned off, since they’re about books they reserved. An owner sets the words and the days in Shop Settings → Pickups &amp; Accounts.</p>
+          <h2 class="email-tools__title">Try It First</h2>
+          <div class="admin-actions">
+            <button class="btn btn--ghost btn--small" type="button" data-email="pickup_preview" data-email-stage="warning">Preview reminder</button>
+            <button class="btn btn--ghost btn--small" type="button" data-email="pickup_preview" data-email-stage="pause">Preview pause email</button>
+            <button class="btn btn--ghost btn--small" type="button" data-email="pickup_test" data-email-stage="warning">Send reminder test to me</button>
+            <button class="btn btn--ghost btn--small" type="button" data-email="pickup_test" data-email-stage="pause">Send pause test to me</button>
+          </div>
+          <p class="field__hint">Uses the customer with the most books waiting. If nobody has books waiting, it shows a sample using someone’s open titles, marked [Sample].</p>
+          <p class="admin-status" role="status" data-email-status></p>
+          <p class="email-tools__dirty" data-email-dirty hidden>You have unsaved changes. These buttons use the <strong>saved</strong> settings, so save them first on the Email settings tab.</p>
+        </div>
+      </div>
+    </section>
     </div>
     <div data-tabpane="log">
     <section class="fold fold--compact fold--static email-log" data-email-log>
@@ -199,7 +221,7 @@ export async function mount(el, { sb }) {
   });
 }
 
-const LOG_KINDS = { weekly: 'Weekly pull list', arrival: 'Your books are in', message: 'Message to a customer', test: 'Test', inquiry: 'Sell form', event_confirm: 'Event signup confirmation', event_notify: 'Event signup (to shop)', event_reminder: 'Event reminder', event_cancelled: 'Event cancelled' };
+const LOG_KINDS = { weekly: 'Weekly pull list', arrival: 'Your books are in', pickup_warning: 'Books waiting (reminder)', pickup_pause: 'Books waiting (pull list paused)', message: 'Message to a customer', test: 'Test', inquiry: 'Sell form', event_confirm: 'Event signup confirmation', event_notify: 'Event signup (to shop)', event_reminder: 'Event reminder', event_cancelled: 'Event cancelled' };
 const LOG_PAGE = 25;
 
 /**
@@ -348,7 +370,7 @@ function setupLog(sb, el) {
 /** Preview / test / send for the weekly email, through the weekly-pull-list Edge Function. */
 async function emailAction(sb, btn, status) {
   const mode = btn.dataset.email;
-  const kind = mode.startsWith('arrivals') ? 'arrivals' : 'weekly';
+  const kind = mode.startsWith('arrivals') ? 'arrivals' : mode.startsWith('pickup') ? 'pickup' : 'weekly';
   const action = mode.endsWith('preview') ? 'preview' : mode.endsWith('test') ? 'test' : 'send';
   if (action === 'send' && !confirm(kind === 'arrivals'
     ? 'Send “your books are in” emails now to everyone whose newly arrived titles haven’t been announced yet?'
@@ -357,7 +379,7 @@ async function emailAction(sb, btn, status) {
   sending.add(btn);
   setStatus(status, action === 'preview' ? 'Building preview…' : 'Sending…');
   try {
-    const { data, error } = await sb.functions.invoke('weekly-pull-list', { body: { mode } });
+    const { data, error } = await sb.functions.invoke('weekly-pull-list', { body: { mode, ...(btn.dataset.emailStage ? { stage: btn.dataset.emailStage } : {}) } });
     if (error) {
       // The function answers errors as JSON with a readable message.
       const detail = await error.context?.json?.().catch(() => null);
@@ -365,7 +387,8 @@ async function emailAction(sb, btn, status) {
     }
     if (action === 'preview') {
       setStatus(status, '');
-      const d = openDialog(`Preview — ${data.subject}`, `<p class="card__meta">${data.sample ? 'Sample: no titles are waiting to be announced, so this shows someone’s open titles as if they had just arrived. Customer: ' : 'Customer: '}${esc(data.customer)}</p><iframe class="email-preview" sandbox title="Email preview" srcdoc="${esc(data.html)}"></iframe>`, { wide: true });
+      const sampleNote = kind === 'pickup' ? 'Sample: nobody has books waiting, so this shows someone’s open titles as if they were waiting. Customer: ' : 'Sample: no titles are waiting to be announced, so this shows someone’s open titles as if they had just arrived. Customer: ';
+      const d = openDialog(`Preview — ${data.subject}`, `<p class="card__meta">${data.sample ? sampleNote : 'Customer: '}${esc(data.customer)}</p><iframe class="email-preview" sandbox title="Email preview" srcdoc="${esc(data.html)}"></iframe>`, { wide: true });
       d.querySelector('iframe').style.cssText = 'width:100%;height:70vh;border:var(--border);border-radius:var(--radius)';
     } else if (action === 'test') {
       setStatus(status, `Test sent to ${data.to}.`, 'ok');

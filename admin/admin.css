@@ -417,6 +417,7 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 /* View switch: icon buttons in a group; the pressed one is filled. */
 /* The sort select and List / Grid switch above a list screen's table (the Media Library's toolbar, for tables). */
 .list-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-12); margin-bottom: var(--sp-8); }
+.list-toolbar .results-count { margin: 0; margin-inline-end: auto; } /* the count shares the toolbar's row */
 .list-toolbar .media-toolbar__sort { flex: none; width: auto; min-width: 0; }
 @media (max-width: 899px) { .list-toolbar .view-switch { display: none; } .list-toolbar .media-toolbar__sort { height: var(--tap); } } /* phones always show cards */
 @media (min-width: 900px) {
@@ -557,6 +558,16 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 }
 .cust-status { display: inline-flex; align-items: center; gap: var(--sp-12); }
 .cust-icons { display: inline-flex; gap: var(--sp-8); align-items: center; }
+/* Pickup indicator under a customer's name: account-state and pause pills, then what's waiting. Staff only. */
+.cust-standing { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6) var(--sp-12); margin: 0 0 var(--sp-12); }
+.cust-standing__pills { display: inline-flex; flex-wrap: wrap; gap: var(--sp-6); }
+.cust-standing__pills:empty { display: none; }
+.cust-standing__facts { color: var(--muted); font-size: var(--fs-sm); }
+.cust-standing__actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-left: auto; }
+.cust-standing__cadence { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-sm); }
+.cust-standing__cadence select { width: auto; }
+/* Customers → Unclaimed: phone and email stacked in one cell. */
+.cust-unclaimed__contact { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
 .cust-icon { display: inline-flex; }
 .cust-icon.is-alert { color: var(--alert-icon); }
 .cust-legend { list-style: none; margin: 0 0 var(--sp-8); padding: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sp-4) var(--sp-16); font-size: var(--fs-xs); color: var(--muted); }
@@ -611,6 +622,11 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .cust-lines__toggle[aria-expanded='false'] .cust-lines__chev { transform: rotate(-90deg); }
 .cust-lines__body.is-folded > tr:not(.cust-lines__group) { display: none; }
 .cust-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6) var(--sp-8); margin: 0 0 var(--sp-12); }
+/* Pull list discount: subtotal / discount / estimated total under the list, and the tier line above the follows. */
+.cust-totals { display: grid; grid-template-columns: 1fr auto; justify-content: end; gap: var(--sp-2) var(--sp-24); margin: var(--sp-12) 0 var(--sp-4); max-width: 22rem; margin-left: auto; font-size: var(--fs-sm); }
+.cust-totals dt, .cust-totals dd { margin: 0; }
+.cust-totals dd { text-align: right; font-variant-numeric: tabular-nums; }
+.cust-disc { margin: 0 0 var(--sp-12); padding: var(--sp-8) var(--sp-12); border-radius: var(--radius); background: var(--pill-done); color: var(--ink); font-size: var(--fs-sm); }
 /* The panel and its children may shrink to the screen; the table scrolls or stacks inside. */
 .cust-main > * { min-width: 0; margin-bottom: 0; }
 

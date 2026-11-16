@@ -195,7 +195,7 @@ async function sendAll() {
 
   for (let i = 0; i < ids.length; i += CHUNK) {
     const chunk = ids.slice(i, i + CHUNK);
-    const { data: customers, error: cErr } = await admin.from('customers').select('id,push_arrivals,push_new_titles,push_reminders,new_titles_pushed_at,cutoff_pushed_on').in('id', chunk);
+    const { data: customers, error: cErr } = await admin.from('customers').select('id,unsubscribe_token,push_arrivals,push_new_titles,push_reminders,new_titles_pushed_at,cutoff_pushed_on').in('id', chunk);
     if (cErr) throw cErr;
     const lineQuery = () =>
       admin
@@ -242,7 +242,9 @@ async function sendAll() {
       const after = c.new_titles_pushed_at ? Date.parse(c.new_titles_pushed_at) : Date.now() - 864e5;
       const fresh = c.push_new_titles ? linesOf(added.data, c.id).filter((l) => Date.parse(l.created_at) > after) : [];
       if (fresh.length) {
-        const r = await sendTo(mine, { ...newTitlesMessage(fresh), icon });
+        // One title: a Skip button that takes it off (the same private link as the email's Skip).
+        const skipUrl = (l: { id: number }) => `${SUPABASE_URL}/functions/v1/weekly-pull-list?u=${c.unsubscribe_token}&skip=${l.id}`;
+        const r = await sendTo(mine, { ...newTitlesMessage(fresh, { skipUrl }), icon });
         out.newTitles++;
         out.sent += r.sent;
         out.failed += r.failed;

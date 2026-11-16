@@ -7,6 +7,7 @@
 // Options: --owner-name "Pat Smith"  --shop-email hello@…  --phone "(555) 555-0100"  --timezone America/Chicago
 //          --region us-east-1  --org <organization slug>  --project-ref <use an existing project>  --canary
 //          --super (make the owner Super Admin)  --catalog (this is the master catalog the other shops sync from)
+//          --locations (the shop can have several pickup locations; without it the entry says "locations": false, to flip later)
 //          --app (the shop gets the pull list app at /app; without it the entry says "app": false, to flip later)
 //          --hide-passwords (print no passwords: the owner uses "Forgot your password?" on the admin sign-in;
 //          the "Add a shop" GitHub Action uses this so nothing secret lands in its log)
@@ -43,7 +44,7 @@ export const lit = (v) => (v == null || v === '' ? 'null' : `'${String(v).replac
 const randomSecret = (bytes = 32) => crypto.randomBytes(bytes).toString('base64url');
 
 export function parseArgs(argv) {
-  const o = { domains: [], canary: false, super: false, catalog: false, app: false, hidePasswords: false, timezone: 'America/New_York', region: 'us-east-1' };
+  const o = { domains: [], canary: false, super: false, catalog: false, app: false, locations: false, hidePasswords: false, timezone: 'America/New_York', region: 'us-east-1' };
   const names = { '--id': 'id', '--name': 'name', '--owner-email': 'ownerEmail', '--owner-name': 'ownerName', '--shop-email': 'shopEmail',
     '--phone': 'phone', '--timezone': 'timezone', '--region': 'region', '--org': 'org', '--project-ref': 'projectRef' };
   for (let i = 0; i < argv.length; i++) {
@@ -54,6 +55,7 @@ export function parseArgs(argv) {
     else if (flag === '--super') o.super = true;
     else if (flag === '--catalog') o.catalog = true;
     else if (flag === '--app') o.app = true;
+    else if (flag === '--locations') o.locations = true;
     else if (flag === '--hide-passwords') o.hidePasswords = true;
     else if (names[flag]) o[names[flag]] = value();
     else throw new Error(`Unknown option ${argv[i]}`);
@@ -125,7 +127,7 @@ update public.staff set is_super = true, is_owner = true where user_id = ${lit(u
 }
 
 export function shopEntry(o, ref, anonKey) {
-  return { id: o.id, domains: o.domains, supabaseUrl: `https://${ref}.supabase.co`, anonKey, projectRef: ref, gaMeasurementId: '', ...(o.canary ? { canary: true } : {}), ...(o.catalog ? { catalog: true } : {}), app: o.app }; // always written, so turning the app on is one word
+  return { id: o.id, domains: o.domains, supabaseUrl: `https://${ref}.supabase.co`, anonKey, projectRef: ref, gaMeasurementId: '', ...(o.canary ? { canary: true } : {}), ...(o.catalog ? { catalog: true } : {}), app: o.app, locations: o.locations === true }; // always written, so turning either on is one word
 }
 
 /**

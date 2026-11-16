@@ -28,6 +28,7 @@ one({ anonKey: ' ' }, /anonKey is missing/);
 one({ gaMeasurementId: 'UA-1' }, /gaMeasurementId/);
 one({ canary: 'yes' }, /canary must be/);
 one({ app: 'true' }, /app must be/);
+one({ locations: 'true' }, /locations must be/);
 one({ media: 's3' }, /media can only be "r2"/);
 assert.deepEqual(validate({ shops: [shop({ media: 'r2' })] }), []);
 assert.match(validate({ shops: [shop(), shop()] }).join(), /duplicate id/);

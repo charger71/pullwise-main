@@ -11,7 +11,8 @@
       "gaMeasurementId": "",
       "catalog": true,
       "media": "r2",
-      "app": false
+      "app": false,
+      "locations": false
     },
     {
       "id": "demo",
@@ -24,7 +25,8 @@
       "gaMeasurementId": "",
       "canary": true,
       "media": "r2",
-      "app": true
+      "app": true,
+      "locations": true
     },
     {
       "id": "demo2",
@@ -35,7 +37,8 @@
       "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmc3p4bnNmamZvenBpamdodmh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTY0MTksImV4cCI6MjEwODA5MjQxOX0.RKTliQIXgbRAiPrV8DSN_QGiXpFu9F0nxcyg6TevIGk",
       "projectRef": "ufszxnsfjfozpijghvhw",
       "gaMeasurementId": "",
-      "app": false
+      "app": false,
+      "locations": false
     },
     {
       "id": "derbycomics",
@@ -46,7 +49,8 @@
       "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrYmVydmhmdXdzbWdjZ211cm54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQzNjkyNDUsImV4cCI6MjEwOTk0NTI0NX0.GdF2hBD2DsZxNReojvkNHXvzCqdLbXdegfHd6J3qUz8",
       "projectRef": "ckbervhfuwsmgcgmurnx",
       "gaMeasurementId": "",
-      "app": true
+      "app": true,
+      "locations": false
     },
     {
       "id": "popscomics502",
@@ -59,7 +63,8 @@
       "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyemplaGtwY3JzY3ZtZ3hoamVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ1MzE3NzEsImV4cCI6MjExMDEwNzc3MX0.xdEPRDJGrVEOp6J4sjMGyoXC_fNemMglk5y3tECQRhg",
       "projectRef": "lrzjehkpcrscvmgxhjei",
       "gaMeasurementId": "G-93K8VP6V3F",
-      "app": false
+      "app": true,
+      "locations": false
     }
   ]
 }

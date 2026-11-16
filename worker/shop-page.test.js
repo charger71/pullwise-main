@@ -1,6 +1,6 @@
 // node worker/shop-page.test.js
 import assert from 'node:assert/strict';
-import { assetLinks, findShop, siteUrl, hasApp, appRedirect, appManifest, appSplash, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { assetLinks, findShop, siteUrl, hasApp, hasLocations, appRedirect, appManifest, appSplash, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
 
 const shops = [
   { id: 'a', domains: ['a-comics.com', 'www.a-comics.com'], supabaseUrl: 'https://aaa.supabase.co', anonKey: 'key-a', gaMeasurementId: 'G-1', app: true },
@@ -123,6 +123,12 @@ assert.match(configJs(shops[0]), /^export const APP_ENABLED = true;$/m);
 assert.match(configJs(shops[1]), /^export const APP_ENABLED = false;$/m);
 assert.match(configJs({ ...shops[0], catalog: true }), /^export const IS_CATALOG = true;$/m);
 assert.match(configJs(shops[0]), /^export const IS_CATALOG = false;$/m);
+// Only shops marked "locations": true can have several pickup locations.
+assert.equal(hasLocations({ ...shops[0], locations: true }), true);
+assert.equal(hasLocations(shops[0]), false);
+assert.equal(hasLocations({ ...shops[0], locations: 'yes' }), false, 'only true turns it on');
+assert.match(configJs({ ...shops[0], locations: true }), /^export const LOCATIONS_ENABLED = true;$/m);
+assert.match(configJs(shops[0]), /^export const LOCATIONS_ENABLED = false;$/m);
 assert.equal(fileOf('/app'), 'app.html');
 const app = appManifest({ shop_name: ' A Comics ', colors: { paper: '#f5f0e6' }, logo_url: `${MEDIA}/logo.png` });
 assert.equal(app.name, 'A Comics');

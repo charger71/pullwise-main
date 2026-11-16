@@ -21,6 +21,10 @@ export const APP_PATH = '/app';
  * account page (the same pull list in the browser), have no install manifest, and hide every "Get the app" link. */
 export const hasApp = (shop) => shop?.app === true;
 
+/** Whether the shop can have more than one pickup location: only shops marked "locations": true in shops.json. The rest
+ * have the one location (their Shop Settings), no Locations screen, and no location pickers or filters anywhere. */
+export const hasLocations = (shop) => shop?.locations === true;
+
 /** Where Android looks for proof that the shop's Play Store app may open its website full screen. */
 export const ASSET_LINKS_PATH = '/.well-known/assetlinks.json';
 const ANDROID_PACKAGE = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/;
@@ -136,6 +140,58 @@ export function mediaPath(path, contentType) {
   return ext && ext.test(parts.at(-1).toLowerCase()) ? path : null;
 }
 
+/** Where every shop's own domain serves the R2 images (worker/media.js mediaServe): https://<shop domain>/__img/<shop id>/covers/… */
+export const MEDIA_SERVE_PATH = '/__img/';
+
+/**
+ * The same image on a shop's own domain. Email from a shop's domain that loads pictures from another domain
+ * (images.pullwise.shop) is more likely to be filed as spam, so mail uses this. Addresses that aren't on the
+ * shared images domain (Supabase Storage logos, other sites) are returned as they were.
+ */
+export function ownDomainImage(url, publicBase, siteBase) {
+  const base = String(publicBase ?? '').replace(/\/+$/, '');
+  const own = String(siteBase ?? '').replace(/\/+$/, '');
+  if (!base || !own || typeof url !== 'string' || !url.startsWith(`${base}/`)) return url;
+  return `${own}${MEDIA_SERVE_PATH}${url.slice(base.length + 1)}`;
+}
+
+/** The shop's email logo on its own domain (worker/index.js fetches the staff-set image and serves it). */
+export const EMAIL_LOGO_PATH = '/__email-logo';
+
+/** The unsubscribe and "Skip this one" links of the shop's emails, on its own domain (worker/unsubscribe.js). */
+export const UNSUBSCRIBE_PATH = '/__unsubscribe';
+
+/** A request path with its %-escapes decoded, or null when they're malformed (decodeURIComponent would throw). */
+function decodedPath(pathname) {
+  try { return decodeURIComponent(pathname); } catch { return null; }
+}
+const typeOfName = (name) => Object.keys(MEDIA_TYPES).find((t) => MEDIA_TYPES[t].test(name.toLowerCase()));
+
+/** The R2 key in a /__img/ address ("catalog/covers/lunar/A-1.jpg"), or null. Shop id first, then a path mediaPath accepts. */
+export function mediaKey(pathname) {
+  const decoded = decodedPath(pathname);
+  if (!decoded?.startsWith(MEDIA_SERVE_PATH)) return null;
+  const parts = decoded.slice(MEDIA_SERVE_PATH.length).split('/');
+  const rest = parts.slice(1).join('/');
+  if (parts.length < 3 || !/^[a-z0-9][a-z0-9-]*$/.test(parts[0])) return null;
+  const type = typeOfName(rest);
+  return type && mediaPath(rest, type) ? `${parts[0]}/${rest}` : null;
+}
+
+/** Where every shop's own domain serves the covers kept in that shop's own Supabase Storage: https://<shop domain>/__sb/covers/… (worker/media.js mediaFromStorage). */
+export const STORAGE_SERVE_PATH = '/__sb/';
+/** The bucket those covers live in (js/media-store.js). */
+export const STORAGE_BUCKET = 'media';
+
+/** The object path in a /__sb/ address ("covers/lunar/ABC-1f2e.jpg"), or null: only covers/ and series/ pictures, as mediaPath allows. */
+export function storagePath(pathname) {
+  const decoded = decodedPath(pathname);
+  if (!decoded?.startsWith(STORAGE_SERVE_PATH)) return null;
+  const rest = decoded.slice(STORAGE_SERVE_PATH.length);
+  const type = typeOfName(rest);
+  return type ? mediaPath(rest, type) : null;
+}
+
 /** Public address of an object the Worker stored for a shop. */
 export const mediaUrl = (publicBase, shop, path) => `${publicBase.replace(/\/+$/, '')}/${shop.id}/${path}`;
 
@@ -151,6 +207,7 @@ export function configJs(shop, settings = {}) {
     // Covers and series images go to the shared R2 bucket through the Worker for shops marked "media": "r2".
     line('MEDIA_UPLOAD_URL', shop.media === 'r2' ? MEDIA_UPLOAD_PATH : ''),
     `export const APP_ENABLED = ${hasApp(shop)};`,
+    `export const LOCATIONS_ENABLED = ${hasLocations(shop)};`,
     // The master catalog ("catalog": true) gets the admin's PRH look-up; its key is only on the catalog.
     `export const IS_CATALOG = ${shop.catalog === true};`,
     `export const FALLBACK_SETTINGS = ${JSON.stringify(fallback).replace(/</g, '\\u003c')};`,

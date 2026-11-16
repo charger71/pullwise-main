@@ -4,7 +4,8 @@
 // Customers following a merged-away series move to the one you keep, and future imports of the
 // old title land on it too.
 
-import { $, $$, esc, must, hintFold, toast, setStatus, imageField, openDialog, sortableTable, debounce, solidIcon, friendlyError, setupTabs, fetchAll, fmtDate, toListTop, hintSlot } from '../lib.js';
+import { $, $$, esc, must, hintFold, toast, setStatus, openDialog, sortableTable, debounce, solidIcon, friendlyError, setupTabs, fetchAll, fmtDate, toListTop, hintSlot } from '../lib.js';
+import { imageField } from '../images.js';
 
 let sb;
 let isOwner = false;
