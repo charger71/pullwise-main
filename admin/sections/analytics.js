@@ -14,7 +14,7 @@ const SEARCH_DAYS = 90; // the database keeps searches this long (supabase/migra
 const DRIFT_DAYS = 60;
 const DEMAND_DAYS = 90;
 const GROWTH_MONTHS = 12;
-export const LINE_FIELDS = 'id,order_id,quantity,status,arrived_on,item:items(id,title,issue_number,variant,publisher,price,foc_date,release_date,cover_url)';
+export const LINE_FIELDS = 'id,order_id,quantity,status,arrived_on,counts_for_order,item:items(id,title,issue_number,variant,publisher,price,foc_date,release_date,cover_url)';
 let sb;
 let timezone;
 

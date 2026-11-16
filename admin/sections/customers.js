@@ -10,7 +10,7 @@ import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { todayIn, stampIn, holdUntil as holdDate, cutoffPassed } from '../../js/dates.js';
 import { adminHash } from '../route.js';
 import { followedSeries, discountFor, tiersFrom, totals } from '../../js/discount.js';
-import { dollars, ageLabel, ACCOUNT_STATE } from '../trust.js';
+import { dollars, ageLabel, ACCOUNT_STATE, standingChange, standingActions } from '../trust.js';
 
 const SOURCE = { manual: 'Customer', variant: 'Customer (all covers)', series: 'Series follow', artist: 'Artist follow', staff: 'Staff' };
 const ITEM_FIELDS = 'id,title,issue_number,variant,publisher,price,series_key,foc_date,release_date,status';
@@ -386,8 +386,80 @@ async function loadStanding(el, c) {
   const { data, error } = await sb.rpc('staff_pickup_summary', { p_ids: [c.id] });
   if (error || !data?.length) return void (box.hidden = true);
   const r = data[0];
-  box.innerHTML = `<span class="cust-standing__pills">${standingPills(r, true)}</span><span class="cust-standing__facts">${esc(waitingText(r))}</span>`;
+  box.innerHTML = `<span class="cust-standing__pills">${standingPills(r, true)}</span><span class="cust-standing__facts">${esc(waitingText(r))}</span>
+    <span class="cust-standing__actions">${standingActions(r).map(([a, label]) => `<button class="btn btn--ghost btn--small" type="button" data-standing-act="${a}">${label}</button>`).join('')}</span>`;
   box.hidden = false;
+  box.onclick = (e) => {
+    const btn = e.target.closest('[data-standing-act]');
+    if (btn) confirmStanding(el, c, btn.dataset.standingAct);
+  };
+}
+
+// What each staff action does, in the words the confirm dialog uses. Every action works whichever way the Shop
+// Settings switches are set, and is logged with who, when and the reason.
+const STANDING_ACT = {
+  pause: {
+    title: 'Pause pull list',
+    text: 'No new titles from follows and no new pre-orders (you can still add titles here), and titles whose order cutoff hasn’t passed aren’t ordered for them. Books already ordered or in the shop stay held. They stay paused until staff resume them.',
+    go: 'Pause', rpc: 'staff_pause_customer', done: 'Pull list paused',
+  },
+  resume: {
+    title: 'Resume pull list',
+    text: 'Follows add new issues again, they can pre-order again, and titles before their order cutoff are ordered as usual.',
+    go: 'Resume', rpc: 'staff_resume_customer', done: 'Pull list resumed',
+  },
+  unverify: {
+    title: 'Unverify account',
+    text: 'The account goes back to waiting for approval. They can still build a list, but none of their titles are ordered until the account is approved again. It stays unverified until staff approve it, whatever the Verify new accounts setting.',
+    go: 'Unverify', rpc: 'staff_set_account_state', state: 'unapproved', done: 'Account unverified',
+  },
+  approve: {
+    title: 'Approve account',
+    text: 'Their titles are ordered from now on (with the weekly limit before their first pickup, when Verify new accounts is on).',
+    go: 'Approve', rpc: 'staff_set_account_state', state: 'approved', done: 'Account approved',
+  },
+  prove: {
+    title: 'Mark account proven',
+    text: 'Their titles are ordered with no weekly limit, as if they had already picked up.',
+    go: 'Mark proven', rpc: 'staff_set_account_state', state: 'proven', done: 'Account marked proven',
+  },
+};
+
+function confirmStanding(el, c, act) {
+  const a = STANDING_ACT[act];
+  const name = c.name || c.email || 'this customer';
+  const d = openDialog(`${a.title}: ${name}`, `
+    <p>${esc(a.text)}</p>
+    <p class="admin-hint">Customers never see this, or the reason.</p>
+    <div class="field"><label for="st-reason">Reason (optional, staff only)</label><textarea id="st-reason" rows="2" maxlength="500"></textarea></div>
+    <p class="form-error" role="alert" data-st-error></p>
+    <div class="admin-actions"><button class="btn ${act === 'pause' || act === 'unverify' ? 'btn--danger' : 'btn--primary'}" type="button" data-go>${a.go}</button><button class="btn btn--ghost" type="button" data-cancel>Cancel</button></div>`);
+  $('[data-cancel]', d).addEventListener('click', () => d.close());
+  $('[data-go]', d).addEventListener('click', async (e) => {
+    e.currentTarget.disabled = true;
+    const args = { p_customer: c.id, p_reason: $('#st-reason', d).value.trim() || null, ...(a.state ? { p_state: a.state } : {}) };
+    const { error } = await sb.rpc(a.rpc, args);
+    if (error) {
+      e.currentTarget.disabled = false;
+      return void ($('[data-st-error]', d).textContent = friendlyError(error));
+    }
+    d.close();
+    toast(a.done);
+    loadStanding(el, c);
+    loadStandingLog(el, c);
+  });
+}
+
+/** Changes tab: every change to the account state, pause and pickup cadence, newest first. */
+async function loadStandingLog(el, c) {
+  const box = $('[data-standing-log]', el);
+  if (!box) return;
+  const SHOW = 10;
+  const { data: rows, error } = await sb.from('customer_standing_log').select('field,from_value,to_value,reason,staff_name,created_at').eq('customer_id', c.id).order('created_at', { ascending: false }).limit(SHOW);
+  if (error) return void (box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
+  box.innerHTML = rows.length
+    ? `<ul class="job-log">${rows.map((r) => `<li><span class="job-log__when">${esc(fmtDateTime(r.created_at))}</span><span>${esc(r.staff_name ?? 'Automatic')}</span><span class="job-log__msg">${esc(standingChange(r))}${r.reason ? ` · ${esc(r.reason)}` : ''}</span></li>`).join('')}</ul>${rows.length === SHOW ? `<p class="cust-log__more">Showing the latest ${SHOW}.</p>` : ''}`
+    : '<p class="empty">No changes to the account or pull list status yet.</p>';
 }
 
 const unclaimedHtml = () => `
@@ -578,6 +650,10 @@ async function renderCustomer(el) {
           <div class="fold__head"><h2 id="cu-log">Recent Changes</h2><span class="card__meta cust-profile__sum" data-log-sum></span></div>
           <div class="fold__body" data-log></div>
         </section>
+        <section class="fold fold--compact fold--static cust-profile cust-log">
+          <div class="fold__head"><h2 id="cu-standing-log">Account &amp; Pause History</h2><span class="card__meta cust-profile__sum">Staff only</span></div>
+          <div class="fold__body" data-standing-log></div>
+        </section>
         </div>
       `}
       </div>
@@ -661,6 +737,7 @@ async function renderCustomer(el) {
   loadOrders(el, c);
   loadLog(el, c);
   loadStanding(el, c);
+  loadStandingLog(el, c);
   setupFollows(el, c);
 }
 

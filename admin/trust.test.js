@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { dollars, centsFromDollars, capField, trustRowFrom, settingChange, ageLabel } from './trust.js';
+import { dollars, centsFromDollars, capField, trustRowFrom, settingChange, ageLabel, standingChange, standingActions } from './trust.js';
 
 assert.equal(dollars(4000), '$40.00');
 assert.equal(dollars(null), '$0.00');
@@ -48,3 +48,14 @@ assert.equal(ageLabel(9), '9 days');
 assert.equal(ageLabel(null), '');
 
 console.log('trust tests passed');
+
+assert.equal(standingChange({ field: 'paused', from_value: 'active', to_value: 'paused (manual)' }), 'Pull list: Active → Paused by staff');
+assert.equal(standingChange({ field: 'account_state', from_value: 'proven', to_value: 'unapproved (staff)' }), 'Account: Proven → Unverified by staff');
+assert.equal(standingChange({ field: 'pickup_cadence', from_value: 'weekly', to_value: 'exempt' }), 'Pickup cadence: Weekly pickup → Exempt');
+const acts = (r) => standingActions(r).map(([a]) => a).join(',');
+assert.equal(acts({ paused_at: null, account_state: 'proven' }), 'pause,unverify');
+assert.equal(acts({ paused_at: '2026-11-01', account_state: 'proven' }), 'resume,unverify');
+assert.equal(acts({ paused_at: null, account_state: 'approved' }), 'pause,prove,unverify');
+assert.equal(acts({ paused_at: null, account_state: 'unapproved', unapproved_reason: 'signup' }), 'pause,approve,prove,unverify');
+assert.equal(acts({ paused_at: null, account_state: 'unapproved', unapproved_reason: 'staff' }), 'pause,approve,prove');
+console.log('standing wording tests passed');

@@ -83,3 +83,33 @@ export const settingChange = (r) =>
 
 /** "9 days" / "1 day" / "today". */
 export const ageLabel = (days) => (days == null ? '' : days <= 0 ? 'today' : `${days} ${days === 1 ? 'day' : 'days'}`);
+
+const STANDING_VALUE = {
+  active: 'Active',
+  'paused (manual)': 'Paused by staff',
+  'paused (auto)': 'Paused automatically',
+  'unapproved (staff)': 'Unverified by staff',
+  'unapproved (signup)': 'Waiting for approval (new account)',
+  approved: 'Approved',
+  proven: 'Proven',
+  weekly: 'Weekly pickup',
+  monthly: 'Monthly pickup',
+  exempt: 'Exempt',
+};
+const STANDING_FIELD = { paused: 'Pull list', account_state: 'Account', pickup_cadence: 'Pickup cadence' };
+
+/** "Pull list: Active → Paused by staff" for a customer_standing_log row. */
+export const standingChange = (r) =>
+  `${STANDING_FIELD[r.field] ?? r.field}: ${STANDING_VALUE[r.from_value] ?? r.from_value ?? '–'} → ${STANDING_VALUE[r.to_value] ?? r.to_value ?? '–'}`;
+
+/**
+ * The staff actions offered for a customer's standing, in order: [action, button label].
+ * Every action works whichever way the switches are set.
+ */
+export function standingActions(r) {
+  const out = [r.paused_at ? ['resume', 'Resume pull list'] : ['pause', 'Pause pull list']];
+  if (r.account_state === 'unapproved') out.push(['approve', 'Approve account'], ['prove', 'Mark proven']);
+  if (r.account_state === 'approved') out.push(['prove', 'Mark proven']);
+  if (r.account_state !== 'unapproved' || r.unapproved_reason !== 'staff') out.push(['unverify', 'Unverify account']);
+  return out;
+}
