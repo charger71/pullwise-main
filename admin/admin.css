@@ -608,6 +608,8 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 @media (min-width: 900px) { .cust-main > .cust-pane--split:not([hidden]) { grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); } }
 .cust-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12); }
 .cust-qty { width: 72px; height: 38px; }
+.qty-error { display: block; font-size: var(--fs-sm); } /* why a number in a list wasn't saved, under the row's title */
+.qty-error:empty { display: none; }
 .cust-toggle { font-weight: 400; display: flex; align-items: center; gap: var(--sp-6); margin: 0; }
 .cust-warn { color: var(--danger-ink); font-weight: 700; font-size: var(--fs-sm); }
 .cust-link { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); flex-wrap: wrap; }

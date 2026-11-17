@@ -5,6 +5,7 @@
 import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime, fetchAll, debounce, titleFilter, STATUS_LABELS, toListTop, hintSlot, setHint } from '../lib.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, todayIn, dayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
+import { renderStoreOrder } from './store-order.js';
 
 const PAGE = 25;
 /** An order's kind as a pill: a customer's pull list, a re-order (ordered after the cutoff), or a guest order. */
@@ -43,6 +44,7 @@ export async function mount(el, ctx) {
     ${hintSlot()}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-view="orders">Reservations</button>
+      <button type="button" class="admin-tab" role="tab" data-view="storeorder">Store Order</button>
       <button type="button" class="admin-tab" role="tab" data-view="toorder">Place Order</button>
       <button type="button" class="admin-tab" role="tab" data-view="past">Past Orders</button>
       <button type="button" class="admin-tab" role="tab" data-view="ready">Received</button>
@@ -80,7 +82,7 @@ export async function mount(el, ctx) {
   // A refresh stays on the tab you were on.
   try {
     const view = sessionStorage.getItem('admin-reservations-view');
-    if (['orders', 'toorder', 'past', 'ready', 'reorder'].includes(view)) state.view = view;
+    if (['orders', 'storeorder', 'toorder', 'past', 'ready', 'reorder'].includes(view)) state.view = view;
   } catch {
     /* start on Orders */
   }
@@ -117,6 +119,7 @@ function render(el) {
   else if (state.view === 'ready') renderReady(body);
   else if (state.view === 'past') renderPastOrders(body);
   else if (state.view === 'reorder') renderReorders(body);
+  else if (state.view === 'storeorder') renderStoreOrder(body, { sb, location: state.location ? Number(state.location) : null, needsLocation: !state.location && locationNames.size > 1, today: today() });
   else renderToOrder(body);
 }
 
