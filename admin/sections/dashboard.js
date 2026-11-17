@@ -10,6 +10,7 @@ import { lastBackup } from '../backup.js';
 import { LINE_STATUS_SHORT } from '../../js/labels.js';
 import { addDays } from '../../js/dates.js';
 import { IS_CATALOG } from '../../js/config.js';
+import { jobCadence } from '../cron.js';
 import { DAYS, TREND_CARD, TOP_CARD, TOP_SEARCHES_CARD, useShop, today, dayKey, plural, all, count, items, loadPanel, activeSummary, ordersSince, rememberLink, renderTrend, renderTop, renderTopSearches } from './analytics.js';
 
 let sb;
@@ -325,12 +326,13 @@ const JOB_NAMES = {
   'weekly-pull-list': 'Weekly pull list email',
   'arrival-email': '“Your books are in” email',
   'pickup-ladder': 'Unclaimed books reminders and pauses',
+  'pull-import-cleanup': 'Pull list import cleanup',
 };
 const JOB_HINTS = {
   'flip-item-statuses': 'moves titles to New This Wednesday, Just Arrived and in-store on their dates',
   'apply-subscriptions': 'adds new issues to the pull lists of customers who follow a series',
+  'pull-import-cleanup': 'clears old pull list import drafts and the customer details they held',
 };
-const STALE_MINUTES = 150; // every job runs hourly
 // The master catalog's daily automatic imports (GitHub Actions, tools/*-auto-import.mjs), by their job_log name.
 const DAILY_IMPORTS = { prh_import: 'Automatic PRH import', lunar_import: 'Automatic Lunar import' };
 const DAILY_STALE_HOURS = 48; // they run every morning: two days without a run means the Action has stopped
@@ -367,7 +369,9 @@ function jobStatus(j) {
   if (!j.active) return { level: 'warn', text: 'Switched off' };
   if (!j.last_start) return { level: 'warn', text: 'Has not run yet' };
   if (j.last_status === 'failed') return { level: 'bad', text: `Last run failed ${ago(j.last_start)}${j.last_message ? `: ${j.last_message}` : ''}` };
-  if (Date.now() - new Date(j.last_start) > STALE_MINUTES * 60000) return { level: 'warn', text: `Last ran ${ago(j.last_start)} (it should run every hour)` };
+  // Late only once a run has been missed: most jobs run hourly, the import cleanup nightly (admin/cron.js).
+  const { every, staleMs } = jobCadence(j.schedule);
+  if (Date.now() - new Date(j.last_start) > staleMs) return { level: 'warn', text: `Last ran ${ago(j.last_start)} (it should run ${every})` };
   return { level: 'ok', text: `Ran ${ago(j.last_start)}${j.failed_7d ? `; ${j.failed_7d} ${j.failed_7d === 1 ? 'run' : 'runs'} failed this week` : ''}` };
 }
 
