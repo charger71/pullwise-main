@@ -179,6 +179,18 @@ One row of opening hours: day chips with a tick box inside, open and close times
     html: page('AdminHoursRow', demo('Opening hours row')),
   },
   {
+    name: 'AdminHolidayRow', group: G('Forms'), height: 260, width: 960,
+    readme: `# AdminHolidayRow
+
+One holiday date under Opening Hours: Date, an optional holiday name, a "Closed all day" chip, Open and Close times, and Remove.
+
+- Built by \`holidayEditor()\` in admin/holiday-hours.js; Settings (one shop) and Locations (each location) use the same rows.
+- Ticking \`.holiday-row__closed\` (a \`.chip\` around a tick box) disables the times.
+- From 1200px: one line (\`160px 1fr auto 120px 120px auto\`); below it Date sits beside the chip, then the name, Open and Close, and Remove.
+- Consumer provides: the date, name and times.`,
+    html: page('AdminHolidayRow', demo('Holiday hours row')),
+  },
+  {
     name: 'AdminMediaGrid', group: G('Forms'), height: 552,
     readme: `# AdminMediaGrid
 

@@ -2,6 +2,7 @@
 // Shop Settings, which keeps that location in step; once there are two or more, each is edited here.
 
 import { $, $$, esc, must, toast, setStatus, solidIcon, friendlyError, hintSlot, setHint, isPhone, uid } from '../lib.js';
+import { holidayEditor } from '../holiday-hours.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 
@@ -32,7 +33,7 @@ export async function mount(el, { sb }) {
   rows.forEach((l) => addCard(sb, list, l, { locked: shared, remount: () => mount(el, { sb }) }));
   $('[data-add]', el).addEventListener('click', () => {
     if (cards.some((c) => !c.id)) return;
-    const card = addCard(sb, list, { id: null, name: '', country: 'US', hours: [] }, { locked: false, remount: () => mount(el, { sb }) });
+    const card = addCard(sb, list, { id: null, name: '', country: 'US', hours: [], holiday_hours: [] }, { locked: false, remount: () => mount(el, { sb }) });
     card.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     $('input', card.el).focus();
   });
@@ -63,6 +64,10 @@ function addCard(sb, list, l, { locked, remount }) {
         <div data-hours></div>
         ${locked ? '' : `<button class="btn btn--add btn--small" type="button" data-add-hours>${solidIcon('add', 16)} Add hours</button>`}
       </fieldset>
+      <fieldset class="account-fieldset"${dis}>
+        <legend>Holiday Hours</legend>
+        <div data-holidays></div>
+      </fieldset>
       <div class="form-grid form-grid--pairs">
         ${input('map_embed_url', 'Map embed link (optional)', dis, ' span-2')}
       </div>
@@ -79,6 +84,7 @@ function addCard(sb, list, l, { locked, remount }) {
 
   const hoursBox = $('[data-hours]', el);
   (l.hours ?? []).forEach((h) => addHours(hoursBox, h, locked, () => (card.dirty = true)));
+  const holidays = holidayEditor($('[data-holidays]', el), l.holiday_hours, { locked, onChange: () => (card.dirty = true) });
   if (locked) return card;
 
   const form = $('form', el);
@@ -102,7 +108,9 @@ function addCard(sb, list, l, { locked, remount }) {
       close: $('[data-close]', row).value,
     }));
     if (hours.some((h) => !h.days.length || !h.open || !h.close)) return setStatus(status, 'Each hours row needs at least one day and open/close times.', 'error');
-    const row = { name: v('name'), street: v('street'), city: v('city'), region: v('region'), postal_code: v('postal_code'), phone: v('phone'), map_embed_url: v('map_embed_url'), hours, updated_at: new Date().toISOString() };
+    const holiday = holidays.read();
+    if (holiday.error) return setStatus(status, holiday.error, 'error');
+    const row = { name: v('name'), street: v('street'), city: v('city'), region: v('region'), postal_code: v('postal_code'), phone: v('phone'), map_embed_url: v('map_embed_url'), hours, holiday_hours: holiday.list, updated_at: new Date().toISOString() };
     const btn = $('[type=submit]', form);
     if (btn.disabled) return;
     btn.disabled = true;

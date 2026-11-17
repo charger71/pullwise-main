@@ -39,12 +39,12 @@ export function getSettings() {
         ]);
         const row = unwrap(settings);
         if (!row) throw new Error('Shop settings not found — run supabase/seed.sql against this project.');
-        // Address, phone and hours come from the shop's default location (a shop's first one mirrors its settings).
+        // Address, phone, hours and holiday hours come from the shop's default location (a shop's first one mirrors its settings).
         // A shop with 2+ locations also gets them all as `locations`, for the Visit page and footer.
         const loc = (all ?? []).find((l) => l.is_default);
         if (loc) {
-          const { street, city, region, postal_code, country, phone, hours, map_embed_url } = loc;
-          return { ...row, street, city, region, postal_code, country, phone, hours, map_embed_url, locations: LOCATIONS_ENABLED && all.length > 1 ? all : [] };
+          const { street, city, region, postal_code, country, phone, hours, holiday_hours, map_embed_url } = loc;
+          return { ...row, street, city, region, postal_code, country, phone, hours, holiday_hours, map_embed_url, locations: LOCATIONS_ENABLED && all.length > 1 ? all : [] };
         }
         return row;
       });

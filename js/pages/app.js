@@ -457,7 +457,7 @@ const placeHtml = (s, title) => {
       ${addr.length ? `<a class="btn btn--ghost" href="${esc(mapsHref(s))}" target="_blank" rel="noopener">Directions</a>` : ''}
     </div>
     ${addr.length ? `<address class="app-shop__address">${addr.map(esc).join('<br>')}</address>` : ''}
-    ${s.hours?.length ? `<h4 class="app-shop__sub">Hours</h4>${hoursList(s.hours)}` : ''}
+    ${s.hours?.length ? `<h4 class="app-shop__sub">Hours</h4>${hoursList(s.hours, s.holiday_hours)}` : ''}
   </section>`;
 };
 

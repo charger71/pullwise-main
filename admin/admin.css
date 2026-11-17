@@ -285,6 +285,16 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 @media (min-width: 700px) { .hours-row { grid-template-columns: 1fr 130px 130px auto; } }
 .hours-row .field { margin: 0; }
 .hours-row__days { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-12); }
+/* One holiday date (admin/holiday-hours.js): date, name, a "Closed all day" chip that turns the times off, times, Remove. */
+/* Below 1200px: Date and the chip, then the name, then Open and Close, then Remove (dense flow pulls the chip up). */
+.holiday-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: dense; gap: var(--sp-8) var(--sp-14); align-items: end; padding: var(--sp-10) 0; border-bottom: var(--border); }
+.holiday-row > .field:nth-child(2), .holiday-row > .btn { grid-column: 1 / -1; }
+@media (min-width: 1200px) {
+  .holiday-row { grid-template-columns: 160px 1fr auto 120px 120px auto; }
+  .holiday-row > .field:nth-child(2), .holiday-row > .btn { grid-column: auto; }
+}
+.holiday-row .field { margin: 0; }
+.holiday-row .field input:disabled { opacity: .5; }
 
 /* Image field */
 .image-field { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-12); }
@@ -1354,8 +1364,9 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
   .tier-row { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: none; }
   .tier-row > .btn { grid-column: 1 / -1; }
   .tier-row .field input { width: 100%; min-height: var(--tap); }
-  .hours-row .btn, .tier-row .btn, .settings-form [data-add-hours], .settings-form [data-add-tier] { justify-content: center; }
-  .settings-form [data-add-hours], .settings-form [data-add-tier] { width: 100%; }
+  .holiday-row .field input { width: 100%; min-height: var(--tap); }
+  .hours-row .btn, .tier-row .btn, .holiday-row .btn, .settings-form [data-add-hours], .settings-form [data-add-tier], [data-add-holiday] { justify-content: center; }
+  .settings-form [data-add-hours], .settings-form [data-add-tier], [data-add-holiday] { width: 100%; }
 }
 
 /* ---------- Content sections on phones (Media, Pages, News, FAQ, Surveys, QR Codes, Series) ----------

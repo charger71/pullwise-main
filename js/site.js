@@ -13,6 +13,7 @@ import { readCache, writeCache, sameData } from './cache.js';
 import { esc, itemTitle, heroHeadlineHtml, sizedImage, LOGO_WIDTH, HERO_WIDTH, formatPhone, prefersReducedMotion, chatOn, price } from './util.js';
 import { ITEM_STATUS, ITEM_BADGES } from './labels.js';
 import { offHrefs, slugOfPage, orderMenu, customHref, customSlugHere } from './optional-pages.js';
+import { upcomingHolidays } from './holiday-hours.js';
 import { localDate, addDays, todayIn, lastReserveDay, setShopTimeZone, shopTimeZone, shopToday, daysUntil, cutoffPassed, fmtDateIn, fmtTimeIn } from './dates.js';
 
 export { esc, itemTitle, heroHeadlineHtml, sizedImage, HERO_WIDTH, localDate, addDays, lastReserveDay, price, ITEM_BADGES, shopToday, daysUntil, cutoffPassed };
@@ -154,10 +155,15 @@ export const dayLabel = (days) => {
   return idx.map((i) => DAY_NAMES[DAY_ORDER[i]]).join(', ');
 };
 
-export const hoursList = (hours) =>
-  `<dl class="hours">${hours
+/** The weekly opening hours, then any holiday dates coming up soon (closed, or their own times) from `holidays`. */
+export const hoursList = (hours, holidays = []) => {
+  const soon = upcomingHolidays(holidays, shopToday());
+  return `<dl class="hours">${hours
     .map((h) => `<div><dt>${esc(dayLabel(h.days))}</dt><dd>${esc(time12(h.open))} – ${esc(time12(h.close))}</dd></div>`)
-    .join('')}</dl>`;
+    .join('')}</dl>${soon.length ? `<p class="hours__title">Holiday hours</p><dl class="hours hours--holiday">${soon
+    .map((h) => `<div><dt>${esc(fmtDateIn(h.date, { weekday: 'short', month: 'short', day: 'numeric' }))}${h.label ? `<span class="hours__note">${esc(h.label)}</span>` : ''}</dt><dd>${h.closed ? 'Closed' : `${esc(time12(h.open))} – ${esc(time12(h.close))}`}</dd></div>`)
+    .join('')}</dl>` : ''}`;
+};
 
 export const addressLines = (s) =>
   [s.street, [s.city, s.region].filter(Boolean).join(', ') + (s.postal_code ? ` ${s.postal_code}` : '')].filter((l) => l?.trim());
@@ -377,8 +383,8 @@ function renderFooter(s, extraLinks = [], off = new Set()) {
       </section>
       <section>
         ${multi
-          ? `<h2 class="footer__heading">Hours</h2>${locs.filter((l) => l.hours?.length).map((l) => `<h3 class="footer__sub">${esc(l.name)}</h3>${hoursList(l.hours)}`).join('')}`
-          : s.hours?.length ? `<h2 class="footer__heading">Hours</h2>${hoursList(s.hours)}` : ''}
+          ? `<h2 class="footer__heading">Hours</h2>${locs.filter((l) => l.hours?.length).map((l) => `<h3 class="footer__sub">${esc(l.name)}</h3>${hoursList(l.hours, l.holiday_hours)}`).join('')}`
+          : s.hours?.length ? `<h2 class="footer__heading">Hours</h2>${hoursList(s.hours, s.holiday_hours)}` : ''}
         ${social ? `<h2 class="footer__heading${s.hours?.length ? ' footer__heading--next' : ''}">Social</h2>${social}` : ''}
       </section>
       <section>
@@ -406,8 +412,11 @@ function fillSettings(s) {
 
 const SCHEMA_DAYS = { Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday', Fr: 'Friday', Sa: 'Saturday', Su: 'Sunday' };
 /** Opening hours (settings.hours, or a location's) as schema.org OpeningHoursSpecification entries. */
-const schemaHours = (hours) =>
-  (hours ?? []).map((h) => ({ '@type': 'OpeningHoursSpecification', dayOfWeek: h.days.map((d) => `https://schema.org/${SCHEMA_DAYS[d]}`), opens: h.open, closes: h.close }));
+// Holiday dates follow as one-day entries (validFrom = validThrough); a closed day opens and closes at 00:00, as Google reads it.
+const schemaHours = (hours, holidays) => [
+  ...(hours ?? []).map((h) => ({ '@type': 'OpeningHoursSpecification', dayOfWeek: h.days.map((d) => `https://schema.org/${SCHEMA_DAYS[d]}`), opens: h.open, closes: h.close })),
+  ...upcomingHolidays(holidays, shopToday()).map((h) => ({ '@type': 'OpeningHoursSpecification', validFrom: h.date, validThrough: h.date, opens: h.closed ? '00:00' : h.open, closes: h.closed ? '00:00' : h.close })),
+];
 /** A schema.org PostalAddress for a shop or location, or undefined without a street. */
 const schemaAddress = (a) =>
   a.street ? { '@type': 'PostalAddress', streetAddress: a.street, addressLocality: a.city, addressRegion: a.region, postalCode: a.postal_code, addressCountry: a.country } : undefined;
@@ -423,7 +432,7 @@ function injectSchema(s) {
     image: s.logo_url || undefined,
     foundingDate: s.founded_year ? String(s.founded_year) : undefined,
     address: schemaAddress(s),
-    openingHoursSpecification: schemaHours(s.hours),
+    openingHoursSpecification: schemaHours(s.hours, s.holiday_hours),
     sameAs: socialEntries(s).map(([, url]) => url),
   };
   // Several locations: one Store per location, so search engines see each address and its hours.
@@ -434,7 +443,7 @@ function injectSchema(s) {
         name: `${s.shop_name} : ${l.name}`,
         telephone: l.phone || undefined,
         address: schemaAddress(l),
-        openingHoursSpecification: schemaHours(l.hours),
+        openingHoursSpecification: schemaHours(l.hours, l.holiday_hours),
       }))
     : null;
   const tag = document.createElement('script');
