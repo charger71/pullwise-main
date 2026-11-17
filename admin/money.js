@@ -19,12 +19,14 @@ const median = (nums) => {
 /**
  * @param {object} o
  * @param {object[]} o.recent lines changed since `since`: { id, order_id, quantity, status, arrived_on, created_at, updated_at, item: { price }, placed: { customer_id } }
- * @param {object[]} o.active lines still in progress, whenever they were placed: { id, quantity, status, item: { price } }
+ * @param {object[]} [o.active] lines still in progress, whenever they were placed: { id, quantity, status, item: { price } }
+ * @param {object}   [o.activeTotals] the same, added up by the database instead (staff_line_summary's money):
+ *                   { ready, coming, unpriced_ids } — dollars arrived, dollars not here yet, ids of lines with no price
  * @param {string}   o.since  first day counted, YYYY-MM-DD
  * @param {number}   o.weeks  whole weeks from `since`
  * @param {(iso:string)=>string} o.dayOf the shop's calendar day for a timestamp
  */
-export function moneySummary({ recent, active, since, weeks, dayOf }) {
+export function moneySummary({ recent, active = [], activeTotals, since, weeks, dayOf }) {
   const byWeek = Array.from({ length: weeks }, (_, i) => ({ start: addDays(since, i * 7), value: 0, copies: 0 }));
   const weekOfDay = new Map();
   for (const week of byWeek) for (let d = 0; d < 7; d++) weekOfDay.set(addDays(week.start, d), week);
@@ -37,8 +39,9 @@ export function moneySummary({ recent, active, since, weeks, dayOf }) {
     return 0;
   };
 
-  let ready = 0;
-  let coming = 0;
+  let ready = Number(activeTotals?.ready ?? 0);
+  let coming = Number(activeTotals?.coming ?? 0);
+  for (const id of activeTotals?.unpriced_ids ?? []) unpriced.add(id);
   for (const l of active) {
     if (l.status === 'arrived') ready += worth(l);
     else coming += worth(l);

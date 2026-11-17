@@ -19,6 +19,10 @@ import { fileURLToPath } from 'node:url';
 
 export const CHECKED_AFTER = '20270103000000';
 export const PROTECTED = ['pages', 'faqs', 'settings'];
+// Policies in migrations newer than this call is_staff(), is_owner() and auth.uid() as `(select …)`, so Postgres
+// works the answer out once per query instead of once per row (20270324000000_rls_once_per_query rewrote the rest).
+export const POLICIES_CHECKED_AFTER = '20270324000000';
+const ROW_CALL = /(?<!select\s+(?:public\.)?)(?<![\w.])(?:(?:public\.)?is_staff|(?:public\.)?is_owner|auth\.uid)\s*\(\s*\)/i;
 
 const T = `(?:public\\.)?(?:${PROTECTED.join('|')})\\b`;
 const RULES = [
@@ -78,6 +82,18 @@ export function checkMigration(sql) {
   return problems;
 }
 
+/** Policies that call is_staff(), is_owner() or auth.uid() bare, which runs them once per row (empty when fine). */
+export function checkPolicies(sql) {
+  const problems = [];
+  for (const stmt of deployTimeSql(sql).split(';')) {
+    const s = stmt.replace(/\s+/g, ' ').trim();
+    if (/^(?:create|alter)\s+policy\b/i.test(s) && ROW_CALL.test(s)) {
+      problems.push(`policy calls is_staff(), is_owner() or auth.uid() once per row; write (select public.is_staff()) / (select auth.uid()): ${s.slice(0, 100)}`);
+    }
+  }
+  return problems;
+}
+
 /** Problems with the set of file names. */
 export function checkNames(names) {
   const problems = [];
@@ -97,7 +113,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const problems = checkNames(names);
   for (const n of names) {
     if (n.slice(0, 14) <= CHECKED_AFTER) continue;
-    for (const p of checkMigration(fs.readFileSync(path.join(dir, n), 'utf8'))) problems.push(`${n}: ${p}`);
+    const sql = fs.readFileSync(path.join(dir, n), 'utf8');
+    for (const p of checkMigration(sql)) problems.push(`${n}: ${p}`);
+    if (n.slice(0, 14) > POLICIES_CHECKED_AFTER) for (const p of checkPolicies(sql)) problems.push(`${n}: ${p}`);
   }
   if (problems.length) {
     console.error(`Migration check failed (see tools/check-migrations.js for the rules):\n  ${problems.join('\n  ')}`);

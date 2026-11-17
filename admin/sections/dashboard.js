@@ -10,7 +10,7 @@ import { lastBackup } from '../backup.js';
 import { LINE_STATUS_SHORT } from '../../js/labels.js';
 import { addDays } from '../../js/dates.js';
 import { IS_CATALOG } from '../../js/config.js';
-import { ACTIVE, DAYS, LINE_FIELDS, TREND_CARD, TOP_CARD, TOP_SEARCHES_CARD, useShop, today, dayKey, plural, all, count, items, loadPanel, activeLines, ordersSince, rememberLink, renderTrend, renderTop, renderTopSearches } from './analytics.js';
+import { DAYS, TREND_CARD, TOP_CARD, TOP_SEARCHES_CARD, useShop, today, dayKey, plural, all, count, items, loadPanel, activeSummary, ordersSince, rememberLink, renderTrend, renderTop, renderTopSearches } from './analytics.js';
 
 let sb;
 let settings;
@@ -100,10 +100,11 @@ export async function mount(el, ctx) {
   $('[data-asof]', el).textContent = `As of ${fmtDateTime(new Date().toISOString())}`;
 
   const panel = (sel, fn) => loadPanel(el, sel, fn);
-  const lines = activeLines();
+  const overdueBefore = addDays(today(), -(settings.hold_days ?? 30));
+  const summary = activeSummary(null, overdueBefore);
   const since = addDays(today(), -(DAYS - 1));
   const recent = ordersSince(since);
-  lines.catch(() => {});
+  summary.catch(() => {});
   recent.catch(() => {});
 
   // The Today panels, for the whole shop or (a store's tab) for one location. A newer choice wins if loads overlap.
@@ -118,17 +119,17 @@ export async function mount(el, ctx) {
     scope.hidden = loc == null;
     scope.textContent = loc == null ? '' : `${locations.find((l) => l.id === loc)?.name ?? 'This store'} only: its pull-list titles, pickups and customers.`;
     ['[data-tiles]', '[data-latest]', '[data-cutoff]', '[data-attn]'].forEach((sel) => $(sel, el).setAttribute('aria-busy', 'true'));
-    const myLines = loc == null ? lines : all(() => sb.from('reservations').select(LINE_FIELDS).in('status', ACTIVE).eq('location_id', loc).order('id'));
+    const mySummary = loc == null ? summary : activeSummary(loc, overdueBefore);
     const myRecent = loc == null ? recent : all(() => sb.from('reservation_orders').select('id,created_at,reservations!inner(location_id)').eq('reservations.location_id', loc).gte('created_at', new Date(`${since}T00:00:00`).toISOString()).order('id'));
-    myLines.catch(() => {});
+    mySummary.catch(() => {});
     myRecent.catch(() => {});
     return Promise.all([
       panel('[data-tiles]', async (box) => {
-        const [l, r] = [await myLines, await myRecent];
+        const [l, r] = [await mySummary, await myRecent];
         if (!stale()) renderTiles(box, l, r);
       }),
       panel('[data-latest]', (box) => renderLatest(box, loc, stale)),
-      panel('[data-cutoff]', async (box) => renderCutoff(box, await myLines, stale)),
+      panel('[data-cutoff]', async (box) => renderCutoff(box, await mySummary, stale)),
       panel('[data-attn]', (box) => renderAttention(box, loc, stale)),
     ]);
   };
@@ -149,7 +150,7 @@ export async function mount(el, ctx) {
   await Promise.all([
     shown === null ? loadToday('') : null,
     panel('[data-trend]', async (box) => renderTrend(box, await recent, since)),
-    panel('[data-top]', async (box) => renderTop(box, await lines)),
+    panel('[data-top]', async (box) => renderTop(box, (await summary).top)),
     panel('[data-top-searches]', renderTopSearches),
     panel('[data-health]', renderHealth),
   ]);
@@ -157,17 +158,16 @@ export async function mount(el, ctx) {
 
 // ---------------------------------------------------------------------------
 
-function renderTiles(box, lines, recent) {
+/** `summary` is activeSummary() for the shop or one store; `recent` the orders placed in the last DAYS days. */
+function renderTiles(box, summary, recent) {
   const t = today();
   const weekStart = addDays(t, -6);
   const prevStart = addDays(t, -13);
   const days = recent.map((o) => dayKey(o.created_at));
   const thisWeek = days.filter((d) => d >= weekStart).length;
   const lastWeek = days.filter((d) => d >= prevStart && d < weekStart).length;
-  const copies = (status) => lines.filter((l) => l.status === status && (status !== 'open' || l.counts_for_order !== false)).reduce((n, l) => n + l.quantity, 0);
-  const overdueBefore = addDays(t, -(settings.hold_days ?? 30));
-  const overdue = lines.filter((l) => l.status === 'arrived' && l.arrived_on && l.arrived_on < overdueBefore);
-  const pickupOrders = new Set(lines.filter((l) => l.status === 'arrived').map((l) => l.order_id)).size;
+  const overdue = summary.overdue_lines;
+  const pickupOrders = summary.arrived_orders;
   const diff = thisWeek - lastWeek;
 
   const tile = (label, value, note, href, kind = '') =>
@@ -180,9 +180,9 @@ function renderTiles(box, lines, recent) {
     </li>`;
   box.innerHTML = [
     tile('New orders · 7 days', thisWeek, diff === 0 ? `Same as the week before` : `${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)} vs. the week before (${lastWeek})`, '#reservations'),
-    tile('Copies to order', copies('open'), 'Reserved, not yet ordered from the distributor', '#reservations'),
-    tile('Ready for pickup', copies('arrived'), `Waiting on ${plural(pickupOrders, 'customer')}`, '#reservations'),
-    tile('Past pickup window', overdue.length, overdue.length ? `${plural(overdue.length, 'title')} held over ${settings.hold_days ?? 30} days` : 'Nothing overdue', '#reservations', overdue.length ? 'alert' : ''),
+    tile('Copies to order', summary.open_copies, 'Reserved, not yet ordered from the distributor', '#reservations'),
+    tile('Ready for pickup', summary.arrived_copies, `Waiting on ${plural(pickupOrders, 'customer')}`, '#reservations'),
+    tile('Past pickup window', overdue, overdue ? `${plural(overdue, 'title')} held over ${settings.hold_days ?? 30} days` : 'Nothing overdue', '#reservations', overdue ? 'alert' : ''),
   ].join('');
 }
 
@@ -222,7 +222,7 @@ async function renderLatest(box, loc = null, stale = () => false) {
 // Titles not out yet: pre-orders, and Coming Soon once customers can no longer add them (the shop orders until FOC).
 const UPCOMING = ['pre_order', 'coming_soon'];
 
-async function renderCutoff(box, lines, stale = () => false) {
+async function renderCutoff(box, summary, stale = () => false) {
   const t = today();
   const next = await must(sb.from('items').select('foc_date').in('status', UPCOMING).gte('foc_date', t).order('foc_date').limit(1));
   if (stale()) return;
@@ -233,15 +233,15 @@ async function renderCutoff(box, lines, stale = () => false) {
   const foc = next[0].foc_date;
   const titles = await count(items().in('status', UPCOMING).eq('foc_date', foc).eq('hidden', false));
   if (stale()) return;
-  const onFoc = lines.filter((l) => l.status === 'open' && l.counts_for_order !== false && l.item?.foc_date === foc);
-  const copies = onFoc.reduce((n, l) => n + l.quantity, 0);
+  const onFoc = summary.by_foc.find((f) => f.foc_date === foc) ?? { copies: 0, orders: 0 };
+  const copies = onFoc.copies;
   const daysLeft = Math.round((new Date(`${foc}T12:00:00`) - new Date(`${t}T12:00:00`)) / 86400000);
   box.innerHTML = `
     <p class="dash-big">${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })} <span>${daysLeft === 0 ? 'today' : daysLeft === 1 ? 'tomorrow' : `in ${daysLeft} days`}</span></p>
     <ul class="dash-facts">
       <li>Customer reservations close <strong>${fmtDate(lastReserveDay(foc), { weekday: 'short', month: 'short', day: 'numeric' })}</strong> at midnight</li>
       <li><strong>${titles.toLocaleString()}</strong> pre-order ${titles === 1 ? 'title' : 'titles'} on this cutoff</li>
-      <li><strong>${copies.toLocaleString()}</strong> reserved ${copies === 1 ? 'copy' : 'copies'} to order, for ${plural(new Set(onFoc.map((l) => l.order_id)).size, 'customer')}</li>
+      <li><strong>${copies.toLocaleString()}</strong> reserved ${copies === 1 ? 'copy' : 'copies'} to order, for ${plural(onFoc.orders, 'customer')}</li>
     </ul>`;
 }
 
