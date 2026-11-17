@@ -2,11 +2,11 @@
 // status, lookup by name/phone/email, CSV export — plus a "To order" view that
 // totals reserved copies per title for each order cutoff.
 
-import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime, fetchAll, debounce, titleFilter, STATUS_LABELS, toListTop, hintSlot, setHint } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime, fetchAll, debounce, titleFilter, STATUS_LABELS, toListTop, hintSlot, setHint, openDialog } from '../lib.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, todayIn, dayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
 import { renderStoreOrder } from './store-order.js';
-import { generalGroups, lunarFile, prhExport, prhText, prhXlsxFiles, rowName, PRH_BATCH } from '../order-export.js';
+import { generalGroups, lunarFile, prhExport, prhText, prhXlsxFiles, rowName, orderState, changeText, PRH_BATCH } from '../order-export.js';
 
 const PAGE = 25;
 /** An order's kind as a pill: a customer's pull list, a re-order (ordered after the cutoff), or a guest order. */
@@ -688,10 +688,10 @@ async function loadOrderData() {
 }
 
 /**
- * Still to order: copies on the title that haven't been marked ordered yet (customer lines still open, the store's
- * open row, or last issue's number not yet written as the title's own).
+ * Needs ordering: copies not marked ordered yet, or a total that no longer matches what was sent (see orderState in
+ * order-export.js). These are the titles Mark ordered sends and the CSV and PDF list.
  */
-const pending = (r) => r.total > 0 && (r.customer_open > 0 || r.shop_status === 'open' || (!r.shop_saved && r.shop_copies > 0));
+const pending = (r) => ['to_order', 'changed'].includes(orderState(r));
 
 /**
  * Open lines the database holds back from the ordering numbers (counts_for_order is false: a paused customer's titles
@@ -726,6 +726,17 @@ const pendingKey = (rows) => rows.filter(pending).map((r) => `${r.item_id}:${r.t
 const storeCell = (r) =>
   !r.shop_saved && r.shop_copies > 0 ? `<span title="Last issue’s number">${r.shop_copies}<span class="visually-hidden"> (last issue’s number)</span></span>` : `${r.shop_copies || '–'}`;
 
+/** What the distributor has for a title, as a button to change it (an order placed or changed on their own site). */
+const sentCell = (r) =>
+  `<td class="center card-key card-label" data-sort="${r.submitted ?? -1}"><button type="button" class="link-button" data-sent="${r.item_id}" title="What the distributor has. Change it for an order placed or changed on their site">${r.submitted ?? '–'}</button></td>`;
+
+/** Copies now less copies sent: "+2", "−1", or empty when they match. */
+const changeCell = (r) => `<td class="center card-key card-label" data-sort="${r.change ?? 0}">${r.change ? `<strong>${changeText(r.change)}</strong>` : ''}</td>`;
+
+/** A title sent under one cutoff whose date has since moved: it shows under the new one with what was sent. */
+const movedPill = (r) =>
+  r.foc_moved ? ` <span class="pill pill--warn" title="Sent under the ${r.submitted_foc ? esc(fmtDate(r.submitted_foc, { month: 'short', day: 'numeric' })) : 'earlier'} cutoff">FOC date moved</span>` : '';
+
 /** The customer copies, as a button listing who reserved them (statuses: 'all' or 'past'). */
 const customersCell = (r, which) =>
   r.customer_copies ? `<button type="button" class="link-button" data-customers="${r.item_id}" data-${which} title="See who reserved this title">${r.customer_copies}</button>` : '–';
@@ -739,7 +750,7 @@ async function renderToOrder(body) {
   // Titles whose customer list is open, so a refresh can open them again.
   const openPeople = $$('[data-customers][aria-expanded="true"]', body).map((b) => b.dataset.customers);
   // The instructions are folded away on phones, where they would push the cutoffs off the first screen.
-  setHint(body, `Copies to order per title for each order cutoff: Customers is what customers reserved (including pull lists), Store the store’s own copies from the Store Order tab (last issue’s number until someone changes it), and Copies the total that goes to the distributor. Pick one cutoff and Lunar or PRH for the file to upload or paste on their site, or export the list as a CSV or PDF; then mark the cutoff ordered once you’ve placed it, which records what was sent for each title. A cutoff ordered before its date stays here marked Ordered until the date passes, then moves to Past Orders.`);
+  setHint(body, `Copies to order per title for each order cutoff: Customers is what customers reserved (including pull lists), Store the store’s own copies from the Store Order tab (last issue’s number until someone changes it), and Copies the total that goes to the distributor. Once a cutoff is marked ordered, Sent shows what the distributor has for each title and Change how far Copies has moved since; changed titles come back to the top to send again (click Sent to correct it for an order placed on the distributor’s own site). Pick one cutoff and Lunar or PRH for the file to upload or paste on their site, or export the list as a CSV or PDF; then mark the cutoff ordered once you’ve placed it, which records what was sent for each title. A cutoff ordered before its date stays here marked Ordered until the date passes, then moves to Past Orders.`);
   body.innerHTML = `<div data-order-tools>
     </div>
     <div data-groups aria-busy="true">
@@ -771,7 +782,7 @@ async function renderToOrder(body) {
     const dist = $('#ot-dist', body)?.value ?? 'all';
     groups = forDistributor(all, dist);
     // Cutoffs with something still to order, and every cutoff shown (ordered early ones too).
-    const shown = [...groups.keys()].filter((f) => groups.get(f).some((r) => r.total > 0)).sort();
+    const shown = [...groups.keys()].filter((f) => groups.get(f).some((r) => orderState(r) !== 'none')).sort();
     const focs = shown.filter((f) => groups.get(f).some(pending));
     // Cutoffs are collapsed except the first. A refresh keeps the ones you had open; if none of them is still
     // listed (a new week's cutoffs), the first opens again.
@@ -780,41 +791,46 @@ async function renderToOrder(body) {
     box.innerHTML = heldNote + (focs.length ? '' : `<p class="empty">Nothing waiting to be ordered${esc(from)}.</p>`) + shown
       .map((foc) => {
         const rows = groups.get(foc).filter(pending);
-        const ordered = groups.get(foc).filter((r) => !pending(r) && r.total > 0);
+        const ordered = groups.get(foc).filter((r) => orderState(r) === 'ordered');
         const copies = sum(rows);
         const doneCopies = sum(ordered);
+        // Sent before: Sent and Change columns, and Mark ordered counts titles (a change can be down to 0 copies).
+        const sentAny = groups.get(foc).some((r) => r.submitted != null);
+        const changed = rows.filter((r) => orderState(r) === 'changed').length;
         const note = rows.length
-          ? `${ordinal(rows.length, 'title', 'titles')} · ${ordinal(copies, 'copy', 'copies')}${ordered.length ? ` · ${doneCopies} already ordered` : ''}`
+          ? `${ordinal(rows.length, 'title', 'titles')} · ${ordinal(copies, 'copy', 'copies')}${changed ? ` · ${changed} changed since sent` : ''}${ordered.length ? ` · ${doneCopies} already ordered` : ''}`
           : `${ordinal(ordered.length, 'title', 'titles')} · ${ordinal(doneCopies, 'copy', 'copies')} ordered`;
         return `<details class="fold fold--compact" data-foc="${esc(foc)}"${keepOpen.has(foc) ? ' open' : ''}>
         <summary class="fold__head">
           <h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}${rows.length ? '' : ' <span class="pill pill--ordered">Ordered</span>'}<span class="fold__note">${note}</span></h2>
         </summary>
         <div class="fold__body">
-${rows.length ? `        <div class="admin-actions toorder__actions"><button class="btn btn--green" type="button" data-ordered title="After you place this cutoff's order with the distributor">Mark ${copies} ${copies === 1 ? 'copy' : 'copies'} ordered</button></div>
+${rows.length ? `        <div class="admin-actions toorder__actions"><button class="btn btn--green" type="button" data-ordered title="${sentAny ? 'After you send the changes to the distributor: records each title’s new total as sent' : 'After you place this cutoff’s order with the distributor'}">${sentAny ? `Mark ${ordinal(rows.length, 'title', 'titles')} ordered` : `Mark ${copies} ${copies === 1 ? 'copy' : 'copies'} ordered`}</button></div>
         <table class="admin-table cards cards--slim" data-to-order>
-          <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col" data-sort="num" data-first="desc">Store</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col"><span class="visually-hidden">Not ordering</span></th></tr></thead>
+          <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col" data-sort="num" data-first="desc">Store</th><th scope="col" data-sort="num" data-first="desc">Copies</th>${sentAny ? '<th scope="col" data-sort="num" data-first="desc">Sent</th><th scope="col" data-sort="num" data-first="desc">Change</th>' : ''}<th scope="col"><span class="visually-hidden">Not ordering</span></th></tr></thead>
           <tbody>${rows.map((r) => `<tr>
-            <td class="card-title">${esc(itemName(r))}</td>
+            <td class="card-title">${esc(itemName(r))}${movedPill(r)}</td>
             <td>${esc(distributorName(r.distributor))}</td>
             <td class="nowrap">${esc(r.upc || r.isbn || r.sku || '')}</td>
             <td class="center card-key card-label">${customersCell(r, 'all')}
             </td>
             <td class="center card-key card-label">${storeCell(r)}</td>
             <td class="center card-key card-label"><strong>${r.total}</strong></td>
+            ${sentAny ? sentCell(r) + changeCell(r) : ''}
             <td class="center card-action">${r.customer_open ? `<button type="button" class="icon-btn icon-btn--remove" data-notordering="${r.item_id}" aria-label="Not ordering ${esc(itemName(r))} for customers" title="We are not ordering this title for customers">${solidIcon('skip')}</button>` : ''}
             </td>
             </tr>`).join('')}</tbody>
         </table>
 ` : ''}        ${ordered.length ? `${rows.length ? '<h3 class="mt-16 mb-8">Already ordered</h3>' : ''}<table class="admin-table cards cards--slim">
-          <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col" data-sort="num" data-first="desc">Store</th><th scope="col" data-sort="num" data-first="desc">Copies</th></tr></thead>
+          <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col" data-sort="num" data-first="desc">Store</th><th scope="col" data-sort="num" data-first="desc">Copies</th>${sentAny ? '<th scope="col" data-sort="num" data-first="desc">Sent</th>' : ''}</tr></thead>
           <tbody>${ordered.map((r) => `<tr>
-            <td class="card-title">${esc(itemName(r))}</td>
+            <td class="card-title">${esc(itemName(r))}${movedPill(r)}</td>
             <td>${esc(distributorName(r.distributor))}</td>
             <td class="nowrap">${esc(r.upc || r.isbn || r.sku || '')}</td>
             <td class="center card-key card-label">${customersCell(r, 'past')}</td>
             <td class="center card-key card-label">${storeCell(r)}</td>
             <td class="center card-key card-label"><strong>${r.total}</strong></td>
+            ${sentAny ? sentCell(r) : ''}
             </tr>`).join('')}</tbody>
         </table>` : ''}
         </div>
@@ -835,6 +851,8 @@ ${rows.length ? `        <div class="admin-actions toorder__actions"><button cla
     if (cust) return void toggleCustomers(cust);
     const skip = e.target.closest('[data-notordering]');
     if (skip) return void markNotOrdered(body, Number(skip.dataset.notordering), skip);
+    const sentBtn = e.target.closest('[data-sent]');
+    if (sentBtn) return void editSent(body, [...all.values()].flat().find((r) => r.item_id === Number(sentBtn.dataset.sent)));
     const section = e.target.closest('[data-foc]');
     const btn = e.target.closest('[data-ordered]');
     if (!section || !btn) return;
@@ -860,7 +878,9 @@ ${rows.length ? `        <div class="admin-actions toorder__actions"><button cla
     const changed = pendingKey(fresh) !== pendingKey(groups.get(foc) ?? []);
     const copies = sum(rows);
     const note = changed ? 'Quantities changed since this page loaded.\n\n' : '';
-    if (!confirm(`${note}Mark ${rows.length} ${rows.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}, customers and store) for this cutoff as ordered from ${dist === 'all' ? 'the distributor' : distributorName(dist === 'none' ? null : dist)}? Each title’s total is recorded as sent.`)) {
+    const down = rows.filter((r) => r.submitted != null && r.total < r.submitted).length;
+    const lower = down ? `\n\n${ordinal(down, 'title went', 'titles went')} down since it was sent: lower ${down === 1 ? 'it' : 'them'} on the distributor’s site first (Lunar’s FOC edits file does it; in the PRH cart it’s by hand).` : '';
+    if (!confirm(`${note}Mark ${rows.length} ${rows.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}, customers and store) for this cutoff as ordered from ${dist === 'all' ? 'the distributor' : distributorName(dist === 'none' ? null : dist)}? Each title’s total is recorded as sent.${lower}`)) {
       if (changed) renderToOrder(body);
       return;
     }
@@ -882,6 +902,45 @@ ${rows.length ? `        <div class="admin-actions toorder__actions"><button cla
     }
     renderToOrder(body);
   });
+}
+
+/**
+ * Correct what the distributor has for a title: an order placed or changed on their own site (not through Pullwise's
+ * file). Recorded as a manual submission with an optional note; Sent and Change then follow it.
+ */
+function editSent(body, r) {
+  if (!r) return;
+  if (!state.location && locationNames.size > 1) return void toast('Pick a location at the top first: each location orders on its own.', 'error');
+  const name = itemName(r);
+  const d = openDialog(`Copies sent: ${name}`, `
+    <p>How many copies does the distributor have for this title now? Use this for an order placed or changed on their own site. Change then counts from this number.</p>
+    <p class="admin-hint">Copies now: ${r.total} (customers ${r.customer_copies}, store ${r.shop_copies}). Sent so far: ${r.submitted ?? 'nothing'}.</p>
+    <div class="field"><label for="sent-qty">Copies the distributor has</label><input id="sent-qty" class="cust-qty" type="number" inputmode="numeric" min="0" max="9999" step="1" value="${r.submitted ?? r.total}"></div>
+    <div class="field"><label for="sent-note">Note (optional, staff only)</label><input id="sent-note" type="text" maxlength="500" placeholder="e.g. Added 2 on Lunar’s site"></div>
+    <p class="form-error" role="alert" data-sent-error></p>
+    <div class="admin-actions"><button class="btn btn--primary" type="button" data-go>Save</button><button class="btn btn--ghost" type="button" data-cancel>Cancel</button></div>`);
+  const qty = $('#sent-qty', d);
+  qty.select();
+  $('[data-cancel]', d).addEventListener('click', () => d.close());
+  const go = async () => {
+    const n = Number(qty.value);
+    if (qty.value.trim() === '' || !Number.isInteger(n) || n < 0 || n > 9999) {
+      qty.setAttribute('aria-invalid', 'true');
+      return void ($('[data-sent-error]', d).textContent = 'Enter a whole number from 0 to 9999.');
+    }
+    const btn = $('[data-go]', d);
+    btn.disabled = true;
+    const { error } = await sb.rpc('staff_set_submitted', { p_item_id: r.item_id, p_quantity: n, p_location: orderLocation(), p_note: $('#sent-note', d).value.trim() || null });
+    if (error) {
+      btn.disabled = false;
+      return void ($('[data-sent-error]', d).textContent = friendlyError(error));
+    }
+    d.close();
+    toast(`${name}: ${n} ${n === 1 ? 'copy' : 'copies'} sent`);
+    renderToOrder(body);
+  };
+  $('[data-go]', d).addEventListener('click', go);
+  qty.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
 }
 
 /**

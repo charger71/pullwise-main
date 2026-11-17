@@ -1,6 +1,6 @@
 // Run: node admin/order-export.test.js
 import assert from 'node:assert/strict';
-import { lunarCode, prhCode, lunarFile, prhExport, prhText, batches, prhXlsxFiles, toCsv, generalGroups, PRH_BATCH } from './order-export.js';
+import { lunarCode, prhCode, lunarFile, prhExport, prhText, batches, prhXlsxFiles, toCsv, generalGroups, orderState, changeText, PRH_BATCH } from './order-export.js';
 import { ZipBuilder, readZip } from './zip.js';
 
 let id = 0;
@@ -138,6 +138,27 @@ assert.equal(toCsv(['a', 'b'], [['x,y', 'he said "hi"'], [null, 3]]), 'a,b\r\n"x
   ], names);
   assert.deepEqual(g.map((x) => x.name), ['Lunar', 'PRH', 'Unassigned']);
   assert.deepEqual(g[0].rows.map((r) => [r.baseTitle, r.customers, r.store, r.copies]), [['Ant', 1, 0, 1], ['Cat', 1, 2, 3]]);
+}
+
+// Where a title stands: to order, changed since sent, ordered, or nothing.
+{
+  const base = { customer_open: 0, shop_status: null, shop_saved: true, shop_copies: 0, total: 0, submitted: null };
+  const st = (more) => orderState({ ...base, ...more });
+  assert.equal(st({}), 'none');
+  assert.equal(st({ customer_open: 2, total: 2 }), 'to_order', 'open customer lines');
+  assert.equal(st({ shop_status: 'open', shop_copies: 3, total: 3 }), 'to_order', "the store's open row");
+  assert.equal(st({ shop_saved: false, shop_copies: 2, total: 2 }), 'to_order', "last issue's number, not written yet");
+  assert.equal(st({ shop_status: 'ordered', shop_copies: 2, total: 2 }), 'ordered', 'marked ordered before snapshots');
+  assert.equal(st({ shop_status: 'ordered', shop_copies: 2, total: 2, submitted: 2 }), 'ordered');
+  assert.equal(st({ shop_status: 'ordered', shop_copies: 3, total: 3, submitted: 2 }), 'changed', 'store copies raised after ordering');
+  assert.equal(st({ total: 1, submitted: 2 }), 'changed', 'a customer cancelled');
+  assert.equal(st({ total: 0, submitted: 2 }), 'changed', 'down to nothing: still needs lowering');
+  assert.equal(st({ customer_open: 1, total: 3, submitted: 3 }), 'to_order', 'same total, but a new line to mark ordered');
+  assert.equal(st({ total: 0, submitted: 0 }), 'none', 'sent as 0 and still 0');
+  assert.equal(changeText(2), '+2');
+  assert.equal(changeText(-1), '−1');
+  assert.equal(changeText(0), '');
+  assert.equal(changeText(null), '');
 }
 
 console.log('order-export tests passed');
