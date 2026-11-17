@@ -292,7 +292,9 @@ async function showFound(q, query, describe, { more = false } = {}) {
   let count;
   try {
     const tz = (await getSettings()).timezone;
-    ({ rows, count } = await getItems({ ...found.query(tz), limit: FOUND_PAGE, offset: found.items.length, withCount: true }));
+    // More reuses the first page's total instead of counting every match again.
+    ({ rows, count } = await getItems({ ...found.query(tz), limit: FOUND_PAGE, offset: found.items.length, withCount: true, knownCount: more ? found.total : undefined }));
+    if (more && rows.length < FOUND_PAGE) count = found.items.length + rows.length; // the list ended sooner
   } catch (err) {
     console.error(err);
     if (mine === found.req) box.innerHTML = '<p class="empty">Couldn’t search right now. Please try again shortly.</p>';

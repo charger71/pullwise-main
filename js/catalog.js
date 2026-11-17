@@ -101,9 +101,11 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
     grid.setAttribute('aria-busy', 'true');
     more.disabled = true;
     try {
-      const { rows, count } = await (pending ?? getItems({ ...query, limit: PAGE, offset: append ? items.length : 0, withCount: true }));
+      // Show more reuses the first page's total instead of counting every match again.
+      const { rows, count } = await (pending ?? getItems({ ...query, limit: PAGE, offset: append ? items.length : 0, withCount: true, knownCount: append ? total : undefined }));
       if (mine !== seq) return; // a newer search superseded this one
       total = count;
+      if (append && rows.length < PAGE) total = items.length + rows.length; // the list ended sooner (titles went out of stock meanwhile)
       if (append) {
         const firstNew = items.length;
         items = items.concat(rows);

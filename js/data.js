@@ -77,6 +77,10 @@ export async function getCategories() {
  * @param {number}   [f.limit]
  * @param {number}   [f.offset]
  * @param {boolean}  [f.withCount] resolve { rows, count } instead of rows
+ * @param {number}   [f.knownCount] with withCount: the total from this list's first page, so the next pages skip
+ *                                  counting every match again (it comes back as the count)
+ *
+ * Rows carry LIST_COLUMNS, not the description or ISBN: the title popup loads those when it opens (getItem).
  */
 export async function getItems(f = {}) {
   const topPromise = getTopReserved();
@@ -118,6 +122,10 @@ export async function rankByPulls(ids) {
  * (pre-order, order cutoff not passed) come first, then everything else, each part in the usual order. Paging
  * (offset/limit) runs across both parts as one list.
  */
+// What a title card, the popup's first view and a reservation need. Leaves out the description and ISBN (the popup
+// fetches them) and the search-only columns, about half of each row.
+export const LIST_COLUMNS = 'id,title,issue_number,publisher,category_id,status,cover_url,cover_thumb_url,price,retail_price,shop_price,release_date,foc_date,arrived_on,staff_pick,featured,badges,mature,hidden,variant,creators,series_key,arrival_rank,created_at,updated_at';
+
 async function fetchItems(f) {
   // A search with no letters or digits in it ("!!!", emoji, or a script the search can't read yet) matches
   // nothing, rather than every title.
@@ -162,10 +170,11 @@ async function fetchItems(f) {
   const words = searchWords(f.q);
   // Row-level security already hides these from customers, but staff signed in
   // to the admin share this session — keep the public pages showing what customers see.
-  const columns = f.categorySlug ? '*, cat:categories!inner(slug)' : '*';
+  const columns = f.categorySlug ? `${LIST_COLUMNS}, cat:categories!inner(slug)` : LIST_COLUMNS;
+  const counting = f.withCount && f.knownCount == null;
   let query = sb
     .from('items')
-    .select(columns, f.countOnly ? { count: 'exact', head: true } : f.withCount ? { count: 'exact' } : undefined)
+    .select(columns, f.countOnly ? { count: 'exact', head: true } : counting ? { count: 'exact' } : undefined)
     .eq('hidden', false);
   if (f.categorySlug) query = query.eq('cat.slug', f.categorySlug);
   if (f.ids) query = query.in('id', f.ids);
@@ -191,7 +200,7 @@ async function fetchItems(f) {
   if (f.limit) query = query.range(f.offset ?? 0, (f.offset ?? 0) + f.limit - 1);
   const res = await query;
   const data = unwrap(res);
-  const { count } = res;
+  const count = counting || f.countOnly ? res.count : f.knownCount;
   if (f.countOnly) return count;
   return f.withCount ? { rows: data, count } : data;
 }
@@ -207,14 +216,17 @@ async function fetchOpenFirst({ openFirst, ...f }) {
     rows.push(...(await fetchItems({ ...open, withCount: false, offset: start, limit: f.limit ? Math.min(f.limit, openCount - start) : undefined })));
   }
   const left = f.limit ? f.limit - rows.length : undefined;
-  let restCount;
-  if (left === 0) restCount = await fetchItems({ ...rest, countOnly: true });
-  else {
-    const page = await fetchItems({ ...rest, withCount: true, offset: Math.max(0, start - openCount), limit: left });
-    rows.push(...page.rows);
-    restCount = page.count;
+  // The open part is counted on every page (where it ends decides each page); the rest only when the total is wanted.
+  const total = f.withCount && f.knownCount == null;
+  let restCount = 0;
+  if (left === 0) {
+    if (total) restCount = await fetchItems({ ...rest, countOnly: true });
+  } else {
+    const page = await fetchItems({ ...rest, withCount: total, offset: Math.max(0, start - openCount), limit: left });
+    rows.push(...(total ? page.rows : page));
+    if (total) restCount = page.count;
   }
-  return f.withCount ? { rows, count: openCount + restCount } : rows;
+  return f.withCount ? { rows, count: total ? openCount + restCount : f.knownCount } : rows;
 }
 
 function sorter(order) {
