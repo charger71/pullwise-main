@@ -4,7 +4,8 @@
 --    variant label, like last issue's number, so a standing order for the main cover doesn't fill every variant.
 --  * A title with no store row of its own now starts at the series' standing number when there is one, else at last
 --    issue's number, as before. A row of its own (0 included) still wins over both. Mark ordered writes whichever it
---    started at as the title's own row.
+--    started at as the title's own row. Once a title's cutoff has passed, a title with no row of its own has 0 store
+--    copies (nothing was ordered for the store), so Past Orders and late cutoffs don't count a number nobody sent.
 --  * order_row gains last_issue_total (last issue's customer copies plus its store copies, what was ordered for it) and
 --    series_qty (the standing number, null when the series has none), so the screen can show where a number came from.
 
@@ -74,7 +75,10 @@ as $$
            c.copies, c.open_copies, c.orders,
            s.qty, s.rows_kept, s.status,
            li.qty as li_qty, li.total as li_total, sq.qty as sq_qty,
-           case when coalesce(s.rows_kept, 0) > 0 then s.qty else coalesce(sq.qty, li.qty, 0) end as shop_copies
+           -- Once the cutoff has passed, a title with no row of its own had no store copies ordered: no default.
+           case when coalesce(s.rows_kept, 0) > 0 then s.qty
+                when b.foc_date < public.shop_today() then 0
+                else coalesce(sq.qty, li.qty, 0) end as shop_copies
     from base b
     left join cust c on c.item_id = b.id
     left join shop s on s.item_id = b.id

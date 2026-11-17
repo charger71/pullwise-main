@@ -110,6 +110,14 @@ begin
     assert sqlerrm like '%has passed%', sqlerrm;
   end;
 
+  -- After the cutoff, no default: last week's Old #9 (series with an every-issue number) had no store row.
+  perform public.staff_set_series_qty(pg_temp.item('Old', '9'), 5);
+  r := (select x from public.staff_order_rows(public.shop_today() - 7, 'lunar') x where x.item_id = pg_temp.item('Old', '9'));
+  assert r.shop_copies = 0 and r.series_qty = 5, format('a passed cutoff counts no default store copies (got %s)', r.shop_copies);
+  r := (select x from public.staff_order_rows(public.shop_today() - 7, 'lunar') x where x.item_id = pg_temp.item('Saga', '73'));
+  assert r.shop_copies = 4, 'a passed cutoff still counts its own rows';
+  perform public.staff_set_series_qty(pg_temp.item('Old', '9'), null);
+
   -- Staff can read the standing numbers; nobody writes the table directly.
   select count(*) into n from public.series_shop_qty;
   assert n = 2, format('2 standing numbers, got %s', n);
