@@ -11,6 +11,7 @@ const line = (status, price, quantity = 1, more = {}) => ({
   item: { price }, placed: { customer_id: 1 }, ...more,
 });
 const sum = (recent, active = []) => moneySummary({ recent, active, since, weeks: 2, dayOf });
+sum.totals = (recent, activeTotals) => moneySummary({ recent, activeTotals, since, weeks: 2, dayOf });
 
 // Nothing yet: zeros, and no rate or wait to show.
 {
@@ -82,6 +83,17 @@ const sum = (recent, active = []) => moneySummary({ recent, active, since, weeks
   assert.equal(m.reserved, 5);
   assert.equal(m.ready, 0);
   assert.equal(m.unpriced, 2);
+}
+
+// The database can add up the active lines instead (staff_line_summary): same figures, and a line with no price that
+// is also among the recent lines is still reported once.
+{
+  const free = line('arrived', null);
+  const m = sum.totals([free, line('open', 5)], { ready: '10.00', coming: 8, unpriced_ids: [free.id] });
+  assert.equal(m.ready, 10);
+  assert.equal(m.coming, 8);
+  assert.equal(m.reserved, 5);
+  assert.equal(m.unpriced, 1);
 }
 
 // Prices arrive from the database as numbers or numeric strings.

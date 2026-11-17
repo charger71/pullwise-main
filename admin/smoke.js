@@ -34,6 +34,13 @@ const RPC_DATA = {
   backup_meta: { tables: [], migration: '1' },
   backup_page: { count: 0, rows: [] },
   media_usage: [],
+  // Dashboard and Analytics: reservations in progress, added up by the database.
+  staff_line_summary: {
+    open_copies: 4, arrived_copies: 2, arrived_orders: 1, overdue_lines: 1,
+    by_foc: [{ foc_date: '2026-12-01', copies: 4, orders: 2 }],
+    top: [{ copies: 6, item: ITEM }],
+    money: { ready: 7.98, coming: 15.96, unpriced_ids: [] },
+  },
   // Customers → Unclaimed and the pickup indicator.
   staff_pickup_summary: [{ customer_id: 1, first_name: 'Jane', last_name: 'Smith', name: 'Jane Smith', email: 'jane@example.com', phone: '5550100', account_state: 'approved', unapproved_reason: null, paused_at: '2026-11-10T15:00:00Z', paused_reason: 'auto', pickup_cadence: 'weekly', unclaimed_count: 2, unclaimed_copies: 3, unclaimed_cents: 1248, oldest_received_on: '2026-10-31', oldest_age_days: 16, warning_on: '2026-11-07', pause_on: '2026-11-14', last_pickup_at: '2026-10-30T18:00:00Z' }],
 };

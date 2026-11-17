@@ -8,13 +8,11 @@ import { moneySummary } from '../money.js';
 import { addDays, weekStart, todayIn, dayIn } from '../../js/dates.js';
 import { APP_ENABLED } from '../../js/config.js';
 
-export const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
 export const DAYS = 30;
 const SEARCH_DAYS = 90; // the database keeps searches this long (supabase/migrations/…_search_log.sql)
 const DRIFT_DAYS = 60;
 const DEMAND_DAYS = 90;
 const GROWTH_MONTHS = 12;
-export const LINE_FIELDS = 'id,order_id,quantity,status,arrived_on,counts_for_order,item:items(id,title,issue_number,variant,publisher,price,foc_date,release_date,cover_url)';
 let sb;
 let timezone;
 
@@ -55,8 +53,13 @@ export async function loadPanel(el, sel, fn) {
 }
 
 const startOfTrend = () => addDays(today(), -(DAYS - 1));
-/** Copies on reservations still in progress, and the orders placed since a day. */
-export const activeLines = () => all(() => sb.from('reservations').select(LINE_FIELDS).in('status', ACTIVE).order('id'));
+/**
+ * Reservations still in progress, added up by the database (staff_line_summary) so the page never downloads every
+ * line: copies to order and ready, overdue lines, copies per order cutoff, the most-reserved titles and their dollars.
+ * `location` limits it to one store's lines; lines that arrived before `overdueBefore` count as overdue.
+ */
+export const activeSummary = (location = null, overdueBefore = null) => must(sb.rpc('staff_line_summary', { p_location: location, p_overdue_before: overdueBefore }));
+/** The orders placed since a day. */
 export const ordersSince = (since) => all(() => sb.from('reservation_orders').select('id,created_at').gte('created_at', new Date(`${since}T00:00:00`).toISOString()).order('id'));
 
 const card = (id, title, data, { hint = '', wide = false, link = '' } = {}) => {
@@ -123,15 +126,15 @@ export async function mount(el, ctx) {
   });
 
   const panel = (sel, fn) => loadPanel(el, sel, fn);
-  const lines = activeLines();
+  const summary = activeSummary();
   const since = startOfTrend();
   const recent = ordersSince(since);
-  lines.catch(() => {});
+  summary.catch(() => {});
   recent.catch(() => {});
   await Promise.all([
     panel('[data-trend]', async (box) => renderTrend(box, await recent, since)),
-    panel('[data-top]', async (box) => renderTop(box, await lines)),
-    panel('[data-money]', async (box) => renderMoney(box, await lines)),
+    panel('[data-top]', async (box) => renderTop(box, (await summary).top)),
+    panel('[data-money]', async (box) => renderMoney(box, (await summary).money)),
     panel('[data-status]', renderStatus),
     panel('[data-series]', renderSeries),
     panel('[data-publishers]', renderPublishers),
@@ -184,16 +187,13 @@ function setupPager(box, total, drawRows) {
   return () => ((page = 0), draw());
 }
 
-/** Most Reserved: up to 50 titles with at least one copy reserved, numbered by rank (most copies first), sortable by any column, ten rows a page. */
-export function renderTop(box, lines) {
-  const byItem = new Map();
-  for (const l of lines) {
-    if (!l.item) continue;
-    const row = byItem.get(l.item.id) ?? { item: l.item, copies: 0 };
-    row.copies += l.quantity;
-    byItem.set(l.item.id, row);
-  }
-  const ranked = [...byItem.values()]
+/**
+ * Most Reserved: up to 50 titles with at least one copy reserved, numbered by rank (most copies first), sortable by
+ * any column, ten rows a page. `top` is activeSummary().top: { item, copies } for the top titles and any tied with
+ * the 50th, so ties are broken by name here.
+ */
+export function renderTop(box, top) {
+  const ranked = top
     .filter((r) => r.copies > 0)
     .sort((a, b) => b.copies - a.copies || itemName(a.item).localeCompare(itemName(b.item)))
     .slice(0, TOP_TOTAL)
@@ -472,11 +472,11 @@ async function renderApp(box) {
 }
 
 /** Estimated dollars reserved, in progress and picked up, and how much of what's held for people gets picked up. */
-async function renderMoney(box, active) {
+async function renderMoney(box, activeTotals) {
   const since = weekStart(today()); // this week, Sunday to today
   const fields = 'id,order_id,quantity,status,arrived_on,created_at,updated_at,item:items(price),placed:reservation_orders(customer_id)';
   const recent = await all(() => sb.from('reservations').select(fields).gte('updated_at', new Date(`${since}T00:00:00`).toISOString()).order('id'));
-  const m = moneySummary({ recent, active, since, weeks: 1, dayOf: dayKey });
+  const m = moneySummary({ recent, activeTotals, since, weeks: 1, dayOf: dayKey });
   box.innerHTML = `
     <p class="dash-big">${dollars(m.reserved)} <span>reserved</span></p>
     <ul class="dash-facts">
