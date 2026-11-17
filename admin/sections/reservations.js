@@ -1028,22 +1028,33 @@ async function toggleCustomers(btn) {
   row.innerHTML = `<td colspan="${tr.children.length}" aria-busy="true">Loading…</td>`;
   tr.after(row);
   const cell = row.firstElementChild;
+  // A customer's name opens their record under Customers (guest orders have none, so their names stay plain).
+  cell.addEventListener('click', (e) => {
+    const link = e.target.closest('[data-customer]');
+    if (!link) return;
+    try {
+      sessionStorage.setItem('admin-open-customer', link.dataset.customer);
+    } catch {
+      /* the link still opens the customer list */
+    }
+  });
   try {
-    let q = sb.from('reservations').select('quantity,status,order:reservation_orders(id,name,customer:customers(name,first_name,last_name))').in('status', statuses).eq('item_id', Number(btn.dataset.customers));
+    let q = sb.from('reservations').select('quantity,status,order:reservation_orders(id,name,customer_id,customer:customers(name,first_name,last_name))').in('status', statuses).eq('item_id', Number(btn.dataset.customers));
     if (!waiting) q = q.eq('reorder', reorder);
     const lines = await must(atLocation(q));
     // Sorted by last name and shown as "Last, First". Guest orders only have one name field: the last word is the surname.
     const people = lines.map((l) => {
       const c = l.order?.customer;
-      if (c?.last_name) return { last: c.last_name, first: c.first_name ?? '', qty: l.quantity, status: l.status };
+      const id = l.order?.customer_id ?? null;
+      if (c?.last_name) return { last: c.last_name, first: c.first_name ?? '', qty: l.quantity, status: l.status, id };
       const words = (c?.name || l.order?.name || 'Unknown').trim().split(/\s+/);
       const last = words.pop();
-      return { last, first: words.join(' '), qty: l.quantity, status: l.status };
+      return { last, first: words.join(' '), qty: l.quantity, status: l.status, id };
     }).map((p) => ({ ...p, name: [p.last, p.first].filter(Boolean).join(', ') }))
       .sort((a, b) => a.last.localeCompare(b.last, undefined, { sensitivity: 'base' }) || a.first.localeCompare(b.first, undefined, { sensitivity: 'base' }));
     cell.removeAttribute('aria-busy');
     cell.innerHTML = people.length
-      ? `<ul class="toorder__list">${people.map((p) => `<li>${esc(p.name)}${p.qty > 1 ? ` <strong>×${p.qty}</strong>` : ''}${past || waiting || every ? ` <span class="card__meta">· ${esc(LINE_STATUS[p.status] ?? p.status)}</span>` : ''}</li>`).join('')}</ul>`
+      ? `<ul class="toorder__list">${people.map((p) => `<li>${p.id ? `<a href="#customers" data-customer="${p.id}">${esc(p.name)}</a>` : esc(p.name)}${p.qty > 1 ? ` <strong>×${p.qty}</strong>` : ''}${past || waiting || every ? ` <span class="card__meta">· ${esc(LINE_STATUS[p.status] ?? p.status)}</span>` : ''}</li>`).join('')}</ul>`
       : `<span class="empty">${past ? 'No ordered reservations for this title any more.' : waiting ? 'No reservations waiting for this title any more.' : every ? 'No reservations for this title any more.' : 'No open reservations for this title any more.'}</span>`;
   } catch (err) {
     cell.removeAttribute('aria-busy');
