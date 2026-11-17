@@ -369,6 +369,28 @@
             </div>
             <p class="admin-hint mt-8">Days are chips with a tick-box inside. Settings (one shop) and Locations (each location) use the same row; on phones the days and Remove take their own lines.</p>
           </div>
+          <div class="sg-item" data-code>
+            <h3>Holiday hours row</h3>
+            <div class="sg-demo">
+              <div class="holiday-row">
+                <div class="field"><label for="sg-hd">Date</label><input id="sg-hd" type="date" value="2026-12-24"></div>
+                <div class="field"><label for="sg-hl">Holiday (optional)</label><input id="sg-hl" type="text" maxlength="60" placeholder="e.g. Christmas Day" value="Christmas Eve"></div>
+                <label class="chip holiday-row__closed"><input type="checkbox"> Closed all day</label>
+                <div class="field"><label for="sg-hdo">Open</label><input id="sg-hdo" type="time" value="10:00"></div>
+                <div class="field"><label for="sg-hdc">Close</label><input id="sg-hdc" type="time" value="15:00"></div>
+                <button class="btn btn--danger btn--small" type="button" aria-label="Remove this holiday">Remove</button>
+              </div>
+              <div class="holiday-row">
+                <div class="field"><label for="sg-hd2">Date</label><input id="sg-hd2" type="date" value="2026-12-25"></div>
+                <div class="field"><label for="sg-hl2">Holiday (optional)</label><input id="sg-hl2" type="text" maxlength="60" value="Christmas Day"></div>
+                <label class="chip holiday-row__closed"><input type="checkbox" checked> Closed all day</label>
+                <div class="field"><label for="sg-hdo2">Open</label><input id="sg-hdo2" type="time" value="11:00" disabled></div>
+                <div class="field"><label for="sg-hdc2">Close</label><input id="sg-hdc2" type="time" value="16:00" disabled></div>
+                <button class="btn btn--danger btn--small" type="button" aria-label="Remove this holiday">Remove</button>
+              </div>
+            </div>
+            <p class="admin-hint mt-8">One date when the shop keeps different hours or is closed, built by <code>holidayEditor()</code> in <code>admin/holiday-hours.js</code> under Opening Hours (Settings) and in each location's card (Locations). Ticking the <code>holiday-row__closed</code> chip turns the times off. From 1200px everything sits on one line (<code>160px 1fr auto 120px 120px auto</code>); below it, Date sits beside the chip, then the name, Open and Close, and Remove. Past dates aren't shown and are dropped on save; the website lists the next 60 days under its opening hours.</p>
+          </div>
           <div class="sg-item">
             <h3>Rich-text editor</h3>
             <pre class="sg-code" tabindex="0">&lt;div class="editor-block"&gt;

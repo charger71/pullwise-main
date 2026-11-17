@@ -10,6 +10,7 @@ import { contrast, colorVars, FONT_LIBRARY, FONT_SLOTS, SPACING, SIZES, letterSp
 import { $, $$, esc, must, toast, setStatus, settingsField, formReaders, solidIcon, friendlyError, setupTabs, fmtTime, fmtDateTime, uid, db, slugify, switchHtml, hintSlot } from '../lib.js';
 import { imageField } from '../images.js';
 import { capField, trustRowFrom, settingChange, DAY_FIELDS } from '../trust.js';
+import { holidayEditor } from '../holiday-hours.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
@@ -71,6 +72,8 @@ export async function mount(el, { sb }) {
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Opening Hours</h2></div><div class="fold__body">
         <div data-hours></div>
         <button class="btn btn--add btn--small mt-14" type="button" data-add-hours>${solidIcon('add', 16)} Add hours</button>
+        <h3 class="mt-16 mb-8">Holiday Hours</h3>
+        <div data-holidays></div>
       </div></section>
       <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Map</h2></div><div class="fold__body"><div class="form-grid form-grid--pairs">
         <div class="field field--full"><label><input type="checkbox" name="show_map"${s.show_map ? ' checked' : ''}> Show a Google Map on the Home and Visit pages</label></div>
@@ -164,6 +167,7 @@ export async function mount(el, { sb }) {
     addHours(hoursBox, { days: [], open: '11:00', close: '19:00' });
     dirty = true;
   });
+  const holidays = holidayEditor($('[data-holidays]', el), s.holiday_hours, { onChange: () => (dirty = true) });
   const tiersBox = $('[data-tiers]', el);
   tiersFrom({ discount_tiers: s.discount_tiers }).forEach((t) => addTier(tiersBox, t));
   $('[data-add-tier]', el).addEventListener('click', () => {
@@ -183,7 +187,7 @@ export async function mount(el, { sb }) {
   const appShots = APP_ENABLED ? $$('[data-app-shot]', el).map((box, i) => imageField(box, { folder: 'brand', label: `Screenshot ${i + 1}`, exact: [1080, 2340] })) : [];
   appShots.forEach((f, i) => f.set(s.app_screenshots?.[i]));
   setupTabs(el, 'admin-settings-tab', 'shop', undefined, {
-    shop: 'The shop’s name, contact details, address, opening hours and map, as customers see them on the website. The Admin Notice at the top is for staff only. Press Save settings when you’re done; it saves every tab.',
+    shop: 'The shop’s name, contact details, address, opening and holiday hours and map, as customers see them on the website. The Admin Notice at the top is for staff only. Press Save settings when you’re done; it saves every tab.',
     look: 'The logo, colors and fonts of the website. Text colors are checked so they stay readable. Press Save settings when you’re done.',
     online: 'Links to the shop’s social media, Google Analytics, live chat and any extra code for the footer. Press Save settings when you’re done.',
     stock: 'How pre-orders and stock work for customers, and the discount pull list customers get. Press Save settings when you’re done.',
@@ -242,6 +246,8 @@ export async function mount(el, { sb }) {
 
     if (!text('shop_name')) return setStatus(status, 'The shop needs a name.', 'error');
     if (hours.some((h) => !h.days.length || !h.open || !h.close)) return setStatus(status, 'Each hours row needs at least one day and open/close times.', 'error');
+    const holiday = holidays.read();
+    if (holiday.error) return setStatus(status, holiday.error, 'error');
     if (tiers.some((t) => !Number.isInteger(t.min) || !Number.isInteger(t.pct) || t.min < 1 || t.pct < 0 || t.pct > 100)) return setStatus(status, 'Each discount tier needs a whole number of series (1 or more) and a percent from 0 to 100.', 'error');
     if (tiers.some((t, i) => i && t.min <= tiers[i - 1].min)) return setStatus(status, 'Discount tiers must start at higher and higher numbers of series.', 'error');
     const badSocial = Object.entries(socials).find(([, v]) => !/^https?:\/\//i.test(v));
@@ -257,7 +263,7 @@ export async function mount(el, { sb }) {
     const row = {
       shop_name: text('shop_name'), tagline: text('tagline'), hero_headline: text('hero_headline'), copyright_text: text('copyright_text'), footer_scripts: text('footer_scripts'), chat_available: f.has('chat_available'), maintenance_mode: f.has('maintenance_mode'), maintenance_message: text('maintenance_message'), chat_greeting: text('chat_greeting'), founded_year: int('founded_year', null),
       phone: text('phone'), email: text('email'), street: text('street'), city: text('city'), region: text('region'), postal_code: text('postal_code'),
-      hours, socials, colors, fonts: fontPicks, logo_url: logo.get(), favicon_url: favicon.get(), show_name_with_logo: f.has('show_name_with_logo'), hero_image_url: hero.get(), show_map: f.has('show_map'), map_embed_url: mapUrl, ga_measurement_id: gaId,
+      hours, holiday_hours: holiday.list, socials, colors, fonts: fontPicks, logo_url: logo.get(), favicon_url: favicon.get(), show_name_with_logo: f.has('show_name_with_logo'), hero_image_url: hero.get(), show_map: f.has('show_map'), map_embed_url: mapUrl, ga_measurement_id: gaId,
       max_copies_per_title: int('max_copies_per_title', 10), hold_days: int('hold_days', 30),
       timezone: f.get('timezone'),
       discount_enabled: f.has('discount_enabled'), discount_tiers: tiers,

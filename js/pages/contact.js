@@ -24,7 +24,7 @@ if (s.locations?.length) {
           <h2 id="loc-${l.id}">${esc(l.name)}</h2>
           ${a.length ? `<address><a href="${esc(mapsHref(as))}">${a.map(esc).join('<br>')}</a></address>` : ''}
           ${l.phone ? `<p><a class="btn btn--ghost" href="${telHref(l.phone)}">Call ${esc(formatPhone(l.phone))}</a></p>` : ''}
-          ${l.hours?.length ? `<h3>Hours</h3>${hoursList(l.hours)}` : ''}
+          ${l.hours?.length ? `<h3>Hours</h3>${hoursList(l.hours, l.holiday_hours)}` : ''}
           ${mapEmbed(as, 'map map--small')}
         </section>`;
       })
@@ -33,7 +33,7 @@ if (s.locations?.length) {
 $('#contact-info').innerHTML = `
   ${addr.length ? `<h2>Address</h2><address><a href="${mapsHref(s)}">${addr.map(esc).join('<br>')}</a></address>` : ''}
   <h2>Hours</h2>
-  ${hoursList(s.hours ?? [])}
+  ${hoursList(s.hours ?? [], s.holiday_hours)}
   <h2 class="mt-1em">Get in Touch</h2>
   ${s.phone ? `<p><a class="btn btn--ghost" href="${telHref(s.phone)}">Call ${esc(formatPhone(s.phone))}</a></p>` : ''}
   ${s.email ? `<p><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></p>` : ''}

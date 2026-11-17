@@ -76,6 +76,7 @@ The storefront footer: the newsletter band, then three columns (address and cont
 - Background \`shop-brand-footer\`; text in muted, headings in \`shop-footer-heading\` (\`shop-type-footer-heading\`, upper case), links in \`shop-footer-link\`. When a shop picks a light footer, text and links switch to dark, readable values (js/theme-vars.js).
 - **Newsletter** (\`.newsletter\`): a \`surface\` band with a centered heading, staff intro and the shop's own pasted sign-up code.
 - **Hours** (\`.hours\`): a definition list, day bold on the left, time on the right, at most 280px wide.
+- **Holiday hours** (\`.hours__title\` then \`.hours.hours--holiday\`): the next 60 days' holiday dates under the weekly hours, the holiday's name in \`.hours__note\` (small, muted) under the date, "Closed" or the times on the right. Shown wherever the hours are.
 - **Social** (\`.socials\`): the **Social icons** asset group at 20px in 44px tap areas, plain in the footer (no circles), pulled left so the first glyph lines up with the text.
 - Links in "More" run in two columns and wrap long page titles instead of widening the page.
 - **Copyright line** (\`.footer__legal\`, \`shop-fs-xs\`, centred): the shop's copyright text (or "© year shop name"), then " · Powered by Pullwise" in the same small text. It's plain text, not a link, and the only place Pullwise appears on the site. The "Get the App" link shows only for shops with the app.
@@ -92,7 +93,7 @@ The storefront footer: the newsletter band, then three columns (address and cont
     </section>
     <section>
       <h2 class="footer__heading">Hours</h2>
-      <dl class="hours"><div><dt>Wed</dt><dd>10 AM – 8 PM</dd></div><div><dt>Thu – Sat</dt><dd>11 AM – 7 PM</dd></div><div><dt>Sun</dt><dd>12 – 5 PM</dd></div></dl>
+      <dl class="hours"><div><dt>Wed</dt><dd>10 AM – 8 PM</dd></div><div><dt>Thu – Sat</dt><dd>11 AM – 7 PM</dd></div><div><dt>Sun</dt><dd>12 – 5 PM</dd></div></dl><p class="hours__title">Holiday hours</p><dl class="hours hours--holiday"><div><dt>Wed, Dec 24<span class="hours__note">Christmas Eve</span></dt><dd>10 AM – 3 PM</dd></div><div><dt>Thu, Dec 25<span class="hours__note">Christmas Day</span></dt><dd>Closed</dd></div></dl>
       <h2 class="footer__heading footer__heading--next">Social</h2>
       <ul class="socials">${soc('instagram')}${soc('discord')}${soc('whatnot')}</ul>
     </section>

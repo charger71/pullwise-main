@@ -516,6 +516,10 @@ address { font-style: normal; margin-bottom: 1em; }
 .hours div { display: flex; justify-content: space-between; gap: var(--sp-16); max-width: 280px; }
 .hours dt { font-weight: 700; }
 .hours dd { margin: 0; }
+/* Holiday hours under the weekly ones (hoursList in js/site.js): the date, the holiday's name under it, "Closed" or the times. */
+.hours__title { margin: var(--sp-12) 0 var(--sp-4); font-weight: 700; }
+.hours--holiday div { align-items: baseline; }
+.hours__note { display: block; font-weight: 400; font-size: var(--fs-sm); color: var(--muted); }
 /* ---------- Hero ---------- */
 .hero {
   padding-block: var(--sp-64);
