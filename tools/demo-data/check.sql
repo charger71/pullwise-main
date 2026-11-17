@@ -39,6 +39,18 @@ union all select 'app visit, stock alert or chat before the customer joined', (s
   + (select count(*) from public.chat_conversations h join public.customers c on c.id = h.customer_id where h.created_at < c.created_at)
 union all select 'old survey answer or sign-up still unread', (select count(*) from public.survey_responses where not seen and created_at < now() - interval '3 days')
   + (select count(*) from public.event_signups where not seen and created_at < now() - interval '3 days')
+union all select 'copy waiting over 6 days that was not left uncollected on purpose', count(*)
+  from public.reservations r, t where (not r.reorder or r.source = 'manual') and r.status = 'arrived' and r.arrived_on < t.today - 6 and r.pickup_reminders < 2
+union all select 'unclaimed past the ladder dates but not warned or paused', count(*)
+  from public.customer_unclaimed u join public.customer_standing st on st.customer_id = u.customer_id and st.pickup_cadence <> 'exempt'
+    join public.customers cu on cu.id = u.customer_id and cu.email like '%@example.com',
+    lateral public.pickup_ladder_dates(u.oldest_received_on, st.pickup_cadence) d, t
+  where st.paused_at is null and ((t.today >= d.pause_on) or (t.today >= d.warning_on and st.warning_sent_at is null))
+union all select 'auto-paused though no unclaimed copy is past the pause date', count(*)
+  from public.customer_standing st, t where st.paused_reason = 'auto' and not exists (
+    select 1 from public.customer_unclaimed u cross join lateral public.pickup_ladder_dates(u.oldest_received_on, st.pickup_cadence) d
+    where u.customer_id = st.customer_id and d.pause_on is not null and t.today >= d.pause_on)
+union all select 'queued, failed or future pickup notices', count(*) from public.pickup_notices where status in ('queued', 'sending', 'failed') or created_at > now() or sent_at > now()
 union all select 'failed emails', count(*) from public.email_log where status = 'failed'
 union all select 'arrival email without an arrival', count(*) from public.email_log e
   where e.kind = 'arrival' and e.customer_id is not null and not exists (
@@ -56,3 +68,5 @@ union all select 'event_signups user triggers disabled', count(*) from pg_trigge
   where tgrelid = 'public.event_signups'::regclass and not tgisinternal and tgenabled = 'D'
 union all select 'chat_messages triggers disabled', count(*) from pg_trigger
   where tgrelid = 'public.chat_messages'::regclass and not tgisinternal and tgenabled = 'D'
+union all select 'customer_standing triggers disabled', count(*) from pg_trigger
+  where tgrelid = 'public.customer_standing'::regclass and not tgisinternal and tgenabled = 'D'
