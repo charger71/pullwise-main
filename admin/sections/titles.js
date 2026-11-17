@@ -442,6 +442,17 @@ async function whoOrdered(itemId, { onLeave = () => true } = {}) {
   }
 }
 
+// After an edit or delete, the Titles list (when Title Info was opened from it) shows the change.
+const refresh = (listEl) => listEl && (load(listEl), loadDateOptions(listEl));
+
+/** Title Info opened from another screen (Ordering): the same dialog, with no Titles list to refresh after an edit. */
+export async function showTitleInfo(ctx, id) {
+  sb = ctx.sb;
+  isOwner = ctx.isOwner === true;
+  if (!categories.length) categories = await must(sb.from('categories').select('id,name,slug').order('sort'));
+  return titleInfo(null, id);
+}
+
 /** Everything about one title at a glance (read-only), with Edit and Who ordered. Opened by clicking its name in the list. */
 async function titleInfo(listEl, id) {
   const d = openDialog('Title Info', '<p class="admin-hint" aria-busy="true">Loading…</p>', { wide: true });
@@ -584,8 +595,7 @@ async function edit(listEl, id) {
       else await must(sb.from('items').insert(row));
       toast(id ? 'Title saved' : 'Title created');
       d.close();
-      load(listEl);
-      loadDateOptions(listEl);
+      refresh(listEl);
     } catch (err) {
       setStatus(status, `Not saved: ${friendlyError(err)}`, 'error');
     } finally {
@@ -608,8 +618,7 @@ async function edit(listEl, id) {
       await must(sb.from('items').delete().eq('id', id));
       toast('Title deleted');
       d.close();
-      load(listEl);
-      loadDateOptions(listEl);
+      refresh(listEl);
     } catch (err) {
       setStatus(status, err.code === '23503' ? 'Customers have reserved this title, so it can’t be deleted — mark it Hidden instead.' : `Not deleted: ${friendlyError(err)}`, 'error');
     }

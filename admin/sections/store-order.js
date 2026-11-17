@@ -4,7 +4,7 @@
 // staff_order_cutoffs (20270403000000_shop_ordering.sql, 20270404000000_shop_order_helps.sql), the same numbers
 // Place Order and the exports use.
 
-import { $, esc, must, toast, itemName, friendlyError, fmtDate, fmtTime, fetchAll, debounce, setHint } from '../lib.js';
+import { $, esc, must, toast, itemName, friendlyError, fmtDate, fmtTime, fetchAll, debounce, setHint, titleLink } from '../lib.js';
 
 const DISTRIBUTORS = { lunar: 'Lunar', prh: 'PRH', other: 'Other' };
 const KEEP_KEY = 'admin-store-order';
@@ -114,7 +114,7 @@ export async function renderStoreOrder(body, { sb, location, needsLocation, toda
     const fromLast = !r.shop_saved && !fromSeries && r.shop_copies > 0;
     const from = fromSeries ? 'the series’ every-issue number' : fromLast ? 'last issue’s number' : '';
     return `<tr data-item="${r.item_id}">
-      <td class="card-title">${esc(name)}<span class="qty-help" data-help="${r.item_id}">${helpHtml(r)}</span><span class="admin-status admin-status--error qty-error" data-err="${r.item_id}" role="status"></span></td>
+      <td class="card-title">${titleLink(r.item_id, name)}<span class="qty-help" data-help="${r.item_id}">${helpHtml(r)}</span><span class="admin-status admin-status--error qty-error" data-err="${r.item_id}" role="status"></span></td>
       <td class="nowrap">${esc(codeOf(r))}</td>
       <td class="center card-key card-label">${r.customer_copies || '–'}</td>
       <td class="center card-key card-label"><label class="visually-hidden" for="so-q-${r.item_id}">Store copies, ${esc(name)}${from ? ` (${from})` : ''}</label><input id="so-q-${r.item_id}" class="cust-qty" type="number" inputmode="numeric" min="0" max="999" step="1" value="${r.shop_copies || (r.shop_saved ? '0' : '')}" data-qty="${r.item_id}"${from ? ` title="${from[0].toUpperCase()}${from.slice(1)}"` : ''}${needsLocation ? ' disabled' : ''}></td>
