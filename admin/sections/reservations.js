@@ -2,7 +2,7 @@
 // status, lookup by name/phone/email, CSV export — plus a "To order" view that
 // totals reserved copies per title for each order cutoff.
 
-import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime, fetchAll, debounce, titleFilter, STATUS_LABELS, toListTop, hintSlot, setHint, openDialog } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime, fetchAll, debounce, titleFilter, STATUS_LABELS, toListTop, hintSlot, setHint, openDialog, titleLink } from '../lib.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, todayIn, dayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
 import { renderStoreOrder } from './store-order.js';
@@ -283,7 +283,7 @@ function orderPanelHtml(o) {
               const until = holdUntil(l);
               const overdue = l.status === 'arrived' && until && until < t;
               return `<tr${overdue ? ' class="is-overdue"' : ''}>
-                <td class="col-title">${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}</td>
+                <td class="col-title">${titleLink(l.item_id, l.item ? itemName(l.item) : `Title #${l.item_id}`)}</td>
                 <td class="center col-qty">${l.quantity}</td>
                 <td class="nowrap col-out">${fmtDate(l.item?.release_date, { month: 'short', day: 'numeric' })}</td>
                 <td class="col-status">
@@ -314,7 +314,7 @@ async function renderGuest(body, orderId) {
       ${orders.map((o) => `<h3>Order #${o.id} <span class="order__when">${fmtDateTime(o.created_at)}</span></h3>
         <table class="admin-table cards"><thead><tr><th scope="col">Title</th><th scope="col" class="col-qty">Qty</th><th scope="col">Out</th><th scope="col">Status</th></tr></thead>
         <tbody>${o.reservations.map((l) => `<tr>
-          <td class="card-title">${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}</td>
+          <td class="card-title">${titleLink(l.item_id, l.item ? itemName(l.item) : `Title #${l.item_id}`)}</td>
           <td class="center card-key card-label">${l.quantity}</td>
           <td class="nowrap card-key card-label">${fmtDate(l.item?.release_date, { month: 'short', day: 'numeric' })}</td>
           <td class="card-key">${esc(LINE_STATUS[l.status] ?? l.status)}</td>
@@ -617,7 +617,7 @@ async function renderReady(body) {
       <tbody>${list.map((r) => `<tr>
         <td class="card-lead"><input type="checkbox" data-item="${r.item.id}" aria-label="Ready: ${esc(itemName(r.item))}"${picked.has(r.item.id) ? ' checked' : ''}${coming(r) ? '' : ' disabled title="Nothing is coming for this title: no reservations or store copies on order"'}>
         </td>
-        <td class="card-title">${esc(itemName(r.item))}</td>
+        <td class="card-title">${titleLink(r.item.id, itemName(r.item))}</td>
         <td>${esc(r.item.publisher ?? '')}</td>
         <td class="nowrap card-label">${r.item.release_date ? fmtDate(r.item.release_date, { month: 'short', day: 'numeric' }) : ''}</td>
         <td class="center card-key card-label">${r.copies ? `<button type="button" class="link-button" data-customers="${r.item.id}" data-waiting title="See who reserved this title">${r.copies}</button>` : '—'}</td>
@@ -844,7 +844,7 @@ ${rows.length ? `        <div class="admin-actions toorder__actions"><button cla
         <table class="admin-table cards cards--slim" data-to-order>
           <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col" data-sort="num" data-first="desc">Store</th><th scope="col" data-sort="num" data-first="desc">Copies</th>${sentAny ? '<th scope="col" data-sort="num" data-first="desc">Sent</th><th scope="col" data-sort="num" data-first="desc">Change</th>' : ''}<th scope="col"><span class="visually-hidden">Not ordering</span></th></tr></thead>
           <tbody>${rows.map((r) => `<tr>
-            <td class="card-title">${esc(itemName(r))}${movedPill(r)}</td>
+            <td class="card-title">${titleLink(r.item_id, itemName(r))}${movedPill(r)}</td>
             <td>${esc(distributorName(r.distributor))}</td>
             <td class="nowrap">${esc(r.upc || r.isbn || r.sku || '')}</td>
             <td class="center card-key card-label">${customersCell(r, 'all')}
@@ -859,7 +859,7 @@ ${rows.length ? `        <div class="admin-actions toorder__actions"><button cla
 ` : ''}        ${ordered.length ? `${rows.length ? '<h3 class="mt-16 mb-8">Already ordered</h3>' : ''}<table class="admin-table cards cards--slim">
           <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col" data-sort="num" data-first="desc">Store</th><th scope="col" data-sort="num" data-first="desc">Copies</th>${sentAny ? '<th scope="col" data-sort="num" data-first="desc">Sent</th>' : ''}</tr></thead>
           <tbody>${ordered.map((r) => `<tr>
-            <td class="card-title">${esc(itemName(r))}${movedPill(r)}</td>
+            <td class="card-title">${titleLink(r.item_id, itemName(r))}${movedPill(r)}</td>
             <td>${esc(distributorName(r.distributor))}</td>
             <td class="nowrap">${esc(r.upc || r.isbn || r.sku || '')}</td>
             <td class="center card-key card-label">${customersCell(r, 'past')}</td>
@@ -1137,7 +1137,7 @@ async function loadPastCutoff(d) {
       ? `<table class="admin-table past-table cards">
         <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col" data-sort="num" data-first="desc">Store</th><th scope="col" data-sort="num" data-first="desc">Copies</th>${sent ? '<th scope="col" data-sort="num" data-first="desc">Sent</th>' : ''}<th scope="col">Status</th></tr></thead>
         <tbody>${rows.map((r) => `<tr>
-          <td class="card-title">${esc(itemName(r))}</td>
+          <td class="card-title">${titleLink(r.item_id, itemName(r))}</td>
           <td class="center card-key card-label">${customersCell(r, 'past')}</td>
           <td class="center card-key card-label">${r.shop_copies || '–'}</td>
           <td class="center card-key card-label"><strong>${r.total}</strong></td>
@@ -1527,7 +1527,7 @@ async function renderReorders(body) {
   const table = (rows, { action }) => `<table class="admin-table cards cards--slim">
       <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col" data-sort="text">Publisher</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Shelf</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col"><span class="visually-hidden">${action === 'remove' ? 'Not re-ordering' : 'Shelf copies in'}</span></th></tr></thead>
       <tbody>${rows.map((r) => `<tr>
-        <td class="card-title">${esc(itemName(r.item))}</td>
+        <td class="card-title">${titleLink(r.item.id, itemName(r.item))}</td>
         <td>${esc(distributorName(r.item.distributor ?? null))}</td>
         <td>${esc(r.item.publisher ?? '')}</td>
         <td class="nowrap">${esc(r.item.upc || r.item.isbn || r.item.sku || '')}</td>

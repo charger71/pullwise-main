@@ -269,6 +269,8 @@ export function setHint(from, html) {
 new MutationObserver((list) => list.forEach((m) => m.addedNodes.forEach((n) => n.nodeType === 1 && hintsInto(n)))).observe(document.body, { childList: true, subtree: true });
 
 export const itemName = (i) => [i.title, i.issue_number && `#${i.issue_number}`].filter(Boolean).join(' ') + (i.variant ? ` · ${i.variant}` : '');
+/** A title's name as a button that opens its Title Info dialog (the screen listens for clicks on [data-title-info]). */
+export const titleLink = (id, name) => `<button class="tt-datelink" type="button" data-title-info="${Number(id)}" title="See everything about this title">${esc(name)}</button>`;
 
 // ---------------------------------------------------------------------------
 // Dialog

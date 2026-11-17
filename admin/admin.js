@@ -379,6 +379,13 @@ const crumbHeading = () => {
   h1.dataset.shown = text;
 };
 $('#section').addEventListener('keydown', tabKeys);
+// A title's name drawn with titleLink (lib.js) opens its Title Info dialog on any screen, without leaving it.
+$('#section').addEventListener('click', async (e) => {
+  const link = e.target.closest('[data-title-info]');
+  if (!link) return;
+  const { showTitleInfo } = await import('./sections/titles.js');
+  showTitleInfo({ sb, isOwner }, Number(link.dataset.titleInfo));
+});
 // A screen drawing a long list changes the page many times in a row: do the work once per frame, not once per change.
 let tidyQueued = false;
 const tidySection = () => {

@@ -1328,7 +1328,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
   .titles-table .tt-flag--1 { grid-column: 2; }
   .titles-table .tt-flag--2 { grid-column: 3; }
   .titles-table .tt-flag--3 { grid-column: 4; }
-  .titles-table .tt-datelink { min-height: var(--tap); }
+  .titles-table .tt-datelink, .cards [data-title-info] { min-height: var(--tap); }
 }
 
 /* ---------- Forms on phones (every admin form) ----------
