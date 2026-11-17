@@ -685,6 +685,14 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .order-tools__row { display: grid; gap: 0 var(--sp-16); grid-template-columns: 1fr; align-items: end; }
 @media (min-width: 700px) { .order-tools__row { grid-template-columns: 1fr 1fr auto; } }
 .order-tools__btns span:last-child { display: flex; gap: var(--sp-8); flex-wrap: wrap; }
+/* The distributor file (Lunar FOC edits, PRH cart paste) under the pickers: one cutoff and one distributor. */
+.order-file { margin: var(--sp-12) 0; padding-top: var(--sp-12); border-top: var(--border); }
+.order-file h3 { margin: 0 0 var(--sp-4); }
+.order-file__batches { margin: var(--sp-8) 0 0; padding: 0; list-style: none; }
+.order-file__batches li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-8); padding: var(--sp-8) 0; border-bottom: var(--border); }
+.order-file__acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
+.order-file__list { margin-top: var(--sp-12); }
+.order-file__list ul { margin: var(--sp-4) 0 0; padding-left: var(--sp-20); }
 .cust-lastupdate { margin: -4px 0 var(--sp-10); }
 .cust-updated { display: block; margin-top: var(--sp-2); font-size: var(--fs-xs); font-weight: 400; color: var(--muted); }
 
