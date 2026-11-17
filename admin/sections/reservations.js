@@ -47,7 +47,6 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-view="orders">Reservations</button>
       <button type="button" class="admin-tab" role="tab" data-view="storeorder">Store Order</button>
       <button type="button" class="admin-tab" role="tab" data-view="toorder">Place Order</button>
-      <button type="button" class="admin-tab" role="tab" data-view="past">Past Orders</button>
       <button type="button" class="admin-tab" role="tab" data-view="ready">Received</button>
       <button type="button" class="admin-tab" role="tab" data-view="reorder">Re-order</button>
     </div>
@@ -83,7 +82,7 @@ export async function mount(el, ctx) {
   // A refresh stays on the tab you were on.
   try {
     const view = sessionStorage.getItem('admin-reservations-view');
-    if (['orders', 'storeorder', 'toorder', 'past', 'ready', 'reorder'].includes(view)) state.view = view;
+    if (['orders', 'storeorder', 'toorder', 'past', 'ready', 'reorder'].includes(view)) state.view = view === 'past' ? 'toorder' : view;
   } catch {
     /* start on Orders */
   }
@@ -118,7 +117,6 @@ function render(el) {
   setHint(el, ''); // each view puts its own How this works in the slot above the tabs
   if (state.view === 'orders') renderOrders(body);
   else if (state.view === 'ready') renderReady(body);
-  else if (state.view === 'past') renderPastOrders(body);
   else if (state.view === 'reorder') renderReorders(body);
   else if (state.view === 'storeorder') renderStoreOrder(body, { sb, location: state.location ? Number(state.location) : null, needsLocation: !state.location && locationNames.size > 1, today: today() });
   else renderToOrder(body);
@@ -776,13 +774,22 @@ async function renderToOrder(body) {
   const keep = { foc: $('#ot-foc', body)?.value ?? '', dist: $('#ot-dist', body)?.value ?? 'all' };
   toOrderBody = body;
   // Titles whose customer list is open, so a refresh can open them again.
-  const openPeople = $$('[data-customers][aria-expanded="true"]', body).map((b) => b.dataset.customers);
+  const openPeople = $$('[data-groups] [data-customers][aria-expanded="true"]', body).map((b) => b.dataset.customers);
   // The instructions are folded away on phones, where they would push the cutoffs off the first screen.
-  setHint(body, `Copies to order per title for each order cutoff: Customers is what customers reserved (including pull lists), Store the store’s own copies from the Store Order tab (last issue’s number until someone changes it), and Copies the total that goes to the distributor. Once a cutoff is marked ordered, Sent shows what the distributor has for each title and Change how far Copies has moved since; changed titles come back to the top to send again (click Sent to correct it for an order placed on the distributor’s own site). Pick one cutoff and Lunar or PRH for the file to upload or paste on their site, or export the list as a CSV or PDF; then mark the cutoff ordered once you’ve placed it, which records what was sent for each title. A cutoff ordered before its date stays here marked Ordered until the date passes, then moves to Past Orders.`);
+  setHint(body, `Copies to order per title for each order cutoff: Customers is what customers reserved (including pull lists), Store the store’s own copies from the Store Order tab (last issue’s number until someone changes it), and Copies the total that goes to the distributor. Once a cutoff is marked ordered, Sent shows what the distributor has for each title and Change how far Copies has moved since; changed titles come back to the top to send again (click Sent to correct it for an order placed on the distributor’s own site). Pick one cutoff and Lunar or PRH for the file to upload or paste on their site, or export the list as a CSV or PDF; then mark the cutoff ordered once you’ve placed it, which records what was sent for each title. A cutoff ordered before its date stays here marked Ordered until the date passes, then moves to Past orders at the bottom.`);
   body.innerHTML = `<div data-order-tools>
     </div>
     <div data-groups aria-busy="true">
-    </div>`;
+    </div>
+    <details class="fold past-orders" data-past${pastOpen ? ' open' : ''}>
+      <summary class="fold__head"><h2>Past orders</h2></summary>
+      <div class="fold__body" data-past-list></div>
+    </details>`;
+  const past = $('[data-past]', body);
+  // Loaded the first time it is opened (and again after a refresh if it was left open).
+  const loadPast = () => { if (past.open && !past.dataset.loaded) { past.dataset.loaded = '1'; renderPastOrders($('[data-past-list]', past)); } };
+  past.addEventListener('toggle', (e) => { if (e.target !== past) return; pastOpen = past.open; loadPast(); });
+  loadPast();
   const box = $('[data-groups]', body);
   let all, held;
   try {
@@ -1052,11 +1059,13 @@ const PAST_STATUSES = ['ordered', 'reordered', 'arrived', 'picked_up'];
 // Lines Received lists and can mark ready.
 const WAITING_STATUSES = ['open', 'ordered', 'reordered'];
 
-async function renderPastOrders(body) {
-  // The instructions are folded away on phones, where they would push the cutoffs down the screen.
-  setHint(body, `Cutoffs that have passed and were ordered, newest first. Open one to see each title’s copies (Customers, Store and Copies, the same numbers Place Order showed), what was sent to the distributor, and where each copy stands now. Read-only: use Place Order for anything still open.`);
-  body.innerHTML = `<div data-groups aria-busy="true"></div>`;
-  const box = $('[data-groups]', body);
+// Whether Place Order's Past orders section is open, kept across refreshes.
+let pastOpen = false;
+
+/** Place Order's Past orders section: passed cutoffs, newest first, each loading its titles when opened. */
+async function renderPastOrders(box) {
+  box.innerHTML = '<p class="admin-hint">Cutoffs that have passed and were ordered, newest first. Open one to see each title’s copies (the same numbers as above), what was sent to the distributor, and where each copy stands now.</p><div data-past-cutoffs aria-busy="true"></div>';
+  box = $('[data-past-cutoffs]', box);
   let cutoffs;
   try {
     cutoffs = await must(sb.rpc('staff_past_cutoffs', { p_location: orderLocation() }));

@@ -689,6 +689,8 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 @media (min-width: 700px) { .order-tools__row { grid-template-columns: 1fr 1fr auto; } }
 .order-tools__btns span:last-child { display: flex; gap: var(--sp-8); flex-wrap: wrap; }
 /* The distributor file (Lunar FOC edits, PRH cart paste) under the pickers: one cutoff and one distributor. */
+/* Place Order: passed cutoffs in one closed fold under the open ones. */
+.past-orders { margin-top: var(--sp-24); }
 .order-file { margin: var(--sp-12) 0; padding-top: var(--sp-12); border-top: var(--border); }
 .order-file h3 { margin: 0 0 var(--sp-4); }
 .order-file__batches { margin: var(--sp-8) 0 0; padding: 0; list-style: none; }
