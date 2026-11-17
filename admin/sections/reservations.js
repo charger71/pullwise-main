@@ -2,9 +2,11 @@
 // status, lookup by name/phone/email, CSV export — plus a "To order" view that
 // totals reserved copies per title for each order cutoff.
 
-import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime, fetchAll, debounce, titleFilter, STATUS_LABELS, toListTop, hintSlot, setHint } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, customerFilter, withCustomers, formatPhone, solidIcon, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, listLocations, locationFilterField, fmtTime, fetchAll, debounce, titleFilter, STATUS_LABELS, toListTop, hintSlot, setHint, openDialog } from '../lib.js';
 import { LINE_STATUS } from '../../js/labels.js';
 import { addDays, todayIn, dayIn, stampIn, holdUntil as holdDate } from '../../js/dates.js';
+import { renderStoreOrder } from './store-order.js';
+import { generalGroups, lunarFile, prhExport, prhText, prhXlsxFiles, rowName, orderState, changeText, PRH_BATCH } from '../order-export.js';
 
 const PAGE = 25;
 /** An order's kind as a pill: a customer's pull list, a re-order (ordered after the cutoff), or a guest order. */
@@ -43,6 +45,7 @@ export async function mount(el, ctx) {
     ${hintSlot()}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-view="orders">Reservations</button>
+      <button type="button" class="admin-tab" role="tab" data-view="storeorder">Store Order</button>
       <button type="button" class="admin-tab" role="tab" data-view="toorder">Place Order</button>
       <button type="button" class="admin-tab" role="tab" data-view="past">Past Orders</button>
       <button type="button" class="admin-tab" role="tab" data-view="ready">Received</button>
@@ -80,7 +83,7 @@ export async function mount(el, ctx) {
   // A refresh stays on the tab you were on.
   try {
     const view = sessionStorage.getItem('admin-reservations-view');
-    if (['orders', 'toorder', 'past', 'ready', 'reorder'].includes(view)) state.view = view;
+    if (['orders', 'storeorder', 'toorder', 'past', 'ready', 'reorder'].includes(view)) state.view = view;
   } catch {
     /* start on Orders */
   }
@@ -117,6 +120,7 @@ function render(el) {
   else if (state.view === 'ready') renderReady(body);
   else if (state.view === 'past') renderPastOrders(body);
   else if (state.view === 'reorder') renderReorders(body);
+  else if (state.view === 'storeorder') renderStoreOrder(body, { sb, location: state.location ? Number(state.location) : null, needsLocation: !state.location && locationNames.size > 1, today: today() });
   else renderToOrder(body);
 }
 
@@ -481,10 +485,13 @@ async function exportCsv() {
 // Mark ready: books are on the shelf today, so flip many titles to Ready at once
 // ---------------------------------------------------------------------------
 
-/** Open, ordered and reordered reservations, totalled per title. Titles releasing after this week (Sunday to Saturday) are listed only when asked for. */
+/**
+ * Open, ordered and reordered reservations, and the store's ordered copies, totalled per title. Titles releasing after
+ * this week (Sunday to Saturday) are listed only when asked for.
+ */
 async function renderReady(body) {
   // The instructions are long: folded away on phones, where they would fill the first screen.
-  setHint(body, `Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked; tick Only titles with reservations to hide them. Click a column heading to sort by it. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.`);
+  setHint(body, `Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered) and the store’s own copies on order. Titles with nothing coming can’t be ticked; tick Only titles with copies coming to hide them. Click a column heading to sort by it. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today, and the store’s copies are marked received.`);
   body.innerHTML = `
     <form class="filters admin-filters" role="search" aria-label="Find titles">
       <div class="field field--search"><label for="rd-q">Title</label><input id="rd-q" type="search" placeholder="Filter by title or publisher"></div>
@@ -497,7 +504,7 @@ async function renderReady(body) {
   let seeded = false;
   // Column sort, kept across redraws (ticking a title redraws the table). Starts by title, A to Z.
   let sort = { key: 'title', dir: 'asc' };
-  // "Only titles with reservations" sits in the tick-buttons row, which is redrawn with the table, so its state lives here.
+  // "Only titles with copies coming" sits in the tick-buttons row, which is redrawn with the table, so its state lives here.
   let onlyReserved = false;
   const weekStart = addDays(today(), -new Date(`${today()}T00:00:00Z`).getUTCDay());
   const weekEnd = addDays(weekStart, 6);
@@ -515,18 +522,32 @@ async function renderReady(body) {
       const byItem = new Map();
       for (const l of lines) {
         if (!l.item) continue;
-        const r = byItem.get(l.item.id) ?? { item: l.item, copies: 0, orders: new Set(), lineIds: [], onOrder: false };
+        const r = byItem.get(l.item.id) ?? blank(l.item);
         r.copies += l.quantity;
         if (l.status !== 'reordered') r.onOrder = true;
         r.orders.add(l.order_id);
         r.lineIds.push(l.id);
         byItem.set(l.item.id, r);
       }
+      // The store's copies on order (ordered, not yet received).
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await atLocation(sb.from('shop_order_lines').select(`id,quantity,item:items(${ITEM_FIELDS})`).eq('status', 'ordered')).order('id').range(from, from + 999);
+        if (error) throw fromError(error);
+        for (const s of data) {
+          if (!s.item) continue;
+          const r = byItem.get(s.item.id) ?? blank(s.item);
+          r.store += s.quantity;
+          r.shopIds.push(s.id);
+          r.onOrder = true;
+          byItem.set(s.item.id, r);
+        }
+        if (data.length < 1000) break;
+      }
       // Every title releasing this week is listed, reserved or not.
       for (let from = 0; ; from += 1000) {
         const { data, error } = await sb.from('items').select(ITEM_FIELDS).gte('release_date', weekStart).lte('release_date', weekEnd).order('id').range(from, from + 999);
         if (error) throw fromError(error);
-        for (const item of data) if (!byItem.has(item.id)) byItem.set(item.id, { item, copies: 0, orders: new Set(), lineIds: [] });
+        for (const item of data) if (!byItem.has(item.id)) byItem.set(item.id, blank(item));
         if (data.length < 1000) break;
       }
       rows = [...byItem.values()].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
@@ -539,6 +560,10 @@ async function renderReady(body) {
     draw();
   }
 
+  /** A title's row: customer copies (lineIds: their lines) and the store's copies on order (shopIds: their rows). */
+  const blank = (item) => ({ item, copies: 0, store: 0, orders: new Set(), lineIds: [], shopIds: [], onOrder: false });
+  /** Something is coming for the title: customer lines or store copies (only these can be ticked). */
+  const coming = (r) => r.lineIds.length || r.shopIds.length;
   const isOut = (r) => !r.item.release_date || r.item.release_date <= weekEnd;
   // Ticked to start: titles out this week with copies open or on order. Titles with no release date, from earlier
   // weeks, or only reordered (the replacement comes later) are listed but have to be ticked by hand.
@@ -548,8 +573,9 @@ async function renderReady(body) {
     title: (r) => itemName(r.item),
     publisher: (r) => r.item.publisher ?? '',
     out: (r) => r.item.release_date ?? '',
-    copies: (r) => r.copies,
-    customers: (r) => r.orders.size,
+    customers: (r) => r.copies,
+    store: (r) => r.store,
+    copies: (r) => r.copies + r.store,
   };
   const byColumn = (a, b) => {
     const val = SORT_VALUE[sort.key];
@@ -562,7 +588,7 @@ async function renderReady(body) {
     const q = $('#rd-q', body).value.trim().toLowerCase();
     const future = $('#rd-future', body).checked;
     return rows
-      .filter((r) => (future || isOut(r)) && (!onlyReserved || r.lineIds.length) && (!q || `${itemName(r.item)} ${r.item.publisher ?? ''}`.toLowerCase().includes(q)))
+      .filter((r) => (future || isOut(r)) && (!onlyReserved || coming(r)) && (!q || `${itemName(r.item)} ${r.item.publisher ?? ''}`.toLowerCase().includes(q)))
       .sort(byColumn);
   };
 
@@ -574,14 +600,14 @@ async function renderReady(body) {
       rows.filter(startTicked).forEach((r) => picked.add(r.item.id));
       seeded = true;
     }
-    const onlyBox = `<label class="cust-export-opt ready-picks__only" for="rd-reserved"><input type="checkbox" id="rd-reserved"${onlyReserved ? ' checked' : ''}> Only titles with reservations</label>`;
+    const onlyBox = `<label class="cust-export-opt ready-picks__only" for="rd-reserved"><input type="checkbox" id="rd-reserved"${onlyReserved ? ' checked' : ''}> Only titles with copies coming</label>`;
     if (!list.length) {
       // Keep the tick-box when it is what emptied the list, so it can be unticked.
       box.innerHTML = `${onlyReserved ? `<div class="admin-actions ready-picks">${onlyBox}</div>` : ''}<p class="empty">${rows.length ? 'No titles match.' : 'Nothing is releasing this week and nothing is waiting.'}</p>`;
       return;
     }
     const chosen = list.filter((r) => picked.has(r.item.id));
-    const copies = chosen.reduce((n, r) => n + r.copies, 0);
+    const copies = chosen.reduce((n, r) => n + r.copies + r.store, 0);
     box.innerHTML = `<section class="fold fold--static fold--compact">
         <div class="fold__head">
           <h2>Arriving This Week<span class="fold__note">${list.length} ${list.length === 1 ? 'title' : 'titles'} · ${chosen.length} ticked</span></h2>
@@ -589,15 +615,16 @@ async function renderReady(body) {
         </div>
         <div class="fold__body">
         <div class="admin-actions ready-picks"><button type="button" class="btn btn--ghost btn--small" data-pick="all">Tick all shown</button><button type="button" class="btn btn--ghost btn--small" data-pick="none">Clear ticks</button>${onlyBox}</div>
-      <table class="admin-table cards"><thead><tr><th scope="col"><span class="visually-hidden">Ready</span></th><th scope="col" data-sort="title">Title</th><th scope="col" data-sort="publisher">Publisher</th><th scope="col" data-sort="out">Out</th><th scope="col" class="col-qty" data-sort="copies" data-first="desc">Copies</th><th scope="col" class="col-qty" data-sort="customers" data-first="desc">Customers</th></tr></thead>
+      <table class="admin-table cards"><thead><tr><th scope="col"><span class="visually-hidden">Ready</span></th><th scope="col" data-sort="title">Title</th><th scope="col" data-sort="publisher">Publisher</th><th scope="col" data-sort="out">Out</th><th scope="col" class="col-qty" data-sort="customers" data-first="desc">Customers</th><th scope="col" class="col-qty" data-sort="store" data-first="desc">Store</th><th scope="col" class="col-qty" data-sort="copies" data-first="desc">Copies</th></tr></thead>
       <tbody>${list.map((r) => `<tr>
-        <td class="card-lead"><input type="checkbox" data-item="${r.item.id}" aria-label="Ready: ${esc(itemName(r.item))}"${picked.has(r.item.id) ? ' checked' : ''}${r.lineIds.length ? '' : ' disabled title="Nobody has reserved this title"'}>
+        <td class="card-lead"><input type="checkbox" data-item="${r.item.id}" aria-label="Ready: ${esc(itemName(r.item))}"${picked.has(r.item.id) ? ' checked' : ''}${coming(r) ? '' : ' disabled title="Nothing is coming for this title: no reservations or store copies on order"'}>
         </td>
         <td class="card-title">${esc(itemName(r.item))}</td>
         <td>${esc(r.item.publisher ?? '')}</td>
         <td class="nowrap card-label">${r.item.release_date ? fmtDate(r.item.release_date, { month: 'short', day: 'numeric' }) : ''}</td>
-        <td class="center card-key card-label">${r.copies ? `<strong>${r.copies}</strong>` : '—'}</td>
-        <td class="center card-key card-label">${r.orders.size ? `<button type="button" class="link-button" data-customers="${r.item.id}" data-waiting title="See who reserved this title">${r.orders.size}</button>` : '—'}</td>
+        <td class="center card-key card-label">${r.copies ? `<button type="button" class="link-button" data-customers="${r.item.id}" data-waiting title="See who reserved this title">${r.copies}</button>` : '—'}</td>
+        <td class="center card-key card-label">${r.store || '—'}</td>
+        <td class="center card-key card-label">${r.copies + r.store ? `<strong>${r.copies + r.store}</strong>` : '—'}</td>
         </tr>`).join('')}</tbody>
         </table>
         </div>
@@ -633,7 +660,7 @@ async function renderReady(body) {
     if (cust) return void toggleCustomers(cust);
     const pick = e.target.closest('[data-pick]');
     if (pick) {
-      visible().filter((r) => r.lineIds.length).forEach((r) => (pick.dataset.pick === 'all' ? picked.add(r.item.id) : picked.delete(r.item.id)));
+      visible().filter(coming).forEach((r) => (pick.dataset.pick === 'all' ? picked.add(r.item.id) : picked.delete(r.item.id)));
       return draw();
     }
     const go = e.target.closest('[data-go]');
@@ -641,13 +668,18 @@ async function renderReady(body) {
     const chosen = visible().filter((r) => picked.has(r.item.id));
     if (!chosen.length) return;
     const ids = chosen.flatMap((r) => r.lineIds);
+    const shopIds = chosen.flatMap((r) => r.shopIds);
     const copies = chosen.reduce((n, r) => n + r.copies, 0);
-    if (!confirm(`Mark ${chosen.length} ${chosen.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) as ready for pickup today?\n\nCustomers who have arrival emails turned on will be notified.`)) return;
+    const store = chosen.reduce((n, r) => n + r.store, 0);
+    const what = [copies && `${copies} customer ${copies === 1 ? 'copy' : 'copies'} ready for pickup today`, store && `${store} store ${store === 1 ? 'copy' : 'copies'} received`].filter(Boolean).join(', and ');
+    if (!confirm(`Mark ${chosen.length} ${chosen.length === 1 ? 'title' : 'titles'} as in: ${what}?${copies ? '\n\nCustomers who have arrival emails turned on will be notified.' : ''}`)) return;
     go.disabled = true;
     try {
-      // Only lines still open, ordered or reordered change, so a line staff changed meanwhile is left alone.
-      const done = await updateLines(ids, 'arrived', WAITING_STATUSES);
-      toast(`${done} ${done === 1 ? 'reservation' : 'reservations'} marked ready`);
+      // Only lines still open, ordered or reordered change, so a line staff changed meanwhile is left alone; likewise
+      // only store rows still ordered.
+      const done = ids.length ? await updateLines(ids, 'arrived', WAITING_STATUSES) : 0;
+      const got = shopIds.length ? await must(sb.rpc('staff_receive_shop_copies', { p_ids: shopIds })) : 0;
+      toast([ids.length && `${done} ${done === 1 ? 'reservation' : 'reservations'} marked ready`, shopIds.length && `store copies of ${got} ${got === 1 ? 'title' : 'titles'} received`].filter(Boolean).join(' · '));
       picked.clear();
       seeded = true;
     } catch (err) {
@@ -659,42 +691,35 @@ async function renderReady(body) {
 }
 
 // ---------------------------------------------------------------------------
-// To order: copies reserved per title, grouped by order cutoff
+// Place Order: copies to order per title (customers + store), grouped by order cutoff
 // ---------------------------------------------------------------------------
 
+/** The location picked at the top of the screen, as the ordering functions take it (null: all, or the only one). */
+const orderLocation = () => (state.location ? Number(state.location) : null);
+
+/** One cutoff's titles with copies to order or sent before (staff_order_rows). foc: a date, or 'No cutoff'. */
+const loadCutoffRows = (foc, dist = 'all') =>
+  fetchAll(() => sb.rpc('staff_order_rows', { p_foc: foc === 'No cutoff' ? null : foc, p_distributor: dist, p_location: orderLocation(), p_ordering_only: true }));
+
 /**
- * Open reservations totalled per title, straight from the database:
- * { lines, groups (cutoff → item id → { item, copies, orders, lineIds }), focs, meta (item id → codes/distributor) },
- * or null when nothing is waiting to be ordered.
+ * Place Order's numbers, straight from the database: cutoff ('No cutoff' for titles without one) → order rows.
+ * Customer copies, store copies and totals come from the same function as Store Order and the distributor files,
+ * so the screen and the exports can't disagree. Only cutoffs with copies or something sent are read.
  */
-async function loadToOrderData() {
-  const lines = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items(${ITEM_FIELDS})`).eq('status', 'open').eq('reorder', false).eq('counts_for_order', true)).order('id').range(from, from + 999);
-    if (error) throw fromError(error);
-    lines.push(...data);
-    if (data.length < 1000) break;
-  }
-  if (!lines.length) return null;
+async function loadOrderData() {
+  const cutoffs = await must(sb.rpc('staff_order_cutoffs', { p_distributor: 'all', p_location: orderLocation() }));
+  const wanted = cutoffs.filter((c) => c.total > 0 || c.submitted_at);
+  const lists = await Promise.all(wanted.map((c) => loadCutoffRows(c.foc_date ?? 'No cutoff')));
   const groups = new Map();
-  for (const l of lines) {
-    const foc = l.item?.foc_date ?? 'No cutoff';
-    if (!groups.has(foc)) groups.set(foc, new Map());
-    const g = groups.get(foc);
-    const row = g.get(l.item.id) ?? { item: l.item, copies: 0, orders: new Set(), lineIds: [] };
-    row.copies += l.quantity;
-    row.orders.add(l.order_id);
-    row.lineIds.push(l.id);
-    g.set(l.item.id, row);
-  }
-  // Product codes and distributors, a few hundred titles per request (a long id list overruns the URL, and a
-  // response stops at 1000 rows).
-  const ids = [...new Set(lines.map((l) => l.item.id))];
-  const meta = new Map();
-  for (let i = 0; i < ids.length; i += 300)
-    for (const m of await must(sb.from('items').select('id,upc,isbn,sku,distributor').in('id', ids.slice(i, i + 300)))) meta.set(m.id, m);
-  return { lines, groups, focs: [...groups.keys()].sort(), meta };
+  wanted.forEach((c, i) => { if (lists[i].length) groups.set(c.foc_date ?? 'No cutoff', lists[i]); });
+  return groups;
 }
+
+/**
+ * Needs ordering: copies not marked ordered yet, or a total that no longer matches what was sent (see orderState in
+ * order-export.js). These are the titles Mark ordered sends and the CSV and PDF list.
+ */
+const pending = (r) => ['to_order', 'changed'].includes(orderState(r));
 
 /**
  * Open lines the database holds back from the ordering numbers (counts_for_order is false: a paused customer's titles
@@ -712,44 +737,37 @@ async function loadHeld() {
   return { copies, customers: orders.size };
 }
 
-/**
- * Only one distributor's titles ('all' keeps every title, 'none' the unassigned ones), dropping cutoffs left empty:
- * cutoff → item id → row. distOf reads a row's distributor.
- */
-const forDistributor = (groups, dist, distOf) =>
-  dist === 'all' ? groups : new Map([...groups].map(([foc, items]) => [foc, new Map([...items].filter(([, r]) => (distOf(r) || 'none') === dist))]).filter(([, items]) => items.size));
+/** A row's distributor key: lunar, prh, other, or none. */
+const distOf = (r) => r.distributor || 'none';
+
+/** Only one distributor's titles ('all' keeps every title), dropping cutoffs left empty: cutoff → rows. */
+const forDistributor = (groups, dist) =>
+  dist === 'all' ? groups : new Map([...groups].map(([foc, rows]) => [foc, rows.filter((r) => distOf(r) === dist)]).filter(([, rows]) => rows.length));
 
 /** A cutoff that hasn't passed yet (the shop's today counts as not passed). */
 const upcoming = (foc) => foc !== 'No cutoff' && foc >= today();
 
-/**
- * Lines already ordered for cutoffs that haven't passed (ordered early), which stay on Place Order marked Ordered,
- * including any that have since arrived or been picked up, since Past Orders hides these cutoffs until they pass:
- * cutoff → item id → { item (with its codes and distributor), copies, orders }. Never part of an export or "mark ordered".
- */
-async function loadOrderedEarly() {
-  const lines = [];
-  // Only upcoming cutoffs come back (the inner join drops lines whose title has no cutoff or one that has passed),
-  // so this stays small however much order history builds up.
-  const since = today();
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,item:items!inner(${ITEM_FIELDS},upc,isbn,sku,distributor)`).in('status', PAST_STATUSES).eq('reorder', false).gte('item.foc_date', since)).order('id').range(from, from + 999);
-    if (error) throw fromError(error);
-    lines.push(...data);
-    if (data.length < 1000) break;
-  }
-  const groups = new Map();
-  for (const l of lines) {
-    const foc = l.item.foc_date;
-    if (!groups.has(foc)) groups.set(foc, new Map());
-    const g = groups.get(foc);
-    const row = g.get(l.item.id) ?? { item: l.item, copies: 0, orders: new Set() };
-    row.copies += l.quantity;
-    row.orders.add(l.order_id);
-    g.set(l.item.id, row);
-  }
-  return groups;
-}
+/** A fingerprint of the titles still to order and their totals, to tell whether the numbers changed. */
+const pendingKey = (rows) => rows.filter(pending).map((r) => `${r.item_id}:${r.total}`).sort().join('|');
+
+/** The store's copies for a row, marked when they are last issue's number (not saved for this title yet). */
+const storeCell = (r) =>
+  !r.shop_saved && r.shop_copies > 0 ? `<span title="Last issue’s number">${r.shop_copies}<span class="visually-hidden"> (last issue’s number)</span></span>` : `${r.shop_copies || '–'}`;
+
+/** What the distributor has for a title, as a button to change it (an order placed or changed on their own site). */
+const sentCell = (r) =>
+  `<td class="center card-key card-label" data-sort="${r.submitted ?? -1}"><button type="button" class="link-button" data-sent="${r.item_id}" title="What the distributor has. Change it for an order placed or changed on their site">${r.submitted ?? '–'}</button></td>`;
+
+/** Copies now less copies sent: "+2", "−1", or empty when they match. */
+const changeCell = (r) => `<td class="center card-key card-label" data-sort="${r.change ?? 0}">${r.change ? `<strong>${changeText(r.change)}</strong>` : ''}</td>`;
+
+/** A title sent under one cutoff whose date has since moved: it shows under the new one with what was sent. */
+const movedPill = (r) =>
+  r.foc_moved ? ` <span class="pill pill--warn" title="Sent under the ${r.submitted_foc ? esc(fmtDate(r.submitted_foc, { month: 'short', day: 'numeric' })) : 'earlier'} cutoff">FOC date moved</span>` : '';
+
+/** The customer copies, as a button listing who reserved them (statuses: 'all' or 'past'). */
+const customersCell = (r, which) =>
+  r.customer_copies ? `<button type="button" class="link-button" data-customers="${r.item_id}" data-${which} title="See who reserved this title">${r.customer_copies}</button>` : '–';
 
 // Cutoffs left open on the To order tab (null until the tab has been shown).
 let toOrderOpen = null;
@@ -760,15 +778,15 @@ async function renderToOrder(body) {
   // Titles whose customer list is open, so a refresh can open them again.
   const openPeople = $$('[data-customers][aria-expanded="true"]', body).map((b) => b.dataset.customers);
   // The instructions are folded away on phones, where they would push the cutoffs off the first screen.
-  setHint(body, `Open reservations (not yet ordered from the distributor), totalled per title for each order cutoff. Export the order below (pick a cutoff to export just that one; picking a distributor also narrows the list to its titles), then mark the cutoff as ordered once you've placed it. A cutoff ordered before its date stays here marked Ordered until the date passes, then moves to Past Orders. The list groups titles by distributor with the product code, and counts customer reservations (including pull lists) only.`);
+  setHint(body, `Copies to order per title for each order cutoff: Customers is what customers reserved (including pull lists), Store the store’s own copies from the Store Order tab (last issue’s number until someone changes it), and Copies the total that goes to the distributor. Once a cutoff is marked ordered, Sent shows what the distributor has for each title and Change how far Copies has moved since; changed titles come back to the top to send again (click Sent to correct it for an order placed on the distributor’s own site). Pick one cutoff and Lunar or PRH for the file to upload or paste on their site, or export the list as a CSV or PDF; then mark the cutoff ordered once you’ve placed it, which records what was sent for each title. A cutoff ordered before its date stays here marked Ordered until the date passes, then moves to Past Orders.`);
   body.innerHTML = `<div data-order-tools>
     </div>
     <div data-groups aria-busy="true">
     </div>`;
   const box = $('[data-groups]', body);
-  let loaded, early, held;
+  let all, held;
   try {
-    [loaded, early, held] = await Promise.all([loadToOrderData(), loadOrderedEarly(), loadHeld()]);
+    [all, held] = await Promise.all([loadOrderData(), loadHeld()]);
   } catch (err) {
     box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
     return;
@@ -777,70 +795,70 @@ async function renderToOrder(body) {
   const heldNote = held.copies
     ? `<p class="admin-hint">Not counted: ${held.copies} ${held.copies === 1 ? 'copy' : 'copies'} for ${held.customers} ${held.customers === 1 ? 'customer' : 'customers'} whose pull list is paused or whose account is waiting for approval. They count again if the customer is resumed or approved before the cutoff. See Customers → Unclaimed.</p>`
     : '';
-  if (!loaded && !early.size) {
+  if (!all.size) {
     box.innerHTML = `${heldNote}<p class="empty">Nothing waiting to be ordered.</p>`;
     return;
   }
-  const allGroups = loaded?.groups ?? new Map();
-  const meta = loaded?.meta ?? new Map();
-  // Cutoffs with something to order, for the tools' cutoff list.
-  const allFocs = [...allGroups.keys()].sort();
   toOrderLoadedAt = Date.now();
-  if (allFocs.length) setupOrderTools($('[data-order-tools]', body), allGroups, allFocs, meta, keep);
+  setupOrderTools($('[data-order-tools]', body), all, keep);
   hookToOrderRefresh();
   const ordinal = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const sum = (rows) => rows.reduce((n, r) => n + r.total, 0);
   // The cutoffs drawn for the distributor picked in the tools: "mark ordered" then covers only that distributor.
-  let groups = allGroups;
+  let groups = all;
   const draw = () => {
     const dist = $('#ot-dist', body)?.value ?? 'all';
-    groups = forDistributor(allGroups, dist, (r) => meta.get(r.item.id)?.distributor);
-    const done = forDistributor(early, dist, (r) => r.item.distributor);
-    // Cutoffs with something to order (exports and "mark ordered" use only these), and every cutoff shown.
-    const focs = [...groups.keys()].sort();
-    const shown = [...new Set([...focs, ...done.keys()])].sort();
+    groups = forDistributor(all, dist);
+    // Cutoffs with something still to order, and every cutoff shown (ordered early ones too).
+    const shown = [...groups.keys()].filter((f) => groups.get(f).some((r) => orderState(r) !== 'none')).sort();
+    const focs = shown.filter((f) => groups.get(f).some(pending));
     // Cutoffs are collapsed except the first. A refresh keeps the ones you had open; if none of them is still
     // listed (a new week's cutoffs), the first opens again.
     const keepOpen = toOrderOpen && shown.some((f) => toOrderOpen.has(f)) ? toOrderOpen : new Set((focs.length ? focs : shown).slice(0, 1));
     const from = dist === 'all' ? '' : ` from ${distributorName(dist === 'none' ? null : dist)}`;
     box.innerHTML = heldNote + (focs.length ? '' : `<p class="empty">Nothing waiting to be ordered${esc(from)}.</p>`) + shown
       .map((foc) => {
-        const rows = [...(groups.get(foc)?.values() ?? [])].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
-        const ordered = [...(done.get(foc)?.values() ?? [])].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
-        const copies = rows.reduce((n, r) => n + r.copies, 0);
-        const doneCopies = ordered.reduce((n, r) => n + r.copies, 0);
+        const rows = groups.get(foc).filter(pending);
+        const ordered = groups.get(foc).filter((r) => orderState(r) === 'ordered');
+        const copies = sum(rows);
+        const doneCopies = sum(ordered);
+        // Sent before: Sent and Change columns, and Mark ordered counts titles (a change can be down to 0 copies).
+        const sentAny = groups.get(foc).some((r) => r.submitted != null);
+        const changed = rows.filter((r) => orderState(r) === 'changed').length;
         const note = rows.length
-          ? `${ordinal(rows.length, 'title', 'titles')} · ${ordinal(copies, 'copy', 'copies')}${ordered.length ? ` · ${doneCopies} already ordered` : ''}`
+          ? `${ordinal(rows.length, 'title', 'titles')} · ${ordinal(copies, 'copy', 'copies')}${changed ? ` · ${changed} changed since sent` : ''}${ordered.length ? ` · ${doneCopies} already ordered` : ''}`
           : `${ordinal(ordered.length, 'title', 'titles')} · ${ordinal(doneCopies, 'copy', 'copies')} ordered`;
         return `<details class="fold fold--compact" data-foc="${esc(foc)}"${keepOpen.has(foc) ? ' open' : ''}>
         <summary class="fold__head">
           <h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}${rows.length ? '' : ' <span class="pill pill--ordered">Ordered</span>'}<span class="fold__note">${note}</span></h2>
         </summary>
         <div class="fold__body">
-${rows.length ? `        <div class="admin-actions toorder__actions"><button class="btn btn--green" type="button" data-ordered title="After you place this cutoff's order with the distributor">Mark ${copies} ${copies === 1 ? 'copy' : 'copies'} ordered</button></div>
+${rows.length ? `        <div class="admin-actions toorder__actions"><button class="btn btn--green" type="button" data-ordered title="${sentAny ? 'After you send the changes to the distributor: records each title’s new total as sent' : 'After you place this cutoff’s order with the distributor'}">${sentAny ? `Mark ${ordinal(rows.length, 'title', 'titles')} ordered` : `Mark ${copies} ${copies === 1 ? 'copy' : 'copies'} ordered`}</button></div>
         <table class="admin-table cards cards--slim" data-to-order>
-          <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col" data-sort="text">Publisher</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col"><span class="visually-hidden">Not ordering</span></th></tr></thead>
-          <tbody>${rows.map((r) => { const m = meta.get(r.item.id) ?? {}; return `<tr>
-            <td class="card-title">${esc(itemName(r.item))}</td>
-            <td>${esc(distributorName(m.distributor ?? null))}</td>
-            <td>${esc(r.item.publisher ?? '')}</td>
-            <td class="nowrap">${esc(m.upc || m.isbn || m.sku || '')}</td>
-            <td class="center card-key card-label"><strong>${r.copies}</strong>
+          <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col" data-sort="num" data-first="desc">Store</th><th scope="col" data-sort="num" data-first="desc">Copies</th>${sentAny ? '<th scope="col" data-sort="num" data-first="desc">Sent</th><th scope="col" data-sort="num" data-first="desc">Change</th>' : ''}<th scope="col"><span class="visually-hidden">Not ordering</span></th></tr></thead>
+          <tbody>${rows.map((r) => `<tr>
+            <td class="card-title">${esc(itemName(r))}${movedPill(r)}</td>
+            <td>${esc(distributorName(r.distributor))}</td>
+            <td class="nowrap">${esc(r.upc || r.isbn || r.sku || '')}</td>
+            <td class="center card-key card-label">${customersCell(r, 'all')}
             </td>
-            <td class="center card-key card-label"><button type="button" class="link-button" data-customers="${r.item.id}" title="See who reserved this title">${r.orders.size}</button>
+            <td class="center card-key card-label">${storeCell(r)}</td>
+            <td class="center card-key card-label"><strong>${r.total}</strong></td>
+            ${sentAny ? sentCell(r) + changeCell(r) : ''}
+            <td class="center card-action">${r.customer_open ? `<button type="button" class="icon-btn icon-btn--remove" data-notordering="${r.item_id}" aria-label="Not ordering ${esc(itemName(r))} for customers" title="We are not ordering this title for customers">${solidIcon('skip')}</button>` : ''}
             </td>
-            <td class="center card-action"><button type="button" class="icon-btn icon-btn--remove" data-notordering="${r.item.id}" aria-label="Not ordering ${esc(itemName(r.item))}" title="We are not ordering this title">${solidIcon('skip')}</button>
-            </td>
-            </tr>`; }).join('')}</tbody>
+            </tr>`).join('')}</tbody>
         </table>
 ` : ''}        ${ordered.length ? `${rows.length ? '<h3 class="mt-16 mb-8">Already ordered</h3>' : ''}<table class="admin-table cards cards--slim">
-          <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col" data-sort="text">Publisher</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th></tr></thead>
+          <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Distributor</th><th scope="col">UPC / SKU</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col" data-sort="num" data-first="desc">Store</th><th scope="col" data-sort="num" data-first="desc">Copies</th>${sentAny ? '<th scope="col" data-sort="num" data-first="desc">Sent</th>' : ''}</tr></thead>
           <tbody>${ordered.map((r) => `<tr>
-            <td class="card-title">${esc(itemName(r.item))}</td>
-            <td>${esc(distributorName(r.item.distributor ?? null))}</td>
-            <td>${esc(r.item.publisher ?? '')}</td>
-            <td class="nowrap">${esc(r.item.upc || r.item.isbn || r.item.sku || '')}</td>
-            <td class="center card-key card-label"><strong>${r.copies}</strong></td>
-            <td class="center card-key card-label"><button type="button" class="link-button" data-customers="${r.item.id}" data-past title="See who this title was ordered for">${r.orders.size}</button></td>
+            <td class="card-title">${esc(itemName(r))}${movedPill(r)}</td>
+            <td>${esc(distributorName(r.distributor))}</td>
+            <td class="nowrap">${esc(r.upc || r.isbn || r.sku || '')}</td>
+            <td class="center card-key card-label">${customersCell(r, 'past')}</td>
+            <td class="center card-key card-label">${storeCell(r)}</td>
+            <td class="center card-key card-label"><strong>${r.total}</strong></td>
+            ${sentAny ? sentCell(r) : ''}
             </tr>`).join('')}</tbody>
         </table>` : ''}
         </div>
@@ -861,42 +879,96 @@ ${rows.length ? `        <div class="admin-actions toorder__actions"><button cla
     if (cust) return void toggleCustomers(cust);
     const skip = e.target.closest('[data-notordering]');
     if (skip) return void markNotOrdered(body, Number(skip.dataset.notordering), skip);
+    const sentBtn = e.target.closest('[data-sent]');
+    if (sentBtn) return void editSent(body, [...all.values()].flat().find((r) => r.item_id === Number(sentBtn.dataset.sent)));
     const section = e.target.closest('[data-foc]');
-    const orderedBtn = e.target.closest('[data-ordered]');
-    if (!section || !orderedBtn) return;
+    const btn = e.target.closest('[data-ordered]');
+    if (!section || !btn) return;
     const foc = section.dataset.foc;
-    const btn = orderedBtn;
+    if (!state.location && locationNames.size > 1) return void toast('Pick a location at the top first: each location orders on its own.', 'error');
 
-    // Read the database again so "mark ordered" covers the latest reservations, not what this page loaded earlier.
+    // Read the database again so "mark ordered" covers the latest numbers, not what this page loaded earlier.
+    const dist = $('#ot-dist', body)?.value ?? 'all';
     btn.disabled = true;
     let fresh;
     try {
-      fresh = await loadToOrderData();
+      fresh = await loadCutoffRows(foc, dist);
     } catch (err) {
       btn.disabled = false;
       return void toast(`Couldn’t load the latest quantities: ${friendlyError(err)}`, 'error');
     }
     btn.disabled = false;
-    const dist = $('#ot-dist', body)?.value ?? 'all';
-    const freshRows = fresh && forDistributor(fresh.groups, dist, (r) => fresh.meta.get(r.item.id)?.distributor).get(foc);
-    if (!freshRows) {
+    const rows = fresh.filter(pending);
+    if (!rows.length) {
       renderToOrder(body);
       return void toast('Nothing is waiting to be ordered for that cutoff any more.', 'error');
     }
-    const rows = [...freshRows.values()];
-    const changed = quantitiesKey(new Map([[foc, freshRows]])) !== quantitiesKey(new Map([[foc, groups.get(foc)]]));
-    if (orderedBtn) {
-      const lineIds = rows.flatMap((r) => r.lineIds);
-      const copies = rows.reduce((n, r) => n + r.copies, 0);
-      const note = changed ? 'Reservations changed since this page loaded.\n\n' : '';
-      if (!confirm(`${note}Mark ${lineIds.length} reserved ${lineIds.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) for this cutoff as ordered from ${dist === 'all' ? 'the distributor' : distributorName(dist === 'none' ? null : dist)}?`)) {
-        if (changed) renderToOrder(body);
-        return;
-      }
-      await setLineStatus(lineIds, 'ordered', ['open']);
-      renderToOrder(body);
+    const changed = pendingKey(fresh) !== pendingKey(groups.get(foc) ?? []);
+    const copies = sum(rows);
+    const note = changed ? 'Quantities changed since this page loaded.\n\n' : '';
+    const down = rows.filter((r) => r.submitted != null && r.total < r.submitted).length;
+    const lower = down ? `\n\n${ordinal(down, 'title went', 'titles went')} down since it was sent: lower ${down === 1 ? 'it' : 'them'} on the distributor’s site first (Lunar’s FOC edits file does it; in the PRH cart it’s by hand).` : '';
+    if (!confirm(`${note}Mark ${rows.length} ${rows.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}, customers and store) for this cutoff as ordered from ${dist === 'all' ? 'the distributor' : distributorName(dist === 'none' ? null : dist)}? Each title’s total is recorded as sent.${lower}`)) {
+      if (changed) renderToOrder(body);
+      return;
     }
+    // One submission per distributor: what was sent is kept per title, against the distributor it went to.
+    btn.disabled = true;
+    const byDist = new Map();
+    for (const r of rows) byDist.set(distOf(r), [...(byDist.get(distOf(r)) ?? []), r]);
+    let titles = 0;
+    let sent = 0;
+    try {
+      for (const [d, list] of byDist) {
+        const res = await must(sb.rpc('staff_mark_ordered', { p_foc: foc === 'No cutoff' ? null : foc, p_distributor: d, p_location: orderLocation(), p_lines: list.map((r) => ({ item_id: r.item_id, quantity: r.total })) }));
+        titles += res.titles;
+        sent += res.copies;
+      }
+      toast(`Marked ${titles} ${titles === 1 ? 'title' : 'titles'} (${sent} ${sent === 1 ? 'copy' : 'copies'}) ordered`);
+    } catch (err) {
+      toast(`Not marked ordered: ${friendlyError(err)}`, 'error');
+    }
+    renderToOrder(body);
   });
+}
+
+/**
+ * Correct what the distributor has for a title: an order placed or changed on their own site (not through Pullwise's
+ * file). Recorded as a manual submission with an optional note; Sent and Change then follow it.
+ */
+function editSent(body, r) {
+  if (!r) return;
+  if (!state.location && locationNames.size > 1) return void toast('Pick a location at the top first: each location orders on its own.', 'error');
+  const name = itemName(r);
+  const d = openDialog(`Copies sent: ${name}`, `
+    <p>How many copies does the distributor have for this title now? Use this for an order placed or changed on their own site. Change then counts from this number.</p>
+    <p class="admin-hint">Copies now: ${r.total} (customers ${r.customer_copies}, store ${r.shop_copies}). Sent so far: ${r.submitted ?? 'nothing'}.</p>
+    <div class="field"><label for="sent-qty">Copies the distributor has</label><input id="sent-qty" class="cust-qty" type="number" inputmode="numeric" min="0" max="9999" step="1" value="${r.submitted ?? r.total}"></div>
+    <div class="field"><label for="sent-note">Note (optional, staff only)</label><input id="sent-note" type="text" maxlength="500" placeholder="e.g. Added 2 on Lunar’s site"></div>
+    <p class="form-error" role="alert" data-sent-error></p>
+    <div class="admin-actions"><button class="btn btn--primary" type="button" data-go>Save</button><button class="btn btn--ghost" type="button" data-cancel>Cancel</button></div>`);
+  const qty = $('#sent-qty', d);
+  qty.select();
+  $('[data-cancel]', d).addEventListener('click', () => d.close());
+  const go = async () => {
+    const n = Number(qty.value);
+    if (qty.value.trim() === '' || !Number.isInteger(n) || n < 0 || n > 9999) {
+      qty.setAttribute('aria-invalid', 'true');
+      return void ($('[data-sent-error]', d).textContent = 'Enter a whole number from 0 to 9999.');
+    }
+    const btn = $('[data-go]', d);
+    btn.disabled = true;
+    const { error } = await sb.rpc('staff_set_submitted', { p_item_id: r.item_id, p_quantity: n, p_location: orderLocation(), p_note: $('#sent-note', d).value.trim() || null });
+    if (error) {
+      btn.disabled = false;
+      return void ($('[data-sent-error]', d).textContent = friendlyError(error));
+    }
+    d.close();
+    toast(`${name}: ${n} ${n === 1 ? 'copy' : 'copies'} sent`);
+    renderToOrder(body);
+  };
+  $('[data-go]', d).addEventListener('click', go);
+  qty.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
 }
 
 /**
@@ -926,16 +998,17 @@ async function markNotOrdered(body, itemId, btn) {
 }
 
 /**
- * Expand or collapse a hidden row under a title listing who reserved it, laid out in columns. Place Order lists open
- * lines; a button with data-past lists the lines already ordered (PAST_STATUSES), and one with data-waiting the lines
+ * Expand or collapse a hidden row under a title listing who reserved it, laid out in columns. A plain button lists
+ * open lines; one with data-all (Place Order) the open lines and those already ordered, a button with data-past lists the lines already ordered (PAST_STATUSES), and one with data-waiting the lines
  * Received can mark ready (WAITING_STATUSES), each with where it stands now. Re-order lines are listed only by Received
  * and by a button with data-reorder (the Re-order tab's open lines).
  */
 async function toggleCustomers(btn) {
   const past = 'past' in btn.dataset;
+  const every = 'all' in btn.dataset;
   const waiting = 'waiting' in btn.dataset;
   const reorder = 'reorder' in btn.dataset;
-  const statuses = past ? PAST_STATUSES : waiting ? WAITING_STATUSES : ['open'];
+  const statuses = past ? PAST_STATUSES : waiting ? WAITING_STATUSES : every ? ['open', ...PAST_STATUSES] : ['open'];
   const tr = btn.closest('tr');
   const next = tr.nextElementSibling;
   if (next?.classList.contains('toorder__people')) {
@@ -963,8 +1036,8 @@ async function toggleCustomers(btn) {
       .sort((a, b) => a.last.localeCompare(b.last, undefined, { sensitivity: 'base' }) || a.first.localeCompare(b.first, undefined, { sensitivity: 'base' }));
     cell.removeAttribute('aria-busy');
     cell.innerHTML = people.length
-      ? `<ul class="toorder__list">${people.map((p) => `<li>${esc(p.name)}${p.qty > 1 ? ` <strong>×${p.qty}</strong>` : ''}${past || waiting ? ` <span class="card__meta">· ${esc(LINE_STATUS[p.status] ?? p.status)}</span>` : ''}</li>`).join('')}</ul>`
-      : `<span class="empty">${past ? 'No ordered reservations for this title any more.' : waiting ? 'No reservations waiting for this title any more.' : 'No open reservations for this title any more.'}</span>`;
+      ? `<ul class="toorder__list">${people.map((p) => `<li>${esc(p.name)}${p.qty > 1 ? ` <strong>×${p.qty}</strong>` : ''}${past || waiting || every ? ` <span class="card__meta">· ${esc(LINE_STATUS[p.status] ?? p.status)}</span>` : ''}</li>`).join('')}</ul>`
+      : `<span class="empty">${past ? 'No ordered reservations for this title any more.' : waiting ? 'No reservations waiting for this title any more.' : every ? 'No reservations for this title any more.' : 'No open reservations for this title any more.'}</span>`;
   } catch (err) {
     cell.removeAttribute('aria-busy');
     cell.innerHTML = `<span class="form-error">${esc(friendlyError(err))}</span>`;
@@ -981,64 +1054,85 @@ const WAITING_STATUSES = ['open', 'ordered', 'reordered'];
 
 async function renderPastOrders(body) {
   // The instructions are folded away on phones, where they would push the cutoffs down the screen.
-  setHint(body, `Cutoffs that have passed and were ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.`);
+  setHint(body, `Cutoffs that have passed and were ordered, newest first. Open one to see each title’s copies (Customers, Store and Copies, the same numbers Place Order showed), what was sent to the distributor, and where each copy stands now. Read-only: use Place Order for anything still open.`);
   body.innerHTML = `<div data-groups aria-busy="true"></div>`;
   const box = $('[data-groups]', body);
+  let cutoffs;
   try {
-    const lines = [];
-    for (let from = 0; ; from += 1000) {
-      const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,status,item:items(${ITEM_FIELDS})`).in('status', PAST_STATUSES).eq('reorder', false)).order('id').range(from, from + 999);
-      if (error) throw fromError(error);
-      lines.push(...data);
-      if (data.length < 1000) break;
-    }
-    box.removeAttribute('aria-busy');
-    if (!lines.some((l) => l.item && !upcoming(l.item.foc_date ?? 'No cutoff'))) return void (box.innerHTML = '<p class="empty">No past cutoffs yet. Cutoffs ordered early stay on Place Order until their date passes.</p>');
-    const groups = new Map();
-    for (const l of lines) {
-      if (!l.item) continue;
-      const foc = l.item.foc_date ?? 'No cutoff';
-      if (upcoming(foc)) continue; // ordered early: still on Place Order until the cutoff passes
-      if (!groups.has(foc)) groups.set(foc, new Map());
-      const g = groups.get(foc);
-      const row = g.get(l.item.id) ?? { item: l.item, copies: 0, orders: new Set(), status: new Map() };
-      row.copies += l.quantity;
-      row.orders.add(l.order_id);
-      row.status.set(l.status, (row.status.get(l.status) ?? 0) + l.quantity);
-      g.set(l.item.id, row);
-    }
-    // Newest cutoff first; titles with no cutoff date last.
-    const focs = [...groups.keys()].sort((a, b) => (a === 'No cutoff') - (b === 'No cutoff') || b.localeCompare(a));
-    box.innerHTML = focs
-      .map((foc) => {
-        const rows = [...groups.get(foc).values()].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
-        const copies = rows.reduce((n, r) => n + r.copies, 0);
-        return `<details class="fold fold--compact">
-          <summary class="fold__head"><h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}<span class="fold__note">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2></summary>
-          <div class="fold__body"><table class="admin-table past-table cards">
-            <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Publisher</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col">Status</th></tr></thead>
-            <tbody>${rows.map((r) => `<tr>
-              <td class="card-title">${esc(itemName(r.item))}</td>
-              <td>${esc(r.item.publisher ?? '')}</td>
-              <td class="center card-key card-label"><strong>${r.copies}</strong>
-              </td>
-              <td class="center card-key card-label"><button type="button" class="link-button" data-customers="${r.item.id}" data-past title="See who ordered this title">${r.orders.size}</button></td>
-              <td class="card-wide">${[...r.status].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`).join(', ')}</td>
-              </tr>`).join('')}</tbody>
-          </table></div>
-        </details>`;
-      })
-      .join('');
-    $$('.fold--compact table', box).forEach((t) => sortableTable(t));
-    // Sorting reorders rows, which would strand an open customer row: close them first.
-    box.addEventListener('click', (e) => { if (e.target.closest('th[data-sort]')) $$('tr.toorder__people', box).forEach((r) => { r.previousElementSibling?.querySelector('[data-customers]')?.setAttribute('aria-expanded', 'false'); r.remove(); }); }, true);
-    box.addEventListener('click', (e) => {
-      const cust = e.target.closest('[data-customers]');
-      if (cust) toggleCustomers(cust);
-    });
+    cutoffs = await must(sb.rpc('staff_past_cutoffs', { p_location: orderLocation() }));
   } catch (err) {
-    box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
+    box.removeAttribute('aria-busy');
+    return void (box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`);
   }
+  box.removeAttribute('aria-busy');
+  if (!cutoffs.length) return void (box.innerHTML = '<p class="empty">No past cutoffs yet. Cutoffs ordered early stay on Place Order until their date passes.</p>');
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  box.innerHTML = cutoffs
+    .map((c) => {
+      const foc = c.foc_date ?? 'No cutoff';
+      return `<details class="fold fold--compact" data-past-foc="${esc(foc)}">
+        <summary class="fold__head"><h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}<span class="fold__note">${plural(c.titles, 'title', 'titles')} · ${plural(c.total, 'copy', 'copies')}${c.shop_copies ? ` (${c.shop_copies} store)` : ''}</span></h2></summary>
+        <div class="fold__body" data-past-body></div>
+      </details>`;
+    })
+    .join('');
+  // Each cutoff's titles load the first time it is opened.
+  box.addEventListener('toggle', (e) => {
+    const d = e.target.closest?.('[data-past-foc]');
+    if (d?.open && !d.dataset.loaded) loadPastCutoff(d);
+  }, true);
+  // Sorting reorders rows, which would strand an open customer row: close them first.
+  box.addEventListener('click', (e) => { if (e.target.closest('th[data-sort]')) $$('tr.toorder__people', box).forEach((r) => { r.previousElementSibling?.querySelector('[data-customers]')?.setAttribute('aria-expanded', 'false'); r.remove(); }); }, true);
+  box.addEventListener('click', (e) => {
+    const cust = e.target.closest('[data-customers]');
+    if (cust) toggleCustomers(cust);
+  });
+}
+
+/** One past cutoff's titles (staff_order_rows), with where each title's copies stand now. */
+async function loadPastCutoff(d) {
+  d.dataset.loaded = '1';
+  const out = $('[data-past-body]', d);
+  // Busy only while it loads (a closed cutoff left marked busy would keep the page's loading spinner up).
+  out.setAttribute('aria-busy', 'true');
+  try {
+    const rows = await loadCutoffRows(d.dataset.pastFoc);
+    // Where the customers' copies stand now: their lines' statuses, a few hundred titles per request.
+    const status = new Map();
+    const ids = rows.map((r) => r.item_id);
+    for (let i = 0; i < ids.length; i += 300) {
+      const lines = await must(atLocation(sb.from('reservations').select('item_id,quantity,status').in('item_id', ids.slice(i, i + 300)).in('status', PAST_STATUSES).eq('reorder', false)));
+      for (const l of lines) {
+        const m = status.get(l.item_id) ?? new Map();
+        m.set(l.status, (m.get(l.status) ?? 0) + l.quantity);
+        status.set(l.item_id, m);
+      }
+    }
+    const sent = rows.some((r) => r.submitted != null);
+    const where = (r) => [
+      ...[...(status.get(r.item_id) ?? [])].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`),
+      r.shop_copies && r.shop_status ? `${r.shop_copies} store ${r.shop_status === 'received' ? 'received' : r.shop_status === 'ordered' ? 'ordered' : esc(r.shop_status)}` : '',
+    ].filter(Boolean).join(', ');
+    out.innerHTML = rows.length
+      ? `<table class="admin-table past-table cards">
+        <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col" data-sort="num" data-first="desc">Store</th><th scope="col" data-sort="num" data-first="desc">Copies</th>${sent ? '<th scope="col" data-sort="num" data-first="desc">Sent</th>' : ''}<th scope="col">Status</th></tr></thead>
+        <tbody>${rows.map((r) => `<tr>
+          <td class="card-title">${esc(itemName(r))}</td>
+          <td class="center card-key card-label">${customersCell(r, 'past')}</td>
+          <td class="center card-key card-label">${r.shop_copies || '–'}</td>
+          <td class="center card-key card-label"><strong>${r.total}</strong></td>
+          ${sent ? `<td class="center card-key card-label">${r.submitted ?? '–'}</td>` : ''}
+          <td class="card-wide">${where(r)}</td>
+          </tr>`).join('')}</tbody>
+      </table>`
+      : '<p class="empty">No titles in this cutoff any more.</p>';
+    const table = $('table', out);
+    if (table) sortableTable(table);
+  } catch (err) {
+    delete d.dataset.loaded; // opening it again tries again
+    out.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
+  }
+  out.removeAttribute('aria-busy');
 }
 
 // ---------------------------------------------------------------------------
@@ -1049,12 +1143,13 @@ const DISTRIBUTORS = { lunar: 'Lunar', prh: 'PRH', other: 'Other' };
 const distributorName = (d) => DISTRIBUTORS[d] ?? 'Unassigned';
 const stamp = () => stampIn(settings.timezone);
 
-function setupOrderTools(box, groups, focs, meta, keep = {}) {
-  const present = [...new Set([...meta.values()].map((m) => m.distributor ?? ''))].sort((a, b) => distributorName(a || null).localeCompare(distributorName(b || null)));
+function setupOrderTools(box, groups, keep = {}) {
+  const focs = [...groups.keys()].sort();
+  const present = [...new Set([...groups.values()].flat().map((r) => r.distributor ?? ''))].sort((a, b) => distributorName(a || null).localeCompare(distributorName(b || null)));
   box.innerHTML = `
     <section class="panel order-tools" aria-labelledby="ot-h">
       <h2 id="ot-h">Distributor Order List</h2>
-      
+
       <div class="order-tools__row">
         <div class="field"><label for="ot-foc">Order cutoff</label><select id="ot-foc">
           <option value="">All open cutoffs</option>
@@ -1069,56 +1164,26 @@ function setupOrderTools(box, groups, focs, meta, keep = {}) {
           <button class="btn btn--ghost" type="button" data-ot="pdf">Export PDF</button></span></div>
       </div>
       <p class="card__meta" data-ot-summary></p>
+      <div class="order-file" data-ot-file></div>
       <p class="card__meta">Quantities as of ${esc(fmtTime())}. <button class="admin-link-button" type="button" data-ot-refresh>Refresh</button>. Exports always use the latest quantities, whatever this page shows.</p>
     </section>`;
   // Keep the same filters after a refresh.
   if (keep.foc && [...$('#ot-foc', box).options].some((o) => o.value === keep.foc)) $('#ot-foc', box).value = keep.foc;
   if (keep.dist && [...$('#ot-dist', box).options].some((o) => o.value === keep.dist)) $('#ot-dist', box).value = keep.dist;
 
-  const select = (data, foc, dist) => {
-    const byDist = new Map(); // distributor key -> rows
-    for (const [f, items] of data.groups) {
-      if (foc && f !== foc) continue;
-      for (const r of items.values()) {
-        const m = data.meta.get(r.item.id) ?? {};
-        const key = m.distributor ?? '';
-        if (dist !== 'all' && (key || 'none') !== dist) continue;
-        byDist.set(key, [...(byDist.get(key) ?? []), { r, m }]);
-      }
-    }
-    // Lunar, PRH, Other, then anything unassigned; titles A-Z within each.
-    const order = ['lunar', 'prh', 'other', ''];
-    return [...byDist]
-      .sort(([a], [b]) => order.indexOf(a) - order.indexOf(b))
-      .map(([key, list]) => ({
-        key,
-        name: distributorName(key || null),
-        rows: list
-          .map(({ r, m }) => ({
-            code: m.sku || m.isbn || m.upc || '',
-            upc: m.upc || m.isbn || '',
-            title: [r.item.title, r.item.issue_number && `#${r.item.issue_number}`].filter(Boolean).join(' '),
-            issue: r.item.issue_number,
-            baseTitle: r.item.title,
-            variant: r.item.variant ?? '',
-            publisher: r.item.publisher ?? '',
-            price: r.item.price,
-            release: r.item.release_date,
-            foc: r.item.foc_date,
-            copies: r.copies,
-            customers: r.orders.size,
-          }))
-          .sort((a, b) => a.title.localeCompare(b.title) || a.variant.localeCompare(b.variant)),
-      }));
-  };
+  /** The titles still to order for a cutoff ('' for all) and distributor, grouped for the CSV and PDF. */
+  const select = (data, foc, dist) =>
+    generalGroups([...forDistributor(data, dist)].filter(([f]) => !foc || f === foc).flatMap(([, rows]) => rows.filter(pending)), { ...DISTRIBUTORS, '': distributorName(null) });
 
-  const shown = { groups, meta }; // what the page is showing; exports re-read the database
+  const fileBox = $('[data-ot-file]', box);
   const summarise = () => {
-    const sel = select(shown, $('#ot-foc', box).value, $('#ot-dist', box).value);
+    const foc = $('#ot-foc', box).value;
+    const dist = $('#ot-dist', box).value;
+    const sel = select(groups, foc, dist);
     const titles = sel.reduce((n, g) => n + g.rows.length, 0);
     const copies = sel.reduce((n, g) => n + g.rows.reduce((m, r) => m + r.copies, 0), 0);
-    $('[data-ot-summary]', box).textContent = titles ? `${titles} ${titles === 1 ? 'title' : 'titles'}, ${copies} ${copies === 1 ? 'copy' : 'copies'}${sel.length > 1 ? `: ${sel.map((g) => `${g.name} ${g.rows.reduce((m, r) => m + r.copies, 0)}`).join(' · ')}` : ''}` : 'Nothing to order for that selection.';
-    return sel;
+    $('[data-ot-summary]', box).textContent = titles ? `${titles} ${titles === 1 ? 'title' : 'titles'}, ${copies} ${copies === 1 ? 'copy' : 'copies'} to order${sel.length > 1 ? `: ${sel.map((g) => `${g.name} ${g.rows.reduce((m, r) => m + r.copies, 0)}`).join(' · ')}` : ''}` : 'Nothing to order for that selection.';
+    fileBox.innerHTML = distributorFileHtml(foc, dist, foc ? forDistributor(groups, dist).get(foc) ?? [] : []);
   };
   box.addEventListener('change', summarise);
   summarise();
@@ -1128,6 +1193,10 @@ function setupOrderTools(box, groups, focs, meta, keep = {}) {
       toast('Refreshing quantities…');
       return void (await renderToOrder(box.closest('[data-body]')));
     }
+    const file = e.target.closest('[data-file]');
+    if (file) return void distributorFile(file, fileBox, $('#ot-foc', box).value, $('#ot-dist', box).value);
+    const copy = e.target.closest('[data-prh-copy], [data-prh-xlsx]');
+    if (copy) return void prhBatch(copy, fileBox);
     const btn = e.target.closest('[data-ot]');
     if (!btn) return;
     const foc = $('#ot-foc', box).value;
@@ -1138,27 +1207,27 @@ function setupOrderTools(box, groups, focs, meta, keep = {}) {
     btn.disabled = true;
     let fresh;
     try {
-      fresh = await loadToOrderData();
+      fresh = await loadOrderData();
     } catch (err) {
       btn.disabled = false;
       return void toast(`Couldn’t load the latest quantities: ${friendlyError(err)}`, 'error');
     }
     btn.disabled = false;
-    const sel = fresh ? select(fresh, foc, dist) : [];
+    const sel = select(fresh, foc, dist);
     if (!sel.length) {
       renderToOrder(body);
       return void toast('Nothing to order for that selection right now.', 'error');
     }
     // If anything moved since the page loaded, say so and bring the page up to date too.
-    const changed = fresh && quantitiesKey(fresh.groups) !== quantitiesKey(shown.groups);
-    if (changed) {
-      toast('Reservations changed since this page loaded. Exporting the latest quantities.');
+    const key = (g) => [...g].map(([f, rows]) => `${f}=${pendingKey(rows)}`).sort().join(';');
+    if (key(fresh) !== key(groups)) {
+      toast('Quantities changed since this page loaded. Exporting the latest quantities.');
       setTimeout(() => renderToOrder(body), 0);
     }
     const slug = `${dist === 'all' ? 'all' : dist}-${foc ? foc.toLowerCase().replace(/\s+/g, '-') : 'all-cutoffs'}${locationSlug()}-${stamp()}`;
     if (btn.dataset.ot === 'csv') {
-      const rows = sel.flatMap((g) => g.rows.map((r) => [g.name, r.code, r.upc, r.baseTitle, r.issue, r.variant, r.publisher, r.price, r.release, r.foc, r.copies, r.customers]));
-      downloadCsv(`distributor-order-${slug}.csv`, ['Distributor', 'Product code', 'UPC/ISBN', 'Title', 'Issue', 'Variant', 'Publisher', 'Price', 'Release', 'FOC', 'Copies to order', 'Customers'], rows);
+      const rows = sel.flatMap((g) => g.rows.map((r) => [g.name, r.code, r.upc, r.baseTitle, r.issue, r.variant, r.publisher, r.price, r.release, r.foc, r.customers, r.store, r.copies]));
+      downloadCsv(`distributor-order-${slug}.csv`, ['Distributor', 'Product code', 'UPC/ISBN', 'Title', 'Issue', 'Variant', 'Publisher', 'Price', 'Release', 'FOC', 'Customer copies', 'Store copies', 'Copies to order'], rows);
       toast(`Exported ${rows.length} ${rows.length === 1 ? 'title' : 'titles'}`);
       return;
     }
@@ -1177,9 +1246,104 @@ function setupOrderTools(box, groups, focs, meta, keep = {}) {
   });
 }
 
-/** A fingerprint of every title's copy count, to tell whether the data changed. */
-const quantitiesKey = (groups) =>
-  [...groups.values()].flatMap((items) => [...items.values()].map((r) => `${r.item.id}:${r.copies}`)).sort().join('|');
+// ---------------------------------------------------------------------------
+// Distributor files: Lunar's FOC edits CSV and PRH's cart paste, one cutoff and one distributor at a time.
+// Built by admin/order-export.js from fresh rows; the panel under the cutoff and distributor pickers.
+// ---------------------------------------------------------------------------
+
+const FILE_DISTS = ['lunar', 'prh'];
+
+/** The distributor file part of the tools panel, for the cutoff and distributor picked (rows: that cutoff's, loaded). */
+function distributorFileHtml(foc, dist, rows) {
+  if (dist !== 'all' && !FILE_DISTS.includes(dist))
+    return `<p class="card__meta">${esc(distributorName(dist === 'none' ? null : dist))} titles go out with the CSV or PDF: only Lunar and PRH have a file of their own.</p>`;
+  if (!foc || dist === 'all') return '<p class="card__meta">Pick one cutoff and Lunar or PRH above for the file to upload or paste on the distributor’s site.</p>';
+  if (dist === 'lunar')
+    return `<h3>Lunar FOC edits</h3>
+      <p class="admin-hint">Upload this file on Lunar’s <strong>Upload FOC Edits</strong> page only. It sets each title’s quantity to the full total (titles sent before and now at 0 go in with 0). Lunar’s other ordering pages add to what’s there, which would double the order.</p>
+      <div class="admin-actions"><button class="btn btn--primary" type="button" data-file="lunar">Download Lunar file</button></div>
+      <div data-file-out></div>`;
+  const sent = rows.some((r) => r.submitted != null);
+  return `<h3>PRH cart paste</h3>
+    <p class="admin-hint">PRH’s paste adds to the cart and takes at most ${PRH_BATCH} titles at a time, so the lines come in numbered batches. ${sent ? 'This cutoff was sent before: the lines hold only what was added since. Anything that went down is listed to change by hand in the PRH cart.' : 'Nothing was sent for this cutoff yet: the lines hold each title’s full total.'}</p>
+    <div class="admin-actions"><button class="btn btn--primary" type="button" data-file="prh">${sent ? 'Get PRH changes' : 'Get PRH lines'}</button></div>
+    <div data-file-out></div>`;
+}
+
+/** Titles left out of a file for want of a code, as a list under the button. */
+const missingHtml = (missing, what) =>
+  missing.length
+    ? `<div class="order-file__list"><p class="admin-status admin-status--error">${missing.length} ${missing.length === 1 ? 'title has' : 'titles have'} no ${what} and ${missing.length === 1 ? 'is' : 'are'} left out. Add ${missing.length === 1 ? 'it' : 'them'} on the distributor’s site by hand, or fix the code in Titles:</p>
+      <ul>${missing.map((r) => `<li>${esc(rowName(r))} <span class="card__meta">· ${r.total} ${r.total === 1 ? 'copy' : 'copies'}</span></li>`).join('')}</ul></div>`
+    : '';
+
+// The PRH lines last built, for the batch buttons: { lines, batches, foc }.
+let prhBuilt = null;
+
+async function distributorFile(btn, fileBox, foc, dist) {
+  const out = $('[data-file-out]', fileBox);
+  btn.disabled = true;
+  let rows;
+  try {
+    rows = await loadCutoffRows(foc, dist);
+  } catch (err) {
+    btn.disabled = false;
+    return void toast(`Couldn’t load the latest quantities: ${friendlyError(err)}`, 'error');
+  }
+  btn.disabled = false;
+  if (dist === 'lunar') {
+    const f = lunarFile(rows, { foc: foc === 'No cutoff' ? null : foc });
+    out.innerHTML = missingHtml(f.missing, 'Lunar product code (SKU)') + (f.titles ? `<p class="card__meta" role="status">Saved ${esc(f.filename)}: ${f.titles} ${f.titles === 1 ? 'title' : 'titles'}, ${f.copies} ${f.copies === 1 ? 'copy' : 'copies'}${f.zeros ? ` (${f.zeros} at 0)` : ''}. Upload it on Upload FOC Edits.</p>` : `<p class="empty" role="status">Nothing to export: no title in this cutoff has copies to order or was sent before.</p>`);
+    if (f.titles) downloadText(f.filename, f.csv, 'text/csv');
+    return;
+  }
+  const p = prhExport(rows);
+  prhBuilt = { ...p, foc };
+  const date = foc === 'No cutoff' ? 'no-cutoff' : foc;
+  out.innerHTML = missingHtml(p.missing, 'UPC or ISBN')
+    + (p.titles
+      ? `<p class="card__meta" role="status">${p.mode === 'changes' ? 'Added since the last order' : 'Full order'}: ${p.titles} ${p.titles === 1 ? 'title' : 'titles'}, ${p.copies} ${p.copies === 1 ? 'copy' : 'copies'}${p.batches.length > 1 ? ` in ${p.batches.length} batches` : ''}. Copy a batch and paste it into the PRH cart, one batch at a time.</p>
+        <ol class="order-file__batches">${p.batches.map((b) => `<li><span>${p.batches.length > 1 ? `Batch ${b.n} · titles ${b.from}–${b.to}` : `${b.items.length} ${b.items.length === 1 ? 'title' : 'titles'}`} · ${b.items.reduce((n, l) => n + l.quantity, 0)} copies</span>
+          <span class="order-file__acts"><button class="btn btn--primary btn--small" type="button" data-prh-copy="${b.n}">Copy</button><button class="btn btn--ghost btn--small" type="button" data-prh-xlsx="${b.n}" data-name="prh-order-${esc(date)}${p.batches.length > 1 ? `-batch-${b.n}` : ''}${locationSlug()}.xlsx">Download .xlsx</button><span class="pill pill--done" data-copied="${b.n}" hidden>Copied</span></span></li>`).join('')}</ol>`
+      : `<p class="empty" role="status">${p.mode === 'changes' ? 'Nothing new to add to the PRH cart since the last order.' : 'Nothing to export: no title in this cutoff has copies to order.'}</p>`)
+    + (p.decreases.length
+      ? `<div class="order-file__list"><p><strong>Lower by hand in the PRH cart</strong> (a paste can only add):</p>
+        <table class="admin-table cards"><thead><tr><th scope="col">Title</th><th scope="col">UPC / ISBN</th><th scope="col" class="center">Sent</th><th scope="col" class="center">Now</th></tr></thead>
+        <tbody>${p.decreases.map((d) => `<tr><td class="card-title">${esc(rowName(d.row))}</td><td class="nowrap">${esc(d.code || '–')}</td><td class="center card-key card-label">${d.submitted}</td><td class="center card-key card-label"><strong>${d.now}</strong></td></tr>`).join('')}</tbody></table></div>`
+      : '');
+}
+
+/** Copy one PRH batch to the clipboard, or save it as an .xlsx, and mark it Copied. */
+async function prhBatch(btn, fileBox) {
+  const n = Number(btn.dataset.prhCopy ?? btn.dataset.prhXlsx);
+  const batch = prhBuilt?.batches.find((b) => b.n === n);
+  if (!batch) return;
+  if (btn.dataset.prhXlsx) {
+    const { ZipBuilder } = await import('../zip.js');
+    const zip = new ZipBuilder();
+    for (const [path, text] of prhXlsxFiles(batch.items)) zip.add(path, new TextEncoder().encode(text));
+    downloadBlob(btn.dataset.name, new Blob([zip.finish()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  } else {
+    try {
+      await navigator.clipboard.writeText(prhText(batch.items));
+    } catch {
+      return void toast('Couldn’t copy to the clipboard. Download the .xlsx instead.', 'error');
+    }
+    toast(`Copied ${batch.items.length} ${batch.items.length === 1 ? 'line' : 'lines'} for the PRH cart`);
+  }
+  const mark = $(`[data-copied="${n}"]`, fileBox);
+  if (mark) mark.hidden = false;
+}
+
+/** Save a Blob as a file. */
+function downloadBlob(filename, blob) {
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/** Save text as a file exactly as built (no byte-order mark: the distributor's upload reads it as it is). */
+const downloadText = (filename, text, type) => downloadBlob(filename, new Blob([text], { type }));
 
 /** Reload the To order numbers when the staff member returns to this tab after a while. */
 function hookToOrderRefresh() {
