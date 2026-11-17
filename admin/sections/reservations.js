@@ -485,10 +485,13 @@ async function exportCsv() {
 // Mark ready: books are on the shelf today, so flip many titles to Ready at once
 // ---------------------------------------------------------------------------
 
-/** Open, ordered and reordered reservations, totalled per title. Titles releasing after this week (Sunday to Saturday) are listed only when asked for. */
+/**
+ * Open, ordered and reordered reservations, and the store's ordered copies, totalled per title. Titles releasing after
+ * this week (Sunday to Saturday) are listed only when asked for.
+ */
 async function renderReady(body) {
   // The instructions are long: folded away on phones, where they would fill the first screen.
-  setHint(body, `Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered). Titles nobody reserved can’t be ticked; tick Only titles with reservations to hide them. Click a column heading to sort by it. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today.`);
+  setHint(body, `Every title releasing this week is listed, with the copies customers have reserved (open, ordered or reordered) and the store’s own copies on order. Titles with nothing coming can’t be ticked; tick Only titles with copies coming to hide them. Click a column heading to sort by it. Titles out this week start ticked; ones with no release date, from earlier weeks, or only reordered (the replacement comes later) you tick by hand. Tick the ones that are in the shop today and mark them Ready — customers see them as ready for pickup and the hold window starts today, and the store’s copies are marked received.`);
   body.innerHTML = `
     <form class="filters admin-filters" role="search" aria-label="Find titles">
       <div class="field field--search"><label for="rd-q">Title</label><input id="rd-q" type="search" placeholder="Filter by title or publisher"></div>
@@ -501,7 +504,7 @@ async function renderReady(body) {
   let seeded = false;
   // Column sort, kept across redraws (ticking a title redraws the table). Starts by title, A to Z.
   let sort = { key: 'title', dir: 'asc' };
-  // "Only titles with reservations" sits in the tick-buttons row, which is redrawn with the table, so its state lives here.
+  // "Only titles with copies coming" sits in the tick-buttons row, which is redrawn with the table, so its state lives here.
   let onlyReserved = false;
   const weekStart = addDays(today(), -new Date(`${today()}T00:00:00Z`).getUTCDay());
   const weekEnd = addDays(weekStart, 6);
@@ -519,18 +522,32 @@ async function renderReady(body) {
       const byItem = new Map();
       for (const l of lines) {
         if (!l.item) continue;
-        const r = byItem.get(l.item.id) ?? { item: l.item, copies: 0, orders: new Set(), lineIds: [], onOrder: false };
+        const r = byItem.get(l.item.id) ?? blank(l.item);
         r.copies += l.quantity;
         if (l.status !== 'reordered') r.onOrder = true;
         r.orders.add(l.order_id);
         r.lineIds.push(l.id);
         byItem.set(l.item.id, r);
       }
+      // The store's copies on order (ordered, not yet received).
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await atLocation(sb.from('shop_order_lines').select(`id,quantity,item:items(${ITEM_FIELDS})`).eq('status', 'ordered')).order('id').range(from, from + 999);
+        if (error) throw fromError(error);
+        for (const s of data) {
+          if (!s.item) continue;
+          const r = byItem.get(s.item.id) ?? blank(s.item);
+          r.store += s.quantity;
+          r.shopIds.push(s.id);
+          r.onOrder = true;
+          byItem.set(s.item.id, r);
+        }
+        if (data.length < 1000) break;
+      }
       // Every title releasing this week is listed, reserved or not.
       for (let from = 0; ; from += 1000) {
         const { data, error } = await sb.from('items').select(ITEM_FIELDS).gte('release_date', weekStart).lte('release_date', weekEnd).order('id').range(from, from + 999);
         if (error) throw fromError(error);
-        for (const item of data) if (!byItem.has(item.id)) byItem.set(item.id, { item, copies: 0, orders: new Set(), lineIds: [] });
+        for (const item of data) if (!byItem.has(item.id)) byItem.set(item.id, blank(item));
         if (data.length < 1000) break;
       }
       rows = [...byItem.values()].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
@@ -543,6 +560,10 @@ async function renderReady(body) {
     draw();
   }
 
+  /** A title's row: customer copies (lineIds: their lines) and the store's copies on order (shopIds: their rows). */
+  const blank = (item) => ({ item, copies: 0, store: 0, orders: new Set(), lineIds: [], shopIds: [], onOrder: false });
+  /** Something is coming for the title: customer lines or store copies (only these can be ticked). */
+  const coming = (r) => r.lineIds.length || r.shopIds.length;
   const isOut = (r) => !r.item.release_date || r.item.release_date <= weekEnd;
   // Ticked to start: titles out this week with copies open or on order. Titles with no release date, from earlier
   // weeks, or only reordered (the replacement comes later) are listed but have to be ticked by hand.
@@ -552,8 +573,9 @@ async function renderReady(body) {
     title: (r) => itemName(r.item),
     publisher: (r) => r.item.publisher ?? '',
     out: (r) => r.item.release_date ?? '',
-    copies: (r) => r.copies,
-    customers: (r) => r.orders.size,
+    customers: (r) => r.copies,
+    store: (r) => r.store,
+    copies: (r) => r.copies + r.store,
   };
   const byColumn = (a, b) => {
     const val = SORT_VALUE[sort.key];
@@ -566,7 +588,7 @@ async function renderReady(body) {
     const q = $('#rd-q', body).value.trim().toLowerCase();
     const future = $('#rd-future', body).checked;
     return rows
-      .filter((r) => (future || isOut(r)) && (!onlyReserved || r.lineIds.length) && (!q || `${itemName(r.item)} ${r.item.publisher ?? ''}`.toLowerCase().includes(q)))
+      .filter((r) => (future || isOut(r)) && (!onlyReserved || coming(r)) && (!q || `${itemName(r.item)} ${r.item.publisher ?? ''}`.toLowerCase().includes(q)))
       .sort(byColumn);
   };
 
@@ -578,14 +600,14 @@ async function renderReady(body) {
       rows.filter(startTicked).forEach((r) => picked.add(r.item.id));
       seeded = true;
     }
-    const onlyBox = `<label class="cust-export-opt ready-picks__only" for="rd-reserved"><input type="checkbox" id="rd-reserved"${onlyReserved ? ' checked' : ''}> Only titles with reservations</label>`;
+    const onlyBox = `<label class="cust-export-opt ready-picks__only" for="rd-reserved"><input type="checkbox" id="rd-reserved"${onlyReserved ? ' checked' : ''}> Only titles with copies coming</label>`;
     if (!list.length) {
       // Keep the tick-box when it is what emptied the list, so it can be unticked.
       box.innerHTML = `${onlyReserved ? `<div class="admin-actions ready-picks">${onlyBox}</div>` : ''}<p class="empty">${rows.length ? 'No titles match.' : 'Nothing is releasing this week and nothing is waiting.'}</p>`;
       return;
     }
     const chosen = list.filter((r) => picked.has(r.item.id));
-    const copies = chosen.reduce((n, r) => n + r.copies, 0);
+    const copies = chosen.reduce((n, r) => n + r.copies + r.store, 0);
     box.innerHTML = `<section class="fold fold--static fold--compact">
         <div class="fold__head">
           <h2>Arriving This Week<span class="fold__note">${list.length} ${list.length === 1 ? 'title' : 'titles'} · ${chosen.length} ticked</span></h2>
@@ -593,15 +615,16 @@ async function renderReady(body) {
         </div>
         <div class="fold__body">
         <div class="admin-actions ready-picks"><button type="button" class="btn btn--ghost btn--small" data-pick="all">Tick all shown</button><button type="button" class="btn btn--ghost btn--small" data-pick="none">Clear ticks</button>${onlyBox}</div>
-      <table class="admin-table cards"><thead><tr><th scope="col"><span class="visually-hidden">Ready</span></th><th scope="col" data-sort="title">Title</th><th scope="col" data-sort="publisher">Publisher</th><th scope="col" data-sort="out">Out</th><th scope="col" class="col-qty" data-sort="copies" data-first="desc">Copies</th><th scope="col" class="col-qty" data-sort="customers" data-first="desc">Customers</th></tr></thead>
+      <table class="admin-table cards"><thead><tr><th scope="col"><span class="visually-hidden">Ready</span></th><th scope="col" data-sort="title">Title</th><th scope="col" data-sort="publisher">Publisher</th><th scope="col" data-sort="out">Out</th><th scope="col" class="col-qty" data-sort="customers" data-first="desc">Customers</th><th scope="col" class="col-qty" data-sort="store" data-first="desc">Store</th><th scope="col" class="col-qty" data-sort="copies" data-first="desc">Copies</th></tr></thead>
       <tbody>${list.map((r) => `<tr>
-        <td class="card-lead"><input type="checkbox" data-item="${r.item.id}" aria-label="Ready: ${esc(itemName(r.item))}"${picked.has(r.item.id) ? ' checked' : ''}${r.lineIds.length ? '' : ' disabled title="Nobody has reserved this title"'}>
+        <td class="card-lead"><input type="checkbox" data-item="${r.item.id}" aria-label="Ready: ${esc(itemName(r.item))}"${picked.has(r.item.id) ? ' checked' : ''}${coming(r) ? '' : ' disabled title="Nothing is coming for this title: no reservations or store copies on order"'}>
         </td>
         <td class="card-title">${esc(itemName(r.item))}</td>
         <td>${esc(r.item.publisher ?? '')}</td>
         <td class="nowrap card-label">${r.item.release_date ? fmtDate(r.item.release_date, { month: 'short', day: 'numeric' }) : ''}</td>
-        <td class="center card-key card-label">${r.copies ? `<strong>${r.copies}</strong>` : '—'}</td>
-        <td class="center card-key card-label">${r.orders.size ? `<button type="button" class="link-button" data-customers="${r.item.id}" data-waiting title="See who reserved this title">${r.orders.size}</button>` : '—'}</td>
+        <td class="center card-key card-label">${r.copies ? `<button type="button" class="link-button" data-customers="${r.item.id}" data-waiting title="See who reserved this title">${r.copies}</button>` : '—'}</td>
+        <td class="center card-key card-label">${r.store || '—'}</td>
+        <td class="center card-key card-label">${r.copies + r.store ? `<strong>${r.copies + r.store}</strong>` : '—'}</td>
         </tr>`).join('')}</tbody>
         </table>
         </div>
@@ -637,7 +660,7 @@ async function renderReady(body) {
     if (cust) return void toggleCustomers(cust);
     const pick = e.target.closest('[data-pick]');
     if (pick) {
-      visible().filter((r) => r.lineIds.length).forEach((r) => (pick.dataset.pick === 'all' ? picked.add(r.item.id) : picked.delete(r.item.id)));
+      visible().filter(coming).forEach((r) => (pick.dataset.pick === 'all' ? picked.add(r.item.id) : picked.delete(r.item.id)));
       return draw();
     }
     const go = e.target.closest('[data-go]');
@@ -645,13 +668,18 @@ async function renderReady(body) {
     const chosen = visible().filter((r) => picked.has(r.item.id));
     if (!chosen.length) return;
     const ids = chosen.flatMap((r) => r.lineIds);
+    const shopIds = chosen.flatMap((r) => r.shopIds);
     const copies = chosen.reduce((n, r) => n + r.copies, 0);
-    if (!confirm(`Mark ${chosen.length} ${chosen.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) as ready for pickup today?\n\nCustomers who have arrival emails turned on will be notified.`)) return;
+    const store = chosen.reduce((n, r) => n + r.store, 0);
+    const what = [copies && `${copies} customer ${copies === 1 ? 'copy' : 'copies'} ready for pickup today`, store && `${store} store ${store === 1 ? 'copy' : 'copies'} received`].filter(Boolean).join(', and ');
+    if (!confirm(`Mark ${chosen.length} ${chosen.length === 1 ? 'title' : 'titles'} as in: ${what}?${copies ? '\n\nCustomers who have arrival emails turned on will be notified.' : ''}`)) return;
     go.disabled = true;
     try {
-      // Only lines still open, ordered or reordered change, so a line staff changed meanwhile is left alone.
-      const done = await updateLines(ids, 'arrived', WAITING_STATUSES);
-      toast(`${done} ${done === 1 ? 'reservation' : 'reservations'} marked ready`);
+      // Only lines still open, ordered or reordered change, so a line staff changed meanwhile is left alone; likewise
+      // only store rows still ordered.
+      const done = ids.length ? await updateLines(ids, 'arrived', WAITING_STATUSES) : 0;
+      const got = shopIds.length ? await must(sb.rpc('staff_receive_shop_copies', { p_ids: shopIds })) : 0;
+      toast([ids.length && `${done} ${done === 1 ? 'reservation' : 'reservations'} marked ready`, shopIds.length && `store copies of ${got} ${got === 1 ? 'title' : 'titles'} received`].filter(Boolean).join(' · '));
       picked.clear();
       seeded = true;
     } catch (err) {
@@ -1026,64 +1054,85 @@ const WAITING_STATUSES = ['open', 'ordered', 'reordered'];
 
 async function renderPastOrders(body) {
   // The instructions are folded away on phones, where they would push the cutoffs down the screen.
-  setHint(body, `Cutoffs that have passed and were ordered, newest first, with the copies reserved per title and where each line stands now. Read-only: use Place Order for anything still open.`);
+  setHint(body, `Cutoffs that have passed and were ordered, newest first. Open one to see each title’s copies (Customers, Store and Copies, the same numbers Place Order showed), what was sent to the distributor, and where each copy stands now. Read-only: use Place Order for anything still open.`);
   body.innerHTML = `<div data-groups aria-busy="true"></div>`;
   const box = $('[data-groups]', body);
+  let cutoffs;
   try {
-    const lines = [];
-    for (let from = 0; ; from += 1000) {
-      const { data, error } = await atLocation(sb.from('reservations').select(`id,quantity,order_id,status,item:items(${ITEM_FIELDS})`).in('status', PAST_STATUSES).eq('reorder', false)).order('id').range(from, from + 999);
-      if (error) throw fromError(error);
-      lines.push(...data);
-      if (data.length < 1000) break;
-    }
-    box.removeAttribute('aria-busy');
-    if (!lines.some((l) => l.item && !upcoming(l.item.foc_date ?? 'No cutoff'))) return void (box.innerHTML = '<p class="empty">No past cutoffs yet. Cutoffs ordered early stay on Place Order until their date passes.</p>');
-    const groups = new Map();
-    for (const l of lines) {
-      if (!l.item) continue;
-      const foc = l.item.foc_date ?? 'No cutoff';
-      if (upcoming(foc)) continue; // ordered early: still on Place Order until the cutoff passes
-      if (!groups.has(foc)) groups.set(foc, new Map());
-      const g = groups.get(foc);
-      const row = g.get(l.item.id) ?? { item: l.item, copies: 0, orders: new Set(), status: new Map() };
-      row.copies += l.quantity;
-      row.orders.add(l.order_id);
-      row.status.set(l.status, (row.status.get(l.status) ?? 0) + l.quantity);
-      g.set(l.item.id, row);
-    }
-    // Newest cutoff first; titles with no cutoff date last.
-    const focs = [...groups.keys()].sort((a, b) => (a === 'No cutoff') - (b === 'No cutoff') || b.localeCompare(a));
-    box.innerHTML = focs
-      .map((foc) => {
-        const rows = [...groups.get(foc).values()].sort((a, b) => itemName(a.item).localeCompare(itemName(b.item)));
-        const copies = rows.reduce((n, r) => n + r.copies, 0);
-        return `<details class="fold fold--compact">
-          <summary class="fold__head"><h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}<span class="fold__note">${rows.length} ${rows.length === 1 ? 'title' : 'titles'} · ${copies} ${copies === 1 ? 'copy' : 'copies'}</span></h2></summary>
-          <div class="fold__body"><table class="admin-table past-table cards">
-            <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="text">Publisher</th><th scope="col" data-sort="num" data-first="desc">Copies</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col">Status</th></tr></thead>
-            <tbody>${rows.map((r) => `<tr>
-              <td class="card-title">${esc(itemName(r.item))}</td>
-              <td>${esc(r.item.publisher ?? '')}</td>
-              <td class="center card-key card-label"><strong>${r.copies}</strong>
-              </td>
-              <td class="center card-key card-label"><button type="button" class="link-button" data-customers="${r.item.id}" data-past title="See who ordered this title">${r.orders.size}</button></td>
-              <td class="card-wide">${[...r.status].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`).join(', ')}</td>
-              </tr>`).join('')}</tbody>
-          </table></div>
-        </details>`;
-      })
-      .join('');
-    $$('.fold--compact table', box).forEach((t) => sortableTable(t));
-    // Sorting reorders rows, which would strand an open customer row: close them first.
-    box.addEventListener('click', (e) => { if (e.target.closest('th[data-sort]')) $$('tr.toorder__people', box).forEach((r) => { r.previousElementSibling?.querySelector('[data-customers]')?.setAttribute('aria-expanded', 'false'); r.remove(); }); }, true);
-    box.addEventListener('click', (e) => {
-      const cust = e.target.closest('[data-customers]');
-      if (cust) toggleCustomers(cust);
-    });
+    cutoffs = await must(sb.rpc('staff_past_cutoffs', { p_location: orderLocation() }));
   } catch (err) {
-    box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
+    box.removeAttribute('aria-busy');
+    return void (box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`);
   }
+  box.removeAttribute('aria-busy');
+  if (!cutoffs.length) return void (box.innerHTML = '<p class="empty">No past cutoffs yet. Cutoffs ordered early stay on Place Order until their date passes.</p>');
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  box.innerHTML = cutoffs
+    .map((c) => {
+      const foc = c.foc_date ?? 'No cutoff';
+      return `<details class="fold fold--compact" data-past-foc="${esc(foc)}">
+        <summary class="fold__head"><h2>${foc === 'No cutoff' ? 'No Order Cutoff' : `Cutoff ${fmtDate(foc, { weekday: 'short', month: 'short', day: 'numeric' })}`}<span class="fold__note">${plural(c.titles, 'title', 'titles')} · ${plural(c.total, 'copy', 'copies')}${c.shop_copies ? ` (${c.shop_copies} store)` : ''}</span></h2></summary>
+        <div class="fold__body" data-past-body></div>
+      </details>`;
+    })
+    .join('');
+  // Each cutoff's titles load the first time it is opened.
+  box.addEventListener('toggle', (e) => {
+    const d = e.target.closest?.('[data-past-foc]');
+    if (d?.open && !d.dataset.loaded) loadPastCutoff(d);
+  }, true);
+  // Sorting reorders rows, which would strand an open customer row: close them first.
+  box.addEventListener('click', (e) => { if (e.target.closest('th[data-sort]')) $$('tr.toorder__people', box).forEach((r) => { r.previousElementSibling?.querySelector('[data-customers]')?.setAttribute('aria-expanded', 'false'); r.remove(); }); }, true);
+  box.addEventListener('click', (e) => {
+    const cust = e.target.closest('[data-customers]');
+    if (cust) toggleCustomers(cust);
+  });
+}
+
+/** One past cutoff's titles (staff_order_rows), with where each title's copies stand now. */
+async function loadPastCutoff(d) {
+  d.dataset.loaded = '1';
+  const out = $('[data-past-body]', d);
+  // Busy only while it loads (a closed cutoff left marked busy would keep the page's loading spinner up).
+  out.setAttribute('aria-busy', 'true');
+  try {
+    const rows = await loadCutoffRows(d.dataset.pastFoc);
+    // Where the customers' copies stand now: their lines' statuses, a few hundred titles per request.
+    const status = new Map();
+    const ids = rows.map((r) => r.item_id);
+    for (let i = 0; i < ids.length; i += 300) {
+      const lines = await must(atLocation(sb.from('reservations').select('item_id,quantity,status').in('item_id', ids.slice(i, i + 300)).in('status', PAST_STATUSES).eq('reorder', false)));
+      for (const l of lines) {
+        const m = status.get(l.item_id) ?? new Map();
+        m.set(l.status, (m.get(l.status) ?? 0) + l.quantity);
+        status.set(l.item_id, m);
+      }
+    }
+    const sent = rows.some((r) => r.submitted != null);
+    const where = (r) => [
+      ...[...(status.get(r.item_id) ?? [])].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`),
+      r.shop_copies && r.shop_status ? `${r.shop_copies} store ${r.shop_status === 'received' ? 'received' : r.shop_status === 'ordered' ? 'ordered' : esc(r.shop_status)}` : '',
+    ].filter(Boolean).join(', ');
+    out.innerHTML = rows.length
+      ? `<table class="admin-table past-table cards">
+        <thead><tr><th scope="col" data-sort="text">Title</th><th scope="col" data-sort="num" data-first="desc">Customers</th><th scope="col" data-sort="num" data-first="desc">Store</th><th scope="col" data-sort="num" data-first="desc">Copies</th>${sent ? '<th scope="col" data-sort="num" data-first="desc">Sent</th>' : ''}<th scope="col">Status</th></tr></thead>
+        <tbody>${rows.map((r) => `<tr>
+          <td class="card-title">${esc(itemName(r))}</td>
+          <td class="center card-key card-label">${customersCell(r, 'past')}</td>
+          <td class="center card-key card-label">${r.shop_copies || '–'}</td>
+          <td class="center card-key card-label"><strong>${r.total}</strong></td>
+          ${sent ? `<td class="center card-key card-label">${r.submitted ?? '–'}</td>` : ''}
+          <td class="card-wide">${where(r)}</td>
+          </tr>`).join('')}</tbody>
+      </table>`
+      : '<p class="empty">No titles in this cutoff any more.</p>';
+    const table = $('table', out);
+    if (table) sortableTable(table);
+  } catch (err) {
+    delete d.dataset.loaded; // opening it again tries again
+    out.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
+  }
+  out.removeAttribute('aria-busy');
 }
 
 // ---------------------------------------------------------------------------

@@ -21,6 +21,7 @@ delete from public.search_log;
 delete from public.stock_reorders;
 delete from public.order_submissions;  -- its lines go with it
 delete from public.shop_order_lines;
+delete from public.series_shop_qty;
 delete from public.survey_entries;
 delete from public.survey_responses;
 delete from public.chat_conversations;  -- its messages go with it
