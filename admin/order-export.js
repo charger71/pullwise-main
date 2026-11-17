@@ -9,6 +9,27 @@
 //   total again, and anything lower than what was sent is listed for staff to change by hand in the cart.
 // - Titles with no usable code are listed apart and left out of every file.
 
+/**
+ * Where a title stands on Place Order:
+ * - 'to_order': copies not marked ordered yet (customer lines still open, the store's open row, or last issue's number
+ *   not yet written as the title's own);
+ * - 'changed': sent before, and the total no longer matches what was sent (up or down);
+ * - 'ordered': everything sent or marked ordered, nothing changed;
+ * - 'none': nothing to order and nothing sent.
+ * The submitted number belongs to the title, so a title whose cutoff moved after it was sent is judged the same way
+ * under its new cutoff.
+ */
+export function orderState(r) {
+  const open = r.customer_open > 0 || r.shop_status === 'open' || (!r.shop_saved && r.shop_copies > 0);
+  if (r.submitted == null) return r.total > 0 ? (open ? 'to_order' : 'ordered') : 'none';
+  if (r.total !== r.submitted) return 'changed';
+  if (open) return 'to_order';
+  return r.total > 0 ? 'ordered' : 'none';
+}
+
+/** "+2", "−1" (a real minus sign) or "" for no change. */
+export const changeText = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '');
+
 /** PRH's cart takes at most this many titles per paste. */
 export const PRH_BATCH = 500;
 
