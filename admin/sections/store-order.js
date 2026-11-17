@@ -1,7 +1,8 @@
 // Ordering → Store Order: every title for one order cutoff and distributor, A to Z, where staff enter the store's own
 // (shelf) copies next to what customers reserved. Each number saves as it is typed; a title with no number yet starts
-// at last issue's. The rows and totals come from staff_order_rows / staff_order_cutoffs
-// (20270403000000_shop_ordering.sql), the same numbers Place Order and the exports use.
+// at the series' every-issue number, else last issue's. The rows and totals come from staff_order_rows /
+// staff_order_cutoffs (20270403000000_shop_ordering.sql, 20270404000000_shop_order_helps.sql), the same numbers
+// Place Order and the exports use.
 
 import { $, esc, must, toast, itemName, friendlyError, fmtDate, fmtTime, fetchAll, debounce, setHint } from '../lib.js';
 
@@ -38,7 +39,7 @@ function remember(v) {
  *   needsLocation: the shop has 2+ locations and none is picked, so numbers can be read but not entered.
  */
 export async function renderStoreOrder(body, { sb, location, needsLocation, today }) {
-  setHint(body, `Every title for one order cutoff, A to Z, whether customers reserved it or not. Type how many copies the store wants for its shelves in Store; each number saves as you type, and Enter goes to the next title (Shift+Enter to the one above). A title starts at last issue's store number when the series had one, and that number is ordered unless you change it (0 orders none). Customers shows the copies customers have reserved, and Copies the total that goes to the distributor. Numbers can change until the cutoff passes. Place Order exports the totals and marks them ordered.`);
+  setHint(body, `Every title for one order cutoff, A to Z, whether customers reserved it or not. Type how many copies the store wants for its shelves in Store; each number saves as you type, and Enter goes to the next title (Shift+Enter to the one above). A title starts at the series’ every-issue number if you set one, else at last issue’s store number, and that number is ordered unless you change it (0 orders none). Under each title: what last issue had (store copies of the total ordered), and once you type a number of your own, Use to go back to the starting number or Every issue to keep yours for every new issue of the series (Stop ends it). Customers shows the copies customers have reserved, and Copies the total that goes to the distributor. Numbers can change until the cutoff passes. Place Order exports the totals and marks them ordered.`);
   const keep = remembered();
   const dist = DISTRIBUTORS[keep.dist] ? keep.dist : 'lunar';
   body.innerHTML = `
@@ -88,14 +89,35 @@ export async function renderStoreOrder(body, { sb, location, needsLocation, toda
     }
   }, SUMMARY_MS);
 
+  /** The number a title starts at without one of its own: the series' every-issue number, else last issue's. */
+  const startAt = (r) => r.series_qty ?? r.last_issue_shop;
+
+  /** The line under a title: last issue, the series' every-issue number, and the buttons that use them. */
+  function helpHtml(r) {
+    const name = itemName(r);
+    const parts = [];
+    if (r.last_issue_total != null) parts.push(`Last issue ${r.last_issue_shop ?? 0} store of ${r.last_issue_total}`);
+    if (r.series_qty != null) parts.push(`Every issue ${r.series_qty}${needsLocation ? '' : ` <button type="button" class="admin-link-button" data-series-stop="${r.item_id}" aria-label="Stop the every-issue number for ${esc(name)}">Stop</button>`}`);
+    if (!needsLocation) {
+      const start = startAt(r);
+      if (r.shop_saved && start != null && start !== r.shop_copies)
+        parts.push(`<button type="button" class="admin-link-button" data-use-start="${r.item_id}" title="Go back to ${r.series_qty != null ? 'the series’ every-issue number' : 'last issue’s number'}" aria-label="Use ${start} for ${esc(name)}">Use ${start}</button>`);
+      if (r.shop_saved && r.shop_copies > 0 && r.series_qty !== r.shop_copies)
+        parts.push(`<button type="button" class="admin-link-button" data-series-set="${r.item_id}" title="Order ${r.shop_copies} store ${r.shop_copies === 1 ? 'copy' : 'copies'} of every new issue in this series" aria-label="Order ${r.shop_copies} of every issue of ${esc(name)}">Every issue</button>`);
+    }
+    return parts.join(' · ');
+  }
+
   function rowHtml(r) {
     const name = itemName(r);
-    const fromLast = !r.shop_saved && r.shop_copies > 0;
+    const fromSeries = !r.shop_saved && r.series_qty != null;
+    const fromLast = !r.shop_saved && !fromSeries && r.shop_copies > 0;
+    const from = fromSeries ? 'the series’ every-issue number' : fromLast ? 'last issue’s number' : '';
     return `<tr data-item="${r.item_id}">
-      <td class="card-title">${esc(name)}<span class="admin-status admin-status--error qty-error" data-err="${r.item_id}" role="status"></span></td>
+      <td class="card-title">${esc(name)}<span class="qty-help" data-help="${r.item_id}">${helpHtml(r)}</span><span class="admin-status admin-status--error qty-error" data-err="${r.item_id}" role="status"></span></td>
       <td class="nowrap">${esc(codeOf(r))}</td>
       <td class="center card-key card-label">${r.customer_copies || '–'}</td>
-      <td class="center card-key card-label"><label class="visually-hidden" for="so-q-${r.item_id}">Store copies, ${esc(name)}${fromLast ? " (last issue's number)" : ''}</label><input id="so-q-${r.item_id}" class="cust-qty" type="number" inputmode="numeric" min="0" max="999" step="1" value="${r.shop_copies || (r.shop_saved ? '0' : '')}" data-qty="${r.item_id}"${fromLast ? ` title="Last issue's number"` : ''}${needsLocation ? ' disabled' : ''}></td>
+      <td class="center card-key card-label"><label class="visually-hidden" for="so-q-${r.item_id}">Store copies, ${esc(name)}${from ? ` (${from})` : ''}</label><input id="so-q-${r.item_id}" class="cust-qty" type="number" inputmode="numeric" min="0" max="999" step="1" value="${r.shop_copies || (r.shop_saved ? '0' : '')}" data-qty="${r.item_id}"${from ? ` title="${from[0].toUpperCase()}${from.slice(1)}"` : ''}${needsLocation ? ' disabled' : ''}></td>
       <td class="center card-key card-label"><strong data-total="${r.item_id}">${r.total || '–'}</strong></td>
     </tr>`;
   }
@@ -183,6 +205,8 @@ export async function renderStoreOrder(body, { sb, location, needsLocation, toda
       err.textContent = '';
       const total = $(`[data-total="${id}"]`, list);
       if (total) total.textContent = fresh.total || '–';
+      const help = $(`[data-help="${id}"]`, list);
+      if (help) help.innerHTML = helpHtml(row ?? fresh);
       refreshSummary();
     } catch (e) {
       if (seq.get(id) !== n) return;
@@ -214,6 +238,38 @@ export async function renderStoreOrder(body, { sb, location, needsLocation, toda
     if (next) {
       next.focus();
       next.select();
+    }
+  });
+
+  // Use (back to the starting number), Every issue and Stop: each saves at once and redraws the title's row.
+  list.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-use-start], [data-series-set], [data-series-stop]');
+    if (!btn) return;
+    const id = Number(btn.dataset.useStart ?? btn.dataset.seriesSet ?? btn.dataset.seriesStop);
+    const row = rows.find((r) => r.item_id === id);
+    if (!row) return;
+    clearTimeout(timers.get(id));
+    timers.delete(id);
+    btn.disabled = true;
+    try {
+      const [fresh] = await must(
+        'useStart' in btn.dataset
+          ? sb.rpc('staff_clear_shop_qty', { p_item_id: id, p_location: location })
+          : sb.rpc('staff_set_series_qty', { p_item_id: id, p_quantity: 'seriesSet' in btn.dataset ? row.shop_copies : null, p_location: location }),
+      );
+      if (!fresh) return;
+      Object.assign(row, fresh);
+      seq.set(id, (seq.get(id) ?? 0) + 1); // an answer to an earlier typed number mustn't land on top
+      sent.delete(id);
+      const tr = btn.closest('tr');
+      tr.outerHTML = rowHtml(row);
+      $(`[data-qty="${id}"]`, list)?.focus();
+      toast('useStart' in btn.dataset ? `${itemName(row)}: back to ${row.shop_copies}` : 'seriesSet' in btn.dataset ? `Every issue: ${row.series_qty} store ${row.series_qty === 1 ? 'copy' : 'copies'}` : 'Every-issue number stopped');
+      refreshSummary();
+    } catch (err) {
+      btn.disabled = false;
+      const msg = $(`[data-err="${id}"]`, list);
+      if (msg) msg.textContent = `Not saved: ${friendlyError(err)}`;
     }
   });
 
