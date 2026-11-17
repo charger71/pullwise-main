@@ -64,8 +64,9 @@ if (!q) {
   const load = async (append) => {
     more.disabled = true;
     try {
-      const { rows, count: n } = await (append ? getItems({ q, openFirst: openFocFrom(), limit: PAGE, offset: items.length, withCount: true }) : firstItems);
-      total = n;
+      // Show more reuses the first page's total instead of counting every match again.
+      const { rows, count: n } = await (append ? getItems({ q, openFirst: openFocFrom(), limit: PAGE, offset: items.length, withCount: true, knownCount: total }) : firstItems);
+      total = append && rows.length < PAGE ? items.length + rows.length : n; // a short page means the list ended
       if (append) {
         const first = items.length;
         items = items.concat(rows);

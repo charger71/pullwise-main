@@ -336,11 +336,14 @@ async function open(id, { push = true, opener = null } = {}) {
   } else {
     pushed = false;
   }
-  // The other covers arrive a moment later.
+  // The other covers arrive a moment later, with the description and ISBN that a list's row leaves out
+  // (data.js LIST_COLUMNS). A title with no other covers fetches its own; the row is filled in for next time.
   const all = await getVariants(item).catch(() => [item]);
+  const full = 'description' in item ? null : (all.find((v) => v.id === item.id && 'description' in v) ?? (await getItem(id).catch(() => null)));
+  if (full) Object.assign(item, full, { top10: item.top10 });
   if (current === item && dialog.open) {
-    covers = all;
-    all.forEach((v) => known.set(v.id, v));
+    covers = all.map((v) => (v.id === item.id ? item : v));
+    covers.forEach((v) => known.set(v.id, v));
     render();
   }
 }
