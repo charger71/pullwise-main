@@ -26,3 +26,7 @@ npm run demo-data -- --reset --yes # wipe the customer side and rebuild (without
   shelf re-orders on the Re-order tab, app users, stock alerts, customers who never collected their copies (Customers
   Drifting Away), staff notes on customers, and the unread badges on surveys and event sign-ups. Re-order lines staff
   entered by hand are never changed.
+- Pickup reliability: the ladder starts 60 days back; customers who never collect are warned (day 7) and paused (day 14,
+  or 21 and 35 on a monthly rhythm) with the notices marked sent, so nothing is emailed; two customers are paused by hand,
+  a few are monthly or exempt, and the newest guest orders wait in the approval queue. Holiday hours and repeating
+  weekly events (a shared series id) are filled in too.

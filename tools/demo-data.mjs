@@ -102,6 +102,9 @@ if (!args.includes('--check')) {
       union all select 'info: stock alerts', count(*) from public.stock_alerts
       union all select 'info: app users', count(*) from public.app_visits
       union all select 'info: uncollected past the hold', count(*) from public.reservations r, public.settings s where s.id = 1 and r.status = 'arrived' and r.arrived_on < (now() at time zone 'America/New_York')::date - s.hold_days
+      union all select 'info: customers paused (auto, manual)', (select count(*) from public.customer_standing where paused_reason = 'auto') * 1000 + (select count(*) from public.customer_standing where paused_reason = 'manual')
+      union all select 'info: pickup notices sent', count(*) from public.pickup_notices
+      union all select 'info: guest orders waiting for approval', count(*) from public.reservation_orders o where o.customer_id is null and not exists (select 1 from public.guest_order_approvals a where a.order_id = o.id)
       union all select 'info: unread survey answers and sign-ups', (select count(*) from public.survey_responses where not seen) + (select count(*) from public.event_signups where not seen)`;
     const check = readFileSync(join(root, 'tools/demo-data/check.sql'), 'utf8').trim();
     const rows = query(sql.replace(/commit;\s*$/, `${check}\n${summary};`));

@@ -10,6 +10,8 @@
 --   * a copy added on the site or the pull list is added before its cutoff closes (the Saturday on or before the FOC
 --     date); later ones are re-orders. Re-order lines (reorder = true) are never moved by the lifecycle below,
 --     except the demo's own customer re-orders (source 'manual'), which staff order and then receive
+--   * copies waiting more than 6 days are collected, except those of the few customers who never collect; those
+--     customers are warned at day 7 and paused at day 14 (weekly) or 21 and 35 (monthly), as the pickup ladder would
 --   * chats, searches, app visits, stock alerts and shelf re-orders are dated between a customer joining and now
 -- Shop time is America/New_York; the database runs in UTC, so "today" is always computed in shop time.
 -- Customers are @example.com with email opt-in off, so nothing here can send real mail.
@@ -88,7 +90,7 @@ join demo_series s on s.rn = 1 + ((c.id * 5 + k * 7) % (select count(*) from dem
 on conflict do nothing;
 
 insert into public.reservations (order_id, item_id, quantity, status, source, created_at, updated_at, updated_via)
-select distinct on (o.id, i.id) o.id, i.id, 1, 'open', 'series', c.created_at + interval '5 minutes', c.created_at + interval '5 minutes', 'system'
+select distinct on (o.id, i.id) o.id, i.id, 1, 'open', 'series', least(c.created_at + interval '5 minutes', now()), least(c.created_at + interval '5 minutes', now()), 'system'
 from public.customers c
 join new_customers n on n.id = c.id
 join public.subscriptions s on s.customer_id = c.id
@@ -99,7 +101,7 @@ on conflict (order_id, item_id) do nothing;
 -- Titles of the followed series that released after the customer joined (cutoff still ahead of the join date):
 -- their copies get picked up or cancelled by the lifecycle below.
 insert into public.reservations (order_id, item_id, quantity, status, source, created_at, updated_at, updated_via)
-select distinct on (o.id, i.id) o.id, i.id, 1, 'open', 'series', c.created_at + interval '5 minutes', c.created_at + interval '5 minutes', 'system'
+select distinct on (o.id, i.id) o.id, i.id, 1, 'open', 'series', least(c.created_at + interval '5 minutes', now()), least(c.created_at + interval '5 minutes', now()), 'system'
 from public.customers c
 join new_customers n on n.id = c.id
 join public.subscriptions s on s.customer_id = c.id
@@ -244,7 +246,15 @@ where r.id in (select id from ro_lines) and r.status = 'ordered' and (r.created_
 update public.reservations r set status = 'picked_up', updated_via = 'staff',
   updated_at = least(now(), greatest(r.updated_at, ((r.arrived_on + 1 + abs(hashtext('rp' || r.id)) % 4) + time '15:00') at time zone 'America/New_York'))
 from demo_clock d
-where r.id in (select id from ro_lines) and r.status = 'arrived' and r.arrived_on + 5 <= d.today and abs(hashtext('rk' || r.id)) % 10 < 7;
+where r.id in (select id from ro_lines) and r.status = 'arrived' and r.arrived_on + 5 <= d.today;
+
+-- 4f. Copies that arrived more than 6 days ago were collected (except the few 4e below leaves uncollected,
+-- keep theirs, flagged by 4e): otherwise the pickup ladder would be warning half the shop.
+update public.reservations r set status = 'picked_up', updated_via = 'staff',
+  updated_at = least(now(), ((r.arrived_on + 1 + abs(hashtext('p4' || r.id)) % 5) + time '15:00') at time zone 'America/New_York'),
+  updated_by = (select user_id from demo_staff where n = abs(hashtext('rs' || r.id)) % greatest((select count(*) from demo_staff), 1))
+from public.reservation_orders o, demo_clock d
+where o.id = r.order_id and not r.reorder and r.status = 'arrived' and r.arrived_on < d.today - 6 and r.pickup_reminders < 2;
 
 -- 4e. Customers who stopped coming: some picked-up copies from 31-44 days ago were never collected, so they sit
 -- past the 30-day hold (Dashboard > Trends > Customers Drifting Away), with both pickup reminders sent.
@@ -271,11 +281,11 @@ where st.id = 1 and r.status = 'arrived' and not r.reorder and r.arrived_on <= d
 alter table public.reservations enable trigger reservations_stamp;
 
 -- 5. Calendar: weekly recurring events (3+ occurrences on one weekday in the last 120 days) continue 5 weeks ahead.
-insert into public.events (title, event_type, starts_at, ends_at, location, description, image_url, summary, signup_enabled, signup_capacity, location_id)
+insert into public.events (title, event_type, starts_at, ends_at, location, description, image_url, summary, signup_enabled, signup_capacity, location_id, series_id)
 select e.title, e.event_type,
        ((e.starts_at at time zone 'America/New_York') + w.n * interval '7 days') at time zone 'America/New_York',
        case when e.ends_at is null then null else ((e.starts_at at time zone 'America/New_York') + w.n * interval '7 days') at time zone 'America/New_York' + (e.ends_at - e.starts_at) end,
-       e.location, e.description, e.image_url, e.summary, e.signup_enabled, e.signup_capacity, e.location_id
+       e.location, e.description, e.image_url, e.summary, e.signup_enabled, e.signup_capacity, e.location_id, coalesce(e.series_id, md5('series' || e.title)::uuid)
 from (
   select distinct on (title) * from public.events
   where title in (select title from public.events where starts_at > now() - interval '120 days' and starts_at < now()
@@ -452,7 +462,7 @@ where c.email like '%@example.com' and abs(hashtext('sa' || c.id)) % 100 < 30
 on conflict (customer_id, item_id) do nothing;
 
 insert into public.app_visits (customer_id, first_seen_at, last_seen_at)
-select c.id, least(c.created_at + (abs(hashtext('fv' || c.id)) % 72) * interval '1 hour', now() - interval '2 hours'), now() - interval '2 hours'
+select c.id, greatest(c.created_at, least(c.created_at + (abs(hashtext('fv' || c.id)) % 72) * interval '1 hour', now() - interval '2 hours')), now()
 from public.customers c
 where c.email like '%@example.com' and abs(hashtext('av' || c.id)) % 100 < 65
 on conflict (customer_id) do nothing;
@@ -474,5 +484,119 @@ update public.settings set chat_enabled = true, chat_available = true,
   chat_greeting = coalesce(chat_greeting, 'Hi! Ask us about your pull list, new releases or store hours.'),
   email_page_color = coalesce(email_page_color, '#f4f1fa'), email_body_color = coalesce(email_body_color, '#ffffff')
 where id = 1;
+
+-- 14. Pickup reliability (Admin > Customers > Unclaimed, the customer lookup, Shop Settings > Pickup). The ladder's clock
+-- starts 60 days back so there is history. Customers who never collect are warned and paused exactly as the hourly
+-- ladder would have done, with the notices marked sent, so the ladder finds nothing left to email and no demo address
+-- is mailed. A couple of customers are on a monthly rhythm, one is exempt, and two were paused by hand.
+update public.trust_settings set reliability_started_at = least(reliability_started_at, (select today - 60 from demo_clock)) where id = 1;
+alter table public.customer_standing disable trigger customer_standing_log_changes;
+insert into public.customer_standing (customer_id, account_state, pickup_cadence)
+select c.id, 'proven', case when c.ship_arrivals then 'exempt' else 'weekly' end from public.customers c
+on conflict (customer_id) do nothing;
+create temp table cadence_picks on commit drop as
+select st.customer_id, case when abs(hashtext('cx' || st.customer_id)) % 100 < 4 then 'exempt' else 'monthly' end as to_cadence,
+       (select s.name from public.staff s join demo_staff d on d.user_id = s.user_id where d.n = abs(hashtext('cs' || st.customer_id)) % greatest((select count(*) from demo_staff), 1)) staff_name,
+       (select user_id from demo_staff where n = abs(hashtext('cs' || st.customer_id)) % greatest((select count(*) from demo_staff), 1)) staff_user
+from public.customer_standing st join public.customers c on c.id = st.customer_id
+where c.email like '%@example.com' and st.pickup_cadence = 'weekly' and abs(hashtext('cm' || st.customer_id)) % 100 < 14;
+insert into public.customer_standing_log (customer_id, field, from_value, to_value, reason, user_id, staff_name, created_at)
+select customer_id, 'pickup_cadence', 'weekly', to_cadence, case to_cadence when 'monthly' then 'Customer only comes in once a month.' else 'Ships to the customer; no pickups.' end, staff_user, staff_name,
+       now() - (1 + abs(hashtext('cl' || customer_id)) % 40) * interval '1 day'
+from cadence_picks;
+update public.customer_standing st set pickup_cadence = p.to_cadence from cadence_picks p where p.customer_id = st.customer_id;
+
+-- A customer who collects the old books is resumed automatically; a pause ends with the books, and so does the warning.
+with resumed as (
+  update public.customer_standing st set paused_at = null, paused_reason = null, paused_by = null, pause_sent_at = null
+  where st.paused_reason = 'auto' and not exists (
+    select 1 from public.customer_unclaimed u cross join lateral public.pickup_ladder_dates(u.oldest_received_on, st.pickup_cadence) d
+    where u.customer_id = st.customer_id and d.pause_on is not null and (select today from demo_clock) >= d.pause_on)
+  returning st.customer_id
+)
+insert into public.customer_standing_log (customer_id, field, from_value, to_value, reason, created_at)
+select customer_id, 'paused', 'paused (auto)', 'active', 'Picked up their books; the pause ended on its own.', now() from resumed;
+
+update public.customer_standing st set warning_sent_at = null
+where st.paused_at is null and st.warning_sent_at is not null and not exists (
+  select 1 from public.customer_unclaimed u cross join lateral public.pickup_ladder_dates(u.oldest_received_on, st.pickup_cadence) d
+  where u.customer_id = st.customer_id and d.warning_on is not null and (select today from demo_clock) >= d.warning_on);
+create temp table ladder on commit drop as
+select u.customer_id, st.pickup_cadence, u.unclaimed_count, u.unclaimed_cents, u.oldest_received_on, d.warning_on, d.pause_on,
+       (select today from demo_clock) as today
+from public.customer_unclaimed u
+join public.customer_standing st on st.customer_id = u.customer_id and st.pickup_cadence <> 'exempt'
+join public.customers c on c.id = u.customer_id and c.email like '%@example.com'
+cross join lateral public.pickup_ladder_dates(u.oldest_received_on, st.pickup_cadence) d;
+insert into public.pickup_notices (customer_id, stage, status, unclaimed_count, unclaimed_cents, oldest_received_on, pause_on, created_at, sent_at)
+select l.customer_id, 'warning', 'sent', l.unclaimed_count, l.unclaimed_cents, l.oldest_received_on, l.pause_on,
+       (l.warning_on + time '10:00') at time zone 'America/New_York', (l.warning_on + time '10:00') at time zone 'America/New_York'
+from ladder l
+where l.today >= l.warning_on and (l.warning_on + time '10:00') at time zone 'America/New_York' <= now()
+  and not exists (select 1 from public.pickup_notices n where n.customer_id = l.customer_id and n.stage = 'warning' and n.oldest_received_on = l.oldest_received_on);
+insert into public.pickup_notices (customer_id, stage, status, unclaimed_count, unclaimed_cents, oldest_received_on, created_at, sent_at)
+select l.customer_id, 'pause', 'sent', l.unclaimed_count, l.unclaimed_cents, l.oldest_received_on,
+       (l.pause_on + time '10:00') at time zone 'America/New_York', (l.pause_on + time '10:00') at time zone 'America/New_York'
+from ladder l
+where l.today >= l.pause_on and (l.pause_on + time '10:00') at time zone 'America/New_York' <= now()
+  and not exists (select 1 from public.pickup_notices n where n.customer_id = l.customer_id and n.stage = 'pause' and n.oldest_received_on = l.oldest_received_on);
+insert into public.customer_standing_log (customer_id, field, from_value, to_value, reason, created_at)
+select l.customer_id, 'paused', 'active', 'paused (auto)', format('Books waiting since %s (%s unclaimed)', to_char(l.oldest_received_on, 'Mon FMDD'), l.unclaimed_count),
+       (l.pause_on + time '10:00') at time zone 'America/New_York'
+from ladder l join public.customer_standing st on st.customer_id = l.customer_id
+where l.today >= l.pause_on and st.paused_at is null and (l.pause_on + time '10:00') at time zone 'America/New_York' <= now();
+update public.customer_standing st set
+  warning_sent_at = coalesce(st.warning_sent_at, (l.warning_on + time '10:00') at time zone 'America/New_York'),
+  paused_at = case when l.today >= l.pause_on then (l.pause_on + time '10:00') at time zone 'America/New_York' else st.paused_at end,
+  paused_reason = case when l.today >= l.pause_on then 'auto' else st.paused_reason end,
+  pause_sent_at = case when l.today >= l.pause_on then (l.pause_on + time '10:00') at time zone 'America/New_York' else st.pause_sent_at end
+from ladder l
+where l.customer_id = st.customer_id and l.today >= l.warning_on and st.paused_at is null and (l.warning_on + time '10:00') at time zone 'America/New_York' <= now();
+
+-- Two customers staff paused by hand (a lost phone number; moved away).
+with pick as (
+  select c.id, row_number() over (order by md5(c.id::text)) rn,
+         (select user_id from demo_staff where n = abs(hashtext('pm' || c.id)) % greatest((select count(*) from demo_staff), 1)) staff_user,
+         (select s.name from public.staff s join demo_staff d on d.user_id = s.user_id where d.n = abs(hashtext('pm' || c.id)) % greatest((select count(*) from demo_staff), 1)) staff_name
+  from public.customers c join public.customer_standing st on st.customer_id = c.id
+  where c.email like '%@example.com' and st.paused_at is null and st.pickup_cadence <> 'exempt'
+    and not exists (select 1 from public.customer_unclaimed u where u.customer_id = c.id)
+), todo as (
+  select * from pick where rn <= 2 - (select count(*) from public.customer_standing where paused_reason = 'manual')
+), upd as (
+  update public.customer_standing st set paused_at = now() - (6 + t.rn * 3) * interval '1 day', paused_reason = 'manual', paused_by = t.staff_user
+  from todo t where t.id = st.customer_id returning st.customer_id, t.staff_user, t.staff_name, st.paused_at
+)
+insert into public.customer_standing_log (customer_id, field, from_value, to_value, reason, user_id, staff_name, created_at)
+select customer_id, 'paused', 'active', 'paused (manual)', 'Phone number no longer works; holding the list until they check in.', staff_user, staff_name, paused_at from upd;
+alter table public.customer_standing enable trigger customer_standing_log_changes;
+
+-- Nothing for the demo to email: drop queued or failed notices (the ladder has already marked them sent above).
+delete from public.pickup_notices where status in ('queued', 'sending', 'failed');
+-- Guest orders are approved once they are two days old; the newest wait in Admin's approval queue.
+insert into public.guest_order_approvals (order_id, approved_at)
+select o.id, o.created_at + interval '1 day' from public.reservation_orders o
+where o.customer_id is null and o.created_at < now() - interval '2 days'
+  and not exists (select 1 from public.guest_order_approvals a where a.order_id = o.id)
+on conflict (order_id) do nothing;
+-- Weekly events share a series id, like repeating events made in Admin.
+update public.events e set series_id = md5('series' || e.title)::uuid
+where e.series_id is null and e.title in (select title from public.events where starts_at > now() - interval '120 days'
+                                           group by title having count(*) >= 3 and count(distinct extract(dow from starts_at at time zone 'America/New_York')) = 1);
+-- Holiday hours (Shop Settings > Shop; on the website's footer): the next holidays, replacing dates that have passed.
+update public.settings st set holiday_hours = (
+  select coalesce(jsonb_agg(h.j order by h.d), '[]'::jsonb) from (
+    select v.d, jsonb_build_object('date', v.d, 'label', v.label, 'closed', v.closed, 'open', v.o, 'close', v.c) j
+    from demo_clock dc cross join lateral (values
+      (make_date(extract(year from dc.today)::int, 11, 1) + ((4 - extract(dow from make_date(extract(year from dc.today)::int, 11, 1))::int + 7) % 7) + 21, 'Thanksgiving', true, '11:00', '16:00'),
+      (make_date(extract(year from dc.today)::int, 11, 1) + ((4 - extract(dow from make_date(extract(year from dc.today)::int, 11, 1))::int + 7) % 7) + 22, 'Black Friday', false, '09:00', '21:00'),
+      (make_date(extract(year from dc.today)::int, 12, 24), 'Christmas Eve', false, '10:00', '15:00'),
+      (make_date(extract(year from dc.today)::int, 12, 25), 'Christmas Day', true, '11:00', '16:00'),
+      (make_date(extract(year from dc.today)::int, 12, 31), 'New Year''s Eve', false, '10:00', '16:00'),
+      (make_date(extract(year from dc.today)::int + 1, 1, 1), 'New Year''s Day', true, '11:00', '16:00')
+    ) v(d, label, closed, o, c)
+    where v.d >= dc.today and v.d <= dc.today + 120
+  ) h
+) where id = 1 and not exists (select 1 from jsonb_array_elements(st.holiday_hours) e where (e ->> 'date')::date >= (select today from demo_clock));
 
 commit;
