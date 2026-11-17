@@ -1,7 +1,7 @@
 // node tools/check-migrations.test.js
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { checkMigration, checkNames, deployTimeSql } from './check-migrations.js';
+import { checkMigration, checkNames, checkPolicies, deployTimeSql } from './check-migrations.js';
 
 const ok = (sql) => assert.deepEqual(checkMigration(sql), [], sql);
 const bad = (sql, re) => {
@@ -57,3 +57,16 @@ assert.match(checkNames(['20270101000000_Add-Thing.sql'])[0], /lower_snake/);
 assert.match(checkNames(['20270101000000_a.sql', '20270101000000_b.sql'])[0], /same version/);
 
 console.log('migration check tests passed');
+
+// Policies work out is_staff() / is_owner() / auth.uid() once per query, not once per row
+const polOk = (sql) => assert.deepEqual(checkPolicies(sql), [], sql);
+const polBad = (sql) => assert.match(checkPolicies(sql).join('\n'), /once per row/, sql);
+polOk('create policy "staff all x" on public.x for all using ((select public.is_staff())) with check ((select public.is_staff()));');
+polOk('create policy "own x" on public.x for select using (customer_id in (select id from public.customers where user_id = (select auth.uid())));');
+polOk('alter policy "owner x" on public.x using ((select is_owner()));');
+polOk('create function f() returns bool language sql as $$ select public.is_staff() $$;');
+polOk("create policy p on public.x using (note = 'is_staff()');");
+polBad('create policy "staff all x" on public.x for all using (public.is_staff());');
+polBad('create policy "staff all x" on public.x for all using (is_staff()) with check (is_staff());');
+polBad('alter policy "own x" on public.x using (user_id = auth.uid());');
+polBad('create policy p on storage.objects for delete using (bucket_id = \'media\' and public.is_owner());');
