@@ -270,9 +270,10 @@ export function enableSeriesFollow(root) {
     const btn = e.target.closest('[data-follow]');
     if (!btn) return;
     const msg = $('[data-msg]', btn.closest('.card'));
+    const allCovers = btn.dataset.covers === 'all';
     btn.disabled = true;
     try {
-      const allCovers = btn.dataset.covers === 'all';
+      if (!(await pull.confirmSeriesFollow(btn.dataset.follow, { allCovers }))) return void (btn.disabled = false);
       const { added } = await pull.followSeries(btn.dataset.follow, 1, allCovers);
       btn.closest('.card').querySelectorAll('[data-follow]').forEach((b, n) => (n ? b.remove() : (b.outerHTML = `<span class="follow-open follow-open--on">✓ Following this series${allCovers ? ' · all covers' : ''}</span>`)));
       msg.textContent = added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.';
@@ -374,6 +375,7 @@ async function toggleFollow(btn, say) {
       if (removed == null) return;
       say(`Stopped following ${sub.label}.${removed ? ` ${removed} ${removed === 1 ? 'title was' : 'titles were'} removed from your pull list.` : ''}`);
     } else {
+      if (series && !(await pull.confirmSeriesFollow(series, { label, allCovers }))) return;
       const { added } = series ? await pull.followSeries(series, 1, allCovers) : await pull.followArtist(name, btn.dataset.role);
       say(`Following ${label}${series && allCovers ? ' (all covers)' : ''}. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.'}`);
     }
