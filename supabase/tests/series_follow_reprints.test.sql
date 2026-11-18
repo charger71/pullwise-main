@@ -1,5 +1,5 @@
 -- Series follows skip facsimiles and later printings, and series_follow_preview() names the next issue open for
--- ordering (20270406000000_series_follow_skip_reprints.sql). Run with tools/test-db.sh.
+-- ordering (20270406000000_series_follow_skip_reprints.sql, 20270407000000_series_follow_preview_cover.sql). Run with tools/test-db.sh.
 -- One transaction, rolled back. A failed check raises an exception.
 \set ON_ERROR_STOP on
 set client_min_messages = warning;
@@ -42,6 +42,10 @@ begin
   p := public.series_follow_preview('spawn');
   assert (p->>'issues')::int = 2, format('issues: %s', p);
   assert p->'next'->>'issue_number' = '400' and p->'next'->>'variant' is null, format('next: %s', p);
+  -- with its cover count (main, CVR B, 1ST PTG: the 2ND PTG of 399 is another issue and never counts) and the rest
+  assert (p->'next'->>'covers')::int = 3, format('covers: %s', p);
+  assert p->'next' ? 'cover_url' and p->'next' ? 'cover_thumb_url', format('cover fields: %s', p);
+  assert jsonb_array_length(p->'more') = 1 and p->'more'->0->>'issue_number' = '401', format('more: %s', p);
 
   -- Main cover follow: 400 and 401 only.
   insert into public.subscriptions (customer_id, kind, key, label, quantity) values (dana.id, 'series', 'spawn', 'SPAWN', 1);

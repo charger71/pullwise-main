@@ -1000,6 +1000,26 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
                 </div>
               </div>
             </div>
+            <h3>Confirm with a preview: Follow a series</h3>
+            <p>Customers → Follows → <strong>Follow</strong> on a series asks first, showing what goes on the customer’s pull list straight away: a <code>.follow-preview__lead</code> label, then <code>.follow-preview</code> with the next issue open for ordering (<code>.thumb</code> cover, or <code>thumb--none</code>), its <code>.follow-preview__title</code>, which covers, and an <code>info-list</code> with Order by, FOC and the other open issues (Also added). With no issue open, or if the preview can’t load, an <code>empty</code> box says so instead. A hint says facsimiles and later printings are never added, and <code>admin-actions</code> end it with Follow first and Cancel. The shop and the app show the same facts in their own dialog (<code>js/follow-confirm.js</code>); the facts come from <code>js/series-follow.js</code>.</p>
+            <div class="sg-demo">
+              <div class="sg-dialog">
+                <div class="dialog__head"><h2>Follow ABSOLUTE BATMAN?</h2><button class="dialog__close" type="button" aria-label="Close">×</button></div>
+                <div class="dialog__body">
+                  <p class="follow-preview__lead">Goes on Dana’s pull list now</p>
+                  <div class="follow-preview">
+                    <span class="thumb thumb--none" role="img" aria-label="No cover"></span>
+                    <div class="follow-preview__main">
+                      <h3 class="follow-preview__title">Absolute Batman #25</h3>
+                      <p class="card__meta">Main cover</p>
+                      <dl class="info-list"><dt>Order by</dt><dd>Sat, Nov 21</dd><dt>FOC</dt><dd>Mon, Nov 23</dd><dt>Also added</dt><dd>#26, #27</dd></dl>
+                    </div>
+                  </div>
+                  <p class="admin-hint mt-8">Later issues are added automatically until each order cutoff. Facsimiles and later printings are never added.</p>
+                  <div class="admin-actions"><button class="btn btn--primary" type="button">Follow</button><button class="btn btn--ghost" type="button">Cancel</button></div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 

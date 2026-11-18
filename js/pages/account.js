@@ -11,6 +11,7 @@ import { LINE_STATUS_CUSTOMER as LINE_STATUS } from '../labels.js';
 import { whenIn as whenLabel } from '../dates.js';
 import { thumbOf, thumbFallback, artistMeta, btnIcon } from '../util.js';
 import * as pull from '../customer.js';
+import { confirmSeriesFollow } from '../follow-confirm.js';
 import * as guest from '../reservation-list.js';
 import { followedSeries, discountFor, totals, tiersFrom } from '../discount.js';
 import { setBadge, saveList, savedList, forgetList } from '../app-device.js';
@@ -1020,7 +1021,7 @@ async function setupFollowing(sb, customerId, seenBefore) {
     if (!btn) return;
     btn.disabled = true;
     try {
-      if (btn.dataset.fs && !(await pull.confirmSeriesFollow(btn.dataset.fs, { allCovers: btn.dataset.covers === 'all' }))) return void (btn.disabled = false);
+      if (btn.dataset.fs && !(await confirmSeriesFollow(btn.dataset.fs, { allCovers: btn.dataset.covers === 'all' }))) return void (btn.disabled = false);
       const { added } = btn.dataset.fs ? await pull.followSeries(btn.dataset.fs, 1, btn.dataset.covers === 'all') : await pull.followArtist(btn.dataset.fa, btn.dataset.role);
       // The results redraw with "✓ Following" (pull.onChange); focus stays in the search.
       if (btn.isConnected) btn.innerHTML = `${btnIcon('on')}Following`;
