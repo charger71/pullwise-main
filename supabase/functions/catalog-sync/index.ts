@@ -2,9 +2,10 @@
 // into this shop.
 //
 //   POST  x-cron-secret: <CRON_SECRET>      the hourly tick (public.catalog_sync_tick)
+//         body { "manual": true }            Titles → Sync now (public.staff_catalog_sync_now)
 //
-// Secrets: CRON_SECRET; CATALOG_URL and CATALOG_ANON_KEY (set by the deploy for every shop except the catalog
-// itself; without them this does nothing). Reads the catalog's public titles and lists with its anon key, so it can
+// Secrets: CRON_SECRET; CATALOG_URL and CATALOG_ANON_KEY (set for every shop except the catalog itself; without them
+// this does nothing, except record the mistake for Sync now). Reads the catalog's public titles and lists with its anon key, so it can
 // never change the catalog. The rules for what changes in the shop are in public.catalog_apply() (titles) and
 // catalog_apply_series / _series_merges / _artists / _artist_renames (20270204000000_catalog_sync_lists.sql).
 // Deploy with:  supabase functions deploy catalog-sync --no-verify-jwt   (supabase/config.toml has it)
@@ -23,8 +24,16 @@ Deno.serve(async (req) => {
 
   const catalogUrl = Deno.env.get('CATALOG_URL')?.replace(/\/+$/, '');
   const catalogKey = Deno.env.get('CATALOG_ANON_KEY');
-  if (!catalogUrl || !catalogKey) return json(200, { skipped: 'no catalog configured' });
-  if (catalogUrl === SUPABASE_URL.replace(/\/+$/, '')) return json(200, { skipped: 'this is the catalog' });
+  if (catalogUrl && catalogUrl === SUPABASE_URL.replace(/\/+$/, '')) return json(200, { skipped: 'this is the catalog' });
+  if (!catalogUrl || !catalogKey) {
+    // The catalog itself has neither; every other shop gets them from tools/add-shop.mjs. When staff pressed Sync now
+    // (only shown on shops), say so in the sync state, which the button reads, rather than leave it waiting.
+    const manual = (await req.json().catch(() => null))?.manual === true;
+    if (!manual) return json(200, { skipped: 'no catalog configured' });
+    const message = 'This shop isn’t connected to the master catalog (the CATALOG_URL and CATALOG_ANON_KEY function secrets are missing).';
+    await db.from('catalog_sync_state').update({ last_run_at: new Date().toISOString(), last_error: message }).eq('id', 1);
+    return json(500, { error: message });
+  }
 
   const { data: state, error: stateError } = await db.from('catalog_sync_state').select('cursor_at,cursor_id,list_cursors').eq('id', 1).single();
   if (stateError) return json(500, { error: stateError.message });

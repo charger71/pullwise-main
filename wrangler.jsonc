@@ -23,7 +23,9 @@
   ],
   // Rate limit for the public catalog feed (worker/catalog-feed.js): 60 requests a minute per client address.
   "ratelimits": [{ "name": "CATALOG_RATE_LIMIT", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } }],
-  "vars": { "MEDIA_PUBLIC_URL": "https://images.pullwise.shop" },
+  // GITHUB_REPO is where the catalog's "Run now" buttons start the daily import Actions (worker/catalog-import.js), with
+  // the GITHUB_TOKEN Worker secret (SETUP.md → Run the catalog imports from the admin).
+  "vars": { "MEDIA_PUBLIC_URL": "https://images.pullwise.shop", "GITHUB_REPO": "charger71/pullwise-main" },
   "observability": { "enabled": true },
   // Preview builds of non-production branches (`wrangler preview`) refuse to run without this block. Empty means a
   // Preview gets no R2 bucket or vars, so it can't upload media (worker/media.js answers 404) and never touches production's.
