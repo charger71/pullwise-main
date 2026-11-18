@@ -103,7 +103,7 @@ ${h('Sticky save bar (shown in place)')}
 ${demo('Sticky save bar')}`),
   },
   {
-    name: 'AdminField', group: G('Forms'), height: 558, width: 960,
+    name: 'AdminField', group: G('Forms'), height: 704, width: 960,
     readme: `# AdminField
 
 Admin form fields: every control in a \`.field\` with a visible bold label, one shared height, hints under the field.
