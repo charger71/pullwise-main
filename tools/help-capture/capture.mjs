@@ -116,7 +116,9 @@ function isDemo(url) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const ffmpeg = (a) => spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...a], { stdio: 'inherit' }).status === 0;
+// ffmpeg from the PATH, or HELP_FFMPEG (e.g. the ffmpeg-static npm package's binary, for a Mac without Homebrew).
+const FFMPEG = process.env.HELP_FFMPEG || 'ffmpeg';
+const ffmpeg = (a) => spawnSync(FFMPEG, ['-y', '-loglevel', 'error', ...a], { stdio: 'inherit' }).status === 0;
 
 async function main() {
   const opt = args(process.argv.slice(2));
@@ -131,8 +133,8 @@ async function main() {
   } catch {
     throw new Error('Playwright isn’t installed. Run: npm i --no-save playwright && npx playwright install chromium');
   }
-  const canVideo = !opt.shotsOnly && spawnSync('ffmpeg', ['-version']).status === 0;
-  if (!opt.shotsOnly && !canVideo) console.warn('ffmpeg not found: making screenshots only (brew install ffmpeg for videos).');
+  const canVideo = !opt.shotsOnly && spawnSync(FFMPEG, ['-version']).status === 0;
+  if (!opt.shotsOnly && !canVideo) console.warn('ffmpeg not found: making screenshots only. For videos: brew install ffmpeg, or npm i --no-save ffmpeg-static and run with HELP_FFMPEG="$(node -p "require(\'ffmpeg-static\')")".');
 
   const WALKTHROUGHS = opt.steps ? (await import(opt.steps)).WALKTHROUGHS : ALL;
   const list = WALKTHROUGHS.filter((w) => !opt.only || opt.only.includes(w.id));
