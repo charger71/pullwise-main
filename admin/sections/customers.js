@@ -8,6 +8,7 @@
 import { $, $$, esc, uid, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { todayIn, stampIn, holdUntil as holdDate, cutoffPassed } from '../../js/dates.js';
+import { seriesFollowQuestion } from '../../js/series-follow.js';
 import { adminHash } from '../route.js';
 import { followedSeries, discountFor, tiersFrom, totals } from '../../js/discount.js';
 import { dollars, ageLabel, ACCOUNT_STATE, CADENCE_OPTIONS, standingChange, standingActions } from '../trust.js';
@@ -1297,6 +1298,12 @@ function setupFollows(el, c) {
     const btn = e.target.closest('[data-fs], [data-fa]');
     if (!btn) return;
     btn.disabled = true;
+    if (btn.dataset.fs) {
+      // Ask first, naming the next issue open for ordering (and what the follow will add).
+      const preview = await sb.rpc('series_follow_preview', { p_key: btn.dataset.fs });
+      const list = c.first_name ? `${c.first_name}’s pull list` : 'their pull list';
+      if (!confirm(seriesFollowQuestion(preview.error ? null : preview.data, { allCovers: btn.dataset.covers === 'all', list }))) return void (btn.disabled = false);
+    }
     const { data, error } = btn.dataset.fs
       ? await sb.rpc('staff_follow_series', { p_customer: c.id, p_key: btn.dataset.fs, p_all_covers: btn.dataset.covers === 'all' })
       : await sb.rpc('staff_follow_artist', { p_customer: c.id, p_name: btn.dataset.fa, p_role: btn.dataset.role });
