@@ -4,6 +4,7 @@ export const CAPTURED = {
   "from": "demo.pullwise.shop",
   "at": "2026-11-18",
   "shots": [
+    "account-menu",
     "admin-overview",
     "analytics",
     "backup",
@@ -25,6 +26,7 @@ export const CAPTURED = {
     "events-list",
     "events-signups",
     "faq",
+    "help-index",
     "how-this-works",
     "import-files",
     "import-skip",
@@ -58,6 +60,7 @@ export const CAPTURED = {
     "customers",
     "dashboard",
     "emails",
+    "getting-started",
     "news-events",
     "place-order",
     "receiving",
