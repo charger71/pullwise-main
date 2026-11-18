@@ -13,6 +13,7 @@
 //  * GET /__email-logo is the shop's email logo on its own domain (worker/media.js).
 //  * /__unsubscribe is the unsubscribe and skip links of its emails on its own domain (worker/unsubscribe.js).
 //  * GET /__backups lists and serves the shop's nightly backup files to its owners (worker/backups.js).
+//  * GET/POST /__catalog-import shows and starts the daily PRH and Lunar import Actions, on the master catalog only (worker/catalog-import.js).
 //  * GET /catalog.json is the public read-only catalog feed, on the master catalog only ("catalog": true) (worker/catalog-feed.js).
 //  * /manifest.webmanifest is the shop's installable pull list app (app.html), under its name, icon and colors;
 //    app.<shop domain> forwards to that app on the shop's main domain. Only shops marked "app": true in shops.json
@@ -25,6 +26,7 @@ import { mediaUpload, mediaServe, mediaFromStorage, emailLogo } from './media.js
 import { unsubscribeProxy } from './unsubscribe.js';
 import { BACKUPS_PATH, backupFiles } from './backups.js';
 import { CATALOG_FEED_PATH, catalogFeed } from './catalog-feed.js';
+import { CATALOG_IMPORT_PATH, catalogImport } from './catalog-import.js';
 import { MEDIA_UPLOAD_PATH, MEDIA_SERVE_PATH, STORAGE_SERVE_PATH, EMAIL_LOGO_PATH, UNSUBSCRIBE_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, sitemapXml, robotsTxt, SITEMAP_MAX_POSTS, SITEMAP_MAX_EVENTS } from './shop-page.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
@@ -63,6 +65,7 @@ export default {
     if (url.pathname === EMAIL_LOGO_PATH) return emailLogo(request, (await shopData(shop, ctx))?.settings, { waitUntil: (p) => ctx.waitUntil(p) });
     if (url.pathname === UNSUBSCRIBE_PATH) return unsubscribeProxy(request, shop);
     if (url.pathname === BACKUPS_PATH) return backupFiles(request, shop, env);
+    if (url.pathname === CATALOG_IMPORT_PATH && shop.catalog === true) return catalogImport(request, shop, env);
     if (url.pathname === CATALOG_FEED_PATH && shop.catalog === true) return catalogFeed(request, shop, env, { waitUntil: (p) => ctx.waitUntil(p) });
     if (url.pathname === '/js/config.js') return config(shop, request, await cachedShopData(shop));
     if (!hasApp(shop) && url.pathname === '/manifest.webmanifest') return new Response('Not found', { status: 404 }); // nothing to install

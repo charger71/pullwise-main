@@ -10,7 +10,7 @@ import { $, esc, must, setStatus, toast, fmtDate, loadScript, solidIcon, friendl
 import { processImage } from '../images.js';
 import { tally } from '../../js/util.js';
 import { todayIn, addDays } from '../../js/dates.js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../js/config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, IS_CATALOG } from '../../js/config.js';
 import { mountPullLists, pullImportBusy } from './import-pull-lists.js';
 
 const SOURCE = { lunar: 'Lunar', prh: 'PRH', funko: 'Funko', sheet: 'Spreadsheet' };
@@ -59,6 +59,15 @@ export async function mount(el, ctx) {
       <span class="card__meta">Every column the importer reads, with one made-up title per category</span>
     </div>
     <div data-files></div>
+    ${IS_CATALOG ? `<section class="fold fold--compact fold--static" data-daily>
+      <div class="fold__head"><h2>Daily imports</h2> <span class="card__meta">PRH and Lunar run by themselves every morning; run one now to pick up changes sooner</span></div>
+      <div class="fold__body">
+        ${Object.entries(DAILY).map(([source, name]) => `<div class="admin-actions">
+          <button class="btn btn--ghost" type="button" data-run="${source}">Run ${name} import now</button>
+          <span class="card__meta" data-run-state="${source}" role="status">Checking…</span>
+        </div>`).join('')}
+      </div>
+    </section>` : ''}
     </div>
     <div data-tabpane="pulls"></div>
     <div data-tabpane="skip">
@@ -95,6 +104,7 @@ export async function mount(el, ctx) {
     pulls: `For a shop moving to Pullwise: one spreadsheet of your customers and the series each one takes (.xlsx, .xls or .csv). It can have one row per customer and title, one row per customer with all their titles in one cell, or one sheet per customer named after them — download the sample to see the columns. Check which column holds what, then every title is matched to a series: <strong>Matched</strong> lines are ready, <strong>Needs a look</strong> lines offer the closest series to choose from, and <strong>Not found</strong> lines can be searched for, added to the series catalog or skipped. Each choice is remembered, so the same spelling matches by itself next time. Customers already in Pullwise (same email, or same phone) are updated, never added twice, and keep the follows they have. Nothing is saved until you press <strong>Save</strong>; you can leave a review and resume it from Drafts. Saving adds each customer's follows and puts the titles open for pre-order now on their pull list (mature titles only for customers marked Mature OK). It sends no email.`,
   });
   mountExclusions(el);
+  if (IS_CATALOG) mountDaily(el);
   mountPullLists($('[data-tabpane="pulls"]', el), { sb, onLog: () => loadLog(el) });
   loadLog(el);
 }
@@ -340,6 +350,78 @@ async function fetchRemote(body) {
 async function makeThumb(bytes, type) {
   const small = await processImage(new File([bytes], 'cover', { type }), { maxSize: 560, quality: 0.65 });
   return { bytes: new Uint8Array(await small.blob.arrayBuffer()), type: small.type };
+}
+
+// The catalog's daily import Actions, started and watched through the Worker (worker/catalog-import.js).
+const DAILY = { prh: 'PRH', lunar: 'Lunar' };
+const DAILY_URL = '/__catalog-import';
+const POLL_MS = 15000;
+
+async function dailyCall(init = {}) {
+  const { data: { session } } = await sb.auth.getSession();
+  const res = await fetch(DAILY_URL, { ...init, headers: { Authorization: `Bearer ${session?.access_token}`, ...(init.body ? { 'Content-Type': 'application/json' } : {}) } });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(body.error ?? `The import service answered ${res.status}`), { status: res.status });
+  return body;
+}
+
+const when = (iso) => fmtDate(iso, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+/** One Action's latest run → the words beside its button. */
+function runText(r) {
+  if (!r?.status) return 'Not run yet';
+  if (r.status === 'queued' || r.status === 'waiting' || r.status === 'pending' || r.status === 'requested') return 'Waiting to start…';
+  if (r.status !== 'completed') return `Running since ${when(r.started)}… (results show in Recent Runs)`;
+  if (r.conclusion === 'success') return `Last ran ${when(r.started)}`;
+  return `Last run ${r.conclusion === 'cancelled' ? 'was cancelled' : 'failed'} (${when(r.started)})`;
+}
+
+function mountDaily(el) {
+  const box = $('[data-daily]', el);
+  let timer = null;
+  let wasRunning = false;
+  const refresh = async () => {
+    clearTimeout(timer);
+    if (!box.isConnected) return;
+    let runs;
+    try {
+      runs = await dailyCall();
+    } catch (err) {
+      for (const source of Object.keys(DAILY)) {
+        setStatus($(`[data-run-state="${source}"]`, box), err.status === 404 ? err.message : friendlyError(err), 'error');
+        $(`[data-run="${source}"]`, box).disabled = err.status === 404 || err.status === 403;
+      }
+      return;
+    }
+    let running = false;
+    for (const source of Object.keys(DAILY)) {
+      const r = runs[source];
+      const busyNow = !!r?.status && r.status !== 'completed';
+      running ||= busyNow;
+      setStatus($(`[data-run-state="${source}"]`, box), runText(r), r?.status === 'completed' && r.conclusion !== 'success' ? 'error' : '');
+      $(`[data-run="${source}"]`, box).disabled = busyNow;
+    }
+    if (wasRunning && !running) loadLog(el); // a run just finished: its line is in the log now
+    wasRunning = running;
+    if (running) timer = setTimeout(refresh, POLL_MS);
+  };
+  box.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-run]');
+    if (!btn) return;
+    const source = btn.dataset.run;
+    btn.disabled = true;
+    try {
+      await dailyCall({ method: 'POST', body: JSON.stringify({ source }) });
+      toast(`${DAILY[source]} import started. It takes a few minutes; the result shows in Recent Runs.`);
+      setStatus($(`[data-run-state="${source}"]`, box), 'Waiting to start…');
+      wasRunning = true;
+      clearTimeout(timer);
+      timer = setTimeout(refresh, POLL_MS); // GitHub lists the new run a few seconds after it is asked for
+    } catch (err) {
+      toast(err.status === 409 ? err.message : `Couldn’t start the ${DAILY[source]} import: ${friendlyError(err)}`, 'error');
+      refresh();
+    }
+  });
+  refresh();
 }
 
 const RUN_NAMES = { import: 'Import', pull_import: 'Pull list import', status_flip: 'Daily status update', catalog_sync: 'Master catalog sync', prh_sync: 'PRH title updates', prh_import: 'Automatic PRH import', lunar_import: 'Automatic Lunar import' };

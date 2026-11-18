@@ -174,6 +174,21 @@ The daily automatic Lunar import needs nothing more: Lunar's sheets are public, 
 For the daily automatic PRH import, add the same key as a GitHub repository secret named `PRH_API_KEY` (Settings →
 Secrets and variables → Actions). The job uses it with the Deploy secrets already there.
 
+**Run the catalog imports from the admin.** The catalog's Import → Import Files tab has **Run PRH import now** and
+**Run Lunar import now** buttons (catalog staff only), which start those two Actions through the Worker
+(`worker/catalog-import.js`). They need a GitHub fine-grained token on this repository with **Actions: Read and
+write**, stored as a Worker secret on both Workers (it stays across deploys):
+
+```bash
+npx wrangler secret put GITHUB_TOKEN --name pullwise
+```
+
+```bash
+npx wrangler secret put GITHUB_TOKEN --name pullwise-canary
+```
+
+The repository is `GITHUB_REPO` in `wrangler.jsonc`. Without the secret the buttons say it isn't set up.
+
 `tools/prh-probe.sh` checks a key and shows PRH's raw replies for a book and a comic.
 
 ## 1. Try it locally (optional, 2 minutes)
