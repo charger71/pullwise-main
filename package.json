@@ -9,6 +9,7 @@
     "design-system": "node tools/design-system/index.mjs",
     "design-system:check": "node tools/design-system/check.mjs",
     "demo-data": "node tools/demo-data.mjs",
-    "demo": "node tools/demo-data.mjs"
+    "demo": "node tools/demo-data.mjs",
+    "help:capture": "node tools/help-capture/capture.mjs"
   }
 }

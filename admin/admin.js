@@ -18,7 +18,7 @@ import { startSurveyAlerts, refreshSurveyAlerts, newSurveyResponses } from './su
 import { startEventAlerts, refreshEventAlerts, newEventSignups } from './event-alerts.js';
 import { listenForOpenRequests } from './staff-push.js';
 
-const SECTIONS = ['dashboard', 'analytics', 'titles', 'reservations', 'customers', 'chat', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'staff'];
+const SECTIONS = ['dashboard', 'analytics', 'titles', 'reservations', 'customers', 'chat', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'staff', 'help'];
 // Screens only owners open (the menu item is hidden and the address redirects to the Dashboard).
 // Owner-only screens: the whole Utilities group except Staff, which every staff member opens for My Account (from the
 // header's My account button, since staff don't see the Utilities group).

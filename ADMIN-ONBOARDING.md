@@ -24,7 +24,7 @@ That's it: they can sign in right away. If you close the box before copying, use
 1. Go to https://<your site>/admin/ and sign in with the email and password you were given.
 2. Go to **Staff → My Account** and change the starting password to your own (10+ characters).
 3. If a screen looks out of date or something is missing after we've made a change, do a **hard refresh** (Cmd+Shift+R on Mac, Ctrl+Shift+R on Windows).
-4. Work through the walk-through below, in this order.
+4. Work through the walk-through below, in this order. Each screen's guide, with pictures and a short video, is under **Help** at the bottom of the admin menu (or the **?** beside any screen's title → **Open the full guide**).
 5. **Sign out** (top right) when you leave a shared computer.
 
 ## Part 3: Walk-through, in the order to learn it
