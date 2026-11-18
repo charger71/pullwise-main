@@ -387,7 +387,7 @@ ${demo('Fold with a count and an action at the top (Place Order cutoff)')}`),
     html: page('AdminHintFold', demo('(hintFold)')),
   },
   {
-    name: 'AdminHelp', group: G('Containers'), height: 900, width: 960,
+    name: 'AdminHelp', group: G('Containers'), height: 1035, width: 960,
     readme: `# AdminHelp
 
 The Help screen's pieces: the topic list, a guide's steps, tips and screenshots, the walk-through video, and the pager. Guides are Markdown in admin/help/articles/, drawn by admin/help/markdown.js, so a guide never writes its own HTML; these are the only pieces it produces.
