@@ -49,10 +49,11 @@ export async function mount(el, ctx) {
       <h1>Titles</h1>
       <div class="admin-actions">
         <button class="btn btn--ghost" type="button" data-cleanup>Clean up old titles…</button>
+        ${IS_CATALOG ? '' : '<button class="btn btn--ghost" type="button" data-sync>Sync now</button>'}
         <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New title</button>
       </div>
     </div>
-    ${hintFold(`Every comic, book and product the shop sells. <strong>All</strong> lists everything, the FOC tab shows titles whose final order cutoff is this week (or next week, once this week’s has passed), and <strong>Out This Week</strong> shows what releases this week. Search and filter to narrow the list, then open a title to change its price, status, category or badges. Most titles arrive by import; add one here for anything else. <strong>Clean up old titles</strong> removes old titles nobody has on order.${IS_CATALOG ? ' <strong>Export CSV</strong> saves every title the tab and filters are showing, across all pages, in the order shown.' : ''}`)}
+    ${hintFold(`Every comic, book and product the shop sells. <strong>All</strong> lists everything, the FOC tab shows titles whose final order cutoff is this week (or next week, once this week’s has passed), and <strong>Out This Week</strong> shows what releases this week. Search and filter to narrow the list, then open a title to change its price, status, category or badges. Most titles arrive by import; add one here for anything else.${IS_CATALOG ? '' : ' New and changed titles come in from the master catalog every hour; <strong>Sync now</strong> brings them in straight away.'} <strong>Clean up old titles</strong> removes old titles nobody has on order.${IS_CATALOG ? ' <strong>Export CSV</strong> saves every title the tab and filters are showing, across all pages, in the order shown.' : ''}`)}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-weektab="all">All</button>
       <button type="button" class="admin-tab" role="tab" data-weektab="foc">${focTabLabel()}</button>
@@ -150,6 +151,7 @@ export async function mount(el, ctx) {
   $('[data-next]', el).addEventListener('click', () => turnPage(state.offset + PAGE));
   $('[data-new]', el).addEventListener('click', () => edit(el, null));
   $('[data-cleanup]', el).addEventListener('click', () => cleanUp(el));
+  $('[data-sync]', el)?.addEventListener('click', (e) => syncNow(el, e.currentTarget));
   $('[data-export]', el)?.addEventListener('click', (e) => exportTitles(e.currentTarget));
 
   // Quick changes straight from the list.
@@ -319,6 +321,45 @@ async function exportTitles(btn) {
     btn.disabled = false;
     btn.textContent = label;
   }
+}
+
+// Sync now: starts the master catalog sync (staff_catalog_sync_now → the catalog-sync Edge Function), then watches
+// catalog_sync_state until that run has finished and reloads the list.
+const SYNC_POLL_MS = 5000;
+const SYNC_WAIT_MS = 3 * 60000;
+
+async function syncNow(el, btn) {
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = 'Syncing…';
+  const done = () => ((btn.disabled = false), (btn.textContent = label));
+  let asked;
+  try {
+    asked = await must(sb.rpc('staff_catalog_sync_now'));
+  } catch (err) {
+    done();
+    return toast(`Couldn’t start the sync: ${friendlyError(err)}`, 'error');
+  }
+  if (!asked.started) toast('A sync is already running; showing its result when it finishes.');
+  const since = Date.parse(asked.requested_at);
+  const until = Date.now() + SYNC_WAIT_MS;
+  const check = async () => {
+    if (!btn.isConnected) return;
+    const st = await sb.from('catalog_sync_state').select('last_run_at,last_ok_at,last_error,last_inserted,last_updated').eq('id', 1).single().then((r) => r.data, () => null);
+    if (st?.last_run_at && Date.parse(st.last_run_at) >= since) {
+      done();
+      if (st.last_ok_at !== st.last_run_at) return toast(`The sync failed: ${st.last_error ?? 'no reason given'}`, 'error');
+      const n = (st.last_inserted ?? 0) + (st.last_updated ?? 0);
+      toast(n ? `Synced: ${st.last_inserted ?? 0} new, ${st.last_updated ?? 0} updated.` : 'Synced: the titles were already up to date.');
+      return load(el);
+    }
+    if (Date.now() > until) {
+      done();
+      return toast('The sync hasn’t answered yet. It keeps going on its own; check back in a few minutes.', 'error');
+    }
+    setTimeout(check, SYNC_POLL_MS);
+  };
+  setTimeout(check, SYNC_POLL_MS);
 }
 
 async function load(el) {
