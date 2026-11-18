@@ -1,6 +1,7 @@
 // The brand-book sections for the storefront and the admin, and the README's new opening.
 import { shopDerived } from './tokens.mjs';
 import { ratio, fmt } from './css.mjs';
+import { icons } from './build.mjs'; // counted, so the section stays right when an icon is added
 
 const d = shopDerived();
 const paper = '#121212', ink = '#f4f0ea';
@@ -166,7 +167,7 @@ Layouts that belong to one screen, built from the components; reuse the componen
 
 ## Icons
 
-- **Admin tab icons:** 44 line icons, 24px grid, 2px stroke, round caps and joins, \`currentColor\`. Only in front of tab labels, matched by label in admin/tab-icons.js.
-- **Admin action icons:** 21 solid icons cut with even-odd fill (\`solidIcon(name, size)\` in lib.js): Add, Remove, Edit, Delete, View, Follow, Grid, List, role pills and status icons. Inside a table row, under a Media Library picture and in a view switch, icon only with \`aria-label\` and \`title\`; elsewhere icon plus the word.
+- **Admin tab icons:** ${icons['Admin tab icons'].length} line icons, 24px grid, 2px stroke, round caps and joins, \`currentColor\`. Only in front of tab labels, matched by label in admin/tab-icons.js.
+- **Admin action icons:** ${icons['Admin action icons'].length} solid icons cut with even-odd fill (\`solidIcon(name, size)\` in lib.js): Add, Remove, Edit, Delete, View, Follow, Grid, List, Sync, Clean, role pills and status icons. Inside a table row, under a Media Library picture and in a view switch, icon only with \`aria-label\` and \`title\`; elsewhere icon plus the word, and a ghost button that starts a job (Sync now, Clean up old titles) leads with its 16px icon.
 - Don't mix in the marketing line icons or another set.
 `;

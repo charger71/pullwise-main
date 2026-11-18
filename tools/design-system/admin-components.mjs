@@ -67,7 +67,7 @@ ${demo('Page title row')}
 </div>`, 'pw-admin'),
   },
   {
-    name: 'AdminButton', group: G('Actions'), height: 313, width: 960,
+    name: 'AdminButton', group: G('Actions'), height: 405, width: 960,
     readme: `# AdminButton
 
 Admin buttons: one primary action per screen area, a fixed minimum width so pairs and pagers match, and big tap targets on phones.
@@ -76,6 +76,7 @@ Admin buttons: one primary action per screen area, a fixed minimum width so pair
 - **Small** (\`.btn--small\`, 36px, \`admin-fs-ui\`): inside tables, toolbars and card headers. On phones every button is at least \`admin-tap-btn\` (48px) and small ones \`admin-tap\` (44px).
 - **Width:** at least \`admin-btn-w\` (8.5rem), small \`admin-btn-w-sm\` (7rem). A place that wants buttons to shrink to their label joins the "Natural-width buttons" list in admin.css.
 - **Add and remove:** outside a table, icon plus word (\`.btn--add\`, \`.btn--danger\` with an **Admin action icons** glyph); inside a table row, icon only (\`.icon-btn\` 36px, \`.icon-btn--add\` green, \`.icon-btn--remove\` red) with \`aria-label\` and \`title\`.
+- **Tool buttons:** a ghost button that starts a job leads with a 16px **Admin action icons** glyph (\`sync\` for Sync now, \`clean\` for Clean up old titles, \`download\` for downloads). When its label changes while it runs, wrap the words in a \`span\` and change only that.
 - \`.admin-link-button\` is an action that reads as a link.
 - Use \`<button type="button">\` for actions and \`<a class="btn">\` only for navigation. Never put an email address in a list as a link: use the small Email button.`,
     html: page('AdminButton', `
@@ -83,7 +84,9 @@ ${demo('<h3>Variants'.slice(4))}
 ${h('Small')}
 ${demo('<h3>Small'.slice(4))}
 ${h('Add and remove: icon and word outside a table, icon only in a table row')}
-<div class="pw-row">${demo('Add and remove outside a table: icon and word').replace(/^<div class="pw-row">|<\/div>$/g, '')}${demo('Add and remove in a table row: icon only').replace(/^<div class="pw-row">|<\/div>$/g, '')}</div>`),
+<div class="pw-row">${demo('Add and remove outside a table: icon and word').replace(/^<div class="pw-row">|<\/div>$/g, '')}${demo('Add and remove in a table row: icon only').replace(/^<div class="pw-row">|<\/div>$/g, '')}</div>
+${h('Tool buttons: icon and word')}
+${demo('Tool buttons: icon and word')}`),
   },
   {
     name: 'AdminSaveBar', group: G('Actions'), height: 211,
