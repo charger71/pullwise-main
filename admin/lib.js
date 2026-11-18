@@ -7,6 +7,7 @@ import { friendlyError, fromError } from '../js/errors.js';
 import { searchTerm, customerFilter, titleFilter, emailMatch, digitsMatch, anyOf } from './filters.js';
 import { ITEM_STATUS } from '../js/labels.js';
 import { fmtDateIn, fmtTimeIn } from '../js/dates.js';
+import { topicForScreen, CAPTURED } from './help/topics.js';
 
 export { esc, must, formatPhone };
 export { friendlyError, fromError };
@@ -228,6 +229,15 @@ export const hintFold = (html) => `<template data-hint>${html}</template>`;
 export const hintSlot = () => '<div data-hint-slot hidden></div>';
 const HINT_ICON = '<svg class="solid-icon hint-icon" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M12 6.5c2.2 0 3.8 1.3 3.8 3.3 0 1.4-.7 2.2-1.7 3-.9.7-1.3 1.1-1.3 2v.3h-2v-.4c0-1.4.6-2.1 1.6-2.9.9-.7 1.3-1.1 1.3-1.9 0-.9-.7-1.5-1.7-1.5-1 0-1.7.7-1.8 1.7h-2C8.2 7.9 9.8 6.5 12 6.5zM13.2 17.4a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/></svg>';
 const HINT_TEXT = new WeakMap();
+/** A screen's How this works ends with a link to its full guide on the Help screen (admin/help/topics.js), when it has one. */
+function helpLink(btn) {
+  if (btn.closest('dialog') || btn.closest('.hint-inline')) return ''; // a dialog's or one form's own hint: not the screen's
+  const screen = location.hash.replace(/^#/, '').split('/')[0] || 'dashboard'; // no address: the Dashboard
+  const topic = screen && screen !== 'help' ? topicForScreen(screen) : null;
+  if (!topic) return '';
+  const video = topic.video && CAPTURED.videos.includes(topic.video);
+  return `<p class="help-link"><a class="btn btn--ghost btn--small" href="#help/${esc(topic.id)}" data-help-link>Open the full guide${video ? ' and video' : ''} →</a></p>`;
+}
 const hintTitle = (from) => from.closest?.('dialog')?.querySelector('.dialog__head h2') ?? (from.closest?.('#section') ?? document).querySelector('h1');
 function hintButton(title, html) {
   let btn = title.querySelector(':scope > .icon-btn--hint');
@@ -238,7 +248,10 @@ function hintButton(title, html) {
     btn.setAttribute('aria-label', 'How this works');
     btn.title = 'How this works';
     btn.innerHTML = HINT_ICON;
-    btn.addEventListener('click', () => openDialog('How this works', `<p class="admin-hint">${HINT_TEXT.get(btn).join('</p><p class="admin-hint">')}</p>`));
+    btn.addEventListener('click', () => {
+      const d = openDialog('How this works', `<p class="admin-hint">${HINT_TEXT.get(btn).join('</p><p class="admin-hint">')}</p>${helpLink(btn)}`);
+      d.querySelector('[data-help-link]')?.addEventListener('click', () => d.close());
+    });
     title.append(' ', btn);
     HINT_TEXT.set(btn, []);
   }

@@ -85,6 +85,7 @@
           <li><a href="#chat">Chat</a></li>
           <li><a href="#dashboard">Dashboard</a></li>
           <li><a href="#dialogs">Dialogs</a></li>
+          <li><a href="#help">Help</a></li>
           <li><a href="#screens">Screen patterns</a></li>
           <li><a href="#spacing">Spacing &amp; utilities</a></li>
           <li><a href="#patterns">Rules</a></li>
@@ -1029,6 +1030,50 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- ===================================================== -->
+        <section class="sg-section" id="help">
+          <h2>Help</h2>
+          <p>The Help screen (<code>sections/help.js</code>): guides written in Markdown in <code>admin/help/articles/</code>, drawn by <code>admin/help/markdown.js</code>, with screenshots and videos made by <code>tools/help-capture</code>. Articles never write their own HTML; these are the only pieces they produce.</p>
+          <div class="sg-item" data-code>
+            <h3>Topic list</h3>
+            <div class="sg-demo">
+              <ul class="help-topics">
+                <li><a class="help-topic" href="#help"><span class="help-topic__title">Placing your order at the cutoff</span><span class="help-topic__summary">Store copies, totals and the Lunar and PRH order files.</span><span class="help-topic__video">Video</span></a></li>
+                <li><a class="help-topic" href="#help"><span class="help-topic__title">Series and creators</span><span class="help-topic__summary">Merge series named two ways, and set covers.</span></a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>An article: steps, a tip and a screenshot</h3>
+            <div class="sg-demo">
+              <article class="help-article">
+                <h2>Mark books ready</h2>
+                <ol class="help-steps"><li>Open <strong>Ordering → Received</strong>.</li><li>Untick anything that didn’t arrive.</li></ol>
+                <aside class="help-tip"><p><strong>Tip:</strong> titles from earlier weeks aren’t ticked for you.</p></aside>
+                <figure class="help-shot"><a href="#help"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 800'%3E%3Crect width='1280' height='800' fill='%23ddd'/%3E%3C/svg%3E" alt="Ordering → Received" width="1280" height="800"></a><figcaption>Ordering → Received</figcaption></figure>
+              </article>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Walk-through video</h3>
+            <div class="sg-demo">
+              <figure class="help-video"><video controls preload="none" playsinline width="1280" height="800" poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 800'%3E%3Crect width='1280' height='800' fill='%23333'/%3E%3C/svg%3E"></video><figcaption>Walk-through video, no sound. The steps are written out below.</figcaption></figure>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>Open the screen, and the pager</h3>
+            <div class="sg-demo">
+              <p class="help-open"><a class="btn btn--primary" href="#help">Open Ordering</a></p>
+              <nav class="help-pager" aria-label="More help"><a class="help-pager__link" href="#help"><span class="help-pager__dir">Previous</span>Reservations and title statuses</a><a class="help-pager__link help-pager__link--next" href="#help"><span class="help-pager__dir">Next</span>New-release day: receiving books</a></nav>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
+            <h3>The guide link at the end of How this works</h3>
+            <div class="sg-demo"><div class="sg-dialog"><div class="dialog__head"><h2>How this works</h2><button class="dialog__close" type="button" aria-label="Close">✕</button></div><div class="dialog__body"><p class="admin-hint">Every title for one order cutoff, A to Z.</p><p class="help-link"><a class="btn btn--ghost btn--small" href="#help">Open the full guide and video →</a></p></div></div></div>
+            <p class="admin-hint mt-8">Added by <code>lib.js</code> to a screen’s How this works when <code>admin/help/topics.js</code> names that screen; the menu’s <strong>Help</strong> item sits apart at the end (<code>.admin-nav__end</code>).</p>
           </div>
         </section>
 
