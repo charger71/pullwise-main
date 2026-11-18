@@ -1,7 +1,7 @@
 // Backup (owners): the nightly backups (download or restore any of them), download everything in the shop's
 // database now as one file, load tables back from a backup file, and export the customers. One Log tab. See BACKUPS.md.
 
-import { $, $$, esc, setStatus, fmtDate, fmtDateTime, solidIcon, friendlyError, downloadCsv, setupTabs, loadRunLog, hintSlot, openDialog, toast } from '../lib.js';
+import { $, $$, esc, must, setStatus, fmtDate, fmtDateTime, solidIcon, friendlyError, downloadCsv, setupTabs, loadRunLog, hintSlot, openDialog, toast } from '../lib.js';
 import { buildBackup, buildMediaBackup, recordMediaBackup, readMediaArchives, restoreMedia, recordMediaRestore, lastBackup, recordBackup, customerRows, CUSTOMER_HEADER, pullListRows, PULL_HEADER, nightlyBackups, nightlyBackupFile, parseBackup, currentCounts, restoreTables, replaceImpact, failedTable, restoreOrder, recordRestore, NOT_RESTORED } from '../backup.js';
 
 const label = (n) => (n === 'auth_users' ? 'customer sign-ins' : n.replace(/_/g, ' '));
@@ -48,6 +48,15 @@ export async function mount(el, ctx) {
     <div class="admin-actions">
     <button class="btn btn--primary" type="button" data-backup>${solidIcon('download', 16)} Download database backup</button>
     <button class="btn btn--ghost" type="button" data-media>${solidIcon('download', 16)} Download media backup (.zip)</button>
+    </div>
+    </div>
+    </section>
+    <section class="fold fold--compact fold--static">
+    <div class="fold__head"><h2>Clean Up Old Titles</h2></div>
+    <div class="fold__body">
+    <p class="field__hint">Hides in-store titles released over 180 days ago and pre-orders released over 90 days ago. Titles on someone’s active pull list, staff picks, homepage titles and titles with no release date are left alone. Nothing is deleted: tick Hidden off on a title in Titles to bring it back.</p>
+    <div class="admin-actions">
+    <button class="btn btn--ghost" type="button" data-cleanup>${solidIcon('clean', 16)} Clean up old titles…</button>
     </div>
     </div>
     </section>
@@ -102,7 +111,7 @@ export async function mount(el, ctx) {
     by: true, limit: 50, empty: 'No backups, restores or exports yet.',
   }).catch(() => {});
   const showTab = setupTabs(el, 'admin-backup-tab', 'backups', undefined, {
-    backups: 'The shop is backed up automatically every night. Each day’s file is kept for 35 days, and the first of each month for about a year. Every Sunday the uploaded pictures are saved too, as .zip files (listed as Pictures, kept 35 days: download all the parts of a week, then restore them from the Restore tab). <strong>Download a backup now</strong> before a big change, or to keep a copy of your own somewhere safe, such as Dropbox: the <strong>database backup</strong> is one file with everything in the shop’s database (titles, customers, pull lists, orders, events, news, page text, settings and the change log); the <strong>media backup</strong> is every uploaded picture, as one or more .zip files. Distributor cover images are in neither (a re-import brings them back). In the nightly list, <strong>Download</strong> saves a file and <strong>Restore</strong> loads tables back from it (nothing is downloaded, and nothing changes until you confirm). The files contain customer names, phone numbers, emails and password hashes: don’t share them or email them. Pictures are put back on the Restore tab. A big library is split into several .zip files of about 250 MB; your browser may ask to allow multiple downloads.',
+    backups: 'The shop is backed up automatically every night. Each day’s file is kept for 35 days, and the first of each month for about a year. Every Sunday the uploaded pictures are saved too, as .zip files (listed as Pictures, kept 35 days: download all the parts of a week, then restore them from the Restore tab). <strong>Download a backup now</strong> before a big change, or to keep a copy of your own somewhere safe, such as Dropbox: the <strong>database backup</strong> is one file with everything in the shop’s database (titles, customers, pull lists, orders, events, news, page text, settings and the change log); the <strong>media backup</strong> is every uploaded picture, as one or more .zip files. Distributor cover images are in neither (a re-import brings them back). In the nightly list, <strong>Download</strong> saves a file and <strong>Restore</strong> loads tables back from it (nothing is downloaded, and nothing changes until you confirm). The files contain customer names, phone numbers, emails and password hashes: don’t share them or email them. Pictures are put back on the Restore tab. <strong>Clean up old titles</strong> hides titles long past their release that nobody has on order (download a backup first if you like); nothing is deleted. A big library is split into several .zip files of about 250 MB; your browser may ask to allow multiple downloads.',
     restore: 'Pick a database backup file on this computer, or press Restore on a nightly backup, then tick only the tables you need. To put uploaded pictures back, pick the .zip files of a media backup at the bottom. <strong>Add missing rows</strong> puts back what was deleted and leaves everything else alone; <strong>Replace</strong> deletes every row in the table first and loads the backup’s, so changes made since the backup are lost.',
     customers: 'A spreadsheet of just the customers’ contact details, for a mailing or your records. It is not a backup.',
     log: 'Every backup (the nightly automatic ones and those downloaded here), every nightly file downloaded, every restore (who ran it, how, and what each table got; a failed restore changed nothing) and every customer list exported, newest first, with who did it.',
@@ -182,6 +191,24 @@ export async function mount(el, ctx) {
       setStatus(status, `Backup failed: ${friendlyError(err)}`, 'error');
     }
     btn.disabled = false;
+  });
+
+  // Hides old titles (staff_hide_old_titles): counts first, then asks.
+  $('[data-cleanup]', el).addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      const { pre_orders: pre, in_store: store } = await must(sb.rpc('staff_hide_old_titles', { p_dry_run: true }));
+      if (!pre && !store) return void toast('Nothing to clean up right now.');
+      const lines = [store && `${store} in-store ${store === 1 ? 'title' : 'titles'} released over 180 days ago`, pre && `${pre} ${pre === 1 ? 'pre-order' : 'pre-orders'} released over 90 days ago`].filter(Boolean);
+      if (!confirm(`Hide ${lines.join(' and ')}?\n\nTitles on someone's active pull list, staff picks, homepage titles and titles with no release date are skipped. You can restore any title by unticking Hidden.`)) return;
+      await must(sb.rpc('staff_hide_old_titles', { p_dry_run: false }));
+      toast(`Hid ${pre + store} old ${pre + store === 1 ? 'title' : 'titles'}`);
+    } catch (err) {
+      toast(friendlyError(err), 'error');
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   $('[data-media]', el).addEventListener('click', async (e) => {

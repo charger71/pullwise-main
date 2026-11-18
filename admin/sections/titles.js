@@ -48,12 +48,11 @@ export async function mount(el, ctx) {
     <div class="admin-title-row">
       <h1>Titles</h1>
       <div class="admin-actions">
-        <button class="btn btn--ghost" type="button" data-cleanup>Clean up old titles…</button>
-        ${IS_CATALOG ? '' : '<button class="btn btn--ghost" type="button" data-sync>Sync now</button>'}
+        ${IS_CATALOG ? '' : `<button class="btn btn--ghost" type="button" data-sync>${solidIcon('sync', 16)} <span>Sync now</span></button>`}
         <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New title</button>
       </div>
     </div>
-    ${hintFold(`Every comic, book and product the shop sells. <strong>All</strong> lists everything, the FOC tab shows titles whose final order cutoff is this week (or next week, once this week’s has passed), and <strong>Out This Week</strong> shows what releases this week. Search and filter to narrow the list, then open a title to change its price, status, category or badges. Most titles arrive by import; add one here for anything else.${IS_CATALOG ? '' : ' New and changed titles come in from the master catalog every hour; <strong>Sync now</strong> brings them in straight away.'} <strong>Clean up old titles</strong> removes old titles nobody has on order.${IS_CATALOG ? ' <strong>Export CSV</strong> saves every title the tab and filters are showing, across all pages, in the order shown.' : ''}`)}
+    ${hintFold(`Every comic, book and product the shop sells. <strong>All</strong> lists everything, the FOC tab shows titles whose final order cutoff is this week (or next week, once this week’s has passed), and <strong>Out This Week</strong> shows what releases this week. Search and filter to narrow the list, then open a title to change its price, status, category or badges. Most titles arrive by import; add one here for anything else.${IS_CATALOG ? '' : ' New and changed titles come in from the master catalog every hour; <strong>Sync now</strong> brings them in straight away.'}${IS_CATALOG ? ' <strong>Export CSV</strong> saves every title the tab and filters are showing, across all pages, in the order shown.' : ''}`)}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-weektab="all">All</button>
       <button type="button" class="admin-tab" role="tab" data-weektab="foc">${focTabLabel()}</button>
@@ -150,7 +149,6 @@ export async function mount(el, ctx) {
   $('[data-prev]', el).addEventListener('click', () => turnPage(Math.max(0, state.offset - PAGE)));
   $('[data-next]', el).addEventListener('click', () => turnPage(state.offset + PAGE));
   $('[data-new]', el).addEventListener('click', () => edit(el, null));
-  $('[data-cleanup]', el).addEventListener('click', () => cleanUp(el));
   $('[data-sync]', el)?.addEventListener('click', (e) => syncNow(el, e.currentTarget));
   $('[data-export]', el)?.addEventListener('click', (e) => exportTitles(e.currentTarget));
 
@@ -330,9 +328,9 @@ const SYNC_WAIT_MS = 3 * 60000;
 
 async function syncNow(el, btn) {
   btn.disabled = true;
-  const label = btn.textContent;
-  btn.textContent = 'Syncing…';
-  const done = () => ((btn.disabled = false), (btn.textContent = label));
+  const text = $('span', btn); // beside the icon
+  text.textContent = 'Syncing…';
+  const done = () => ((btn.disabled = false), (text.textContent = 'Sync now'));
   let asked;
   try {
     asked = await must(sb.rpc('staff_catalog_sync_now'));
@@ -722,18 +720,3 @@ async function prhCover(code, cover) {
   return true;
 }
 
-/** Hides old titles (see staff_hide_old_titles): counts first, then asks. Hidden titles can be restored from the Hidden filter. */
-async function cleanUp(el) {
-  try {
-    const { pre_orders: pre, in_store: store } = await must(sb.rpc('staff_hide_old_titles', { p_dry_run: true }));
-    if (!pre && !store) return void toast('Nothing to clean up right now.');
-    const lines = [store && `${store} in-store ${store === 1 ? 'title' : 'titles'} released over 180 days ago`, pre && `${pre} ${pre === 1 ? 'pre-order' : 'pre-orders'} released over 90 days ago`].filter(Boolean);
-    if (!confirm(`Hide ${lines.join(' and ')}?\n\nTitles on someone's active pull list, staff picks, homepage titles and titles with no release date are skipped. You can restore any title by unticking Hidden.`)) return;
-    await must(sb.rpc('staff_hide_old_titles', { p_dry_run: false }));
-    toast(`Hid ${pre + store} old ${pre + store === 1 ? 'title' : 'titles'}`);
-    load(el);
-    loadDateOptions(el);
-  } catch (err) {
-    toast(friendlyError(err), 'error');
-  }
-}
