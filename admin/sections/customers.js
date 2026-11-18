@@ -8,7 +8,7 @@
 import { $, $$, esc, uid, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { todayIn, stampIn, holdUntil as holdDate, cutoffPassed } from '../../js/dates.js';
-import { seriesFollowQuestion } from '../../js/series-follow.js';
+import { seriesFollowFacts, alsoText, NEVER_ADDED } from '../../js/series-follow.js';
 import { adminHash } from '../route.js';
 import { followedSeries, discountFor, tiersFrom, totals } from '../../js/discount.js';
 import { dollars, ageLabel, ACCOUNT_STATE, CADENCE_OPTIONS, standingChange, standingActions } from '../trust.js';
@@ -1199,6 +1199,42 @@ async function loadLog(el, c) {
 
 const ROLE_LABEL = { cover: 'Cover artist', creator: 'Writer / artist' };
 
+// Before following a series for a customer: the issue that goes on their pull list first (cover, title, order-by and
+// FOC dates) and the other open issues that come with it. Resolves true to go ahead.
+async function confirmSeriesFollow(sb, c, key, allCovers) {
+  const preview = await sb.rpc('series_follow_preview', { p_key: key });
+  const f = seriesFollowFacts(preview.error ? null : preview.data, { label: key, allCovers });
+  const list = c.first_name ? `${esc(c.first_name)}’s pull list` : 'their pull list';
+  const n = f.next;
+  const also = alsoText(f);
+  const issue = !f.loaded
+    ? `<p class="empty">New issues will be added to ${list} automatically.</p>`
+    : !n
+      ? `<p class="empty">No issue is open for ordering right now. The next one goes on ${list} as soon as it’s listed.</p>`
+      : `<p class="follow-preview__lead">Goes on ${list} now</p>
+        <div class="follow-preview">
+          ${n.thumbUrl ? `<img class="thumb" src="${esc(n.thumbUrl)}" alt="Cover of ${esc(n.title)}">` : '<span class="thumb thumb--none" role="img" aria-label="No cover"></span>'}
+          <div class="follow-preview__main">
+            <h3 class="follow-preview__title">${esc(n.title)}</h3>
+            <p class="card__meta">${esc(n.covers)}</p>
+            <dl class="info-list">
+              ${n.orderBy ? `<dt>Order by</dt><dd>${esc(n.orderBy)}</dd><dt>FOC</dt><dd>${esc(n.foc)}</dd>` : '<dt>FOC</dt><dd>Not set yet</dd>'}
+              ${also ? `<dt>Also added</dt><dd>${esc(also)}</dd>` : ''}
+            </dl>
+          </div>
+        </div>`;
+  const d = openDialog(`Follow ${f.name}?`, `${issue}
+    <p class="admin-hint mt-8">Later issues are added automatically until each order cutoff. ${NEVER_ADDED}</p>
+    <div class="admin-actions"><button class="btn btn--primary" type="button" data-go>Follow${allCovers ? ' all covers' : ''}</button><button class="btn btn--ghost" type="button" data-cancel>Cancel</button></div>`);
+  return new Promise((resolve) => {
+    let go = false;
+    $('[data-go]', d).addEventListener('click', () => ((go = true), d.close()));
+    $('[data-cancel]', d).addEventListener('click', () => d.close());
+    d.addEventListener('close', () => resolve(go));
+    $('[data-go]', d).focus();
+  });
+}
+
 function setupFollows(el, c) {
   const list = $('[data-follows]', el);
   const results = $('[data-follow-results]', el);
@@ -1298,12 +1334,7 @@ function setupFollows(el, c) {
     const btn = e.target.closest('[data-fs], [data-fa]');
     if (!btn) return;
     btn.disabled = true;
-    if (btn.dataset.fs) {
-      // Ask first, naming the next issue open for ordering (and what the follow will add).
-      const preview = await sb.rpc('series_follow_preview', { p_key: btn.dataset.fs });
-      const list = c.first_name ? `${c.first_name}’s pull list` : 'their pull list';
-      if (!confirm(seriesFollowQuestion(preview.error ? null : preview.data, { allCovers: btn.dataset.covers === 'all', list }))) return void (btn.disabled = false);
-    }
+    if (btn.dataset.fs && !(await confirmSeriesFollow(sb, c, btn.dataset.fs, btn.dataset.covers === 'all'))) return void (btn.disabled = false);
     const { data, error } = btn.dataset.fs
       ? await sb.rpc('staff_follow_series', { p_customer: c.id, p_key: btn.dataset.fs, p_all_covers: btn.dataset.covers === 'all' })
       : await sb.rpc('staff_follow_artist', { p_customer: c.id, p_name: btn.dataset.fa, p_role: btn.dataset.role });

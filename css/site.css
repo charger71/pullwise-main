@@ -1258,6 +1258,23 @@ a.follow-open { box-sizing: border-box; line-height: 24px; }
 .follow-dialog__for { margin: 0 0 var(--sp-8); font-weight: 700; color: var(--ink); }
 .follow-dialog__intro { margin: 0 0 var(--sp-14); font-size: var(--fs-md); color: var(--muted); }
 .follow-group { margin: 0 0 var(--sp-16); }
+/* "Follow this series?" (js/follow-confirm.js): the issue going on the pull list first, then a note and the buttons. */
+.follow-confirm { width: min(440px, calc(100vw - 2 * var(--gutter))); }
+.follow-confirm__lead { margin: 0 0 var(--sp-10); font: 700 var(--fs-2xs)/1.2 var(--font-body); letter-spacing: .12em; text-transform: uppercase; color: var(--gold-text); }
+.follow-confirm__issue { display: flex; gap: var(--sp-16); align-items: flex-start; padding: var(--sp-12); background: var(--raised); border: var(--border); border-radius: var(--radius); }
+.follow-confirm__cover { flex: none; width: 96px; border-radius: var(--radius-sm); }
+.follow-confirm__cover.cover--placeholder { font-size: var(--fs-3xs); padding: var(--sp-4); }
+.follow-confirm__info { min-width: 0; }
+.follow-confirm__info p { margin: 0; }
+.follow-confirm__title { font: var(--fs-compact)/1.15 var(--font-heading); text-transform: uppercase; color: var(--cream); overflow-wrap: anywhere; }
+.follow-confirm__info .follow-confirm__covers { margin-top: var(--sp-4); font-size: var(--fs-sm); color: var(--muted); }
+.follow-confirm__info .follow-confirm__date { margin-top: var(--sp-12); font-size: var(--fs-md); }
+.follow-confirm__date strong { color: var(--gold-text); }
+.follow-confirm__foc { font-size: var(--fs-xs); color: var(--muted); }
+.follow-confirm__also { margin: var(--sp-12) 0 0; font-size: var(--fs-md); }
+.follow-confirm__empty { margin: 0; padding: var(--sp-16); border: 2px dashed var(--line); border-radius: var(--radius); color: var(--muted); text-align: center; }
+.follow-confirm__note { margin: var(--sp-14) 0 0; font-size: var(--fs-sm); color: var(--muted); }
+.follow-confirm__foot { display: flex; justify-content: flex-end; gap: var(--sp-12); flex-wrap: wrap; margin-top: var(--sp-16); }
 .follow-group h3 { font-size: var(--fs-sub); padding-bottom: var(--sp-6); border-bottom: var(--border); margin: 0 0 var(--sp-10); }
 .follow-person { margin: 0 0 var(--sp-14); }
 .follow-person__tag {

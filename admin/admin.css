@@ -929,6 +929,12 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .info-list { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-6) var(--sp-14); margin: var(--sp-12) 0 0; }
 .info-list dt { font-weight: 700; color: var(--muted); }
 .info-list dd { margin: 0; overflow-wrap: anywhere; }
+/* Customers → Follows → Follow a series: the issue that goes on the pull list first (see the style guide's Dialogs). */
+.follow-preview { display: flex; gap: var(--sp-16); align-items: flex-start; }
+.follow-preview__main { min-width: 0; }
+.follow-preview__main .info-list { margin-top: var(--sp-8); }
+.follow-preview__lead { margin: 0 0 var(--sp-10); font-size: var(--fs-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.follow-preview__title { font-size: var(--fs-card); line-height: 1.1; text-transform: uppercase; margin: 0 0 var(--sp-2); overflow-wrap: anywhere; }
 /* Title Info: laid out like the shop's title details (js/title-modal.js) — cover beside the title, description under it. */
 .title-info { display: grid; gap: var(--sp-20); }
 .title-info__media { justify-self: center; }

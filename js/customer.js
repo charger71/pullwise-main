@@ -6,7 +6,6 @@
 import { DEMO, supabase, recentSearchId, creditSearch } from './data.js';
 import { nameKey } from './util.js';
 import { friendlyError } from './errors.js';
-import { seriesFollowQuestion } from './series-follow.js';
 
 // "Not ordered" lines are left out: they don't count toward the list, and adding the title again reopens the line.
 const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
@@ -297,7 +296,7 @@ export async function followSeries(key, quantity = 1, allCovers = false) {
   return data;
 }
 
-/** The next issue of a series open for ordering: { label, issues, next } (series_follow_preview), or null if it can't be loaded. */
+/** The next issue of a series open for ordering: { label, issues, next, more } (series_follow_preview), or null if it can't be loaded. */
 export async function seriesFollowPreview(key) {
   try {
     const sb = await supabase();
@@ -306,11 +305,6 @@ export async function seriesFollowPreview(key) {
   } catch {
     return null;
   }
-}
-
-/** Ask before following a series, naming the next issue open for ordering. Resolves true to go ahead. */
-export async function confirmSeriesFollow(key, { label, allCovers = false } = {}) {
-  return confirm(seriesFollowQuestion(await seriesFollowPreview(key), { label, allCovers }));
 }
 
 /** role: 'cover' (every cover by them) or 'creator' (one cover per issue they work on). */
