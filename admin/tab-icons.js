@@ -49,6 +49,9 @@ const SVG = {
   dot: '<circle cx="12" cy="12" r="4"/>',
   moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.8-4.8"/>',
+  inbox: '<path d="M3 13h5l1.5 3h5L16 13h5M3 13l2.5-8h13L21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  shieldCheck: '<path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  userCheck: '<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6M15 15l2 2 4-4"/>',
 };
 
 // First match wins. Matched against the tab's label.
@@ -65,6 +68,7 @@ const BY_LABEL = [
   [/^backups$/i, 'moon'], [/^restore$/i, 'history'],
   [/^customers$/i, 'people'],
   [/^all customers/i, 'people'], [/^new this week/i, 'sparkle'], [/^needs attention/i, 'alert'],
+  [/^unclaimed/i, 'inbox'], [/^approvals/i, 'userCheck'],
   [/^pull list/i, 'bookmark'], [/^profile/i, 'user'], [/^messages/i, 'message'], [/^changes/i, 'history'],
   [/^upcoming/i, 'calendar'], [/^calendar$/i, 'grid'], [/^past/i, 'clock'], [/signups/i, 'clipboard'],
   [/^reservations/i, 'bookmark'], [/^store order/i, 'shop'], [/^place order/i, 'cart'], [/^re-order/i, 'again'], [/^received/i, 'box'],
@@ -72,7 +76,7 @@ const BY_LABEL = [
   [/^all series/i, 'layers'], [/^creatives/i, 'brush'], [/^add active series/i, 'plus'], [/^all$/i, 'grid'],
   [/^forwarding/i, 'forward'], [/^direct/i, 'target'],
   [/^foc /i, 'flag'], [/^out this week/i, 'bag'],
-  [/^shop/i, 'shop'], [/^logo/i, 'palette'], [/^online/i, 'globe'], [/^pre-orders/i, 'tag'],
+  [/^shop/i, 'shop'], [/^logo/i, 'palette'], [/^online/i, 'globe'], [/^pre-orders/i, 'tag'], [/^pickups/i, 'shieldCheck'],
 ];
 
 /** A tab can name its icon (data-icon="pin"); otherwise it is matched by label. */
