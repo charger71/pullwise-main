@@ -131,10 +131,10 @@ async function main() {
   try {
     ({ chromium } = await import('playwright'));
   } catch {
-    throw new Error('Playwright isn’t installed. Run: npm i --no-save playwright && npx playwright install chromium');
+    throw new Error('Playwright isn’t installed. Run: npm i --no-save playwright ffmpeg-static (both at once: --no-save removes packages it isn’t given), then npx playwright install chromium if you haven’t before.');
   }
   const canVideo = !opt.shotsOnly && spawnSync(FFMPEG, ['-version']).status === 0;
-  if (!opt.shotsOnly && !canVideo) console.warn('ffmpeg not found: making screenshots only. For videos: brew install ffmpeg, or npm i --no-save ffmpeg-static and run with HELP_FFMPEG="$(node -p "require(\'ffmpeg-static\')")".');
+  if (!opt.shotsOnly && !canVideo) console.warn('ffmpeg not found: making screenshots only. For videos: brew install ffmpeg, or npm i --no-save playwright ffmpeg-static and run with HELP_FFMPEG="$(node -p "require(\'ffmpeg-static\')")".');
 
   const WALKTHROUGHS = opt.steps ? (await import(opt.steps)).WALKTHROUGHS : ALL;
   const list = WALKTHROUGHS.filter((w) => !opt.only || opt.only.includes(w.id));

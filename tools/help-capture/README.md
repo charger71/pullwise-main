@@ -17,7 +17,7 @@ brew install ffmpeg          # converts the recordings to MP4
 No Homebrew? Use the npm copy of ffmpeg instead, and point the capture at it:
 
 ```bash
-npm i --no-save ffmpeg-static
+npm i --no-save playwright ffmpeg-static   # both at once: --no-save removes any package not named
 export HELP_FFMPEG="$(node -p "require('ffmpeg-static')")"
 ```
 
