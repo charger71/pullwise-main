@@ -8,11 +8,11 @@ Open **Ordering → Received**.
 
 ![Ordering → Received](received)
 
-1. Every title releasing this week is listed, with the copies customers reserved and the store's own copies on order. Titles out this week start ticked.
-2. **Untick** anything that didn't arrive or came up short. Tick **Only titles with copies coming** to hide the rest.
-3. Click **Mark … as Ready**.
+1. Every title releasing this week is listed, with the copies customers reserved and the store's own copies on order. Tick **Only titles with copies coming** to hide the rest.
+2. Tick what came in. Titles out this week that have copies coming start ticked; **Tick all shown** and **Clear ticks** help with the rest. Untick anything that didn't arrive or came up short.
+3. Click **Mark … ready**.
 
-![The Mark as Ready button](received-mark-ready)
+![The Mark ready button](received-mark-ready)
 
 Customers' copies become **Ready**, and the hold window starts today (its length is set in **Shop Settings → Pre-Orders & Stock**). The store's own copies are marked received.
 

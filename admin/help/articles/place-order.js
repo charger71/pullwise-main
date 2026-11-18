@@ -4,7 +4,7 @@ At each order cutoff (FOC) you tell the distributors how many copies of each tit
 
 ## 1. Enter the store's own copies
 
-Open **Ordering → Store Order**. It lists every title for one cutoff, A to Z, whether customers reserved it or not.
+Open **Ordering → Store Order**. It lists every title for one cutoff and distributor, A to Z, whether customers reserved it or not. A shop with more than one location picks the **Location** at the top first: store copies are entered per location.
 
 ![Ordering → Store Order](store-order)
 
@@ -32,7 +32,7 @@ In the **Distributor Order List** box, pick **one cutoff** and **Lunar** or **PR
 
 ## 4. Mark it ordered
 
-After you've placed the order on the distributor's site, mark the cutoff ordered. Its titles move to **Ordered** on every customer's list, and Pullwise records what was sent.
+After you've placed the order on the distributor's site, click **Mark … copies ordered** on that cutoff. Its titles move to **Ordered** on every customer's list, and Pullwise records what was sent.
 
 If numbers change after that (a late reservation, a changed store number), the changed titles come back to the top with what was sent and how far the total has moved, so you can send the difference.
 

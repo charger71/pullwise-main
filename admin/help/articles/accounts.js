@@ -10,9 +10,10 @@ When a customer's books have waited too long, Pullwise can send a friendly "your
 
 ![Customers → Unclaimed](customers-unclaimed)
 
-- **Pause or resume by hand** from the customer's page, whether or not automatic pausing is on. A customer paused by hand stays paused until staff resume them.
+- **Pause or resume by hand** with **Pause pull list** at the top of the customer's page, whether or not automatic pausing is on. A customer paused by hand stays paused until staff resume them.
 - Automatic pauses can lift by themselves once everything waiting is picked up.
-- Customers who collect monthly can be set to **Monthly**, or **Exempt** (no reminders or pauses), on their page.
+- The **Pickup** setting at the top of the customer's page sets how they collect: **Weekly**, **Monthly**, or **Exempt** (no reminders or pauses).
+- The line under their name sums it up: how many books are waiting, their value, the oldest, the last pickup, and when a reminder or pause is due.
 
 ## Approving new accounts
 
@@ -22,7 +23,7 @@ With **Verify new accounts** on, a new account can build a pull list, but nothin
 
 ![Customers → Approvals](customers-approvals)
 
-Click **Approve** when you recognize the customer (or they've been in). Until then their copies aren't counted on **Place Order**.
+Click **Approve** when you recognize the customer (or they've been in). Until then their copies aren't counted on **Place Order**. **Unverify account** on a customer's page sends an account back to waiting for approval.
 
 ## Setting the rules
 

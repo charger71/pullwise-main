@@ -6,8 +6,9 @@ export default String.raw`
 
 ## Find an order
 
-- Search by customer or title, and filter by **title status**.
-- **Past pickup window** shows books that have waited longer than your hold time (set in **Shop Settings → Pre-Orders & Stock**).
+- Search by customer name, phone, email or title, and pick which titles to show: **Active**, **Ready**, **Past pickup**, **Ordered** or **All**.
+- **Past pickup** shows books that have waited longer than your hold time (set in **Shop Settings → Pre-Orders & Stock**).
+- **Export CSV** downloads the list.
 - Click an order to open it and see each title on it.
 
 ![An order opened, with its titles](ordering-order-open)

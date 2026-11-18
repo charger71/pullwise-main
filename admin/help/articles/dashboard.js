@@ -6,7 +6,7 @@ The Dashboard is the first screen you see after signing in. It answers "what nee
 
 ## Today
 
-- **The tiles** across the top count new orders, copies still to order, and books ready for pickup.
+- **The tiles** across the top count new orders this week, copies still to order, books ready for pickup, and books held past the pickup window.
 - **Needs Attention** lists what's worth a look: books past their pickup window, customers with no email, guest orders to link, titles missing a cover, category or price, new survey responses and event signups, and (for owners) a backup that's overdue. Each line has a button that opens the list already filtered. When it's empty, you're all caught up.
 - **Next order cutoff** and **Latest orders** show what's coming up and what just came in.
 

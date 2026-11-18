@@ -198,6 +198,8 @@ async function main() {
     };
     const settle = async () => {
       await page.waitForFunction(() => !document.querySelector('#section .loading, #section [aria-busy="true"]'), null, { timeout: 15000 }).catch(() => {});
+      // Pictures on the screen (covers, the media library) finished loading, so a screenshot doesn't catch them blank.
+      await page.waitForFunction(() => [...document.querySelectorAll('#section img')].every((i) => i.complete || i.loading === 'lazy'), null, { timeout: 8000 }).catch(() => {});
       await sleep(500);
     };
     let step = {};
@@ -275,7 +277,7 @@ async function main() {
           }
           if (s.unpoint) await page.evaluate(() => window.__help.ring(null));
           if (record) await sleep(s.wait ?? (s.say ? readMs(s.say) : 400));
-          else if (s.wait) await sleep(Math.min(s.wait, 800));
+          else if (s.wait) await sleep(s.wait); // a screen that needs longer to draw before the next shot
         } catch (err) {
           const why = `${where} (${JSON.stringify(s).slice(0, 80)}): ${err.message.split('\n')[0]}`;
           if (!s.optional) throw new Error(why);

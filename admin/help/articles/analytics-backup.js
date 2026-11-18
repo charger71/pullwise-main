@@ -12,7 +12,7 @@ Your shop is backed up every night. **Backup** lets you download a copy whenever
 
 ![Backup](backup)
 
-- **Backups**: download a full backup. Keep it somewhere safe: it holds customer details.
+- **Backups**: **Download database backup** (everything except pictures) or **Download media backup** (the pictures, as a .zip). Keep them somewhere safe: they hold customer details. The nightly automatic backups are listed below, to download or restore.
 - **Restore**: put back data from a backup. Read the screen carefully first; it shows what will change.
 - **Customers**: a spreadsheet of customers' contact details, for a mailing or your records. It isn't a backup.
 - **Log**: when backups ran.

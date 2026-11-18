@@ -2,7 +2,7 @@
 export default String.raw`
 ## Your account
 
-Everyone can change their own password and preferences on **Staff → My Account** (or **My account** under your name, top right).
+Everyone can change their own name (shown in change logs) and password on **Staff → My Account** (or **My account** under your name, top right).
 
 ![Staff → My Account](staff-my-account)
 
