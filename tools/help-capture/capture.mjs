@@ -47,6 +47,7 @@ export function allowed(method, url, body = '') {
   if (m !== 'POST') return false;
   const { pathname, searchParams } = new URL(url);
   if (pathname === '/auth/v1/token') return ['password', 'refresh_token'].includes(searchParams.get('grant_type'));
+  if (/^\/storage\/v1\/object\/list\/[\w-]+$/.test(pathname)) return true; // Storage lists a folder's files with a POST
   const rpc = pathname.match(/^\/rest\/v1\/rpc\/([a-z0-9_]+)$/);
   if (rpc) return READ_RPCS.has(rpc[1]);
   if (pathname === '/functions/v1/weekly-pull-list') {
@@ -182,6 +183,7 @@ async function main() {
       const r = route.request();
       if (allowed(r.method(), r.url(), r.postData() ?? '')) return route.continue();
       const key = `${r.method()} ${new URL(r.url()).pathname}`;
+      if (key === 'POST /cdn-cgi/rum') return route.abort('blockedbyclient'); // Cloudflare's page-speed beacon: stopped, not worth listing
       blocked.set(key, [...new Set([...(blocked.get(key) ?? []), w.id])]);
       return route.abort('blockedbyclient');
     });
@@ -226,7 +228,8 @@ async function main() {
             await say(s.say);
           }
           if (s.go) {
-            await page.evaluate((h) => (location.hash = h), s.go);
+            // Already at that address (an open customer keeps #customers): ask the admin to draw the screen again.
+            await page.evaluate((h) => (location.hash === h ? dispatchEvent(new HashChangeEvent('hashchange')) : (location.hash = h)), s.go);
             await settle();
           }
           if (s.click) {

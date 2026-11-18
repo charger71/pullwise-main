@@ -103,7 +103,7 @@ export const WALKTHROUGHS = [
       { say: 'Pull List shows everything they have reserved and the series they follow.', click: tab('Pull List'), shot: 'customer-pull-list' },
       { say: 'Add to Pull List finds a pre-order title to add while they’re at the counter.', point: '#cu-add', shot: 'customer-add-title', highlight: '#cu-add' },
       { say: 'Profile holds their details and private notes.', click: tab('Profile'), shot: 'customer-profile' },
-      { go: '#customers' },
+      { click: '#section [data-back]' },
       { say: 'New customer adds someone who doesn’t have an account yet.', point: '#section [data-new]' },
     ],
   },

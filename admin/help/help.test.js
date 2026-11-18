@@ -108,6 +108,8 @@ assert.ok(!allowed('POST', `${API}/functions/v1/weekly-pull-list`, '{"mode":"tes
 assert.ok(!allowed('POST', `${API}/functions/v1/weekly-pull-list`, '{"mode":"send"}'));
 assert.ok(!allowed('POST', `${API}/functions/v1/weekly-pull-list`, 'not json'));
 assert.ok(!allowed('POST', `${API}/functions/v1/staff-admin`, '{}'));
+assert.ok(allowed('POST', `${API}/storage/v1/object/list/media`), 'listing Media reads');
+assert.ok(!allowed('POST', `${API}/storage/v1/object/media/new.png`), 'uploading is stopped');
 
 assert.equal(vttTime(75.5), '00:01:15.500');
 assert.equal(vttTime(-1), '00:00:00.000');
