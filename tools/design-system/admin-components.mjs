@@ -387,6 +387,23 @@ ${demo('Fold with a count and an action at the top (Place Order cutoff)')}`),
     html: page('AdminHintFold', demo('(hintFold)')),
   },
   {
+    name: 'AdminHelp', group: G('Containers'), height: 1035, width: 960,
+    readme: `# AdminHelp
+
+The Help screen's pieces: the topic list, a guide's steps, tips and screenshots, the walk-through video, and the pager. Guides are Markdown in admin/help/articles/, drawn by admin/help/markdown.js, so a guide never writes its own HTML; these are the only pieces it produces.
+
+- **Topic list** (\`.help-topics\` of \`.help-topic\` links in a \`.panel\` per group): a grid of \`admin-raised\` cards, the title bold at \`admin-fs-md\`, the summary \`admin-muted\`. \`.help-topic__video\` is a small \`admin-brand-accent\` pill in the corner when the topic has a video.
+- **Article** (\`.help-article\`, at most 72ch): \`.help-steps\` for numbered or bulleted steps; \`.help-tip\`, a callout with an \`admin-brand-accent\` edge; \`.help-shot\`, a 1280×800 screenshot with a border, \`admin-shadow\` and a caption, linked to the full-size file.
+- **Video** (\`.help-video\`): a captioned MP4 with a poster and a .vtt track, no sound; the steps are always written out below it too.
+- **Pager** (\`.help-pager\`): previous and next guides, stacked on phones; \`.help-open\` holds the primary button that opens the screen the guide covers.
+- A screen's How this works ends with \`.help-link\`, a small ghost button to its guide, added by lib.js when admin/help/topics.js names the screen.
+- Consumer provides: the article text; screenshots and videos come from tools/help-capture.`,
+    html: page('AdminHelp', `
+${demo('Topic list')}
+${demo('An article: steps, a tip and a screenshot')}
+${demo('Open the screen, and the pager')}`),
+  },
+  {
     name: 'AdminFaqItem', group: G('Containers'), height: 128,
     readme: `# AdminFaqItem
 
