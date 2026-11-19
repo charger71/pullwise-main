@@ -12,6 +12,7 @@ import { whenIn as whenLabel } from '../dates.js';
 import { thumbOf, thumbFallback, artistMeta, btnIcon } from '../util.js';
 import * as pull from '../customer.js';
 import { confirmSeriesFollow } from '../follow-confirm.js';
+import { FOLLOW_PARAM, followKeyIn, nameFromKey, keepPending, peekPending, takePending } from '../follow-link.js';
 import * as guest from '../reservation-list.js';
 import { followedSeries, discountFor, totals, tiersFrom } from '../discount.js';
 import { setBadge, saveList, savedList, forgetList } from '../app-device.js';
@@ -51,6 +52,18 @@ let linkError = (() => {
   return /otp_expired|access_denied|expired|invalid/i.test(`${code} ${get('error_description') ?? ''}`)
     ? 'That sign-in link has expired or was already used — enter the code from the email, or request a new link below.'
     : 'That sign-in link didn’t work — enter the code from the email, or request a new link below.';
+})();
+
+// A shop's "follow this series" link (account.html?follow=…, js/follow-link.js): kept on this device until they're
+// signed in, then asked once; the address is tidied so a reload doesn't ask again.
+(() => {
+  const key = followKeyIn(location.search);
+  if (!key) return;
+  keepPending(key);
+  const query = new URLSearchParams(location.search);
+  query.delete(FOLLOW_PARAM);
+  const rest = query.toString();
+  history.replaceState(history.state, '', `${location.pathname}${rest ? `?${rest}` : ''}${location.hash}`);
 })();
 
 // Declared before the first show() below: opening the app offline draws the kept list (and sets this) right away,
@@ -148,8 +161,10 @@ function signedOut(sb) {
   linkError = null;
   const deleted = accountDeleted; // once, right after deleting the account
   accountDeleted = false;
+  const toFollow = deleted ? null : peekPending();
   root.innerHTML = `
     ${deleted ? '<p class="notice account-deleted" role="status" tabindex="-1">Your account is deleted, and you’re signed out on this device. The shop keeps your contact details and any books it has already ordered for you.</p>' : ''}
+    ${toFollow ? `<p class="notice account-follow-next" role="status">Sign in to follow <strong>${esc(nameFromKey(toFollow))}</strong>. Once you’re in, we’ll ask you to confirm, and every new issue goes on your pull list automatically.</p>` : ''}
     ${APP ? '<h2 class="app-view__title">Sign in</h2>' : ''}
     <div class="panel account-panel">
       ${APP ? '' : '<h2>Sign in</h2>'}
@@ -382,6 +397,31 @@ async function signedIn(sb, user) {
   }
   setupFollowing(sb, customer.id, seenBefore);
   if (APP) watchHot(sb, customer.id, seenBefore);
+  followFromLink(sb, customer.id, seenBefore);
+}
+
+/** The series from a shop's follow link (see the top of this file), if one is waiting: ask, then follow it. */
+async function followFromLink(sb, customerId, seenBefore) {
+  const key = takePending();
+  if (!key) return;
+  const name = nameFromKey(key);
+  // Said at the top of the page (the app: of My List), where it's seen after the dialog closes.
+  const say = (html, bad = false) => {
+    $('[data-follow-link-note]', root)?.remove();
+    const p = `<p class="${bad ? 'form-error' : 'notice'} account-follow-next" role="${bad ? 'alert' : 'status'}" data-follow-link-note>${html}</p>`;
+    const who = $('.account-who', root);
+    if (who && !APP) who.insertAdjacentHTML('afterend', p);
+    else ($('[data-view="list"]', root) ?? root).insertAdjacentHTML('afterbegin', p);
+  };
+  if (pull.findSubscription('series', key)) return say(`You already follow <strong>${esc(name)}</strong>. New issues are added to your pull list automatically.`);
+  try {
+    if (!(await confirmSeriesFollow(key, { label: name }))) return;
+    const { added } = await pull.followSeries(key);
+    say(`You’re following <strong>${esc(name)}</strong>. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.'}`);
+    loadOrders(sb, customerId, seenBefore);
+  } catch (err) {
+    say(esc(errText(err)), true);
+  }
 }
 
 // The app's welcome on My List, until it's dismissed on this phone: how the pull list fills itself.

@@ -8,6 +8,7 @@ import { thumbOf, thumbFallback, formatPhone, nameKey, artistMeta, btnIcon } fro
 import * as list from './reservation-list.js';
 import * as pull from './customer.js';
 import { confirmSeriesFollow } from './follow-confirm.js';
+import { followHref, seriesHref } from './follow-link.js';
 import { haptic } from './app-device.js';
 
 export function focLabel(item) {
@@ -60,7 +61,7 @@ export function followButton(item) {
 /** "+ Follow Series" under a title that belongs to a series (New Arrivals cards). Opens the same follow dialog; signed-out visitors are sent to sign in. */
 function seriesFollowLink(item) {
   if (!item.series_key || !item.issue_number) return '';
-  if (!pull.isSignedIn()) return '<a class="follow-open" href="account.html">+ Sign in to follow<span class="visually-hidden"> series</span></a>';
+  if (!pull.isSignedIn()) return `<a class="follow-open" href="${esc(followHref(item.series_key))}">+ Sign in to follow<span class="visually-hidden"> series</span></a>`;
   const on = !!pull.findSubscription('series', item.series_key);
   return `<button class="follow-open${on ? ' follow-open--on' : ''}" type="button" data-follow-open="${item.id}" data-series-follow="${esc(item.series_key)}">${on ? '✓ Following' : '+ Follow'}<span class="follow-open__more"> Series</span><span class="visually-hidden"> ${esc(item.title)}</span></button>`;
 }
@@ -204,20 +205,27 @@ export function itemCard(item, { reservable = false, level = 3, followSeries = f
 }
 
 /** Series search results as cards, with a Follow link under each. `rows` come from searchSeries(). */
+/**
+ * Follow a series: "+ Follow this series" and "+ Follow all covers", "✓ Following" once followed, or a sign-in link
+ * that comes back to follow it (js/follow-link.js). Wired by enableSeriesFollow; `label` is for screen readers.
+ */
+export function seriesFollowActions(key, label) {
+  if (!pull.isSignedIn()) return `<a class="follow-open" href="${esc(followHref(key))}">+ Sign in to follow<span class="visually-hidden"> ${esc(label)}</span></a>`;
+  const sub = pull.findSubscription('series', key);
+  if (sub) return `<span class="follow-open follow-open--on">✓ Following this series${sub.all_covers ? ' · all covers' : ''}</span>`;
+  return `<button class="follow-open" type="button" data-follow="${esc(key)}">+ Follow<span class="follow-open__more"> this series</span><span class="visually-hidden"> ${esc(label)}</span></button>
+    <button class="follow-open" type="button" data-follow="${esc(key)}" data-covers="all">+ Follow all covers<span class="visually-hidden"> of ${esc(label)}</span></button>`;
+}
+
 export function seriesCards(rows) {
   return rows
     .map(
       (r, n) => `<article class="card">
-        <div class="card__media">${r.cover_url ? `<img class="cover" src="${esc(thumbOf(r.cover_url))}" ${thumbFallback(r.cover_url)} alt="Cover of ${esc(r.label)}" ${n < 4 ? 'fetchpriority="high"' : 'loading="lazy"'}>` : '<div class="cover cover--placeholder" aria-hidden="true">Image coming soon</div>'}<span class="card__banner" aria-hidden="true">Series</span></div>
+        <a class="card__media card__open" href="${esc(seriesHref(r.key))}" tabindex="-1" aria-hidden="true">${r.cover_url ? `<img class="cover" src="${esc(thumbOf(r.cover_url))}" ${thumbFallback(r.cover_url)} alt="" ${n < 4 ? 'fetchpriority="high"' : 'loading="lazy"'}>` : '<div class="cover cover--placeholder">Image coming soon</div>'}<span class="card__banner">Series</span></a>
         <div class="card__body">
-          <h3 class="card__title">${esc(r.label)}</h3>
+          <h3 class="card__title"><a class="card__title-open" href="${esc(seriesHref(r.key))}">${esc(r.label)}</a></h3>
           <p class="card__meta">${r.issues ? `Series · ${r.issues} ${r.issues === 1 ? 'issue' : 'issues'} listed` : 'Ongoing series · new issues are added as they’re announced'}</p>
-          ${pull.isSignedIn()
-            ? (pull.findSubscription('series', r.key)
-              ? '<span class="follow-open follow-open--on">✓ Following this series</span>'
-              : `<button class="follow-open" type="button" data-follow="${esc(r.key)}">+ Follow<span class="follow-open__more"> this series</span><span class="visually-hidden"> ${esc(r.label)}</span></button>
-                 <button class="follow-open" type="button" data-follow="${esc(r.key)}" data-covers="all">+ Follow all covers<span class="visually-hidden"> of ${esc(r.label)}</span></button>`)
-            : '<a class="follow-open" href="account.html">+ Sign in to follow<span class="visually-hidden"> this series</span></a>'}
+          ${seriesFollowActions(r.key, r.label)}
           <p class="card__meta" role="status" data-msg></p>
         </div></article>`,
     )
@@ -270,13 +278,14 @@ export function enableSeriesFollow(root) {
   root.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-follow]');
     if (!btn) return;
-    const msg = $('[data-msg]', btn.closest('.card'));
+    const box = btn.closest('.card, [data-follow-box]');
+    const msg = $('[data-msg]', box);
     const allCovers = btn.dataset.covers === 'all';
     btn.disabled = true;
     try {
       if (!(await confirmSeriesFollow(btn.dataset.follow, { allCovers }))) return void (btn.disabled = false);
       const { added } = await pull.followSeries(btn.dataset.follow, 1, allCovers);
-      btn.closest('.card').querySelectorAll('[data-follow]').forEach((b, n) => (n ? b.remove() : (b.outerHTML = `<span class="follow-open follow-open--on">✓ Following this series${allCovers ? ' · all covers' : ''}</span>`)));
+      box.querySelectorAll('[data-follow]').forEach((b, n) => (n ? b.remove() : (b.outerHTML = `<span class="follow-open follow-open--on">✓ Following this series${allCovers ? ' · all covers' : ''}</span>`)));
       msg.textContent = added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.';
     } catch (err) {
       btn.disabled = false;
