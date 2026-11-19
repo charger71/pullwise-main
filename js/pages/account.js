@@ -927,7 +927,7 @@ async function setupFollowing(sb, customerId, seenBefore) {
       ? `<ul class="follow-subs">${subs
           .map(
             (f) => `<li>
-              <span class="follow-item">${f.cover ? `<img class="follow-thumb" src="${esc(f.cover)}" alt="Cover of ${esc(f.label)}" loading="lazy">` : ''}<span><strong${f.kind === 'series' ? ' class="follow-item__series"' : ''}>${esc(f.label)}</strong><br><span class="card__meta">${f.kind === 'series' ? (f.all_covers ? 'Series · every cover' : 'Series · main cover') : ROLE_LABEL[f.role]}</span></span></span>
+              <span class="follow-item">${f.cover ? `<img class="follow-thumb" src="${esc(f.cover)}" alt="Cover of ${esc(f.label)}" loading="lazy">` : ''}<span><strong>${esc(f.label)}</strong><br><span class="card__meta">${f.kind === 'series' ? (f.all_covers ? 'Series · every cover' : 'Series · main cover') : ROLE_LABEL[f.role]}</span></span></span>
               <span class="list-line__controls">
                 ${f.kind === 'series' ? `<label class="follow-allcovers"><input type="checkbox" data-fall="${f.id}"${f.all_covers ? ' checked' : ''}> All covers<span class="visually-hidden"> of ${esc(f.label)}</span></label>` : ''}
                 <label class="visually-hidden" for="fq-${f.id}">Copies of each new issue of ${esc(f.label)}</label>
@@ -1006,7 +1006,7 @@ async function setupFollowing(sb, customerId, seenBefore) {
 
   // One box for both: series and artists are searched together and listed under their own headings.
   const following = (label) => `<span class="btn btn--ghost btn--small is-on" aria-disabled="true">${btnIcon('on')}${esc(label)}</span>`;
-  const seriesRow = (r) => `<li><span class="follow-item">${r.cover_url ? `<img class="follow-thumb" src="${esc(thumbOf(r.cover_url))}" ${thumbFallback(r.cover_url)} alt="Cover of ${esc(r.label)}" loading="lazy">` : ''}<span><strong class="follow-item__series">${esc(r.label)}</strong><br><span class="card__meta">${r.issues ? `${r.issues} ${r.issues === 1 ? 'issue' : 'issues'}` : 'Ongoing series · new issues are added as they’re announced'}</span></span></span>
+  const seriesRow = (r) => `<li><span class="follow-item">${r.cover_url ? `<img class="follow-thumb" src="${esc(thumbOf(r.cover_url))}" ${thumbFallback(r.cover_url)} alt="Cover of ${esc(r.label)}" loading="lazy">` : ''}<span><strong>${esc(r.label)}</strong><br><span class="card__meta">${r.issues ? `${r.issues} ${r.issues === 1 ? 'issue' : 'issues'}` : 'Ongoing series · new issues are added as they’re announced'}</span></span></span>
       <span class="follow-results__act">${pull.findSubscription('series', r.key)
         ? following(pull.findSubscription('series', r.key).all_covers ? 'Following all covers' : 'Following')
         : `<button class="btn btn--primary btn--small" type="button" data-fs="${esc(r.key)}">${btnIcon('follow')}Follow<span class="visually-hidden"> ${esc(r.label)}</span></button>

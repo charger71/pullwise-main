@@ -75,7 +75,7 @@ function followBody(item) {
     const sub = pull.findSubscription('series', item.series_key);
     const attrs = (covers) => `data-follow-series="${esc(item.series_key)}" data-covers="${covers}" data-label="${esc(item.title)}"`;
     parts.push(`<section class="follow-group"><h3>Series</h3>
-      <div class="follow-person"><strong class="follow-person__series">${esc(item.title)}</strong>
+      <div class="follow-person"><strong>${esc(item.title)}</strong>
         <div class="follow-choices">
           ${toggleBtn(!!sub && !sub.all_covers, attrs('main'), 'Main cover', 'One cover of every new issue')}
           ${toggleBtn(!!sub?.all_covers, attrs('all'), 'All covers', 'Every variant of every new issue (not incentives)')}

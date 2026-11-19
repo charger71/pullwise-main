@@ -42,8 +42,7 @@ export const lastChangeDay = (foc) => addDays(foc, -(dow(foc) === 6 ? 7 : dow(fo
 export const dayLabel = (iso, opts = { weekday: 'short', month: 'short', day: 'numeric' }) =>
   parse(iso).toLocaleDateString('en-US', { ...opts, timeZone: 'UTC' });
 
-// In capitals, as the site shows them: distributors send some titles in capitals and some not (css/site.css, "Titles").
-const titleOf = (item) => [String(item.title ?? '').toUpperCase(), item.issue_number && `#${item.issue_number}`].filter(Boolean).join(' ');
+const titleOf = (item) => [item.title, item.issue_number && `#${item.issue_number}`].filter(Boolean).join(' ');
 
 const SOURCE_NOTE = { variant: 'all covers', series: 'from a series you follow', artist: 'from an artist you follow' };
 

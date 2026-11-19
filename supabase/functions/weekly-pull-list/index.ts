@@ -722,7 +722,7 @@ async function skipTitle(req: Request, token: string, lineParam: string) {
     : { data: null };
   const item = row?.item as { title: string; issue_number: string | null } | null | undefined;
   if (!row || !item) return bad();
-  const name = esc(item.title.toUpperCase() + (item.issue_number ? ` #${item.issue_number}` : '')); // in capitals, as the site shows titles
+  const name = esc(item.title + (item.issue_number ? ` #${item.issue_number}` : ''));
   if (row.status === 'cancelled') return page('Already skipped', `<p>${name} isn’t on your pull list any more.</p>`);
   return page(`Skip ${name}?`, `<p>It will come off your pull list and won’t be added again. You’ll still follow the series or artist.</p><form method="post"><button style="font:bold 16px Arial;padding:12px 20px;cursor:pointer">Yes, skip it</button></form>`);
 }

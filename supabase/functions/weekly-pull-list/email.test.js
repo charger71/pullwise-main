@@ -21,7 +21,7 @@ const sec = sections(lines, { today, holdDays: 30 });
 assert.deepEqual(sec.ready.map((e) => e.title), ['ABSOLUTE BATMAN #25']);
 assert.equal(sec.ready[0].holdUntil, '2026-11-06');
 assert.deepEqual(sec.soon.map((e) => e.title), ['DAREDEVIL #9']); // released within the week ahead
-assert.deepEqual(sec.later.map((e) => e.title), ['SPAWN #400', 'X <SCRIPT> #1']);
+assert.deepEqual(sec.later.map((e) => e.title), ['SPAWN #400', 'X <script> #1']);
 assert.equal(sec.later[0].isNew, true);
 assert.equal(sec.later[1].changeBy, '2026-10-10');
 assert.equal(sec.later[0].changeBy, null); // FOC Oct 5 has passed, nothing left to change
@@ -66,7 +66,7 @@ assert.ok(!/’s app/.test(noApp.html) && !/’s app/.test(noApp.text), 'a shop 
 assert.match(noApp.text, /account\.html\n\n--/);
 assert.match(mail.html, /Unsubscribe/);
 assert.ok(!mail.html.includes('<script>'), 'titles are escaped');
-assert.match(mail.html, /X &lt;SCRIPT&gt; #1/);
+assert.match(mail.html, /X &lt;script&gt; #1/);
 assert.match(mail.text, /READY FOR PICKUP \(1\)/);
 assert.match(mail.text, /ship your ready books/);
 assert.match(mail.text, /\[NEW\]/);
@@ -86,7 +86,7 @@ const alines = [
   { quantity: 1, status: 'open', arrived_on: null, arrival_notified_at: null, item: { title: 'NOT YET', issue_number: '2', price: 1 } },
 ];
 const asec = arrivalSections(alines, { holdDays: 30 });
-assert.deepEqual(asec.fresh.map((e) => e.title), ['ABSOLUTE BATMAN #1', 'DAREDEVIL #1', 'SAGA <B> #1']);
+assert.deepEqual(asec.fresh.map((e) => e.title), ['ABSOLUTE BATMAN #1', 'DAREDEVIL #1', 'SAGA <b> #1']);
 assert.deepEqual(asec.waiting.map((e) => e.title), ['OLDER BOOK #1']);
 assert.equal(asec.fresh[0].holdUntil, '2026-11-06');
 assert.equal(arrivalSections([arr('X', null, 1, 1, '2026-10-07', '2026-10-07T10:00:00Z')], {}), null, 'nothing new → no email');

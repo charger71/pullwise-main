@@ -1274,10 +1274,11 @@ a.follow-open { box-sizing: border-box; line-height: 24px; }
 .follow-dialog__for { margin: 0 0 var(--sp-8); font-weight: 700; color: var(--ink); }
 /* Titles: distributors send some in capitals (Lunar) and some not (Penguin Random House), so every comic title and
    series name customers see is shown in capitals; the stored titles stay as sent (the admin shows them so). The title
-   details dialog and the Follow dialog's issue already set their own (.title-modal__title, .follow-confirm__title), and
-   the emails and phone notifications write them in capitals. Capitals run wider, so a long word (ANNIVERSARY) wraps
-   (hyphenated where the browser can) rather than running out of a narrow phone card. */
-:is(.card__title, .account-line__title, .list-line__title, .follow-dialog__for, .follow-person__series, .follow-item__series, .confirm__lines li, .series-page__name) { text-transform: uppercase; overflow-wrap: anywhere; hyphens: auto; }
+   details dialog and the Follow dialog's issue already set their own (.title-modal__title, .follow-confirm__title).
+   Series names only: artists' names in the same lists keep their case. Emails and phone notifications are unchanged.
+   Capitals run wider, so a long word (ANNIVERSARY) wraps rather than running out of a narrow phone card. */
+:is(.card__title, .account-line__title, .list-line__title, .follow-dialog__for, .confirm__lines li, .series-page__head h1,
+  .follow-person:has([data-follow-series]) > strong, .follow-results .follow-item strong, .follow-subs li:has([data-fall]) .follow-item strong) { text-transform: uppercase; overflow-wrap: anywhere; hyphens: auto; }
 .follow-dialog__intro { margin: 0 0 var(--sp-14); font-size: var(--fs-md); color: var(--muted); }
 .follow-group { margin: 0 0 var(--sp-16); }
 /* "Follow this series?" (js/follow-confirm.js): the issue going on the pull list first, then a note and the buttons. */
