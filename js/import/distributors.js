@@ -188,8 +188,10 @@ function splitTitle(raw) {
 
   const m = s.match(/^(.*?)\s+#(\d+(?:\.\d+)?[A-Z]?)\b\s*(.*)$/i);
   if (!m) {
-    // No issue number (one-shots, specials): still split off a cover variant.
-    const cvr = s.match(/^(.*?)\s+(CVR [A-Z]{1,2}\b.*)$/i);
+    // No issue number (one-shots, specials): still split off a cover variant, written "CVR A" (Lunar), "(CVR A)"
+    // (Dark Horse) or "Cover A" / "Variant B" (IDW, Alien Books, Ignition). The cover letter is a capital on its own,
+    // so words like "Variant Edition" or "Cover Me" stay in the title.
+    const cvr = s.match(/^(.*?)\s+(\(?[Cc][Vv][Rr] [A-Z]{1,2}\b.*|(?:Cover|COVER|Variant|VARIANT) [A-Z](?=$|[\s(]).*)$/);
     return cvr ? { title: cvr[1], issue_number: null, variant: cvr[2], mature } : { title: s, issue_number: null, variant: null, mature };
   }
 
