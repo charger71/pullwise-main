@@ -27,7 +27,8 @@ import { unsubscribeProxy } from './unsubscribe.js';
 import { BACKUPS_PATH, backupFiles } from './backups.js';
 import { CATALOG_FEED_PATH, catalogFeed } from './catalog-feed.js';
 import { CATALOG_IMPORT_PATH, catalogImport } from './catalog-import.js';
-import { MEDIA_UPLOAD_PATH, MEDIA_SERVE_PATH, STORAGE_SERVE_PATH, EMAIL_LOGO_PATH, UNSUBSCRIBE_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, sitemapXml, robotsTxt, SITEMAP_MAX_POSTS, SITEMAP_MAX_EVENTS } from './shop-page.js';
+import { MEDIA_UPLOAD_PATH, MEDIA_SERVE_PATH, STORAGE_SERVE_PATH, EMAIL_LOGO_PATH, UNSUBSCRIBE_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, sitemapXml, robotsTxt, SITEMAP_MAX_POSTS, SITEMAP_MAX_EVENTS, siteUrl, seriesPreview, seriesPreviewTags } from './shop-page.js';
+import { seriesKeyIn, seriesLink } from '../js/follow-link.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
 const CACHE_SECONDS = 60;
@@ -41,6 +42,9 @@ const RETRY_SECONDS = 15;
 const memo = new Map(); // shop id → { at (when it was fetched), data, retryAt? }, per Worker instance, in front of the shared cache
 const SITEMAP_SECONDS = 600;
 const sitemapMemo = new Map(); // shop id → { at, data }: the posts and events the sitemap lists
+const SERIES_SECONDS = 600;
+const SERIES_MEMO_MAX = 500;
+const seriesMemo = new Map(); // "shop id|series key" → { at, data }: a series page's link preview (seriesData)
 
 /** A page request without its conditional headers: a 304 would leave nothing to rewrite (and the browser's copy has the old titles). */
 function wholeFile(request) {
@@ -123,7 +127,14 @@ export default {
 
     const data = await shopData(shop, ctx);
     if (!data) return res; // Supabase unreachable and nothing cached: the page's own script fills in the details
-    const out = rewrite(res, file, data, shop, customSlug);
+    // A series page's name, description and cover, for link previews (they run no script).
+    let series = null;
+    const seriesKey = file === 'series.html' ? seriesKeyIn(url.search) : null;
+    if (seriesKey) {
+      const preview = seriesPreview(await seriesData(shop, seriesKey), data.settings, seriesKey);
+      if (preview) series = { ...preview, tags: seriesPreviewTags(preview, seriesLink(siteUrl(shop), seriesKey)) };
+    }
+    const out = rewrite(res, file, data, shop, customSlug, series);
     const h = new Headers(out.headers);
     h.delete('ETag');
     h.set('Cache-Control', 'no-cache');
@@ -195,6 +206,39 @@ async function sitemapData(shop, off) {
 }
 
 /**
+ * One series for its page's link preview: { entry (its Series list row, or null), items (its newest listed issues) }.
+ * Kept ten minutes per Worker instance; { } (no preview, the page's defaults stay) if the database is slow or down.
+ */
+async function seriesData(shop, key) {
+  const id = `${shop.id}|${key}`;
+  const now = Date.now();
+  const hit = seriesMemo.get(id);
+  if (hit && now - hit.at < SERIES_SECONDS * 1000) return hit.data;
+  const k = encodeURIComponent(key);
+  const get = async (path) => {
+    const r = await fetch(`${shop.supabaseUrl}/rest/v1/${path}`, {
+      headers: { apikey: shop.anonKey, Authorization: `Bearer ${shop.anonKey}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!r.ok) throw new Error(`${path}: ${r.status}`);
+    return r.json();
+  };
+  try {
+    const [entries, items] = await Promise.all([
+      get(`series_catalog?select=title,publisher,cover_url&key=eq.${k}`),
+      get(`items?select=title,publisher,cover_url,variant&series_key=eq.${k}&hidden=eq.false&order=release_date.desc.nullslast,id.desc&limit=20`),
+    ]);
+    const data = { entry: entries[0] ?? null, items };
+    if (seriesMemo.size >= SERIES_MEMO_MAX) seriesMemo.delete(seriesMemo.keys().next().value); // the oldest
+    seriesMemo.set(id, { at: now, data });
+    return data;
+  } catch (err) {
+    console.error(`series preview for ${shop.id} ${key}: ${err.message}`);
+    return hit?.data ?? {};
+  }
+}
+
+/**
  * The shop's settings and page titles, at most CACHE_SECONDS old. If Supabase fails: the last good copy (kept for
  * KEEP_SECONDS), and it isn't asked again for RETRY_SECONDS.
  */
@@ -236,7 +280,7 @@ async function shopData(shop, ctx) {
   }
 }
 
-function rewrite(res, file, { settings, pages }, shop, customSlug = null) {
+function rewrite(res, file, { settings, pages }, shop, customSlug = null, series = null) {
   const slug = PAGE_SLUGS[file] ?? customSlug;
   const row = slug ? pages[slug] ?? {} : file === NOT_FOUND_FILE ? {} : null; // its title gets the shop name too
   const desc = row?.meta_description?.trim();
@@ -260,6 +304,12 @@ function rewrite(res, file, { settings, pages }, shop, customSlug = null) {
           el.after(`<meta property="og:description" content="${escAttr(desc)}">`, { html: true });
         },
       });
+  }
+  if (series) {
+    rw = rw
+      .on('title', { element(el) { el.setInnerContent(series.title); } })
+      .on('meta[name="description"]', { element(el) { el.setAttribute('content', escAttr(series.description)); } })
+      .on('head', { element(el) { el.append(series.tags.map((t) => `  ${t}\n`).join(''), { html: true }); } });
   }
   // The feed link in the catalog pages' <head> points at /catalog.json, which only the master catalog serves.
   if (shop.catalog !== true) rw = rw.on('link[rel="alternate"][type="application/json"]', { element(el) { el.remove(); } });

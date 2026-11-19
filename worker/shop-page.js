@@ -292,6 +292,42 @@ export function headTags(file, settings, supabaseUrl) {
   return tags;
 }
 
+// A series page (series.html?s=<key>) for link previews: Facebook, iMessage, Discord and the rest read the HTML and
+// run no script, so the series' name, a line about it and its cover go into <head> here (js/pages/series.js sets the
+// same title and description for visitors).
+export const SERIES_PREVIEW_WIDTH = 600;
+
+/**
+ * { title, description, image } for a series, from its Series list row (`entry`: title, publisher, cover_url) and its
+ * listed issues (`items`, newest first: title, publisher, cover_url, variant), or null when the shop has neither. The
+ * picture is the Series list's cover, else the newest issue's main cover, else any cover.
+ */
+export function seriesPreview({ entry = null, items = [] } = {}, settings = {}, key = '') {
+  if (!entry && !items.length) return null;
+  const name = entry?.title?.trim() || [...items].map((i) => i.title).filter(Boolean).sort((a, b) => a.length - b.length)[0] || key;
+  const publisher = entry?.publisher?.trim() || items.find((i) => i.publisher)?.publisher || '';
+  const shopName = (settings.shop_name ?? '').trim();
+  const cover = https(entry?.cover_url) || items.find((i) => !i.variant && https(i.cover_url))?.cover_url || items.find((i) => https(i.cover_url))?.cover_url || '';
+  return {
+    title: pageTitle(settings, name),
+    description: `${name}${publisher ? ` from ${publisher}` : ''}${shopName ? ` at ${shopName}` : ''}. Follow the series and every new issue is added to your pull list automatically.`,
+    image: cover ? sizedImage(cover, SERIES_PREVIEW_WIDTH) : '',
+  };
+}
+
+/** The link-preview tags for seriesPreview()'s answer; `pageUrl` is the address being shared. */
+export function seriesPreviewTags(p, pageUrl) {
+  const tags = [
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:title" content="${esc(p.title)}">`,
+    `<meta property="og:description" content="${esc(p.description)}">`,
+    `<meta property="og:url" content="${esc(pageUrl)}">`,
+  ];
+  if (p.image) tags.push(`<meta property="og:image" content="${esc(p.image)}">`, `<meta property="og:image:alt" content="${esc(`Cover of ${p.title}`)}">`);
+  tags.push(`<meta name="twitter:card" content="${p.image ? 'summary_large_image' : 'summary'}">`);
+  return tags;
+}
+
 // The fixed public pages, for the sitemap. Staff-made pages come and go with the database and aren't listed; search,
 // account and survey pages aren't meant for search results. News posts and upcoming events are added from the database
 // (worker/index.js sitemapData).

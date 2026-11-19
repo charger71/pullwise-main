@@ -1,6 +1,6 @@
 // node worker/shop-page.test.js
 import assert from 'node:assert/strict';
-import { assetLinks, findShop, siteUrl, hasApp, hasLocations, appRedirect, appManifest, appSplash, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt } from './shop-page.js';
+import { assetLinks, findShop, siteUrl, hasApp, hasLocations, appRedirect, appManifest, appSplash, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt, seriesPreview, seriesPreviewTags } from './shop-page.js';
 
 const shops = [
   { id: 'a', domains: ['a-comics.com', 'www.a-comics.com'], supabaseUrl: 'https://aaa.supabase.co', anonKey: 'key-a', gaMeasurementId: 'G-1', app: true },
@@ -169,5 +169,30 @@ assert.equal(assetLinks({ ...withAndroid, app: false }), null, 'no app: no file'
 assert.equal(assetLinks({ app: true }), null, 'no android entry: no file');
 assert.equal(assetLinks({ app: true, android: { package: 'Not A Package', sha256: [FP] } }), null, 'a bad package name: no file');
 assert.equal(assetLinks({ app: true, android: { package: 'com.shop.app', sha256: ['nope'] } }), null, 'no valid fingerprint: no file');
+
+// Series link previews: the Series list's cover first, else the newest issue's main cover.
+const SB = 'https://abc.supabase.co/storage/v1/object/public/media';
+const pops = { shop_name: "Pop's Comics" };
+assert.equal(seriesPreview({}, pops, 'x'), null, 'no row and no issues: no preview');
+const announced = seriesPreview({ entry: { title: 'ABSOLUTE JUSTICE', publisher: null, cover_url: null } }, pops, 'absolute justice');
+assert.equal(announced.title, "Pop's Comics — ABSOLUTE JUSTICE");
+assert.equal(announced.description, "ABSOLUTE JUSTICE at Pop's Comics. Follow the series and every new issue is added to your pull list automatically.");
+assert.equal(announced.image, '', 'nothing listed yet: no picture');
+const listed = seriesPreview({
+  entry: null,
+  items: [
+    { title: 'ABSOLUTE JUSTICE', publisher: 'DC', variant: 'CVR B ARTGERM', cover_url: `${SB}/b.jpg` },
+    { title: 'ABSOLUTE JUSTICE', publisher: 'DC', variant: null, cover_url: `${SB}/a.jpg` },
+  ],
+}, pops, 'absolute justice');
+assert.equal(listed.description, "ABSOLUTE JUSTICE from DC at Pop's Comics. Follow the series and every new issue is added to your pull list automatically.");
+assert.equal(listed.image, `https://abc.supabase.co/storage/v1/render/image/public/media/a.jpg?width=600&height=2500&resize=contain&quality=75`, 'main cover, resized');
+assert.equal(seriesPreview({ entry: { title: 'X', cover_url: 'https://cdn.test/series.jpg' }, items: [{ title: 'X', cover_url: `${SB}/a.jpg` }] }, pops).image, 'https://cdn.test/series.jpg', "the Series list's cover wins");
+assert.equal(seriesPreview({ entry: { title: 'X', cover_url: 'http://insecure.test/a.jpg' } }, pops).image, '', 'http pictures are left out');
+const seriesTags = seriesPreviewTags({ title: 'A "quoted" <name>', description: 'd', image: 'https://cdn.test/c.jpg' }, 'https://pops.test/series.html?s=a');
+assert.ok(seriesTags.includes('<meta property="og:title" content="A &quot;quoted&quot; &lt;name&gt;">'), 'escaped');
+assert.ok(seriesTags.includes('<meta property="og:image" content="https://cdn.test/c.jpg">'));
+assert.ok(seriesTags.includes('<meta name="twitter:card" content="summary_large_image">'));
+assert.ok(seriesPreviewTags({ title: 't', description: 'd', image: '' }, 'u').includes('<meta name="twitter:card" content="summary">'));
 
 console.log('shop page tests passed');
