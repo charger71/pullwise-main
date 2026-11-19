@@ -138,6 +138,8 @@ async function fetchItems(f) {
     let rows = items.filter(
       (i) =>
         (!f.ids || f.ids.includes(i.id)) &&
+        // Demo titles have no series key: made from the title, as the database's trigger does.
+        (!f.seriesKey || (i.series_key ?? String(i.title).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()) === f.seriesKey) &&
         (!f.statuses || f.statuses.includes(i.status)) &&
         (!f.excludeStatuses || !f.excludeStatuses.includes(i.status)) &&
         (!f.categoryId || i.category_id === f.categoryId) &&
@@ -178,6 +180,7 @@ async function fetchItems(f) {
     .eq('hidden', false);
   if (f.categorySlug) query = query.eq('cat.slug', f.categorySlug);
   if (f.ids) query = query.in('id', f.ids);
+  if (f.seriesKey) query = query.eq('series_key', f.seriesKey);
   if (f.statuses) query = query.in('status', f.statuses);
   if (f.excludeStatuses) query = query.not('status', 'in', `(${f.excludeStatuses.join(',')})`);
   if (f.categoryId) query = query.eq('category_id', f.categoryId);
@@ -430,6 +433,17 @@ export function logSearchWhenSettled(term, titles) {
 export const cancelSearchLog = () => clearTimeout(settleTimer);
 
 /** Series matching a search, for the site search: { key, label, issues, cover_url }. Needs the database. */
+/**
+ * One series for its page (series.html): { key, label, publisher, cover_url } from the shop's Series list, or null when
+ * it isn't on the list (a series made only from imported titles: the page names it from its issues).
+ */
+export async function getSeriesEntry(key) {
+  if (DEMO) return null;
+  const sb = await supabase();
+  const row = unwrap(await sb.from('series_catalog').select('key,title,publisher,cover_url').eq('key', key).maybeSingle());
+  return row ? { key: row.key, label: row.title, publisher: row.publisher, cover_url: row.cover_url } : null;
+}
+
 export async function searchSeries(q) {
   if (DEMO) return [];
   const sb = await supabase();

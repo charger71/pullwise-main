@@ -873,10 +873,12 @@ dialog, dialog .dialog__body { overscroll-behavior: contain; }
 /* A title is one line of text; its tap area reaches past it to 44px tall, without moving anything. */
 .card__title { position: relative; }
 .card__title-open::after { content: ""; position: absolute; inset: -13px 0; }
+a.card__title-open { text-decoration: none; } /* a series card's title links to its page */
 .title-modal { width: min(900px, calc(100vw - 2 * var(--gutter))); max-height: calc(100vh - 32px); overflow: hidden; }
 .title-modal__head { justify-content: flex-end; padding: var(--sp-8) var(--sp-8) 0; }
 .title-modal .dialog__body { overflow-y: auto; max-height: calc(100vh - 100px); padding: 0 var(--sp-24) var(--sp-24); }
 .title-modal__layout { display: grid; gap: var(--sp-20); }
+.title-modal__series { margin: var(--sp-4) 0 0; font-size: var(--fs-ui); font-weight: 700; }
 .title-modal__media .cover { max-width: 240px; margin-inline: auto; border-radius: var(--radius); }
 .title-modal__cover { position: relative; max-width: 240px; margin-inline: auto; }
 .title-modal__cover .top-badge { top: 8px; right: 8px; }
@@ -1019,6 +1021,19 @@ body.app-locked .chat-launch { bottom: var(--sp-16); } /* the sign-in screen has
 .event__more { margin: 0 0 var(--sp-10); font-weight: 700; }
 .event__actions { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-14); font-size: var(--fs-ui); }
 .event__img { margin: var(--sp-8) 0; border-radius: var(--radius); max-width: min(360px, 100%); height: auto; }
+/* Series page (series.html): the cover beside the name and follow buttons, then its issues as cards. */
+.series-page__head { display: grid; gap: var(--sp-20); margin-bottom: var(--sp-32); }
+.series-page__media .cover { max-width: 160px; margin-inline: auto; border-radius: var(--radius); } /* small on phones, so the name and Follow show without scrolling */
+.series-page__kicker { margin: 0 0 var(--sp-4); font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--gold-text); }
+.series-page__head h1 { margin: 0 0 var(--sp-6); }
+.series-page__about { margin: var(--sp-10) 0; max-width: 60ch; }
+.series-page__follow { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-14); align-items: center; }
+.series-page__follow [data-msg] { flex-basis: 100%; margin: 0; }
+.series-page__issues { margin-top: var(--sp-32); }
+@media (min-width: 700px) {
+  .series-page__head { grid-template-columns: 220px minmax(0, 1fr); gap: var(--sp-32); align-items: start; }
+  .series-page__media .cover { max-width: 100%; }
+}
 /* Event page: the photo sits at the top, with space below it. */
 #event .event__img { margin: var(--sp-8) auto var(--sp-24); max-width: min(100%, 560px); }
 /* Calendar page: the photo sits to the right of the text on wider screens and is left off phones (it's on the event's page). */
@@ -1205,6 +1220,7 @@ details > div { padding: 0 var(--sp-16) var(--sp-14); }
 @media (min-width: 600px) { .survey-choices--cols { column-count: 2; column-gap: var(--sp-32); } }
 .account-saved { color: var(--ok); font-weight: 700; margin: 0 0 var(--sp-8); }
 .account-deleted { margin: 0 0 var(--sp-16); } /* over the sign-in form, once, after deleting the account */
+.account-follow-next { margin: 0 0 var(--sp-16); } /* a shop's follow link: "sign in to follow…", then how it went */
 .account-lines { list-style: none; margin: 0; padding: 0; }
 .account-line { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-12); padding: var(--sp-10) 0; border-bottom: 1px solid var(--line); }
 .account-line .card__meta { display: block; }
