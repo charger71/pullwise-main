@@ -24,7 +24,7 @@ assert.equal(mail.subject, 'Your books are waiting at Pop’s Comics');
 assert.match(mail.text, /You have 3 books waiting, \$12\.48 in all\. Please come by before Saturday, November 21\. Waiting 9 days\./);
 assert.match(mail.text, /WAITING FOR YOU \(2\)\n- SAGA #71\n  2 copies · waiting since Nov 7 · \$7\.98/);
 assert.match(mail.text, /Total \$12\.48 before tax/);
-assert.match(mail.html, /X &lt;script&gt; #1/, 'titles are escaped');
+assert.match(mail.html, /X &lt;SCRIPT&gt; #1/, 'titles are escaped');
 assert.doesNotMatch(mail.html, /<script>/);
 assert.doesNotMatch(mail.html, /unsubscribe/i, 'transactional: no unsubscribe link');
 assert.match(mail.text, /even if other emails are turned off/);

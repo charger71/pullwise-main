@@ -61,7 +61,7 @@ function show(entry, items) {
       <div class="series-page__media">${pic}</div>
       <div>
         <p class="series-page__kicker">Series</p>
-        <h1>${esc(name)}</h1>
+        <h1 class="series-page__name">${esc(name)}</h1>
         ${publisher ? `<p class="card__meta">${esc(publisher)}</p>` : ''}
         <p class="series-page__about">${esc(about)} Follow the series and every new issue is added to your pull list automatically, until each order cutoff. You can remove any you don’t want.</p>
         <div class="series-page__follow" data-follow-box>${follow()}</div>

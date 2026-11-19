@@ -3,8 +3,9 @@
 // the title's details when it's about one title, else My List. `badge` is the number for the app's icon.
 // Notifications with the same tag replace each other on the phone, so a second "ready" push doesn't stack up.
 
-/** "Absolute Batman #14", as on the site (js/util.js itemTitle). */
-export const itemTitle = (i) => (i.issue_number ? `${i.title} #${i.issue_number}` : i.title);
+/** "ABSOLUTE BATMAN #14": in capitals, as the site shows titles (css/site.css, "Titles"), since distributors send
+ *  some in capitals and some not. */
+export const itemTitle = (i) => { const t = String(i.title ?? "").toUpperCase(); return i.issue_number ? `${t} #${i.issue_number}` : t; };
 
 /** "A", "A and B", "A, B and 3 more": at most `show` names. */
 export function nameList(names, show = 2) {
