@@ -34,6 +34,18 @@ assert.equal(book.description, '#1 BESTSELLER\n\nRyland Grace’s mission.');
 assert.equal('foc_date' in book, false);
 assert.equal(prhApiItem({ title: 'X', price: [] }, { flapcopy: null, keynote: '<p>Pitch</p>' }).description, 'Pitch');
 
+// Comics without an issue number still split off their cover, however the publisher writes it, so each cover is a
+// variant of one title rather than a title of its own
+const noIssue = (title) => { const i = prhApiItem({ title, format: { code: 'CB' } }, null); return [i.title, i.variant ?? null]; };
+assert.deepEqual(noIssue('Hello Kitty: Cinnamoroll Cover A (Collar)'), ['Hello Kitty: Cinnamoroll', 'Cover A (Collar)']);
+assert.deepEqual(noIssue('Hello Kitty: Cinnamoroll Variant B (Aning)'), ['Hello Kitty: Cinnamoroll', 'Variant B (Aning)']);
+assert.deepEqual(noIssue('Valiant Beyond: All-New Harbinger Finale--The Wedding Variant B (Griffin Full Art Arcade Variant)'), ['Valiant Beyond: All-New Harbinger Finale--The Wedding', 'Variant B (Griffin Full Art Arcade Variant)']);
+assert.deepEqual(noIssue('Love Ignited 2027 Cover B Nicoletta Baldari'), ['Love Ignited 2027', 'Cover B Nicoletta Baldari']);
+assert.deepEqual(noIssue('Usagi Yojimbo Winter one-shot (CVR B) (Jared Cullum)'), ['Usagi Yojimbo Winter one-shot', '(CVR B) (Jared Cullum)']);
+assert.deepEqual(noIssue('JOKER ONE SHOT CVR A'), ['JOKER ONE SHOT', 'CVR A'], 'Lunar’s way, as before');
+assert.deepEqual(noIssue('Undercover Avengers Variant Edition'), ['Undercover Avengers Variant Edition', null], 'a word, not a cover letter');
+assert.deepEqual(noIssue('Cover Me Softly'), ['Cover Me Softly', null]);
+
 // The daily import's list: comics and graphic novels only, ratio covers (marked by PRH or in the title) skipped,
 // each code once, then the catalog's Always Skip list
 const rec = (code, title, extra = {}) => ({ isbnStr: code, title, graphicCategory: 'Comics', format: { code: 'CB' }, imprint: { description: 'Oni Press' }, price: [{ amount: 4.99, currencyCode: 'USD' }], onsale: '2026-10-28', ...extra });
