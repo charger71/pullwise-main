@@ -3,6 +3,7 @@
 // to, and the browser's back button closes it.
 
 import { getItem, getVariants, getTopReserved, getSettings, getCategories } from './data.js';
+import { seriesHref } from './follow-link.js';
 import { SITE_URL } from './config.js';
 import { titleUrl, releaseIcs, releaseGoogleLink } from './ics.js';
 import { $, esc, badge, price, fmtDate, itemTitle, cover, cutoffPassed, shopToday, isPhone, focusBackOnClose, motionMs } from './site.js';
@@ -84,6 +85,7 @@ function details(item) {
     <h2 id="tm-title" class="title-modal__title">${esc(itemTitle(item))}</h2>
     ${item.variant ? `<p class="card__variant">${esc(item.variant)}</p>` : ''}
     <p class="card__meta">${meta.map(esc).join(' · ')}</p>
+    ${item.series_key && item.issue_number ? `<p class="title-modal__series"><a href="${esc(seriesHref(item.series_key))}">See every issue of this series</a></p>` : ''}
     ${when ? `<p class="title-modal__when"><strong>${item.release_date > shopToday() ? 'Out' : 'Released'}</strong> ${esc(when)}</p>` : ''}
     ${item.release_date > shopToday() ? `<p class="title-modal__cal"><span>Add to calendar:</span> <a href="#" data-title-ics>Apple / .ics</a> <a href="${esc(releaseGoogleLink(item, shopName))}" target="_blank" rel="noopener">Google</a></p>` : ''}
     ${UPCOMING.includes(item.status) ? focLabel(item) : ''}

@@ -6,6 +6,8 @@
 
 import { $, $$, esc, must, hintFold, toast, setStatus, openDialog, sortableTable, debounce, solidIcon, friendlyError, setupTabs, fetchAll, fmtDate, toListTop, hintSlot } from '../lib.js';
 import { imageField } from '../images.js';
+import { SITE_URL } from '../../js/config.js';
+import { seriesLink } from '../../js/follow-link.js';
 
 let sb;
 let isOwner = false;
@@ -63,7 +65,7 @@ export async function mount(el, ctx) {
     </div>`;
   let artists = null; // loads the Creatives tab; set once the tab's code is mounted
   setupTabs(el, 'admin-series-tab', 'list', (tab) => tab === 'artists' && artists?.(), {
-    list: `Find series that are really the same book, tick them, pick which one to keep, and merge. Every series is listed; type part of a title or publisher to narrow the list.`,
+    list: `Find series that are really the same book, tick them, pick which one to keep, and merge. Every series is listed; type part of a title or publisher to narrow the list. <strong>Copy link</strong> gives you the series’ page on the website for posts and emails: its issues, and a Follow button that puts every new issue on the customer’s pull list.
     add: `Customers can only follow a series that is in the system, and a series appears when one of its issues is imported. Add the ongoing series here so they can be followed right away; each issue is added to followers’ pull lists as it is imported later. Upload a CSV with a <strong>Series</strong> column (optional <strong>Publisher</strong> and <strong>Cover URL</strong>, an https:// link to the cover image) or paste one series per line. Series already in the system are left alone, except that a Cover URL sets their cover. To remove one, find it below and press Delete (only series with no imported titles can be deleted).`,
     artists: `The list of writers, artists, colorists, editors and other creatives, and what the artist search on the site checks. Everyone credited on an imported title is added automatically. Add a cover artist who only appears in cover text (for example “CVR A PEACH MOMOKO”) so the search finds that exact name. Block a name that keeps showing up as a creative but isn’t one (for example a series); blocked names are never offered to customers. Use Edit in the list below to fix a spelling.`,
   });
@@ -110,7 +112,7 @@ export async function mount(el, ctx) {
     covers = new Map(data.map((r) => [r.key, r.cover_url]));
     box.innerHTML = data.length
       ? `<form data-merge><div class="admin-table-wrap"><table class="admin-table series-table cards">
-          <thead><tr><th scope="col" class="series-table__tick">Merge</th><th scope="col" class="series-table__tick">Keep</th><th scope="col" data-sort="text">Series</th><th scope="col" data-sort="text">Publisher</th><th scope="col" class="center" data-sort="num" data-first="desc">Issues</th><th scope="col">Cover &amp; delete</th></tr></thead>
+          <thead><tr><th scope="col" class="series-table__tick">Merge</th><th scope="col" class="series-table__tick">Keep</th><th scope="col" data-sort="text">Series</th><th scope="col" data-sort="text">Publisher</th><th scope="col" class="center" data-sort="num" data-first="desc">Issues</th><th scope="col">Cover, link &amp; delete</th></tr></thead>
           <tbody>${data
             .map((r) => `<tr title="${esc(r.key)}">
               <td class="series-table__tick card-key card-label"><input type="checkbox" name="from" value="${esc(r.key)}" aria-label="Merge ${esc(r.label)}"></td>
@@ -118,6 +120,7 @@ export async function mount(el, ctx) {
               <td class="card-title"><strong>${esc(r.label)}</strong></td><td>${esc(r.publisher)}</td><td class="center card-key card-label">${r.issues}</td>
               <td class="series-table__acts card-foot">${r.cover_url ? `<img class="thumb" src="${esc(r.cover_url)}" alt="">` : ''}
                 <button class="btn btn--ghost btn--small" type="button" data-cover="${esc(r.key)}">${r.cover_url ? 'Change cover' : 'Add cover'}<span class="visually-hidden"> for ${esc(r.label)}</span></button>
+                <button class="btn btn--ghost btn--small" type="button" data-series-link="${esc(r.key)}" title="A link for posts and emails: the series' page on the website, with its issues and a Follow button">${solidIcon('link', 16)} Copy link<span class="visually-hidden"> for ${esc(r.label)}</span></button>
                 ${r.issues || !isOwner ? '' : `<button class="btn btn--danger btn--small" type="button" data-delete="${esc(r.key)}">${solidIcon('trash', 16)} Delete<span class="visually-hidden"> ${esc(r.label)}</span></button>`}</td></tr>`)
             .join('')}</tbody></table></div>
           <p class="series-merge__hint" data-hint role="status"></p>
@@ -159,6 +162,17 @@ export async function mount(el, ctx) {
 
   box.addEventListener('change', update);
   box.addEventListener('click', async (e) => {
+    const linkBtn = e.target.closest('[data-series-link]');
+    if (linkBtn) {
+      const url = seriesLink(SITE_URL || location.origin, linkBtn.dataset.seriesLink);
+      try {
+        await navigator.clipboard.writeText(url);
+        toast(`Link copied for ${labels.get(linkBtn.dataset.seriesLink)}`);
+      } catch {
+        prompt('Copy this link:', url);
+      }
+      return;
+    }
     const coverBtn = e.target.closest('[data-cover]');
     const delBtn = e.target.closest('[data-delete]');
     if (coverBtn) {
