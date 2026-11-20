@@ -12,6 +12,7 @@ import { tally } from '../../js/util.js';
 import { todayIn, addDays } from '../../js/dates.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, IS_CATALOG } from '../../js/config.js';
 import { mountPullLists, pullImportBusy } from './import-pull-lists.js';
+import { mountLeftOut } from './import-left-out.js';
 
 const SOURCE = { lunar: 'Lunar', prh: 'PRH', funko: 'Funko', sheet: 'Spreadsheet' };
 const FIELD_LABEL = {
@@ -47,6 +48,7 @@ export async function mount(el, ctx) {
       <button type="button" class="admin-tab" role="tab" data-tab="files">Import Files</button>
       <button type="button" class="admin-tab" role="tab" data-tab="pulls">Pull Lists</button>
       <button type="button" class="admin-tab" role="tab" data-tab="skip">Always Skip</button>
+      ${IS_CATALOG ? '<button type="button" class="admin-tab" role="tab" data-tab="left">Left Out</button>' : ''}
       <button type="button" class="admin-tab" role="tab" data-tab="runs">Recent Runs</button>
     </div>
     <div data-tabpane="files">
@@ -85,6 +87,7 @@ export async function mount(el, ctx) {
       </div>
     </section>
     </div>
+    ${IS_CATALOG ? '<div data-tabpane="left"></div>' : ''}
     <div data-tabpane="runs">
       <div data-log></div>
     </div>`;
@@ -101,10 +104,12 @@ export async function mount(el, ctx) {
   $('[data-sample]', el).addEventListener('click', downloadSample);
   setupTabs(el, 'admin-import-tab', 'files', undefined, {
     files: `Drop in this week's sheets as downloaded: Lunar or PRH FOC sheets, Lunar or PRH release sheets, or a Funko pre-order list. Any other spreadsheet (.xlsx, .xls or .csv) works too if it has a header row with a <strong>Title</strong> (or Name / Product) column and details such as Price, UPC, ISBN, SKU, Publisher, Release date or FOC date — pictures in the sheet become covers. You'll see what will change before anything is saved. New titles come in with their collector badges ticked when the title says so: <strong>First Issue</strong> (#1), <strong>One-Shot</strong>, <strong>Limited Series</strong> (“#2 (of 6)”), <strong>Facsimile</strong> and <strong>Blind Bag</strong>. Incentive covers and retailer bundles are always skipped, plus anything on the list below.`,
+    left: `What the daily PRH and Lunar imports didn't take into the catalog, and why, as each one's latest run saw it: <strong>ratio / incentive covers</strong>, <strong>store or convention exclusives</strong>, <strong>retailer bundles</strong>, titles on the <strong>Always Skip</strong> list, and titles <strong>already in from another distributor</strong> (the same UPC or ISBN is on a title from the other sheet, so it's listed once). Each run replaces its own list. Search by title or code, narrow it to one distributor or reason, and export what's shown. Titles a distributor hasn't listed yet aren't here: PRH's import looks 13 weeks ahead, Lunar's at the next 8 order cutoffs and 5 release weeks.`,
     pulls: `For a shop moving to Pullwise: one spreadsheet of your customers and the series each one takes (.xlsx, .xls or .csv). It can have one row per customer and title, one row per customer with all their titles in one cell, or one sheet per customer named after them — download the sample to see the columns. Check which column holds what, then every title is matched to a series: <strong>Matched</strong> lines are ready, <strong>Needs a look</strong> lines offer the closest series to choose from, and <strong>Not found</strong> lines can be searched for, added to the series catalog or skipped. Each choice is remembered, so the same spelling matches by itself next time. Customers already in Pullwise (same email, or same phone) are updated, never added twice, and keep the follows they have. Nothing is saved until you press <strong>Save</strong>; you can leave a review and resume it from Drafts. Saving adds each customer's follows and puts the titles open for pre-order now on their pull list (mature titles only for customers marked Mature OK). It sends no email.`,
   });
   mountExclusions(el);
   if (IS_CATALOG) mountDaily(el);
+  if (IS_CATALOG) mountLeftOut($('[data-tabpane="left"]', el), { sb });
   mountPullLists($('[data-tabpane="pulls"]', el), { sb, onLog: () => loadLog(el) });
   loadLog(el);
 }

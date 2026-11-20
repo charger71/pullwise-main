@@ -78,6 +78,19 @@ export function r2PutMedia(shop) {
   };
 }
 
+/**
+ * Replace a source's list in Import → Left Out (rows from js/import/left-out.js leftOutRows). A failure here doesn't
+ * fail the import: the titles are already saved, so it is only reported in the run's log.
+ */
+export async function saveLeftOut(sb, source, rows) {
+  const { data, error } = await sb.rpc('catalog_replace_left_out', { p_source: source, p_rows: rows });
+  if (error) {
+    console.log(`  left-out list not saved: ${error.message}`);
+    return null;
+  }
+  return data;
+}
+
 /** Record a run in job_log (Import → Recent Runs) and the GitHub run's summary. */
 export async function logRun(sb, { job, title, ok, message, detail }) {
   await sb?.from('job_log').insert({ job, ok, message, detail });

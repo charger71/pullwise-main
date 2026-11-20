@@ -1,7 +1,7 @@
 // A title already stored whose sheet row gives a UPC another title holds must not fail the import
 // (items_upc_idx allows each UPC once): it keeps its stored UPC and everything else still refreshes.
 import assert from 'node:assert/strict';
-import { planImport, applyImport, upcClashLine } from './apply.js';
+import { planImport, applyImport, upcClashLine, duplicateTitle } from './apply.js';
 
 /** Just enough of the Supabase client for planImport and applyImport, over rows in memory. */
 function fakeClient(rows) {
@@ -52,5 +52,11 @@ assert.equal(result.upcClashes.length, 1);
 assert.equal(sb.upserts.length, 1);
 assert.equal('upc' in sb.upserts[0], false, 'the upsert leaves the stored UPC alone');
 assert.equal(sb.upserts[0].release_date, '2026-11-25');
+
+// A new title whose UPC another title holds is left out, and named for Import → Left Out.
+plan = await planImport(fakeClient(stored()), { distributor: 'prh', items: [sheet('NEW', '100', { issue_number: '1' }), { sku: 'BOOK', isbn: '978', title: 'Book' }] });
+assert.equal(plan.duplicates.length, 1);
+assert.deepEqual(duplicateTitle(plan.duplicates[0]), { sku: 'NEW', title: 'NEW #1', on: 'Christmas Special #1 CVR A', code: 'UPC 100' });
+assert.equal(duplicateTitle({ sku: 'B', title: 'Book', isbn: '978', existingTitle: { title: 'Book (Hardcover)', isbn: '978' } }).code, 'ISBN 978');
 
 console.log('import apply tests passed');

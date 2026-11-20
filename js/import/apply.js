@@ -157,10 +157,17 @@ async function uploadCover(sb, distributor, item, ctx) {
   return { url, thumbUrl };
 }
 
+const titleName = (t) => [t.title, t.issue_number && `#${t.issue_number}`, t.variant].filter(Boolean).join(' ');
+
 /** A UPC clash for the logs: which title kept its UPC, and who holds the one the sheet gave it. */
 export function upcClashLine(i) {
-  const name = (t) => [t.title, t.issue_number && `#${t.issue_number}`, t.variant].filter(Boolean).join(' ');
-  return `${i.sku} ${name(i)}: the sheet's UPC ${i.upc} is already on ${name(i.existingTitle)}`;
+  return `${i.sku} ${titleName(i)}: the sheet's UPC ${i.upc} is already on ${titleName(i.existingTitle)}`;
+}
+
+/** A title left out because its UPC or ISBN is already on another one (planImport's duplicates), for Import → Left Out. */
+export function duplicateTitle(d) {
+  const sameUpc = d.upc && d.existingTitle.upc === d.upc;
+  return { sku: d.sku, title: titleName(d), on: titleName(d.existingTitle), code: sameUpc ? `UPC ${d.upc}` : `ISBN ${d.isbn}` };
 }
 
 /**
@@ -170,7 +177,7 @@ export function upcClashLine(i) {
  * @param opts      { images, imagesByRow, fetchRemote, makeThumb, putMedia, today, onSale, onProgress }
  *                  makeThumb(bytes, type, item) → { bytes, type } | null makes the small card copy of a cover;
  *                  putMedia(sb, path, bytes, opts) → url stores a picture (default: media-store.js)
- * @returns summary { added, updated, skipped, duplicates, upcClashes (lines), arrived, covers, coversMissing, coverErrors }
+ * @returns summary { added, updated, skipped, duplicates, duplicateTitles (duplicateTitle), upcClashes (lines), arrived, covers, coversMissing, coverErrors }
  */
 export async function applyImport(sb, parsed, opts) {
   const { distributor, skipped } = parsed;
@@ -244,6 +251,7 @@ export async function applyImport(sb, parsed, opts) {
     updated: known.length,
     skipped: skipped.length,
     duplicates: duplicates.length,
+    duplicateTitles: duplicates.map(duplicateTitle),
     upcClashes: upcClashes.map(upcClashLine),
     arrived: newRows.filter((r) => r.status !== 'pre_order').length,
     covers: coverUrls.size,
