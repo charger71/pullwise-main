@@ -309,7 +309,7 @@ though it still can for things the catalog doesn't carry.
   Recent Runs as "Automatic PRH import"; the workflow can be run by hand, with a dry run that only counts.
   Each daily import also saves what it left out (and why) for Import → Left Out, and emails that list to
   `LEFT_OUT_EMAIL` (`js/import/left-out.js`).
-- **Daily status report** (`.github/workflows/status-report.yml`, daily at 11:41 UTC, `tools/shop-status.mjs`): one
+- **Daily status report** (`.github/workflows/status-report.yml`, daily at 11:07 UTC, in by 8 a.m. Eastern, `tools/shop-status.mjs`): one
   email to `STATUS_EMAIL` with every shop's health, each line OK, Check or Problem: scheduled jobs (`staff_health`),
   the catalog sync and any upcoming catalog titles a shop is missing, the nightly backup, emails sent and failed in
   the last 24 hours, and the catalog's daily imports. A shop that can't be read is a Problem of its own; a report that
