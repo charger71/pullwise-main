@@ -1,6 +1,6 @@
 // node js/import/left-out.test.js
 import assert from 'node:assert/strict';
-import { leftOutRows, REASONS, filterLeftOut, reasonChoices } from './left-out.js';
+import { leftOutRows, REASONS, filterLeftOut, reasonChoices, leftOutEmail } from './left-out.js';
 
 const skipped = [
   { sku: 'A1', title: 'ARCHIE #2 CVR D INC 1:10 DAVID LOPEZ VAR', reason: 'Incentive / ratio variant' },
@@ -57,5 +57,36 @@ assert.deepEqual(filterLeftOut(list, { q: 'ben', source: 'prh' }), []);
 assert.deepEqual(reasonChoices([...list, list[1]]).map((c) => `${c.reason} ${c.n}`), [
   `${REASONS.ratio} 1`, `${REASONS.exclusive} 2`, `${REASONS.alwaysSkip} 1`, `${REASONS.duplicate} 1`, 'Something new 1',
 ], 'the usual reasons in their order, with counts, then any others');
+
+// The email each daily run sends: counts by reason, every title grouped by reason, and the list as a CSV.
+const mail = leftOutEmail({ source: 'prh', date: '2026-11-20', summary: 'PRH, next 13 weeks: 177 added', rows: [
+  { sku: '75960621723600316', title: 'SPIDER-WOMAN #3 COVER D 1:25 VARIANT', reason: REASONS.ratio, detail: null },
+  { sku: '9781799509882', title: 'Batman Vol. 2 <Blood & Money>', reason: REASONS.duplicate, detail: 'ISBN 9781799509882 is on “BATMAN (2025) HC VOL 02”' },
+  { sku: '64985600889300141', title: 'ADVENTURE TIME #1 1:10 VAR', reason: REASONS.ratio, detail: null },
+] });
+assert.equal(mail.subject, 'Left out of the catalog: PRH, 3 titles (Nov 20)');
+assert.match(mail.text, /PRH, next 13 weeks: 177 added/);
+assert.match(mail.text, /Ratio \/ incentive cover \(2\)\n  ADVENTURE TIME #1 1:10 VAR — 64985600889300141\n  SPIDER-WOMAN/, 'grouped by reason, usual order, sorted by title, with counts');
+assert.ok(mail.text.indexOf(REASONS.ratio) < mail.text.indexOf(REASONS.duplicate));
+assert.match(mail.text, /Batman Vol\. 2 <Blood & Money> — 9781799509882 — ISBN 9781799509882 is on/, 'the detail follows the code');
+assert.ok(mail.html.includes('Batman Vol. 2 &lt;Blood &amp; Money&gt;') && !mail.html.includes('<Blood'), 'titles are escaped in the HTML');
+assert.match(mail.html, /<td>Ratio \/ incentive cover<\/td><td align="right">2<\/td>/, 'a count table at the top');
+assert.equal(mail.csv.split('\r\n')[0], 'Title,Why,Detail,Code');
+assert.equal(mail.csv.split('\r\n').length, 4);
+assert.match(mail.csv, /"Batman Vol\. 2 <Blood & Money>"|Batman Vol\. 2 <Blood & Money>/);
+assert.match(mail.csv, /,="9781799509882"/, 'codes stay text in a spreadsheet (no rounded UPCs)');
+assert.equal(mail.filename, 'left-out-prh-2026-11-20.csv');
+const none = leftOutEmail({ source: 'lunar', date: '2026-11-20', summary: 'Lunar, 13 of 13 sheets', rows: [] });
+assert.equal(none.subject, 'Left out of the catalog: Lunar, nothing (Nov 20)');
+assert.match(none.text, /Nothing was left out/);
+
+// A big run stays under Gmail's ~102 KB clipping size: the first 900 titles are in the email, the rest only in the CSV.
+const many = Array.from({ length: 1500 }, (_, i) => ({ sku: String(75960621000000000 + i), title: `SOME LONG SERIES NAME #${i} CVR D INC 1:25 ARTIST NAME VIRGIN VAR`, reason: i % 2 ? REASONS.ratio : REASONS.bundle, detail: null }));
+const big = leftOutEmail({ source: 'lunar', date: '2026-11-20', summary: 'Lunar', rows: many });
+assert.ok(big.html.length < 100_000, `HTML is ${big.html.length} bytes`);
+assert.match(big.html, /600 more titles are in the attached CSV/);
+assert.match(big.html, /…and 600 more in the CSV/, 'the group that was cut says how many more it has');
+assert.equal(big.csv.split('\r\n').length, 1501, 'the CSV has every title');
+assert.equal(big.text.split('\n').filter((l) => l.startsWith('  ')).length, 1500, 'the plain-text part lists every title');
 
 console.log('left out tests passed');

@@ -16,8 +16,8 @@
 
 import { fileURLToPath } from 'node:url';
 import { parsePrhApi } from '../js/import/distributors.js';
-import { leftOutRows } from '../js/import/left-out.js';
-import { env, catalogShop, catalogClient, catalogToday, exclusions, download, r2PutMedia, logRun, saveLeftOut } from './catalog-job.mjs';
+import { leftOutRows, leftOutEmail } from '../js/import/left-out.js';
+import { env, catalogShop, catalogClient, catalogToday, exclusions, download, r2PutMedia, logRun, saveLeftOut, emailLeftOut } from './catalog-job.mjs';
 
 export const WEEKS = 13;
 const API = 'https://api.penguinrandomhouse.com/resources/v2/title/domains/SALESPLATFORM/titles';
@@ -91,8 +91,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`✓ ${message}`);
     result.coverErrors.slice(0, 20).forEach((e) => console.log(`  cover: ${e}`));
     // Import → Left Out: what this run skipped, and what was already in from another sheet.
-    const leftOut = await saveLeftOut(sb, 'prh', leftOutRows(parsed, duplicateTitles));
+    const leftOutList = leftOutRows(parsed, duplicateTitles);
+    const leftOut = await saveLeftOut(sb, 'prh', leftOutList);
     if (leftOut != null) console.log(`  ${leftOut} titles listed in Import → Left Out`);
+    await emailLeftOut(sb, { mail: leftOutEmail({ source: 'prh', date: today, summary: message, rows: leftOutList }), sentBy: 'Automatic PRH import' });
     await logRun(sb, { job: 'prh_import', title: 'Automatic PRH import', ok: true, message, detail: { ...counts, coverErrors: counts.coverErrors.slice(0, 50) } });
   } catch (err) {
     const message = scrub(err.message);

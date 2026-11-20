@@ -91,6 +91,43 @@ export async function saveLeftOut(sb, source, rows) {
   return data;
 }
 
+/**
+ * Email what a run left out (js/import/left-out.js leftOutEmail) to LEFT_OUT_EMAIL (comma-separated addresses), through
+ * Resend with the RESEND_API_KEY and RESEND_FROM repository secrets, with the list as a CSV attachment. Recorded in the
+ * catalog's Admin → Emails. Skipped, with a line in the log, when any of the three isn't set; a failure here never fails
+ * the import.
+ * @param fetchFn  for tests
+ * @returns 'sent' | 'skipped' | 'failed'
+ */
+export async function emailLeftOut(sb, { mail, sentBy }, fetchFn = fetch) {
+  const key = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM;
+  const to = (process.env.LEFT_OUT_EMAIL ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const missing = [!key && 'RESEND_API_KEY', !from && 'RESEND_FROM', !to.length && 'LEFT_OUT_EMAIL'].filter(Boolean);
+  if (missing.length) {
+    console.log(`  left-out email not sent: set ${missing.join(', ')}`);
+    return 'skipped';
+  }
+  let error = null;
+  try {
+    const res = await fetchFn('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from, to, subject: mail.subject, html: mail.html, text: mail.text,
+        attachments: [{ filename: mail.filename, content: Buffer.from(`\ufeff${mail.csv}`, 'utf8').toString('base64') }],
+      }),
+    });
+    if (!res.ok) error = `Resend: ${(await res.json().catch(() => ({}))).message ?? res.status}`;
+  } catch (err) {
+    error = `Resend: ${err.message}`;
+  }
+  console.log(error ? `  left-out email not sent: ${error}` : `  left-out email sent to ${to.join(', ')}`);
+  const logged = await sb?.from('email_log').insert({ kind: 'left_out', to_email: to.join(', '), subject: mail.subject, body: mail.text.slice(0, 20000), status: error ? 'failed' : 'sent', error, sent_by: sentBy });
+  if (logged?.error) console.log(`  email log not written: ${logged.error.message}`);
+  return error ? 'failed' : 'sent';
+}
+
 /** Record a run in job_log (Import → Recent Runs) and the GitHub run's summary. */
 export async function logRun(sb, { job, title, ok, message, detail }) {
   await sb?.from('job_log').insert({ job, ok, message, detail });

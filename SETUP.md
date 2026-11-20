@@ -260,6 +260,8 @@ Secrets (`supabase secrets set NAME=value …`; never put these in code):
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | app and staff chat notifications | A pair from `node tools/vapid-keys.mjs`. One pair serves every shop; keep it (a new pair makes every customer turn notifications on again) |
 | `VAPID_SUBJECT` | app notifications | `mailto:` address push services can reach you at, e.g. `mailto:support@yourdomain.com` |
 
+The master catalog's daily PRH and Lunar imports (GitHub Actions) also use the `RESEND_API_KEY` and `RESEND_FROM` repository secrets: after each run they email what they left out of the catalog, with a CSV, to the `LEFT_OUT_EMAIL` repository variable (Settings → Secrets and variables → Actions → Variables; several addresses separated by commas). Without it they send to don@getpullwise.com; without the two secrets they send nothing and say so in the run's log.
+
 App notifications (`push-notify`) go out hourly inside the "Your books are in" email's sending hours, whether or not
 that email is on. The database finds the function next to `weekly-pull-list` and uses the same `CRON_SECRET`, so it needs
 nothing more than the two Vault secrets below. Without the VAPID secrets the app says notifications aren't available yet.

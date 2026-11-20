@@ -19,8 +19,8 @@
 
 import { fileURLToPath } from 'node:url';
 import { readWorkbook, parseSheet } from '../js/import/distributors.js';
-import { leftOutRows } from '../js/import/left-out.js';
-import { catalogShop, catalogClient, catalogToday, exclusions, download, r2PutMedia, logRun, saveLeftOut } from './catalog-job.mjs';
+import { leftOutRows, leftOutEmail } from '../js/import/left-out.js';
+import { catalogShop, catalogClient, catalogToday, exclusions, download, r2PutMedia, logRun, saveLeftOut, emailLeftOut } from './catalog-job.mjs';
 
 export const FOC_WEEKS = 8;
 export const RELEASE_WEEKS = 5;
@@ -151,8 +151,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const failed = results.some((r) => r.error);
     // A run that couldn't read every sheet keeps the last full list rather than dropping that sheet's titles from it.
     if (!failed) {
-      const leftOut = await saveLeftOut(sb, 'lunar', leftOutRows({ skipped }, duplicates));
+      const leftOutList = leftOutRows({ skipped }, duplicates);
+      const leftOut = await saveLeftOut(sb, 'lunar', leftOutList);
       if (leftOut != null) console.log(`  ${leftOut} titles listed in Import → Left Out`);
+      await emailLeftOut(sb, { mail: leftOutEmail({ source: 'lunar', date: today, summary: message, rows: leftOutList }), sentBy: 'Automatic Lunar import' });
     }
     await logRun(sb, { job: 'lunar_import', title: 'Automatic Lunar import', ok: !failed, message, detail: results.map(({ coverErrors, ...r }) => ({ ...r, coverErrors: coverErrors?.slice(0, 20) })) });
     if (failed) process.exit(1);
