@@ -262,6 +262,8 @@ Secrets (`supabase secrets set NAME=value …`; never put these in code):
 
 The master catalog's daily PRH and Lunar imports (GitHub Actions) also use the `RESEND_API_KEY` and `RESEND_FROM` repository secrets: after each run they email what they left out of the catalog, with a CSV, to the `LEFT_OUT_EMAIL` repository variable (Settings → Secrets and variables → Actions → Variables; several addresses separated by commas). Without it they send to don@getpullwise.com; without the two secrets they send nothing and say so in the run's log.
 
+The **Daily status report** Action (`.github/workflows/status-report.yml`, every morning after the backup and the imports) emails one report on every shop in `shops.json` to the `STATUS_EMAIL` repository variable (default don@getpullwise.com): scheduled jobs, the catalog sync and any catalog titles a shop is missing, the nightly backup, emails sent and failed, and the catalog's daily imports, each marked OK, Check or Problem. It uses the same two Resend secrets.
+
 App notifications (`push-notify`) go out hourly inside the "Your books are in" email's sending hours, whether or not
 that email is on. The database finds the function next to `weekly-pull-list` and uses the same `CRON_SECRET`, so it needs
 nothing more than the two Vault secrets below. Without the VAPID secrets the app says notifications aren't available yet.
