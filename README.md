@@ -307,6 +307,13 @@ though it still can for things the catalog doesn't carry.
   straight to R2 for new titles and ones still missing one, with PRH's 560 px copy as the card
   picture. It reads the catalog's service key and writes R2 with the Deploy secrets, plus `PRH_API_KEY`. Runs show in
   Recent Runs as "Automatic PRH import"; the workflow can be run by hand, with a dry run that only counts.
+  Each daily import also saves what it left out (and why) for Import → Left Out, and emails that list to
+  `LEFT_OUT_EMAIL` (`js/import/left-out.js`).
+- **Daily status report** (`.github/workflows/status-report.yml`, daily at 11:41 UTC, `tools/shop-status.mjs`): one
+  email to `STATUS_EMAIL` with every shop's health, each line OK, Check or Problem: scheduled jobs (`staff_health`),
+  the catalog sync and any upcoming catalog titles a shop is missing, the nightly backup, emails sent and failed in
+  the last 24 hours, and the catalog's daily imports. A shop that can't be read is a Problem of its own; a report that
+  can't be built at all still sends an email saying so. Can be run by hand, with a dry run that only prints it.
 - **PRH title updates** (`supabase/functions/prh-sync`, catalog only): hourly at :05, up to 200 PRH titles are looked
   up in the Penguin Random House API, books by ISBN (domain `PRH.US`) and comics by their 17-digit UPC (domain
   `SALESPLATFORM`, the only one that knows them). Dates and the retail price follow PRH, like re-importing a sheet;

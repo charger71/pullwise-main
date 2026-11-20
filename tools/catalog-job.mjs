@@ -92,20 +92,20 @@ export async function saveLeftOut(sb, source, rows) {
 }
 
 /**
- * Email what a run left out (js/import/left-out.js leftOutEmail) to LEFT_OUT_EMAIL (comma-separated addresses), through
- * Resend with the RESEND_API_KEY and RESEND_FROM repository secrets, with the list as a CSV attachment. Recorded in the
- * catalog's Admin → Emails. Skipped, with a line in the log, when any of the three isn't set; a failure here never fails
- * the import.
+ * Send one email through Resend with the RESEND_API_KEY and RESEND_FROM repository secrets, to `to` (a comma-separated
+ * list), and record it in the catalog's Admin → Emails. Skipped, with a line in the log, when any of the three isn't
+ * set; a failure is logged and returned, never thrown, so the job that sends it still finishes.
+ * @param mail     { subject, html, text, attachments? [{ filename, text }] }
  * @param fetchFn  for tests
  * @returns 'sent' | 'skipped' | 'failed'
  */
-export async function emailLeftOut(sb, { mail, sentBy }, fetchFn = fetch) {
+export async function sendEmail(sb, { to: toList, mail, kind, sentBy, label }, fetchFn = fetch) {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM;
-  const to = (process.env.LEFT_OUT_EMAIL ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  const missing = [!key && 'RESEND_API_KEY', !from && 'RESEND_FROM', !to.length && 'LEFT_OUT_EMAIL'].filter(Boolean);
+  const to = (toList ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const missing = [!key && 'RESEND_API_KEY', !from && 'RESEND_FROM', !to.length && 'a recipient'].filter(Boolean);
   if (missing.length) {
-    console.log(`  left-out email not sent: set ${missing.join(', ')}`);
+    console.log(`  ${label} not sent: set ${missing.join(', ')}`);
     return 'skipped';
   }
   let error = null;
@@ -115,18 +115,28 @@ export async function emailLeftOut(sb, { mail, sentBy }, fetchFn = fetch) {
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from, to, subject: mail.subject, html: mail.html, text: mail.text,
-        attachments: [{ filename: mail.filename, content: Buffer.from(`\ufeff${mail.csv}`, 'utf8').toString('base64') }],
+        ...(mail.attachments?.length ? { attachments: mail.attachments.map((a) => ({ filename: a.filename, content: Buffer.from(`\ufeff${a.text}`, 'utf8').toString('base64') })) } : {}),
       }),
     });
     if (!res.ok) error = `Resend: ${(await res.json().catch(() => ({}))).message ?? res.status}`;
   } catch (err) {
     error = `Resend: ${err.message}`;
   }
-  console.log(error ? `  left-out email not sent: ${error}` : `  left-out email sent to ${to.join(', ')}`);
-  const logged = await sb?.from('email_log').insert({ kind: 'left_out', to_email: to.join(', '), subject: mail.subject, body: mail.text.slice(0, 20000), status: error ? 'failed' : 'sent', error, sent_by: sentBy });
+  console.log(error ? `  ${label} not sent: ${error}` : `  ${label} sent to ${to.join(', ')}`);
+  const logged = await sb?.from('email_log').insert({ kind, to_email: to.join(', '), subject: mail.subject, body: mail.text.slice(0, 20000), status: error ? 'failed' : 'sent', error, sent_by: sentBy });
   if (logged?.error) console.log(`  email log not written: ${logged.error.message}`);
   return error ? 'failed' : 'sent';
 }
+
+/**
+ * Email what a run left out (js/import/left-out.js leftOutEmail) to LEFT_OUT_EMAIL, with the list as a CSV attachment.
+ * Recorded in the catalog's Admin → Emails as "Left out of the catalog".
+ */
+export const emailLeftOut = (sb, { mail, sentBy }, fetchFn = fetch) =>
+  sendEmail(sb, {
+    to: process.env.LEFT_OUT_EMAIL, kind: 'left_out', sentBy, label: 'left-out email',
+    mail: { ...mail, attachments: [{ filename: mail.filename, text: mail.csv }] },
+  }, fetchFn);
 
 /** Record a run in job_log (Import → Recent Runs) and the GitHub run's summary. */
 export async function logRun(sb, { job, title, ok, message, detail }) {
