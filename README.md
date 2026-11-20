@@ -309,11 +309,16 @@ though it still can for things the catalog doesn't carry.
   Recent Runs as "Automatic PRH import"; the workflow can be run by hand, with a dry run that only counts.
   Each daily import also saves what it left out (and why) for Import → Left Out, and emails that list to
   `LEFT_OUT_EMAIL` (`js/import/left-out.js`).
-- **Daily status report** (`.github/workflows/status-report.yml`, daily at 11:41 UTC, `tools/shop-status.mjs`): one
+- **Daily status report** (`.github/workflows/status-report.yml`, daily at 11:07 UTC, in by 8 a.m. Eastern, `tools/shop-status.mjs`): one
   email to `STATUS_EMAIL` with every shop's health, each line OK, Check or Problem: scheduled jobs (`staff_health`),
   the catalog sync and any upcoming catalog titles a shop is missing, the nightly backup, emails sent and failed in
   the last 24 hours, and the catalog's daily imports. A shop that can't be read is a Problem of its own; a report that
   can't be built at all still sends an email saying so. Can be run by hand, with a dry run that only prints it.
+- **Staff report emails** (`supabase/functions/report-email`, catalog): the left-out lists and the status report are
+  sent from the catalog's own server as "Pullwise Reports <reports@pullwise.shop>" (the catalog's `RESEND_API_KEY`
+  function secret; `REPORT_FROM` changes the sender), and recorded in its Admin → Emails. Only a caller holding the
+  project's service key may send: the Actions call it with the catalog key they already read (`sendEmail` in
+  `tools/catalog-job.mjs`).
 - **PRH title updates** (`supabase/functions/prh-sync`, catalog only): hourly at :05, up to 200 PRH titles are looked
   up in the Penguin Random House API, books by ISBN (domain `PRH.US`) and comics by their 17-digit UPC (domain
   `SALESPLATFORM`, the only one that knows them). Dates and the retail price follow PRH, like re-importing a sheet;
