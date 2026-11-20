@@ -58,3 +58,63 @@ export function reasonChoices(rows) {
   const order = Object.values(REASONS);
   return [...counts].sort(([a], [b]) => ((order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99)) || a.localeCompare(b)).map(([reason, n]) => ({ reason, n }));
 }
+
+const SOURCE_NAME = { prh: 'PRH', lunar: 'Lunar' };
+const EMAIL_ROWS = 900; // titles listed in the email itself; the CSV has them all
+const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const csvCell = (v) => {
+  let s = String(v ?? '');
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; // never run as a spreadsheet formula
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+/**
+ * The email a daily import sends after each run (tools/catalog-job.mjs emailLeftOut): how many titles it left out for
+ * each reason, then every one grouped by reason and sorted by title, and the whole list as a CSV attachment.
+ * @param source   'prh' | 'lunar'
+ * @param date     the catalog's today, YYYY-MM-DD
+ * @param summary  the run's Recent Runs line
+ * @param rows     [{ sku, title, reason, detail }] (leftOutRows)
+ * @returns { subject, html, text, csv, filename }
+ */
+export function leftOutEmail({ source, date, summary, rows }) {
+  const name = SOURCE_NAME[source] ?? source;
+  const day = new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+  const groups = reasonChoices(rows).map(({ reason, n }) => ({
+    reason, n, rows: rows.filter((r) => r.reason === reason).sort((a, b) => collator.compare(a.title, b.title) || collator.compare(a.sku, b.sku)),
+  }));
+  const count = rows.length ? `${rows.length.toLocaleString()} ${rows.length === 1 ? 'title' : 'titles'}` : 'nothing';
+  const subject = `Left out of the catalog: ${name}, ${count} (${day})`;
+  const intro = `The ${name} daily import left these titles out of the master catalog. They're also on the catalog's Import → Left Out tab.`;
+  const line = (r) => [r.title, r.sku, r.detail].filter(Boolean).join(' — ');
+
+  const text = [
+    `${name} import, ${day}: ${summary}`,
+    '',
+    rows.length ? intro : 'Nothing was left out of the catalog this run.',
+    ...groups.flatMap((g) => ['', `${g.reason} (${g.n.toLocaleString()})`, ...g.rows.map((r) => `  ${line(r)}`)]),
+  ].join('\n');
+
+  // Gmail clips a message whose HTML passes about 102 KB, so rows carry no styles of their own (each table sets them
+  // once) and a very long run lists its first EMAIL_ROWS titles here: the CSV attached always has every one.
+  const font = 'font:14px/1.45 Arial,sans-serif;color:#222';
+  let room = EMAIL_ROWS;
+  const listed = groups.map((g) => {
+    const shown = g.rows.slice(0, Math.max(0, room));
+    room -= shown.length;
+    return { ...g, shown };
+  });
+  const cut = rows.length - listed.reduce((n, g) => n + g.shown.length, 0);
+  const html = `<div style="${font}">
+<p style="margin:0 0 8px"><b>${escHtml(name)} import, ${escHtml(day)}</b><br>${escHtml(summary)}</p>
+${rows.length ? `<p style="margin:0 0 12px">${escHtml(intro)} The attached CSV has the whole list.</p>
+<table cellpadding="3" cellspacing="0" style="${font};margin:0 0 16px">${groups.map((g) => `<tr><td>${escHtml(g.reason)}</td><td align="right">${g.n.toLocaleString()}</td></tr>`).join('')}</table>
+${listed.filter((g) => g.shown.length).map((g) => `<h3 style="font:bold 15px Arial,sans-serif;margin:18px 0 6px">${escHtml(g.reason)} (${g.n.toLocaleString()})</h3>
+<table cellpadding="3" cellspacing="0" style="${font}">${g.shown.map((r) => `<tr><td>${escHtml(r.title)}</td><td>${escHtml(r.sku)}</td>${r.detail ? `<td>${escHtml(r.detail)}</td>` : ''}</tr>`).join('')}</table>${g.shown.length < g.n ? `<p style="margin:4px 0 0">…and ${(g.n - g.shown.length).toLocaleString()} more in the CSV.</p>` : ''}`).join('\n')}
+${cut > 0 ? `<p style="margin:16px 0 0">${cut.toLocaleString()} more ${cut === 1 ? 'title is' : 'titles are'} in the attached CSV.</p>` : ''}` : '<p style="margin:0">Nothing was left out of the catalog this run.</p>'}
+</div>`;
+
+  const csv = [['Title', 'Why', 'Detail', 'Code'].join(','), ...groups.flatMap((g) => g.rows.map((r) => [csvCell(r.title), csvCell(r.reason), csvCell(r.detail), `="${String(r.sku).replace(/"/g, '""')}"`].join(',')))].join('\r\n');
+  return { subject, html, text, csv, filename: `left-out-${source}-${date}.csv` };
+}

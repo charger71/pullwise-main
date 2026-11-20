@@ -221,7 +221,7 @@ export async function mount(el, { sb }) {
   });
 }
 
-const LOG_KINDS = { weekly: 'Weekly pull list', arrival: 'Your books are in', pickup_warning: 'Books waiting (reminder)', pickup_pause: 'Books waiting (pull list paused)', message: 'Message to a customer', test: 'Test', inquiry: 'Sell form', event_confirm: 'Event signup confirmation', event_notify: 'Event signup (to shop)', event_reminder: 'Event reminder', event_cancelled: 'Event cancelled' };
+const LOG_KINDS = { weekly: 'Weekly pull list', arrival: 'Your books are in', pickup_warning: 'Books waiting (reminder)', pickup_pause: 'Books waiting (pull list paused)', message: 'Message to a customer', test: 'Test', inquiry: 'Sell form', event_confirm: 'Event signup confirmation', event_notify: 'Event signup (to shop)', event_reminder: 'Event reminder', event_cancelled: 'Event cancelled', left_out: 'Left out of the catalog' };
 const LOG_PAGE = 25;
 
 /**
