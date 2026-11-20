@@ -92,39 +92,31 @@ export async function saveLeftOut(sb, source, rows) {
 }
 
 /**
- * Send one email through Resend with the RESEND_API_KEY and RESEND_FROM repository secrets, to `to` (a comma-separated
- * list), and record it in the catalog's Admin → Emails. Skipped, with a line in the log, when any of the three isn't
- * set; a failure is logged and returned, never thrown, so the job that sends it still finishes.
- * @param mail     { subject, html, text, attachments? [{ filename, text }] }
- * @param fetchFn  for tests
+ * Send a staff report by email from the master catalog's server: its report-email function sends it through Resend
+ * from reports@pullwise.shop (its RESEND_API_KEY and REPORT_FROM secrets) and records it in the catalog's
+ * Admin → Emails. `sb` is the catalog's service client, whose key the function checks. Skipped when there's no
+ * recipient; a failure is logged and returned, never thrown, so the job that sends it still finishes.
+ * @param mail  { subject, html, text, attachments? [{ filename, text }] }
  * @returns 'sent' | 'skipped' | 'failed'
  */
-export async function sendEmail(sb, { to: toList, mail, kind, sentBy, label }, fetchFn = fetch) {
-  const key = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM;
+export async function sendEmail(sb, { to: toList, mail, kind, sentBy, label }) {
   const to = (toList ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  const missing = [!key && 'RESEND_API_KEY', !from && 'RESEND_FROM', !to.length && 'a recipient'].filter(Boolean);
-  if (missing.length) {
-    console.log(`  ${label} not sent: set ${missing.join(', ')}`);
+  if (!to.length) {
+    console.log(`  ${label} not sent: no recipient`);
     return 'skipped';
   }
+  const body = {
+    to, subject: mail.subject, html: mail.html, text: mail.text, kind, sent_by: sentBy,
+    attachments: (mail.attachments ?? []).map((a) => ({ filename: a.filename, content: Buffer.from(`\ufeff${a.text}`, 'utf8').toString('base64') })),
+  };
   let error = null;
   try {
-    const res = await fetchFn('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from, to, subject: mail.subject, html: mail.html, text: mail.text,
-        ...(mail.attachments?.length ? { attachments: mail.attachments.map((a) => ({ filename: a.filename, content: Buffer.from(`\ufeff${a.text}`, 'utf8').toString('base64') })) } : {}),
-      }),
-    });
-    if (!res.ok) error = `Resend: ${(await res.json().catch(() => ({}))).message ?? res.status}`;
+    const { error: err } = await sb.functions.invoke('report-email', { body });
+    if (err) error = (await err.context?.json?.().catch(() => null))?.error ?? err.message;
   } catch (err) {
-    error = `Resend: ${err.message}`;
+    error = err.message;
   }
   console.log(error ? `  ${label} not sent: ${error}` : `  ${label} sent to ${to.join(', ')}`);
-  const logged = await sb?.from('email_log').insert({ kind, to_email: to.join(', '), subject: mail.subject, body: mail.text.slice(0, 20000), status: error ? 'failed' : 'sent', error, sent_by: sentBy });
-  if (logged?.error) console.log(`  email log not written: ${logged.error.message}`);
   return error ? 'failed' : 'sent';
 }
 
@@ -132,11 +124,11 @@ export async function sendEmail(sb, { to: toList, mail, kind, sentBy, label }, f
  * Email what a run left out (js/import/left-out.js leftOutEmail) to LEFT_OUT_EMAIL, with the list as a CSV attachment.
  * Recorded in the catalog's Admin → Emails as "Left out of the catalog".
  */
-export const emailLeftOut = (sb, { mail, sentBy }, fetchFn = fetch) =>
+export const emailLeftOut = (sb, { mail, sentBy }) =>
   sendEmail(sb, {
     to: process.env.LEFT_OUT_EMAIL, kind: 'left_out', sentBy, label: 'left-out email',
     mail: { ...mail, attachments: [{ filename: mail.filename, text: mail.csv }] },
-  }, fetchFn);
+  });
 
 /** Record a run in job_log (Import → Recent Runs) and the GitHub run's summary. */
 export async function logRun(sb, { job, title, ok, message, detail }) {

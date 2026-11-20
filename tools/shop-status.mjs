@@ -9,14 +9,14 @@
 //   - on the master catalog, the daily PRH and Lunar imports and how many titles each left out;
 //   - a line of activity: customers, open reservations, upcoming titles.
 // Each line is OK, Check (worth a look) or Problem (something failed or stopped); the subject says how many of each.
-// The email goes to STATUS_EMAIL through Resend (tools/catalog-job.mjs sendEmail) and is recorded in the catalog's
-// Admin → Emails. A shop that can't be read is a Problem line of its own; the others are still reported.
+// The email goes to STATUS_EMAIL from the catalog's server, as reports@pullwise.shop (tools/catalog-job.mjs sendEmail →
+// the catalog's report-email function), and is recorded in the catalog's Admin → Emails. A shop that can't be read is a Problem line of its own; the others are still reported.
 //
 //   node tools/shop-status.mjs             # read every shop and send the email
 //   node tools/shop-status.mjs --dry-run   # read every shop and print the report, send nothing
 //
 // Needs SUPABASE_ACCESS_TOKEN (each shop's service key is read with it) and @supabase/supabase-js (the workflow
-// installs it); RESEND_API_KEY, RESEND_FROM and STATUS_EMAIL to send.
+// installs it), and STATUS_EMAIL to send; the catalog needs its RESEND_API_KEY function secret.
 
 import fs from 'node:fs';
 import path from 'node:path';
