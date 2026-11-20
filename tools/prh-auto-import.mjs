@@ -3,7 +3,8 @@
 // sale in the next 13 weeks (Marvel, IDW, Oni, Boom, Dark Horse, Ignition and the rest), read from PRH's API instead
 // of a sheet. New titles are added and known ones refreshed with the same code as Admin → Import (parsePrhApi →
 // applyImport): the same skip rules (ratio variants, bundles, exclusives), the catalog's Always Skip list, badges and
-// statuses, and staff-owned fields are never touched. Covers go to R2 for new titles and ones still missing one,
+// statuses, and staff-owned fields are never touched. What it leaves out (and why) is listed in Import → Left Out.
+// Covers go to R2 for new titles and ones still missing one,
 // with PRH's own resized copy as the card picture. Shops copy the titles in on their hourly catalog-sync.
 //
 // Run by the "Automatic PRH import" GitHub Action (daily, or by hand). Needs SUPABASE_ACCESS_TOKEN (the catalog's
@@ -15,7 +16,8 @@
 
 import { fileURLToPath } from 'node:url';
 import { parsePrhApi } from '../js/import/distributors.js';
-import { env, catalogShop, catalogClient, catalogToday, exclusions, download, r2PutMedia, logRun } from './catalog-job.mjs';
+import { leftOutRows } from '../js/import/left-out.js';
+import { env, catalogShop, catalogClient, catalogToday, exclusions, download, r2PutMedia, logRun, saveLeftOut } from './catalog-job.mjs';
 
 export const WEEKS = 13;
 const API = 'https://api.penguinrandomhouse.com/resources/v2/title/domains/SALESPLATFORM/titles';
@@ -84,10 +86,14 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       putMedia: r2PutMedia(shop),
       onProgress: () => {},
     });
-    const message = summary({ ...result, unchanged: parsed.unchanged });
+    const { duplicateTitles, ...counts } = result;
+    const message = summary({ ...counts, unchanged: parsed.unchanged });
     console.log(`✓ ${message}`);
     result.coverErrors.slice(0, 20).forEach((e) => console.log(`  cover: ${e}`));
-    await logRun(sb, { job: 'prh_import', title: 'Automatic PRH import', ok: true, message, detail: { ...result, coverErrors: result.coverErrors.slice(0, 50) } });
+    // Import → Left Out: what this run skipped, and what was already in from another sheet.
+    const leftOut = await saveLeftOut(sb, 'prh', leftOutRows(parsed, duplicateTitles));
+    if (leftOut != null) console.log(`  ${leftOut} titles listed in Import → Left Out`);
+    await logRun(sb, { job: 'prh_import', title: 'Automatic PRH import', ok: true, message, detail: { ...counts, coverErrors: counts.coverErrors.slice(0, 50) } });
   } catch (err) {
     const message = scrub(err.message);
     console.error(`\n✗ ${message}`);

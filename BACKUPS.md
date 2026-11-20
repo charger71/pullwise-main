@@ -75,6 +75,11 @@ Not included:
 Not restored: the staff list (add people under Admin → Staff), the staff change log and the job log (kept as the record of
 what was done), and the one thing Replace never touches: customers' sign-ins. Tick **customer sign-ins** together with customers and the accounts come back with the same ids and passwords, so nobody has to sign up again; they load first, are only ever added (an account that exists already, by id or email, is never changed) and their email-login records are rebuilt. A backup made before 2027-03-07 has no password hashes: those accounts come back without a password and each customer uses Forgot password once. The command-line `tools/restore.mjs` still skips sign-ins. Restoring event signups doesn't re-send their confirmation emails.
 
+Restoring titles starts the shop's catalog sync over: the next sync (hourly, or **Titles → Sync now**) goes through the
+whole master catalog once, linking the restored titles back to it and adding any the catalog has that the backup didn't.
+The sync position itself is never restored (a backup's is an older one, or another shop's), so a restore can't leave the
+shop missing titles the catalog added since the backup.
+
 If the whole project is lost: create a new Supabase project, run `supabase db push` so the structure exists, then restore
 every table here (the structure itself comes from git, not from the backup).
 
@@ -88,8 +93,9 @@ supabase db query --linked -f /tmp/restore/restore-customers.sql      # each fil
 ```
 
 `--replace` deletes each table first. Big tables are split into `.part01`, `.part02` ... (Supabase refuses requests over
-about 1 MB): run every part in order. This route switches foreign-key checks off while loading, so use the admin screen
-unless it is unavailable.
+about 1 MB): run every part in order. When titles are restored the list ends with `restore-catalog-sync-reset.sql`,
+which starts the catalog sync over as above; run it last. This route switches foreign-key checks off while loading, so
+use the admin screen unless it is unavailable.
 
 Tested 2026-10-12 against the live database (inside a rolled-back transaction): customers, reservations, orders,
 settings, pages, events, the series list, follows and the titles table loaded back and matched the live data exactly.
