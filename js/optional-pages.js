@@ -24,7 +24,7 @@ export const OPTIONAL_PAGES = {
 export const RESERVED_SLUGS = [
   '404', 'about', 'account', 'app', 'blog', 'calendar', 'contact', 'event', 'faq', 'gift-cards', 'go', 'how-to', 'index', 'new-arrivals', 'page', 'post',
   'pre-orders', 'privacy', 'search', 'series', 'survey', 'terms', 'we-buy-comics', // the HTML files
-  'admin', 'css', 'fonts', 'icons', 'js', 'supabase', 'tools', 'worker', // the folders
+  'admin', 'css', 'docs', 'fonts', 'icons', 'js', 'supabase', 'tools', 'worker', // the folders
   'manifest', 'robots', 'sitemap', 'sw', 'readme', // other files and the Worker's addresses
   'home', 'news', 'visit', 'pull-list', // built-in pages' names
 ];

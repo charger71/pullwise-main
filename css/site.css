@@ -1586,6 +1586,20 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 .account-saved-list .account-line__controls, .account-saved-list .account-move, .account-saved-list .form-error { display: none; }
 .app-install__close { flex: none; width: var(--tap); height: var(--tap); border: 0; background: none; color: var(--muted); font-size: var(--fs-lede); cursor: pointer; }
 .app-install__close:hover { color: var(--ink); }
+/* Asking for notifications (js/app-push-prompts.js): a card at the top of My List, and one that slides up over the tab
+   bar after an add or a follow. */
+.push-banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-12); margin: 0 0 var(--sp-16); padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
+.push-banner__text { flex: 1; margin: 0; font-size: var(--fs-sm); }
+.push-banner .btn { flex: none; }
+.push-banner__close { flex: none; width: var(--tap); height: var(--tap); border: 0; background: none; color: var(--muted); font-size: var(--fs-lede); cursor: pointer; }
+.push-banner__close:hover { color: var(--ink); }
+.push-banner [data-push-prompt-status] { flex-basis: 100%; }
+.push-banner [data-push-prompt-status]:empty { display: none; }
+.push-nudge { position: fixed; left: var(--sp-16); right: var(--sp-16); bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom) + var(--sp-12)); z-index: var(--z-chat); max-width: 480px; margin-inline: auto; padding: var(--sp-16); background: var(--surface); border: var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); animation: sheet-up var(--dur-sheet) var(--ease-sheet); }
+.push-nudge__text { margin: 0; font-size: var(--fs-sm); }
+.push-nudge__actions { display: flex; flex-wrap: wrap; gap: var(--sp-12); margin-top: var(--sp-12); }
+.push-nudge .form-error { margin: var(--sp-8) 0 0; }
+@media (prefers-reduced-motion: reduce) { .push-nudge { animation: none; } }
 /* Signed out, or finishing a first sign-in, the app is just the sign-in form: no tab bar or search (js/pages/app.js). */
 .app-locked .tab-bar, .app-locked .app-bar__search { display: none; }
 .app-locked .app-main { padding-bottom: calc(var(--sp-24) + env(safe-area-inset-bottom)); }
