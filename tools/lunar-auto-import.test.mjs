@@ -1,6 +1,6 @@
 // node tools/lunar-auto-import.test.mjs
 import assert from 'node:assert/strict';
-import { sheetList, sheetUrl, sheetName, summary, FOC_WEEKS, RELEASE_WEEKS } from './lunar-auto-import.mjs';
+import { sheetList, switchSheetList, sheetUrl, sheetName, summary, FOC_WEEKS, RELEASE_WEEKS, SWITCH_BACK_WEEKS } from './lunar-auto-import.mjs';
 
 // Which sheets: FOC Mondays from today, then this week's Wednesday (even if passed) and the next 4
 const tue = sheetList('2026-11-03'); // a Tuesday
@@ -12,6 +12,13 @@ assert.equal(sheetList('2026-11-09')[0].date, '2026-11-09', 'on a Monday, that d
 assert.equal(sheetList('2026-11-06').find((s) => s.kind === 'release').date, '2026-11-04', 'on a Friday, the Wednesday just gone');
 assert.equal(sheetList('2026-11-04').find((s) => s.kind === 'release').date, '2026-11-04', 'on a Wednesday, that day');
 assert.equal(sheetList('2026-11-08').find((s) => s.kind === 'release').date, '2026-11-11', 'on a Sunday, the coming Wednesday');
+
+// --switch-dc: the usual sheets, then past FOC Mondays, most recent first
+const back = switchSheetList('2026-11-22'); // a Sunday
+assert.equal(back.length, FOC_WEEKS + RELEASE_WEEKS + SWITCH_BACK_WEEKS);
+assert.deepEqual(back.slice(FOC_WEEKS + RELEASE_WEEKS, FOC_WEEKS + RELEASE_WEEKS + 2), [{ kind: 'foc', date: '2026-11-16' }, { kind: 'foc', date: '2026-11-09' }]);
+assert.equal(back[0].date, '2026-11-23');
+assert.equal(switchSheetList('2026-11-23')[FOC_WEEKS + RELEASE_WEEKS].date, '2026-11-16', 'on a Monday, the one before');
 
 // Links and names
 assert.equal(sheetUrl({ kind: 'foc', date: '2026-11-09' }), 'https://www.lunardistribution.com/home/productdatafile?foc=11/9/2026');
@@ -30,5 +37,8 @@ assert.equal(summary([
 assert.equal(summary([
   { sheet: 'Release Nov 18', added: 0, updated: 5, unchanged: 474, skipped: 84, upcClashes: ['one', 'two'] },
 ]), "Lunar, 1 of 1 sheets: 0 added, 5 refreshed, 474 unchanged, 84 skipped, 2 kept their UPC (the sheet's is on another title)");
+
+assert.equal(summary([{ sheet: 'FOC Nov 23', added: 3, updated: 0, unchanged: 10, skipped: 1, switched: 2 }]),
+  'Lunar, 1 of 1 sheets: 3 added, 0 refreshed, 10 unchanged, 1 skipped, 2 DC titles switched from PRH');
 
 console.log('lunar auto-import tests passed');

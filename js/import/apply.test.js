@@ -2,12 +2,13 @@
 // (items_upc_idx allows each UPC once): it keeps its stored UPC and everything else still refreshes.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { planImport, applyImport, upcClashLine, duplicateTitle, unchanged, isPlaceholderCover, refreshPlaceholderCovers, fillMissingCovers } from './apply.js';
+import { planImport, applyImport, upcClashLine, duplicateTitle, unchanged, isPlaceholderCover, refreshPlaceholderCovers, fillMissingCovers, takesOver } from './apply.js';
 
 /** Just enough of the Supabase client for planImport and applyImport, over rows in memory. */
 function fakeClient(rows) {
   const upserts = [];
   const inserts = [];
+  const updates = [];
   const from = (table) => ({
     select() {
       const filters = [];
@@ -20,8 +21,9 @@ function fakeClient(rows) {
     },
     insert: async (batch) => (inserts.push(...batch), { data: null, error: null }),
     upsert: async (batch) => (upserts.push(...batch), { data: null, error: null }),
+    update: (patch) => ({ eq: async (_k, id) => (updates.push({ id, ...patch }), { data: null, error: null }) }),
   });
-  return { from, upserts, inserts };
+  return { from, upserts, inserts, updates };
 }
 
 const stored = () => [
@@ -161,6 +163,41 @@ assert.equal(prhSb.inserts[0].cover_url, null);
   assert.deepEqual(updates.map((u) => u.id), [1]);
   assert.match(updates[0].cover_url, /covers\/lunar\/HYDE-hires-[0-9a-f]{10}\.jpg$/);
   assert.deepEqual(fetched.sort(), ['https://lunar.test/hires/HYDE.jpg', 'https://lunar.test/hires/NONE.jpg']);
+}
+
+// Lunar takes over DC titles PRH listed first: the same row becomes Lunar's. Anything else stays with the first listing.
+{
+  const rows = [
+    { id: 10, distributor: 'prh', sku: '9781799509967', isbn: '9781799509967', upc: null, title: 'Absolute Green Lantern Vol. 3 (Paperback)', publisher: 'DC', cover_url: 'c' },
+    { id: 11, distributor: 'prh', sku: '9781534300001', isbn: '9781534300001', upc: null, title: 'Saga Vol. 1', publisher: 'Image', cover_url: 'c' },
+    { id: 12, distributor: 'lunar', sku: 'OTHER', upc: '761941', title: 'Holds the UPC', publisher: 'DC', cover_url: 'c' },
+    { id: 13, distributor: 'prh', sku: '9781799500001', isbn: '9781799500001', upc: null, title: 'Sandman (Paperback)', publisher: 'DC Vertigo', cover_url: 'c' },
+  ];
+  const lunarSheet = [
+    { sku: '0726DC0265', isbn: '9781799509967', title: 'ABSOLUTE GREEN LANTERN TP VOL 03 ANOMALIES', publisher: 'DC', price: 17.99 },
+    { sku: '0726IM0001', isbn: '9781534300001', title: 'SAGA TP VOL 01', publisher: 'IMAGE' },
+    { sku: '0726DC0300', isbn: '9781799500001', upc: '761941', title: 'SANDMAN TP', publisher: 'DC' },
+  ];
+  const plan = await planImport(fakeClient(rows), { distributor: 'lunar', items: lunarSheet });
+  assert.deepEqual(plan.takeovers.map((i) => i.sku), ['0726DC0265', '0726DC0300']);
+  assert.deepEqual(plan.duplicates.map((i) => i.sku), ['0726IM0001'], 'a non-DC title stays with PRH');
+  assert.equal('upc' in plan.takeovers[1], false, "a UPC another title holds isn't taken over");
+
+  const sb = fakeClient(rows);
+  const r = await applyImport(sb, { distributor: 'lunar', items: lunarSheet, skipped: [] }, { today: '2026-11-22', fetchRemote: async () => null });
+  assert.equal(r.switched, 2);
+  assert.equal(r.added, 0);
+  assert.equal(sb.inserts.length, 0);
+  assert.deepEqual(sb.updates.map((u) => [u.id, u.distributor, u.sku]), [[10, 'lunar', '0726DC0265'], [13, 'lunar', '0726DC0300']]);
+  assert.equal(sb.updates[0].title, 'ABSOLUTE GREEN LANTERN TP VOL 03 ANOMALIES');
+  assert.equal(sb.updates[0].retail_price, 17.99);
+  assert.equal('cover_url' in sb.updates[0], false, 'no Lunar picture: the PRH cover stays');
+  assert.match(r.switchedTitles[0], /^0726DC0265 ABSOLUTE GREEN LANTERN .* \(was PRH\)$/);
+
+  assert.equal(takesOver('prh', { publisher: 'DC' }, { distributor: 'lunar', publisher: 'DC' }), false, 'PRH never takes over from Lunar');
+  assert.equal(takesOver('lunar', { publisher: 'MARVEL' }, { distributor: 'prh', publisher: 'Marvel' }), false);
+  assert.equal(takesOver('lunar', { publisher: 'DC' }, { distributor: 'prh', publisher: 'DC Black Label' }), true);
+  assert.equal(takesOver('lunar', { publisher: 'DCW' }, { distributor: 'prh', publisher: 'DCW' }), false);
 }
 
 // A new title whose UPC another title holds is left out, and named for Import → Left Out.
