@@ -12,6 +12,7 @@
 //
 //   node tools/prh-auto-import.mjs              # import
 //   node tools/prh-auto-import.mjs --dry-run    # fetch and count what would be added or refreshed, change nothing
+//   node tools/prh-auto-import.mjs --refresh-covers   # only swap "Cover Coming Soon" covers for real ones, any date
 
 import { fileURLToPath } from 'node:url';
 import { parsePrhApi } from '../js/import/distributors.js';
@@ -54,6 +55,16 @@ export function summary(r) {
   return `PRH, next ${WEEKS} weeks: ${parts.join(', ')}`;
 }
 
+/** PRH's address for a title's cover (the same one parsePrhApi gives new titles). */
+const prhCoverUrl = (sku) => `https://images.penguinrandomhouse.com/cover/${encodeURIComponent(sku)}`;
+
+/** The line for Import → Recent Runs after --refresh-covers. */
+export function refreshSummary(r) {
+  const parts = [`${r.placeholders} of ${r.checked} covers were "Cover Coming Soon"`, `${r.replaced} replaced`, `${r.stillComing} still coming`];
+  if (r.errors.length) parts.push(`${r.errors.length} failed`);
+  return `PRH cover refresh: ${parts.join(', ')}`;
+}
+
 const scrub = (s) => String(s).replace(/api_key=[^&\s)"']*/g, 'api_key=…');
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -63,6 +74,21 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const shop = catalogShop();
     const key = env('PRH_API_KEY');
     sb = await catalogClient(shop);
+    if (process.argv.includes('--refresh-covers')) {
+      const { refreshPlaceholderCovers } = await import('../js/import/apply.js');
+      const result = await refreshPlaceholderCovers(sb, {
+        distributor: 'prh',
+        coverUrl: prhCoverUrl,
+        fetchRemote: ({ url }) => download(url),
+        makeThumb: (_bytes, _type, item) => download(`${item.cover.url}?width=560`),
+        putMedia: r2PutMedia(shop),
+      });
+      const message = refreshSummary(result);
+      console.log(`✓ ${message}`);
+      result.errors.slice(0, 20).forEach((e) => console.log(`  cover: ${e}`));
+      await logRun(sb, { job: 'prh_import', title: 'PRH cover refresh', ok: true, message, detail: { ...result, errors: result.errors.slice(0, 50) } });
+      process.exit(0);
+    }
     const today = await catalogToday(sb);
     const records = await fetchRecords(weekRanges(today), key, async (url) => {
       const res = await fetch(url, { headers: { Accept: 'application/json' } });

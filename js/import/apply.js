@@ -105,6 +105,20 @@ export async function planImport(sb, { distributor, items }) {
   return { existing, fresh, known, duplicates, upcClashes };
 }
 
+// PRH's "Cover Coming Soon" pictures (SHA-1 of the bytes), served at a title's cover address until the real one
+// is up. Saving one as the cover would keep it for good, since only titles without a cover are fetched again, so
+// one is taken as no cover yet, stored or freshly downloaded, and the next import tries again.
+const PLACEHOLDER_COVERS = ['88f89a9e1a6667e18528f8031425f8c85a1a4bde', '48fb1ed2e323dd5c0ca2c56d46845ce240899620'];
+
+/** Is this stored cover address one of PRH's placeholders? Cover file names carry the picture's hash (uploadCover). */
+export function isPlaceholderCover(url) {
+  const hash = /-([0-9a-f]{10})\.\w+$/.exec(url ?? '')?.[1];
+  return !!hash && PLACEHOLDER_COVERS.some((h) => h.startsWith(hash));
+}
+
+/** Does this stored row have a real cover (not none, not a placeholder)? */
+const hasCover = (row) => !!row?.cover_url && !isPlaceholderCover(row.cover_url);
+
 const isPng = (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
 
 async function sha1(bytes) {
@@ -142,7 +156,9 @@ async function uploadCover(sb, distributor, item, ctx) {
   const ext = extOf(got.type);
   // A content fingerprint in the name gives every new image a new URL, so browser
   // and CDN caches (a week) never keep showing the picture it replaced.
-  const hash = (await sha1(got.bytes)).slice(0, 10);
+  const fullHash = await sha1(got.bytes);
+  if (PLACEHOLDER_COVERS.includes(fullHash)) return null;
+  const hash = fullHash.slice(0, 10);
   const path = `covers/${distributor}/${item.sku.replace(/[^\w.-]/g, '_')}-${got.hires ? 'hires-' : ''}${hash}.${ext}`;
   const put = ctx.putMedia ?? putMedia;
   const url = await put(sb, path, got.bytes, { contentType: got.type, upsert: true, cacheControl: '604800' });
@@ -155,6 +171,47 @@ async function uploadCover(sb, distributor, item, ctx) {
     thumbUrl = await put(sb, thumbPath, thumb.bytes, { contentType: thumb.type, upsert: true, cacheControl: '604800' });
   }
   return { url, thumbUrl };
+}
+
+/**
+ * Swap PRH "Cover Coming Soon" covers for the real ones, whatever the title's on-sale date (the daily import only
+ * sees the next 13 weeks). Finds them by the hash in the file name, and by downloading the few covers saved before
+ * names carried one. A title whose real cover still isn't up keeps its placeholder; it's counted as still coming.
+ * @param opts { distributor, coverUrl(sku) → address of the title's cover at the source, fetchRemote, makeThumb,
+ *               putMedia, onProgress }
+ * @returns { checked, placeholders, replaced, stillComing, errors }
+ */
+export async function refreshPlaceholderCovers(sb, opts) {
+  const { distributor } = opts;
+  const progress = opts.onProgress ?? (() => {});
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const page = await must(sb.from('items').select('id,sku,title,cover_url').eq('distributor', distributor).not('cover_url', 'is', null).order('id').range(from, from + 999));
+    rows.push(...page);
+    if (page.length < 1000) break;
+  }
+  const unnamed = rows.filter((r) => !/-[0-9a-f]{10}\.\w+$/.test(r.cover_url));
+  const placeholders = rows.filter((r) => isPlaceholderCover(r.cover_url));
+  const errors = [];
+  await pool(unnamed, 6, async (r) => {
+    const got = await opts.fetchRemote({ url: r.cover_url }).catch(() => null);
+    if (got?.bytes && PLACEHOLDER_COVERS.includes(await sha1(got.bytes))) placeholders.push(r);
+  });
+  let replaced = 0;
+  let done = 0;
+  await pool(placeholders, 6, async (r) => {
+    try {
+      const uploaded = await uploadCover(sb, distributor, { sku: r.sku, title: r.title, cover: { url: opts.coverUrl(r.sku) } }, opts);
+      if (uploaded) {
+        await must(sb.from('items').update({ cover_url: uploaded.url, cover_thumb_url: uploaded.thumbUrl ?? null }).eq('id', r.id));
+        replaced++;
+      }
+    } catch (err) {
+      errors.push(`${r.title} (${r.sku}): ${err.message}`);
+    }
+    progress(`Covers ${++done} of ${placeholders.length}`);
+  });
+  return { checked: rows.length, placeholders: placeholders.length, replaced, stillComing: placeholders.length - replaced - errors.length, errors };
 }
 
 /** A UPC clash for the logs: which title kept its UPC, and who holds the one the sheet gave it. */
@@ -179,8 +236,8 @@ export async function applyImport(sb, parsed, opts) {
   const first = await planImport(sb, { distributor, items });
   const categories = new Map((await must(sb.from('categories').select('id,slug'))).map((c) => [c.slug, c.id]));
 
-  // Covers: for new titles and for known titles still missing one.
-  const needCover = [...first.fresh, ...first.known].filter((i) => !first.existing.get(i.sku)?.cover_url);
+  // Covers: for new titles and for known titles still missing one (or showing a placeholder).
+  const needCover = [...first.fresh, ...first.known].filter((i) => !hasCover(first.existing.get(i.sku)));
   const coverUrls = new Map();
   const thumbUrls = new Map();
   const coverErrors = [];
@@ -202,7 +259,7 @@ export async function applyImport(sb, parsed, opts) {
   // import in another tab, or by hand) are updated rather than inserted a second time.
   const { existing, fresh, known, duplicates, upcClashes } = await planImport(sb, { distributor, items });
   // A title that gained a cover in the meantime keeps it.
-  for (const i of known) if (existing.get(i.sku)?.cover_url) (coverUrls.delete(i.sku), thumbUrls.delete(i.sku));
+  for (const i of known) if (hasCover(existing.get(i.sku))) (coverUrls.delete(i.sku), thumbUrls.delete(i.sku));
 
   // undefined = the sheet doesn't provide this field: leave the stored value
   // alone (null still clears it). New rows just get NULL for it.
@@ -258,7 +315,7 @@ export async function applyImport(sb, parsed, opts) {
  * Fields the sheet doesn't provide (undefined) don't count.
  */
 export function unchanged(item, row) {
-  if (!row?.cover_url) return false;
+  if (!hasCover(row)) return false;
   return SYNCED.every((k) => {
     if (item[k] === undefined) return true;
     const a = item[k] ?? null;
