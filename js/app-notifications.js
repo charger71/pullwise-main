@@ -83,6 +83,8 @@ export async function turnOffPush(sb, from = null) {
 /** What to tell the customer when turning notifications on failed. */
 export const pushError = (err) => (err?.code ? pull.customerMessage(err) : err?.message || 'Notifications couldn’t be turned on. Please try again.');
 
+let listening = null; // the current settings section's CHANGED_EVENT listener (an AbortController)
+
 /** Fill `host` with the notification settings for `customer` (its push_* columns), and keep it current. */
 export async function setupNotifications(host, sb, customer) {
   const say = (text, bad = false) => ($('[data-push-status]', host).innerHTML = text ? `<p class="${bad ? 'form-error' : 'account-saved'}" role="${bad ? 'alert' : 'status'}">${esc(text)}</p>` : '');
@@ -145,8 +147,11 @@ export async function setupNotifications(host, sb, customer) {
     }
   }
 
-  // Turned on or off somewhere else in the app (the prompts on My List): show where things stand now.
-  addEventListener(CHANGED_EVENT, (e) => e.detail?.from !== host && render());
+  // Turned on or off somewhere else in the app (the prompts on My List): show where things stand now. The page is drawn
+  // again on every refresh, so the last section's listener goes first.
+  listening?.abort();
+  listening = new AbortController();
+  addEventListener(CHANGED_EVENT, (e) => e.detail?.from !== host && render(), { signal: listening.signal });
 
   host.addEventListener('click', async (e) => {
     const on = e.target.closest('[data-push-on]');

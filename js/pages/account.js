@@ -1068,6 +1068,7 @@ async function setupFollowing(sb, customerId, seenBefore) {
     try {
       if (btn.dataset.fs && !(await confirmSeriesFollow(btn.dataset.fs, { allCovers: btn.dataset.covers === 'all' }))) return void (btn.disabled = false);
       const { added } = btn.dataset.fs ? await pull.followSeries(btn.dataset.fs, 1, btn.dataset.covers === 'all') : await pull.followArtist(btn.dataset.fa, btn.dataset.role);
+      nudge({ kind: 'follow', label: btn.dataset.fs ? nameFromKey(btn.dataset.fs) : btn.dataset.fa });
       // The results redraw with "✓ Following" (pull.onChange); focus stays in the search.
       if (btn.isConnected) btn.innerHTML = `${btnIcon('on')}Following`;
       if (!results.contains(document.activeElement)) input.focus();
