@@ -18,6 +18,7 @@ import { followedSeries, discountFor, totals, tiersFrom } from '../discount.js';
 import { setBadge, saveList, savedList, forgetList } from '../app-device.js';
 import { enableSwipeRemove } from '../app-swipe.js';
 import { showPickupFull } from '../app-pickup.js';
+import { nudge } from '../push-nudge.js';
 
 const root = $('#account');
 const APP = document.body.dataset.page === 'app';
@@ -394,6 +395,9 @@ async function signedIn(sb, user) {
     import('../app-notifications.js')
       .then((m) => m.setupNotifications($('[data-push]', root), sb, customer))
       .catch((err) => console.error('Notification settings failed to load', err));
+    import('../app-push-prompts.js')
+      .then((m) => m.setupPushPrompts({ root, sb, welcomeShown: !!$('[data-welcome]', root) }))
+      .catch((err) => console.error('Notification prompts failed to load', err));
   }
   setupFollowing(sb, customer.id, seenBefore);
   if (APP) watchHot(sb, customer.id, seenBefore);
@@ -417,6 +421,7 @@ async function followFromLink(sb, customerId, seenBefore) {
   try {
     if (!(await confirmSeriesFollow(key, { label: name }))) return;
     const { added } = await pull.followSeries(key);
+    nudge({ kind: 'follow', label: name });
     say(`You’re following <strong>${esc(name)}</strong>. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.'}`);
     loadOrders(sb, customerId, seenBefore);
   } catch (err) {
@@ -446,7 +451,7 @@ const WELCOME = `
       <ol class="app-welcome__steps">
         <li><strong>Follow what you read.</strong> Tap the search button at the top, find a series or artist and tap Follow.</li>
         <li><strong>New issues land on your list by themselves,</strong> until the shop’s order cutoff. Take off any you don’t want.</li>
-        <li><strong>Hear when they’re in.</strong> Turn on notifications on the Account tab.</li>
+        <li><strong>Hear when they’re in.</strong> <span data-push-welcome>Turn on notifications on the Account tab.</span></li>
       </ol>
       <div class="app-welcome__actions">
         <button class="btn btn--primary" type="button" data-search-open>Follow a series</button>
