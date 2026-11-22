@@ -17,6 +17,7 @@ await initCatalog({
   statuses: ['pre_order'],
   reservable: true,
   order: 'foc',
+  sorts: ['foc', 'title', 'title_desc', 'released_asc', 'price', 'price_desc', 'publisher'],
   filters: [
     publisherFilter(['pre_order']),
     { name: 'category', label: 'Category', options: categoryOptions(), multiple: true },

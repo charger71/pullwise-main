@@ -182,6 +182,13 @@ export const seenItems = new Map();
 export const topBadge = () =>
   '<span class="top-badge" title="One of our 10 most reserved titles"><span class="top-badge__top">Top</span><span class="top-badge__num" aria-hidden="true">10</span><span class="visually-hidden"> 10 most reserved</span></span>';
 
+/**
+ * Top 10 and Staff Pick as small labels beside the status badge. Only list view shows them (.grid--list in site.css),
+ * where the cover is too small for the badges on it.
+ */
+const listTags = (item) =>
+  `${item.top10 ? '<span class="list-tag list-tag--top" title="One of our 10 most reserved titles">Top 10</span>' : ''}${item.staff_pick ? '<span class="list-tag list-tag--pick"><span aria-hidden="true">★</span> Staff Pick</span>' : ''}`;
+
 export function itemCard(item, { reservable = false, level = 3, followSeries = false } = {}) {
   seenItems.set(item.id, item);
   const meta = [item.publisher, item.release_date && `Out ${fmtDate(item.release_date)}`, price(item.price), item.mature && 'Mature readers'].filter(Boolean);
@@ -194,7 +201,7 @@ export function itemCard(item, { reservable = false, level = 3, followSeries = f
         ${item.staff_pick ? '<span class="pick-badge"><span aria-hidden="true">★</span> Staff Pick</span>' : ''}
       </div>
       <div class="card__body">
-        <div>${badge(item.status)}</div>
+        <div class="card__badges">${badge(item.status)}${listTags(item)}</div>
         ${collectorBadges(item)}
         <h${level} class="card__title"><button class="card__title-open" type="button" data-title-open="${item.id}">${esc(itemTitle(item))}<span class="visually-hidden"> (details)</span></button></h${level}>
         ${item.variant ? `<p class="card__variant">${esc(item.variant)}</p>` : ''}

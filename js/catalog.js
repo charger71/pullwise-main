@@ -4,6 +4,7 @@
 import { getItems, getCategories, getPublishers, getSettings, searchSeries, getFocDates, logSearchWhenSettled, cancelSearchLog } from './data.js';
 import { $, esc, STATUS, ITEM_BADGES, fmtDate, lastReserveDay } from './site.js';
 import { renderGrid, itemCard, enableReservations, seriesCards, enableSeriesFollow } from './components.js';
+import { listToolbar, sortFromUrl, SORTS } from './list-view.js';
 
 /**
  * @param {object} o
@@ -15,9 +16,10 @@ import { renderGrid, itemCard, enableReservations, seriesCards, enableSeriesFoll
  *   `pinned` = how many leading options to set apart above a divider.
  *   `options` and `pinned` may be promises: the first page of titles loads while they do.
  * @param {boolean}  o.followSeries  show "+ Follow Series" on cards (New Arrivals)
+ * @param {string[]} o.sorts  the sort select's choices (keys of SORTS in js/list-view.js), the page's usual order first
  * @param {(values:object)=>object} o.toQuery maps filter values → getItems() args
  */
-export async function initCatalog({ statuses, reservable, order, filters, toQuery, followSeries = false }) {
+export async function initCatalog({ statuses, reservable, order, sorts, filters, toQuery, followSeries = false }) {
   const form = $('#filters');
   const grid = $('#results');
   const countEl = $('#results-count');
@@ -28,7 +30,11 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
   let total = 0;
   let query = {};
   let seq = 0;
-  const queryFor = (values) => ({ statuses, order, q: values.q, ...toQuery(values) });
+  let timer;
+  // The sort select (js/list-view.js) changes the order; its first choice is the page's usual one.
+  const sortOrder = (key) => (key === sorts[0] ? order : SORTS[key][0]);
+  let currentOrder = sortOrder(sortFromUrl(sorts));
+  const queryFor = (values) => ({ statuses, order: currentOrder, q: values.q, ...toQuery(values) });
   // Start the first page from the URL's filters now, while the filter options load.
   const allFilters = filters;
   const urlValues = { q: params.get('q') ?? '' };
@@ -73,6 +79,18 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
   }
 
   enableReservations(grid, (id) => items.find((i) => i.id === id));
+  listToolbar({
+    grid,
+    countEl,
+    page: document.body.dataset.page,
+    sorts,
+    onSort: (_, key) => {
+      currentOrder = sortOrder(key);
+      clearTimeout(timer);
+      more.disabled = true;
+      load();
+    },
+  });
 
   const more = document.createElement('button');
   more.className = 'btn btn--ghost show-more';
@@ -133,7 +151,6 @@ export async function initCatalog({ statuses, reservable, order, filters, toQuer
     }
   }
 
-  let timer;
   form.addEventListener('input', (e) => {
     if (e.target.closest('.multi__search')) return; // filters the option list only
     clearTimeout(timer);
