@@ -2,7 +2,7 @@
 // (items_upc_idx allows each UPC once): it keeps its stored UPC and everything else still refreshes.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { planImport, applyImport, upcClashLine, duplicateTitle, unchanged, isPlaceholderCover, refreshPlaceholderCovers, fillMissingCovers, takesOver } from './apply.js';
+import { planImport, applyImport, upcClashLine, duplicateTitle, unchanged, withoutUnchanged, isPlaceholderCover, refreshPlaceholderCovers, fillMissingCovers, takesOver } from './apply.js';
 
 /** Just enough of the Supabase client for planImport and applyImport, over rows in memory. */
 function fakeClient(rows) {
@@ -91,6 +91,32 @@ assert.equal('cover_url' in prhSb.upserts[0], false);
 prhSb = fakeClient([]);
 await applyImport(prhSb, prhSheet('NEW1'), { today: '2026-11-21', fetchRemote: async () => ({ bytes: comingSoon, type: 'image/jpeg' }), putMedia: putMediaFake });
 assert.equal(prhSb.inserts[0].cover_url, null);
+
+// The daily run: a title stored exactly as the sheet lists it but still without a cover counts as unchanged and
+// isn't saved again (shops would copy it each day). Its cover is still looked for, and saved alone when it turns up.
+{
+  const coverless = () => [{ id: 9, distributor: 'prh', sku: 'CAP19B', title: 'CAP', cover_url: null }];
+  const todo = await withoutUnchanged(fakeClient(coverless()), prhSheet('CAP19B'));
+  assert.equal(todo.unchanged, 1);
+  assert.equal(todo.items[0].coverOnly, true);
+  const changed = await withoutUnchanged(fakeClient(coverless()), { ...prhSheet('CAP19B'), items: [{ ...prhSheet('CAP19B').items[0], title: 'CAP NEW' }] });
+  assert.equal(changed.unchanged, 0, 'a changed title is refreshed as before');
+  assert.equal(changed.items[0].coverOnly, undefined);
+
+  let sb = fakeClient(coverless());
+  let result = await applyImport(sb, todo, { today: '2026-11-21', fetchRemote: async () => ({ bytes: comingSoon, type: 'image/jpeg' }), putMedia: putMediaFake });
+  assert.equal(result.updated, 0, 'not counted as refreshed');
+  assert.equal(result.coversMissing, 1);
+  assert.equal(sb.upserts.length + sb.updates.length, 0, 'nothing saved');
+
+  sb = fakeClient(coverless());
+  result = await applyImport(sb, todo, { today: '2026-11-21', fetchRemote: async () => ({ bytes: realCover, type: 'image/jpeg' }), putMedia: putMediaFake });
+  assert.equal(result.updated, 0);
+  assert.equal(result.covers, 1);
+  assert.equal(sb.upserts.length, 0);
+  assert.deepEqual(Object.keys(sb.updates[0]).sort(), ['cover_thumb_url', 'cover_url', 'id'], 'only the picture is saved');
+  assert.equal(sb.updates[0].id, 9);
+}
 
 // refreshPlaceholderCovers: every placeholder, whatever the date, including covers saved before names had a hash.
 {
