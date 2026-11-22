@@ -21,3 +21,7 @@ verify_jwt = false
 
 [functions.prh-sync]
 verify_jwt = false
+
+# Staff reports from the daily Actions: the function itself checks for the project's service key.
+[functions.report-email]
+verify_jwt = false

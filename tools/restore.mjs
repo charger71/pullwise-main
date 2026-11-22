@@ -9,6 +9,11 @@
 //   default     adds the backed-up rows and skips any whose key already exists (nothing is overwritten)
 //   --replace   first DELETES every row in the table, then loads the backup (use after data was lost or damaged)
 //
+// Restoring titles (items) ends with restore-catalog-sync-reset.sql, which starts the shop's catalog sync over: restored
+// titles come back unlinked from the master catalog, and without it the sync would never send what the catalog added or
+// changed since the backup. The sync position (catalog_sync_state) itself is never restored. Admin -> Staff -> Backup
+// does the same (20270409000000_restore_resyncs_catalog.sql).
+//
 // Each file is its own transaction, with triggers and foreign-key checks switched off while it loads, so the audit
 // log and "updated" columns are not touched. Identity counters are moved past the restored ids. The sign-in
 // list (auth_users) is NOT restored: it is there for reference (customers sign up again; staff are re-added
@@ -66,6 +71,9 @@ export function tableSql(name, meta, rows, { replace = false } = {}) {
 
 // Parents before children, so the files also work in order when foreign keys are checked.
 const FIRST = ['staff', 'settings', 'categories', 'customers', 'items', 'pages', 'events', 'posts', 'surveys'];
+// Never restored: the backup's catalog sync position is an older one, or another shop's.
+const NOT_RESTORED = ['auth_users', 'catalog_sync_state'];
+export const CATALOG_SYNC_RESET = 'begin;\nupdate public.catalog_sync_state set cursor_at = null, cursor_id = null where id = 1;\ncommit;\n';
 
 export function main(argv) {
   const [dir, out] = argv.filter((a) => !a.startsWith('--'));
@@ -86,7 +94,7 @@ export function main(argv) {
     rowsOf = (n) => JSON.parse(gunzipSync(readFileSync(join(dir, `${n}.json.gz`))).toString('utf8'));
   }
   mkdirSync(out, { recursive: true });
-  const names = Object.keys(manifest.tables).filter((n) => n !== 'auth_users' && (!only || only.includes(n)));
+  const names = Object.keys(manifest.tables).filter((n) => !NOT_RESTORED.includes(n) && (!only || only.includes(n)));
   names.sort((a, b) => (FIRST.indexOf(a) + 1 || 99) - (FIRST.indexOf(b) + 1 || 99) || a.localeCompare(b));
   const files = [];
   for (const name of names) {
@@ -97,6 +105,11 @@ export function main(argv) {
       writeFileSync(file, sql);
       files.push(file);
     });
+  }
+  if (names.includes('items')) {
+    const file = join(out, 'restore-catalog-sync-reset.sql');
+    writeFileSync(file, CATALOG_SYNC_RESET);
+    files.push(file);
   }
   writeFileSync(join(out, 'restore-all.txt'), files.join('\n') + '\n');
   console.log(`Wrote ${files.length} files to ${out}${replace ? ' (REPLACE mode: each file deletes the table first)' : ''}`);

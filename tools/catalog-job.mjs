@@ -78,6 +78,58 @@ export function r2PutMedia(shop) {
   };
 }
 
+/**
+ * Replace a source's list in Import → Left Out (rows from js/import/left-out.js leftOutRows). A failure here doesn't
+ * fail the import: the titles are already saved, so it is only reported in the run's log.
+ */
+export async function saveLeftOut(sb, source, rows) {
+  const { data, error } = await sb.rpc('catalog_replace_left_out', { p_source: source, p_rows: rows });
+  if (error) {
+    console.log(`  left-out list not saved: ${error.message}`);
+    return null;
+  }
+  return data;
+}
+
+/**
+ * Send a staff report by email from the master catalog's server: its report-email function sends it through Resend
+ * from reports@pullwise.shop (its RESEND_API_KEY and REPORT_FROM secrets) and records it in the catalog's
+ * Admin → Emails. `sb` is the catalog's service client, whose key the function checks. Skipped when there's no
+ * recipient; a failure is logged and returned, never thrown, so the job that sends it still finishes.
+ * @param mail  { subject, html, text, attachments? [{ filename, text }] }
+ * @returns 'sent' | 'skipped' | 'failed'
+ */
+export async function sendEmail(sb, { to: toList, mail, kind, sentBy, label }) {
+  const to = (toList ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (!to.length) {
+    console.log(`  ${label} not sent: no recipient`);
+    return 'skipped';
+  }
+  const body = {
+    to, subject: mail.subject, html: mail.html, text: mail.text, kind, sent_by: sentBy,
+    attachments: (mail.attachments ?? []).map((a) => ({ filename: a.filename, content: Buffer.from(`\ufeff${a.text}`, 'utf8').toString('base64') })),
+  };
+  let error = null;
+  try {
+    const { error: err } = await sb.functions.invoke('report-email', { body });
+    if (err) error = (await err.context?.json?.().catch(() => null))?.error ?? err.message;
+  } catch (err) {
+    error = err.message;
+  }
+  console.log(error ? `  ${label} not sent: ${error}` : `  ${label} sent to ${to.join(', ')}`);
+  return error ? 'failed' : 'sent';
+}
+
+/**
+ * Email what a run left out (js/import/left-out.js leftOutEmail) to LEFT_OUT_EMAIL, with the list as a CSV attachment.
+ * Recorded in the catalog's Admin → Emails as "Left out of the catalog".
+ */
+export const emailLeftOut = (sb, { mail, sentBy }) =>
+  sendEmail(sb, {
+    to: process.env.LEFT_OUT_EMAIL, kind: 'left_out', sentBy, label: 'left-out email',
+    mail: { ...mail, attachments: [{ filename: mail.filename, text: mail.csv }] },
+  });
+
 /** Record a run in job_log (Import → Recent Runs) and the GitHub run's summary. */
 export async function logRun(sb, { job, title, ok, message, detail }) {
   await sb?.from('job_log').insert({ job, ok, message, detail });

@@ -49,7 +49,7 @@ assert.deepEqual(await replaceImpact(isb, ['customers']), impact);
 assert.deepEqual(calls.at(-1), ['restore_replace_impact', { p_tables: ['customers'] }]);
 
 // The audit trail and job log are backed up but never offered for restore.
-for (const t of ['staff', 'staff_audit', 'job_log']) assert.ok(NOT_RESTORED.includes(t), t);
+for (const t of ['staff', 'staff_audit', 'job_log', 'catalog_sync_state']) assert.ok(NOT_RESTORED.includes(t), t);
 assert.ok(!NOT_RESTORED.includes('auth_users')); // customers' sign-ins are restored (first, with their passwords)
 assert.equal(restoreOrder(['customers', 'auth_users', 'items'])[0], 'auth_users');
 assert.ok(!NOT_RESTORED.includes('email_log'));

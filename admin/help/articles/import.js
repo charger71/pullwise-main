@@ -24,5 +24,9 @@ Publishers, series and words to leave out of every import, for things you never 
 
 ![Import → Always Skip](import-skip)
 
+## Left Out (master catalog)
+
+On the master catalog, **Left Out** lists what the daily PRH and Lunar imports didn't take, and why: ratio covers, store and convention exclusives, retailer bundles, titles on the Always Skip list, and titles already in from the other distributor (same UPC or ISBN). Each run replaces its own list, and emails it (with a CSV) to the address set for the daily imports. Search by title or code to find out why a book isn't in the catalog, and **Export CSV** for a spreadsheet.
+
 **Recent Runs** keeps a record of each import.
 `;

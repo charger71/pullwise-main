@@ -3,7 +3,8 @@
 // 8 Mondays bring new titles, and the release sheets for this week and the next 4 Wednesdays catch slipped dates and
 // price changes. Each goes through the same code as Admin → Import (readWorkbook → parseSheet with the catalog's
 // Always Skip list → applyImport): the same skip rules, badges and statuses, and staff-owned fields are never touched.
-// Titles already stored exactly as a sheet lists them are left out, so shops don't copy them again.
+// Titles already stored exactly as a sheet lists them are left out, so shops don't copy them again. What the sheets
+// list but the catalog doesn't take (and why) is listed in Import → Left Out.
 //
 // Covers: Lunar's hi-res picture (anything from 60 KB to 18 MB) shrunk to 1000 px on its long side, as the Import
 // page does, plus the 560 px card copy, both into R2; the small picture in the sheet when there's no hi-res one.
@@ -18,7 +19,8 @@
 
 import { fileURLToPath } from 'node:url';
 import { readWorkbook, parseSheet } from '../js/import/distributors.js';
-import { catalogShop, catalogClient, catalogToday, exclusions, download, r2PutMedia, logRun } from './catalog-job.mjs';
+import { leftOutRows, leftOutEmail } from '../js/import/left-out.js';
+import { catalogShop, catalogClient, catalogToday, exclusions, download, r2PutMedia, logRun, saveLeftOut, emailLeftOut } from './catalog-job.mjs';
 
 export const FOC_WEEKS = 8;
 export const RELEASE_WEEKS = 5;
@@ -85,6 +87,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const putMedia = dryRun ? null : r2PutMedia(shop);
 
     const results = [];
+    // Import → Left Out: every sheet's skipped titles and duplicates, in sheet order (leftOutRows keeps each SKU once).
+    const skipped = [];
+    const duplicates = [];
     for (const sheet of sheetList(today)) {
       const name = sheetName(sheet);
       try {
@@ -106,6 +111,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
           continue;
         }
         if (parsed.distributor !== 'lunar') throw new Error(`doesn't look like a Lunar sheet (${parsed.source ?? parsed.distributor})`);
+        skipped.push(...parsed.skipped);
         const todo = await withoutUnchanged(sb, parsed);
         if (dryRun) {
           const plan = await planImport(sb, todo);
@@ -127,7 +133,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
           putMedia,
           onProgress: () => {},
         });
-        results.push({ sheet: name, ...result, unchanged: todo.unchanged });
+        const { duplicateTitles, ...counts } = result;
+        duplicates.push(...duplicateTitles);
+        results.push({ sheet: name, ...counts, unchanged: todo.unchanged });
         console.log(`${name}: ${result.added} added, ${result.updated} refreshed, ${todo.unchanged} unchanged, ${result.skipped} skipped, ${result.covers} covers`);
         result.upcClashes.forEach((c) => console.log(`  UPC: ${c}`));
         result.coverErrors.slice(0, 10).forEach((e) => console.log(`  cover: ${e}`));
@@ -141,6 +149,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`\n${dryRun ? 'Dry run: ' : '✓ '}${message}`);
     if (dryRun) process.exit(0);
     const failed = results.some((r) => r.error);
+    // A run that couldn't read every sheet keeps the last full list rather than dropping that sheet's titles from it.
+    if (!failed) {
+      const leftOutList = leftOutRows({ skipped }, duplicates);
+      const leftOut = await saveLeftOut(sb, 'lunar', leftOutList);
+      if (leftOut != null) console.log(`  ${leftOut} titles listed in Import → Left Out`);
+      await emailLeftOut(sb, { mail: leftOutEmail({ source: 'lunar', date: today, summary: message, rows: leftOutList }), sentBy: 'Automatic Lunar import' });
+    }
     await logRun(sb, { job: 'lunar_import', title: 'Automatic Lunar import', ok: !failed, message, detail: results.map(({ coverErrors, ...r }) => ({ ...r, coverErrors: coverErrors?.slice(0, 20) })) });
     if (failed) process.exit(1);
   } catch (err) {

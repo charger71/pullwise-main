@@ -205,9 +205,10 @@ export async function nightlyBackupFile(sb, key, fetchFn = fetch) {
 
 /**
  * Tables a restore never writes: the staff list (re-add people under Staff), and
- * the audit trail and job log (so a restore can't rewrite the record of who did what). They are still backed up.
+ * the audit trail and job log (so a restore can't rewrite the record of who did what), and the catalog sync position
+ * (a backup's is an older one; restoring titles starts the sync over instead). They are still backed up.
  */
-export const NOT_RESTORED = ['staff', 'staff_audit', 'job_log', 'restore_stage'];
+export const NOT_RESTORED = ['staff', 'staff_audit', 'job_log', 'restore_stage', 'catalog_sync_state'];
 const CHUNK = 400;
 // Parents before children, for showing the list (the server works out the real load order from the foreign keys).
 const FIRST = ['auth_users', 'settings', 'locations', 'categories', 'customers', 'items', 'pages', 'events', 'posts', 'surveys', 'reservation_orders', 'reservations'];

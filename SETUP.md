@@ -260,6 +260,17 @@ Secrets (`supabase secrets set NAME=value …`; never put these in code):
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | app and staff chat notifications | A pair from `node tools/vapid-keys.mjs`. One pair serves every shop; keep it (a new pair makes every customer turn notifications on again) |
 | `VAPID_SUBJECT` | app notifications | `mailto:` address push services can reach you at, e.g. `mailto:support@yourdomain.com` |
 
+Staff reports go out from the master catalog's own server, as **Pullwise Reports <reports@pullwise.shop>**: its
+`report-email` function sends them through Resend and records them in the catalog's Admin → Emails. The daily PRH and
+Lunar imports email what each run left out of the catalog (with a CSV) to the `LEFT_OUT_EMAIL` repository variable,
+and the **Daily status report** Action (`.github/workflows/status-report.yml`, 11:07 UTC, in by 8 a.m. Eastern) emails
+one report on every shop in `shops.json` to `STATUS_EMAIL`: scheduled jobs, the catalog sync and any catalog titles a
+shop is missing, the nightly backup, emails sent and failed, and the catalog's daily imports, each marked OK, Check or
+Problem. Both variables default to don@getpullwise.com (Settings → Secrets and variables → Actions → Variables; several
+addresses separated by commas). The catalog's project needs a `RESEND_API_KEY` function secret (Supabase → the catalog
+→ Edge Functions → Secrets), from a Resend account with pullwise.shop verified; `REPORT_FROM` there changes the sender.
+Without the key the reports aren't sent and each run's log says so.
+
 App notifications (`push-notify`) go out hourly inside the "Your books are in" email's sending hours, whether or not
 that email is on. The database finds the function next to `weekly-pull-list` and uses the same `CRON_SECRET`, so it needs
 nothing more than the two Vault secrets below. Without the VAPID secrets the app says notifications aren't available yet.

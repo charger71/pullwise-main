@@ -2,7 +2,7 @@
 // (items_upc_idx allows each UPC once): it keeps its stored UPC and everything else still refreshes.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { planImport, applyImport, upcClashLine, unchanged, isPlaceholderCover, refreshPlaceholderCovers } from './apply.js';
+import { planImport, applyImport, upcClashLine, duplicateTitle, unchanged, isPlaceholderCover, refreshPlaceholderCovers } from './apply.js';
 
 /** Just enough of the Supabase client for planImport and applyImport, over rows in memory. */
 function fakeClient(rows) {
@@ -129,5 +129,11 @@ assert.equal(prhSb.inserts[0].cover_url, null);
   assert.ok(updates.every((u) => /covers\/prh\/\w+-[0-9a-f]{10}\.jpg$/.test(u.cover_url)));
   assert.ok(!fetched.includes('https://prh.test/cover/FINE'), 'titles with a real cover are left alone');
 }
+
+// A new title whose UPC another title holds is left out, and named for Import → Left Out.
+plan = await planImport(fakeClient(stored()), { distributor: 'prh', items: [sheet('NEW', '100', { issue_number: '1' }), { sku: 'BOOK', isbn: '978', title: 'Book' }] });
+assert.equal(plan.duplicates.length, 1);
+assert.deepEqual(duplicateTitle(plan.duplicates[0]), { sku: 'NEW', title: 'NEW #1', on: 'Christmas Special #1 CVR A', code: 'UPC 100' });
+assert.equal(duplicateTitle({ sku: 'B', title: 'Book', isbn: '978', existingTitle: { title: 'Book (Hardcover)', isbn: '978' } }).code, 'ISBN 978');
 
 console.log('import apply tests passed');
