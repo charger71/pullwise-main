@@ -780,10 +780,24 @@ address { font-style: normal; margin-bottom: 1em; }
 .list-toolbar .view-toggle { margin: 0; }
 /* List view: one title per row, a small cover at the left. */
 .grid.grid--list { grid-template-columns: minmax(0, 1fr); gap: var(--sp-8); }
+/* A card's text (.card__info) and its buttons (.card__actions) are wrappers only on a grid card, so the body still
+   stacks them with its own gap; a list row puts the buttons at the right (under the text on phones). */
+.card__info, .card__actions { display: contents; }
 .grid--list .card { display: grid; grid-template-columns: 76px minmax(0, 1fr); border-top-width: 1px; border-left: 3px solid var(--red); }
-.grid--list .card__body { padding: var(--sp-10) var(--sp-12); gap: var(--sp-4); }
-.grid--list .card__foot { margin-top: var(--sp-4); padding-top: 0; justify-content: flex-start; }
+.grid--list .card__media { align-self: center; }
+.grid--list .card__body { padding: var(--sp-10) var(--sp-12); gap: var(--sp-8); }
+.grid--list .card__info { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.grid--list .card__actions { display: flex; flex-direction: column; }
+.grid--list .card__foot { margin-top: 0; padding-top: 0; justify-content: flex-start; }
 .grid--list .card .btn { width: auto; }
+@media (min-width: 600px) {
+  .grid--list .card__body { flex-direction: row; align-items: center; gap: var(--sp-16); }
+  .grid--list .card__info { flex: 1; }
+  .grid--list .card__actions { flex: none; width: 220px; }
+  .grid--list .card__foot { flex-direction: column; align-items: stretch; gap: var(--sp-6); }
+  .grid--list .card .btn { width: 100%; }
+  .grid--list .follow-open { margin-top: 0; text-align: center; }
+}
 .grid--list .pick-badge, .grid--list .top-badge { display: none; }
 /* …and shown as small labels beside the status badge instead (list view only). */
 .card__badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4) var(--sp-6); }

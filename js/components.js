@@ -193,6 +193,8 @@ export function itemCard(item, { reservable = false, level = 3, followSeries = f
   seenItems.set(item.id, item);
   const meta = [item.publisher, item.release_date && `Out ${fmtDate(item.release_date)}`, price(item.price), item.mature && 'Mature readers'].filter(Boolean);
   const open = reservable && item.status === 'pre_order' && !cutoffPassed(item);
+  // The buttons: under the text on a grid card, at the right of a list row (.card__actions in site.css).
+  const actions = open ? `<div class="card__foot">${reserveButton(item)}${variantsButton(item)}</div>${followButton(item)}` : followSeries ? seriesFollowLink(item) : '';
   return `
     <article class="card">
       <div class="card__media${item.top10 ? ' has-top-badge' : ''}">
@@ -201,13 +203,15 @@ export function itemCard(item, { reservable = false, level = 3, followSeries = f
         ${item.staff_pick ? '<span class="pick-badge"><span aria-hidden="true">★</span> Staff Pick</span>' : ''}
       </div>
       <div class="card__body">
-        <div class="card__badges">${badge(item.status)}${listTags(item)}</div>
-        ${collectorBadges(item)}
-        <h${level} class="card__title"><button class="card__title-open" type="button" data-title-open="${item.id}">${esc(itemTitle(item))}<span class="visually-hidden"> (details)</span></button></h${level}>
-        ${item.variant ? `<p class="card__variant">${esc(item.variant)}</p>` : ''}
-        <p class="card__meta">${meta.map(esc).join(' · ')}</p>
-        ${reservable ? focLabel(item) : ''}
-        ${open ? `<div class="card__foot">${reserveButton(item)}${variantsButton(item)}</div>${followButton(item)}` : followSeries ? seriesFollowLink(item) : ''}
+        <div class="card__info">
+          <div class="card__badges">${badge(item.status)}${listTags(item)}</div>
+          ${collectorBadges(item)}
+          <h${level} class="card__title"><button class="card__title-open" type="button" data-title-open="${item.id}">${esc(itemTitle(item))}<span class="visually-hidden"> (details)</span></button></h${level}>
+          ${item.variant ? `<p class="card__variant">${esc(item.variant)}</p>` : ''}
+          <p class="card__meta">${meta.map(esc).join(' · ')}</p>
+          ${reservable ? focLabel(item) : ''}
+        </div>
+        ${actions ? `<div class="card__actions">${actions}</div>` : ''}
       </div>
     </article>`;
 }
