@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Daily automatic Lunar import into the master catalog. Lunar's sheets are public links: the FOC sheets for the next
-// 8 Mondays bring new titles, and the release sheets for this week and the next 4 Wednesdays catch slipped dates and
+// 52 Mondays bring new titles (everything Lunar has posted: full sheets about 11 weeks out, a few titles up to half a
+// year, then empty sheets, which are passed over), and the release sheets for this week and the next 4 Wednesdays catch slipped dates and
 // price changes. Each goes through the same code as Admin → Import (readWorkbook → parseSheet with the catalog's
 // Always Skip list → applyImport): the same skip rules, badges and statuses, and staff-owned fields are never touched.
 // Titles already stored exactly as a sheet lists them are left out, so shops don't copy them again. What the sheets
@@ -29,7 +30,7 @@ import { readWorkbook, parseSheet, lunarCover } from '../js/import/distributors.
 import { leftOutRows, leftOutEmail } from '../js/import/left-out.js';
 import { catalogShop, catalogClient, catalogToday, exclusions, download, r2PutMedia, logRun, saveLeftOut, emailLeftOut } from './catalog-job.mjs';
 
-export const FOC_WEEKS = 8;
+export const FOC_WEEKS = 52;
 export const RELEASE_WEEKS = 5;
 export const SWITCH_BACK_WEEKS = 26;
 const SHEETS = 'https://www.lunardistribution.com/home/productdatafile';
@@ -40,7 +41,7 @@ const weekday = (iso) => new Date(`${iso}T12:00:00Z`).getUTCDay();
 const nextDay = (iso, day) => plusDays(iso, (day - weekday(iso) + 7) % 7);
 
 /**
- * The sheets to read, FOC sheets first: the next 8 FOC Mondays (from today), then the release sheets for this
+ * The sheets to read, FOC sheets first: the next 52 FOC Mondays (from today), then the release sheets for this
  * week's Wednesday (even when it has passed: late changes) and the next 4.
  */
 export function sheetList(today) {
@@ -86,7 +87,8 @@ export function summary(results) {
   const notYet = results.filter((r) => r.missing).map((r) => r.sheet);
   const failed = results.filter((r) => r.error).map((r) => `${r.sheet}: ${r.error}`);
   return [`Lunar, ${read.length} of ${results.length} sheets: ${parts.join(', ')}`,
-    notYet.length ? `not out yet: ${notYet.join(', ')}` : '', failed.length ? `failed: ${failed.join('; ')}` : ''].filter(Boolean).join('. ');
+    // Most of a year's sheets far out are empty: name them only when there are a few.
+    notYet.length ? `not out yet: ${notYet.length > 3 ? `${notYet.length} sheets` : notYet.join(', ')}` : '', failed.length ? `failed: ${failed.join('; ')}` : ''].filter(Boolean).join('. ');
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -1,4 +1,4 @@
-# Automatic Lunar import: every morning, Lunar's FOC sheets for the next 8 Mondays and release sheets for this week
+# Automatic Lunar import: every morning, Lunar's FOC sheets for the next 52 Mondays (all it has posted) and release sheets for this week
 # and the next 4 Wednesdays are imported into the master catalog (tools/lunar-auto-import.mjs), with the same rules as
 # Admin → Import. Shops copy the titles in on their hourly catalog-sync. Each run shows in the catalog's
 # Import → Recent Runs as "Automatic Lunar import".
