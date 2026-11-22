@@ -51,7 +51,7 @@ function initialStatus(item, today) {
 async function existingBySku(sb, distributor, skus) {
   const map = new Map();
   for (const batch of chunks(skus, 200)) {
-    const rows = await must(sb.from('items').select('sku,upc,cover_url,status').eq('distributor', distributor).in('sku', batch));
+    const rows = await must(sb.from('items').select('id,sku,upc,cover_url,status').eq('distributor', distributor).in('sku', batch));
     rows.forEach((r) => map.set(r.sku, r));
   }
   return map;
@@ -348,14 +348,21 @@ export async function applyImport(sb, parsed, opts) {
   // found). Every row in one bulk upsert must have the same columns — PostgREST
   // sets a column missing from some rows to NULL, which would wipe stored values —
   // so group rows by their exact column set first.
+  const coverOnly = known.filter((i) => i.coverOnly);
   const groups = new Map();
-  for (const i of known) {
+  for (const i of known.filter((k) => !k.coverOnly)) {
     const row = { ...synced(i), distributor, sku: i.sku, ...(coverUrls.has(i.sku) ? { cover_url: coverUrls.get(i.sku), cover_thumb_url: thumbUrls.get(i.sku) ?? null } : {}) };
     const key = Object.keys(row).sort().join(',');
     groups.set(key, [...(groups.get(key) ?? []), row]);
   }
   for (const rows of groups.values()) {
     for (const batch of chunks(rows, 100)) await must(sb.from('items').upsert(batch, { onConflict: 'distributor,sku' }));
+  }
+  // Titles stored exactly as the sheet lists them, only missing a cover: saved again only when one turned up, and
+  // then just the picture, so shops don't copy every cover-less title again each day.
+  for (const i of coverOnly) {
+    if (!coverUrls.has(i.sku)) continue;
+    await must(sb.from('items').update({ cover_url: coverUrls.get(i.sku), cover_thumb_url: thumbUrls.get(i.sku) ?? null }).eq('id', existing.get(i.sku).id));
   }
 
   // Titles taken over from another distributor: the same row, now this distributor's code and details.
@@ -366,7 +373,7 @@ export async function applyImport(sb, parsed, opts) {
 
   return {
     added: fresh.length,
-    updated: known.length,
+    updated: known.length - coverOnly.length,
     skipped: skipped.length,
     duplicates: duplicates.length,
     duplicateTitles: duplicates.map(duplicateTitle),
@@ -387,7 +394,12 @@ export async function applyImport(sb, parsed, opts) {
  * Fields the sheet doesn't provide (undefined) don't count.
  */
 export function unchanged(item, row) {
-  if (!hasCover(row)) return false;
+  return hasCover(row) && sameFields(item, row);
+}
+
+/** Does the stored row already hold everything the sheet lists for the title? (Its cover aside.) */
+export function sameFields(item, row) {
+  if (!row) return false;
   return SYNCED.every((k) => {
     if (item[k] === undefined) return true;
     const a = item[k] ?? null;
@@ -396,7 +408,11 @@ export function unchanged(item, row) {
   });
 }
 
-/** A parsed sheet without the titles stored exactly as it lists them (see unchanged); `unchanged` is how many. */
+/**
+ * A parsed sheet without the titles stored exactly as it lists them (see unchanged); `unchanged` is how many.
+ * Titles stored as listed but still without a cover stay in, marked coverOnly, so applyImport looks for their
+ * picture without saving them again; they count as unchanged too.
+ */
 export async function withoutUnchanged(sb, parsed) {
   const stored = new Map();
   const skus = parsed.items.map((i) => i.sku);
@@ -404,8 +420,11 @@ export async function withoutUnchanged(sb, parsed) {
     const rows = await must(sb.from('items').select(`sku,cover_url,${SYNCED.map(col).join(',')}`).eq('distributor', parsed.distributor).in('sku', batch));
     rows.forEach((r) => stored.set(r.sku, r));
   }
-  const items = parsed.items.filter((i) => !unchanged(i, stored.get(i.sku)));
-  return { ...parsed, items, unchanged: parsed.items.length - items.length };
+  const items = parsed.items
+    .filter((i) => !unchanged(i, stored.get(i.sku)))
+    .map((i) => (sameFields(i, stored.get(i.sku)) ? { ...i, coverOnly: true } : i));
+  const same = parsed.items.filter((i) => sameFields(i, stored.get(i.sku))).length;
+  return { ...parsed, items, unchanged: same };
 }
 
 /** Record an import run in job_log (shown on the admin Import page). */

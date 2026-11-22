@@ -101,7 +101,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`${records.length} PRH titles on sale ${today} to ${plusDays(today, WEEKS * 7 - 1)}: ${parsed.items.length} to import, ${parsed.unchanged} unchanged, ${parsed.skipped.length} skipped`);
     if (dryRun) {
       const plan = await planImport(sb, parsed);
-      console.log(`Dry run: ${plan.fresh.length} new, ${plan.known.length} to refresh, ${plan.duplicates.length} already in from another sheet.`);
+      console.log(`Dry run: ${plan.fresh.length} new, ${plan.known.filter((i) => !i.coverOnly).length} to refresh, ${plan.duplicates.length} already in from another sheet.`);
       process.exit(0);
     }
     const result = await applyImport(sb, parsed, {

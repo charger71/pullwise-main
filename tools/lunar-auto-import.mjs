@@ -196,8 +196,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         if (dryRun) {
           const plan = await planImport(sb, todo);
           const upcClashes = plan.upcClashes.map(upcClashLine);
-          results.push({ sheet: name, added: plan.fresh.length, updated: plan.known.length, unchanged: todo.unchanged, skipped: parsed.skipped.length, upcClashes });
-          console.log(`${name}: ${plan.fresh.length} new, ${plan.known.length} to refresh, ${todo.unchanged} unchanged, ${parsed.skipped.length} skipped`);
+          results.push({ sheet: name, added: plan.fresh.length, updated: plan.known.filter((i) => !i.coverOnly).length, unchanged: todo.unchanged, skipped: parsed.skipped.length, upcClashes });
+          console.log(`${name}: ${plan.fresh.length} new, ${plan.known.filter((i) => !i.coverOnly).length} to refresh, ${todo.unchanged} unchanged, ${parsed.skipped.length} skipped`);
           upcClashes.forEach((c) => console.log(`  UPC: ${c}`));
           continue;
         }
