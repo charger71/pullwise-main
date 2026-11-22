@@ -292,7 +292,7 @@ though it still can for things the catalog doesn't carry.
   is in `catalog_sync_state`; runs that changed something show in Import → Recent Runs as "Master catalog sync".
 - **Automatic Lunar import** (`.github/workflows/lunar-import.yml`, daily at 11:15 UTC, `tools/lunar-auto-import.mjs`):
   Lunar's public sheets (`lunardistribution.com/home/productdatafile?foc=M/D/YYYY` and `?release=…`), the FOC sheets
-  for the next 8 Mondays and the release sheets for this week and the next 4 Wednesdays, go through the same code as
+  for the next 52 Mondays (everything Lunar has posted; empty ones are passed over) and the release sheets for this week and the next 4 Wednesdays, go through the same code as
   Admin → Import (`readWorkbook` → `parseSheet` with the Always Skip list → `applyImport`). Titles already stored as
   a sheet lists them are left alone. Covers for new titles and ones missing one: Lunar's hi-res picture (60 KB to
   18 MB) shrunk with sharp to 1000 px, plus the 560 px card copy, into R2; the sheet's own small picture when there's

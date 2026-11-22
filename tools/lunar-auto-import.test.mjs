@@ -6,7 +6,8 @@ import { sheetList, switchSheetList, sheetUrl, sheetName, summary, FOC_WEEKS, RE
 const tue = sheetList('2026-11-03'); // a Tuesday
 assert.equal(tue.length, FOC_WEEKS + RELEASE_WEEKS);
 assert.deepEqual(tue.slice(0, 2), [{ kind: 'foc', date: '2026-11-09' }, { kind: 'foc', date: '2026-11-16' }]);
-assert.deepEqual(tue[FOC_WEEKS - 1], { kind: 'foc', date: '2026-12-28' });
+assert.equal(FOC_WEEKS, 52, 'a year of FOC sheets: everything Lunar has posted');
+assert.deepEqual(tue[FOC_WEEKS - 1], { kind: 'foc', date: '2027-11-01' });
 assert.deepEqual(tue.slice(FOC_WEEKS).map((s) => s.date), ['2026-11-04', '2026-11-11', '2026-11-18', '2026-11-25', '2026-12-02']);
 assert.equal(sheetList('2026-11-09')[0].date, '2026-11-09', 'on a Monday, that day\'s FOC sheet');
 assert.equal(sheetList('2026-11-06').find((s) => s.kind === 'release').date, '2026-11-04', 'on a Friday, the Wednesday just gone');
@@ -40,5 +41,9 @@ assert.equal(summary([
 
 assert.equal(summary([{ sheet: 'FOC Nov 23', added: 3, updated: 0, unchanged: 10, skipped: 1, switched: 2 }]),
   'Lunar, 1 of 1 sheets: 3 added, 0 refreshed, 10 unchanged, 1 skipped, 2 DC titles switched from PRH');
+
+// Many sheets not out yet (most of a year far out): a count, not every name
+assert.equal(summary([{ sheet: 'FOC Nov 23', added: 1, updated: 0, unchanged: 0, skipped: 0 }, ...['A', 'B', 'C', 'D'].map((sheet) => ({ sheet, missing: true }))]),
+  'Lunar, 1 of 5 sheets: 1 added, 0 refreshed, 0 unchanged, 0 skipped. not out yet: 4 sheets');
 
 console.log('lunar auto-import tests passed');
