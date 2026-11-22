@@ -8,7 +8,8 @@ import { thumbOf, thumbFallback, formatPhone, nameKey, artistMeta, btnIcon } fro
 import * as list from './reservation-list.js';
 import * as pull from './customer.js';
 import { confirmSeriesFollow } from './follow-confirm.js';
-import { followHref, seriesHref } from './follow-link.js';
+import { followHref, seriesHref, nameFromKey } from './follow-link.js';
+import { nudge } from './push-nudge.js';
 import { haptic } from './app-device.js';
 
 export function focLabel(item) {
@@ -264,6 +265,7 @@ export function enableArtistFollow(root, render) {
     const say = (text, err) => showMsg($('[data-msg]', root), text, err);
     try {
       const { added } = await pull.followArtist(btn.dataset.followArtist, btn.dataset.role);
+      nudge({ kind: 'follow', label: btn.dataset.followArtist });
       render();
       say(`Following ${btn.dataset.followArtist}. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New ones will be added to your pull list automatically.'}`);
     } catch (err) {
@@ -285,6 +287,7 @@ export function enableSeriesFollow(root) {
     try {
       if (!(await confirmSeriesFollow(btn.dataset.follow, { allCovers }))) return void (btn.disabled = false);
       const { added } = await pull.followSeries(btn.dataset.follow, 1, allCovers);
+      nudge({ kind: 'follow', label: nameFromKey(btn.dataset.follow) });
       box.querySelectorAll('[data-follow]').forEach((b, n) => (n ? b.remove() : (b.outerHTML = `<span class="follow-open follow-open--on">✓ Following this series${allCovers ? ' · all covers' : ''}</span>`)));
       msg.textContent = added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.';
     } catch (err) {
@@ -387,6 +390,7 @@ async function toggleFollow(btn, say) {
     } else {
       if (series && !(await confirmSeriesFollow(series, { label, allCovers }))) return;
       const { added } = series ? await pull.followSeries(series, 1, allCovers) : await pull.followArtist(name, btn.dataset.role);
+      nudge({ kind: 'follow', label });
       say(`Following ${label}${series && allCovers ? ' (all covers)' : ''}. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.'}`);
     }
   } catch (err) {
@@ -414,6 +418,7 @@ async function togglePullList(btn, item) {
       haptic('done');
       announce(`Added ${itemFullTitle(item)}. ${pull.count()} ${pull.count() === 1 ? 'title' : 'titles'} on your pull list.`);
       await done;
+      nudge({ kind: 'add', label: itemTitle(item) });
     }
   } catch (err) {
     alertError(err);
