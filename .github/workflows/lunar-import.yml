@@ -3,7 +3,8 @@
 # Admin → Import. Shops copy the titles in on their hourly catalog-sync. Each run shows in the catalog's
 # Import → Recent Runs as "Automatic Lunar import".
 #
-# Run by hand: Actions → Automatic Lunar import → Run workflow (tick "dry run" to only count).
+# Run by hand: Actions → Automatic Lunar import → Run workflow (tick "dry run" to only count, or "fill covers" to only
+# give every Lunar title with no cover the picture on Lunar's site now, whatever its dates).
 # Needs SUPABASE_ACCESS_TOKEN, CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (already used by Deploy).
 # After each run, what it left out of the catalog is emailed to the LEFT_OUT_EMAIL repository variable (default
 # don@getpullwise.com; several addresses separated by commas), sent from the catalog's server as reports@pullwise.shop
@@ -17,6 +18,11 @@ on:
     inputs:
       dry_run:
         description: Dry run (only count, change nothing)
+        required: false
+        type: boolean
+        default: false
+      fill_covers:
+        description: Only fill in missing covers from Lunar's site (any date), no import
         required: false
         type: boolean
         default: false
@@ -49,6 +55,9 @@ jobs:
           # The left-out email after each run, sent from the catalog's server (tools/catalog-job.mjs emailLeftOut).
           LEFT_OUT_EMAIL: ${{ vars.LEFT_OUT_EMAIL || 'don@getpullwise.com' }}
           DRY_RUN: ${{ inputs.dry_run }}
+          FILL_COVERS: ${{ inputs.fill_covers }}
         run: |
           set -euo pipefail
-          if [ "$DRY_RUN" = "true" ]; then node tools/lunar-auto-import.mjs --dry-run; else node tools/lunar-auto-import.mjs; fi
+          if [ "$FILL_COVERS" = "true" ]; then node tools/lunar-auto-import.mjs --fill-covers
+          elif [ "$DRY_RUN" = "true" ]; then node tools/lunar-auto-import.mjs --dry-run
+          else node tools/lunar-auto-import.mjs; fi

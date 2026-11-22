@@ -2,7 +2,7 @@
 // (items_upc_idx allows each UPC once): it keeps its stored UPC and everything else still refreshes.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { planImport, applyImport, upcClashLine, duplicateTitle, unchanged, isPlaceholderCover, refreshPlaceholderCovers } from './apply.js';
+import { planImport, applyImport, upcClashLine, duplicateTitle, unchanged, isPlaceholderCover, refreshPlaceholderCovers, fillMissingCovers } from './apply.js';
 
 /** Just enough of the Supabase client for planImport and applyImport, over rows in memory. */
 function fakeClient(rows) {
@@ -128,6 +128,39 @@ assert.equal(prhSb.inserts[0].cover_url, null);
   assert.deepEqual(updates.map((u) => u.id).sort(), [1, 2]);
   assert.ok(updates.every((u) => /covers\/prh\/\w+-[0-9a-f]{10}\.jpg$/.test(u.cover_url)));
   assert.ok(!fetched.includes('https://prh.test/cover/FINE'), 'titles with a real cover are left alone');
+}
+
+// fillMissingCovers: every title with no cover, whatever its dates; ones Lunar has no picture for stay as they are.
+{
+  const rows = [
+    { id: 1, distributor: 'lunar', sku: 'HYDE', title: 'Hyde Street', cover_url: null },
+    { id: 2, distributor: 'lunar', sku: 'NONE', title: 'No art yet', cover_url: null },
+    { id: 3, distributor: 'lunar', sku: 'HAS', title: 'Has one', cover_url: 'https://images.pullwise.shop/catalog/covers/lunar/HAS-3393d92f33.jpg' },
+    { id: 4, distributor: 'prh', sku: 'P', title: 'PRH', cover_url: null },
+  ];
+  const updates = [];
+  const sb = {
+    from: () => ({
+      select() {
+        const filters = [];
+        const q = {
+          eq: (k, v) => (filters.push((r) => r[k] === v), q),
+          is: (k, v) => (filters.push((r) => r[k] === v), q),
+          order: () => q,
+          range: (a, b) => Promise.resolve({ data: rows.filter((r) => filters.every((f) => f(r))).slice(a, b + 1), error: null }),
+        };
+        return q;
+      },
+      update: (patch) => ({ eq: async (_k, id) => (updates.push({ id, ...patch }), { data: null, error: null }) }),
+    }),
+  };
+  const fetched = [];
+  const fetchRemote = async ({ url }) => (fetched.push(url), url.includes('NONE') ? null : { bytes: realCover, type: 'image/jpeg' });
+  const r = await fillMissingCovers(sb, { distributor: 'lunar', cover: (sku) => ({ url: `https://lunar.test/hires/${sku}.jpg`, preferUrl: true }), fetchRemote, putMedia: putMediaFake });
+  assert.deepEqual({ ...r, errors: r.errors.length }, { missing: 2, filled: 1, stillMissing: 1, errors: 0 });
+  assert.deepEqual(updates.map((u) => u.id), [1]);
+  assert.match(updates[0].cover_url, /covers\/lunar\/HYDE-hires-[0-9a-f]{10}\.jpg$/);
+  assert.deepEqual(fetched.sort(), ['https://lunar.test/hires/HYDE.jpg', 'https://lunar.test/hires/NONE.jpg']);
 }
 
 // A new title whose UPC another title holds is left out, and named for Import → Left Out.
