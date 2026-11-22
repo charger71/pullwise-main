@@ -198,8 +198,13 @@ async function fetchItems(f) {
   if (f.order === 'newest') query = query.order('updated_at', { ascending: false });
   if (f.order === 'arrivals') query = query.order('arrival_rank');
   if (f.order === 'released') query = query.order('release_date', { ascending: false, nullsFirst: false });
+  if (f.order === 'released_asc') query = query.order('release_date', { ascending: true, nullsFirst: false });
+  if (f.order === 'price') query = query.order('price', { ascending: true, nullsFirst: false });
+  if (f.order === 'price_desc') query = query.order('price', { ascending: false, nullsFirst: false });
+  if (f.order === 'publisher') query = query.order('publisher', { ascending: true, nullsFirst: false });
   // Keep an issue's covers together, main cover (no variant / CVR A) first.
-  query = query.order('title').order('issue_number', { nullsFirst: true }).order('variant', { nullsFirst: true }).order('id');
+  const desc = f.order === 'title_desc';
+  query = query.order('title', { ascending: !desc }).order('issue_number', { ascending: !desc, nullsFirst: true }).order('variant', { nullsFirst: true }).order('id');
   if (f.limit) query = query.range(f.offset ?? 0, (f.offset ?? 0) + f.limit - 1);
   const res = await query;
   const data = unwrap(res);
@@ -238,6 +243,11 @@ function sorter(order) {
   if (order === 'foc') return (a, b) => (a.foc_date ?? '9').localeCompare(b.foc_date ?? '9') || byTitle(a, b);
   if (order === 'newest') return (a, b) => b.id - a.id;
   if (order === 'released') return (a, b) => (b.release_date ?? '').localeCompare(a.release_date ?? '') || byTitle(a, b);
+  if (order === 'released_asc') return (a, b) => (a.release_date ?? '9').localeCompare(b.release_date ?? '9') || byTitle(a, b);
+  if (order === 'price') return (a, b) => (a.price ?? Infinity) - (b.price ?? Infinity) || byTitle(a, b);
+  if (order === 'price_desc') return (a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity) || byTitle(a, b);
+  if (order === 'publisher') return (a, b) => (a.publisher ?? '\uffff').localeCompare(b.publisher ?? '\uffff') || byTitle(a, b);
+  if (order === 'title_desc') return (a, b) => byTitle(b, a);
   if (order === 'arrivals') {
     const rank = (i) => ({ new_this_wednesday: 0, just_arrived: 1, backorder: 3, sold_out: 3, coming_soon: 4, pre_order: 4 })[i.status] ?? 2;
     return (a, b) => rank(a) - rank(b) || byTitle(a, b);

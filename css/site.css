@@ -771,6 +771,36 @@ address { font-style: normal; margin-bottom: 1em; }
   .filters .field--search { flex-grow: 1.6; }
 }
 .results-count { color: var(--muted); font-size: var(--fs-ui); margin-bottom: var(--sp-12); }
+/* Above a title grid (Pre-Orders, New Arrivals, Search; js/list-view.js): the count on the left, a sort select and the
+   Grid / List switch (.view-toggle, as on the Calendar) on the right, like the staff admin's list toolbar. */
+.list-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-12); }
+.list-toolbar .results-count { margin: 0; }
+.list-toolbar__controls { display: flex; align-items: center; gap: var(--sp-8); margin-left: auto; }
+.list-toolbar__sort { width: auto; height: var(--tap); font-size: var(--fs-ui); }
+.list-toolbar .view-toggle { margin: 0; }
+/* List view: one title per row, a small cover at the left. */
+.grid.grid--list { grid-template-columns: minmax(0, 1fr); gap: var(--sp-8); }
+.grid--list .card { display: grid; grid-template-columns: 76px minmax(0, 1fr); border-top-width: 1px; border-left: 3px solid var(--red); }
+.grid--list .card__body { padding: var(--sp-10) var(--sp-12); gap: var(--sp-4); }
+.grid--list .card__foot { margin-top: var(--sp-4); padding-top: 0; justify-content: flex-start; }
+.grid--list .card .btn { width: auto; }
+.grid--list .pick-badge, .grid--list .top-badge { display: none; }
+/* …and shown as small labels beside the status badge instead (list view only). */
+.card__badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4) var(--sp-6); }
+.list-tag { display: none; font-size: var(--fs-2xs); font-weight: 700; line-height: 1; white-space: nowrap; padding: var(--sp-4) var(--sp-6); border-radius: var(--radius-xs); letter-spacing: .06em; text-transform: uppercase; }
+.grid--list .list-tag { display: inline-flex; align-items: center; gap: var(--sp-4); }
+.list-tag--pick { background: var(--gold); color: var(--on-accent); }
+.list-tag--top { background: var(--red-btn); color: var(--on-primary); }
+@media (min-width: 800px) {
+  .grid--list .card { grid-template-columns: 96px minmax(0, 1fr); }
+  .grid--list .card__body { padding: var(--sp-12) var(--sp-16); }
+}
+@media (min-width: 1100px) {
+  .grid.grid--list { gap: var(--sp-8); }
+  .grid.grid--list .card__body { padding: var(--sp-12) var(--sp-16); gap: var(--sp-4); }
+  .grid.grid--list .card__title { font-size: var(--fs-compact); }
+  .grid.grid--list .card__variant, .grid.grid--list .card__meta, .grid.grid--list .foc { font-size: var(--fs-xs); }
+}
 .empty { padding: var(--sp-32); text-align: center; border: 2px dashed var(--line); border-radius: var(--radius); color: var(--muted); }
 /* ---------- Dialogs (reservation form, lightbox) ---------- */
 dialog {
