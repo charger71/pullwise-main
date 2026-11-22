@@ -207,14 +207,15 @@ A checkbox dropdown for catalog filters (publisher, format): a button that looks
 </div>`),
   },
   {
-    name: 'ShopFilters', group: G('Forms'), height: 198, width: 1000,
+    name: 'ShopFilters', group: G('Forms'), height: 220, width: 1000,
     readme: `# ShopFilters
 
 The filter bar above a catalog grid: a search box and select or multi-select filters, with a live count under it.
 
 - \`.filters\` is a \`surface\` box with a \`line\` edge and \`shop-radius\`. On phones it is two columns with search on its own row; from 800px every filter shares one row and search is 1.6× wider.
-- Filter labels are .85rem. The count (\`.results-count\`, \`role="status"\`) sits under the bar in muted.
-- Consumer provides: the filters and the count text ("48 titles").`,
+- Filter labels are .85rem. Under the bar, the list toolbar (\`.list-toolbar\`, js/list-view.js): the count (\`.results-count\`, \`role="status"\`, muted) on the left; on the right a sort select (\`.list-toolbar__sort\`, 44px tall: the page's usual order first, then Title A–Z / Z–A, Release date, Price both ways, Publisher; held in the address as \`?sort=\`) and the Grid / List switch (\`.view-toggle\`, as on the Calendar; remembered on the device per page). Used on Pre-Orders, New Arrivals and Search.
+- List view (\`.grid--list\`): one title per row, a 76px cover (96px from 800px) at the left with a 3px red rule beside it, the card body to its right. The cover badges move beside the status badge as small labels (\`.list-tag\`: Top 10 in \`shop-brand-primary\` with \`shop-on-primary\` text, Staff Pick in \`shop-gold\` with \`shop-on-accent\` text).
+- Consumer provides: the filters, the sort choices and the count text ("48 titles").`,
     html: page('ShopFilters', `
 <form class="filters" role="search" onsubmit="return false">
   <div class="field field--search"><label for="q">Search</label><input id="q" type="search" placeholder="Title, creator or series"></div>
@@ -222,7 +223,7 @@ The filter bar above a catalog grid: a search box and select or multi-select fil
   <div class="field"><label for="fmt">Format</label><select id="fmt"><option>All</option><option>Comic</option><option>Trade</option></select></div>
   <div class="field"><label for="month">Out</label><select id="month"><option>Any month</option><option>November</option></select></div>
 </form>
-<p class="results-count" role="status">48 titles</p>`),
+<div class="list-toolbar"><p class="results-count" role="status">48 titles</p><div class="list-toolbar__controls"><label class="visually-hidden" for="sort">Sort titles</label><select id="sort" class="list-toolbar__sort"><option>Order cutoff (soonest)</option><option>Title A–Z</option></select><div class="view-toggle" role="group" aria-label="Show titles as"><button class="btn btn--small btn--ghost" type="button" aria-pressed="true" aria-label="Grid" title="Grid"><svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></button><button class="btn btn--small btn--ghost" type="button" aria-pressed="false" aria-label="List" title="List"><svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button></div></div></div>`),
   },
   {
     name: 'ShopTitleCard', group: G('Catalog'), height: 630, width: 960,

@@ -4,13 +4,18 @@ import { PAGE_BLOCKS } from '../page-defaults.js';
 import { offHrefs, customHref, postHref } from '../optional-pages.js';
 import { squash, searchWords } from '../util.js';
 import { renderGrid, itemCard, enableReservations, seriesCards, enableSeriesFollow, artistRows, enableArtistFollow } from '../components.js';
+import { listToolbar, sortFromUrl, SORTS } from '../list-view.js';
 
 // The searches don't need the page chrome, so they start now, alongside it.
 // Titles that can still go on a pull list come first, then everything else.
 const q = (new URLSearchParams(location.search).get('q') ?? '').trim();
 const PAGE = 48;
+// Best match (the usual order) puts titles that can still go on a pull list first; any other sort orders every title as one list.
+const SEARCH_SORTS = ['relevance', 'title', 'title_desc', 'released', 'released_asc', 'price', 'price_desc', 'publisher'];
+let sortKey = sortFromUrl(SEARCH_SORTS);
+const itemQuery = (openFirst) => (sortKey === 'relevance' ? { q, openFirst } : { q, order: SORTS[sortKey][0] });
 // (The cutoff date follows the shop's timezone, which initPage hasn't set yet, so it comes from the settings here.)
-const firstItems = q ? getSettings().then((s) => getItems({ q, openFirst: openFocFrom(s.timezone), limit: PAGE, offset: 0, withCount: true })) : null;
+const firstItems = q ? getSettings().then((s) => getItems({ ...itemQuery(openFocFrom(s.timezone)), limit: PAGE, offset: 0, withCount: true })) : null;
 const firstSeries = q ? searchSeries(q) : null;
 const firstArtists = q ? searchArtists(q) : null;
 firstItems?.catch(() => {}); // reported where it's used; this keeps an early failure from logging twice
@@ -61,21 +66,40 @@ if (!q) {
   grid.innerHTML = '<p class="empty">Type a title, creator or topic in the search box at the top of the page.</p>';
 } else {
   enableReservations(grid, (id) => items.find((i) => i.id === id));
+  let seq = 0;
+  let pending = firstItems; // the first page, already asked for
+  listToolbar({
+    grid,
+    countEl: count,
+    page: 'search',
+    sorts: SEARCH_SORTS,
+    onSort: (_, key) => {
+      sortKey = key;
+      pending = null;
+      load(false);
+    },
+  });
   const load = async (append) => {
+    const mine = ++seq;
     more.disabled = true;
     try {
       // Show more reuses the first page's total instead of counting every match again.
-      const { rows, count: n } = await (append ? getItems({ q, openFirst: openFocFrom(), limit: PAGE, offset: items.length, withCount: true, knownCount: total }) : firstItems);
+      const first = pending;
+      pending = null;
+      const { rows, count: n } = await (append
+        ? getItems({ ...itemQuery(openFocFrom()), limit: PAGE, offset: items.length, withCount: true, knownCount: total })
+        : (first ?? getItems({ ...itemQuery(openFocFrom()), limit: PAGE, offset: 0, withCount: true })));
+      if (mine !== seq) return; // a newer sort superseded this one
       total = append && rows.length < PAGE ? items.length + rows.length : n; // a short page means the list ended
       if (append) {
-        const first = items.length;
+        const firstNew = items.length;
         items = items.concat(rows);
         grid.insertAdjacentHTML('beforeend', rows.map((i) => itemCard(i, { reservable: true })).join(''));
-        grid.children[first]?.querySelector('button, a')?.focus();
+        grid.children[firstNew]?.querySelector('button, a')?.focus();
       } else {
         items = rows;
         renderGrid(grid, items, { reservable: true }, `No titles match “${q}”.`);
-        logSearch(q, total);
+        if (first) logSearch(q, total); // once, for the search itself, not each re-sort
       }
       count.textContent = `${total} ${total === 1 ? 'title' : 'titles'} for “${q}”`;
       const left = total - items.length;
@@ -83,9 +107,9 @@ if (!q) {
       more.textContent = `Show more (${left} left)`;
     } catch (err) {
       console.error(err);
-      if (!append) grid.innerHTML = '<p class="empty">Couldn’t search right now. Please try again shortly.</p>';
+      if (!append && mine === seq) grid.innerHTML = '<p class="empty">Couldn’t search right now. Please try again shortly.</p>';
     } finally {
-      more.disabled = false;
+      if (mine === seq) more.disabled = false;
     }
   };
   more.addEventListener('click', () => load(true));

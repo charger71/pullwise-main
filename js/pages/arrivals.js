@@ -13,6 +13,7 @@ await initCatalog({
   reservable: false,
   followSeries: true,
   order: 'arrivals',
+  sorts: ['arrivals', 'title', 'title_desc', 'released', 'price', 'price_desc', 'publisher'],
   filters: [
     publisherFilter(SHOWN),
     { name: 'category', label: 'Category', options: categoryOptions(), multiple: true },
