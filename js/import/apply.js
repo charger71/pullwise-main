@@ -145,7 +145,8 @@ async function coverBytes(item, { images, imagesByRow, fetchRemote }) {
     if (bytes && bytes.length >= 1024) return { bytes, type: isPng(bytes) ? 'image/png' : 'image/jpeg' };
   }
   if (item.cover.funkoItem) return fetchRemote({ funkoItem: item.cover.funkoItem, keywords: item.cover.keywords });
-  if (item.cover.url) return fetchRemote({ url: item.cover.url });
+  // (Not again when it was just tried as the better picture.)
+  if (item.cover.url && !item.cover.preferUrl) return fetchRemote({ url: item.cover.url });
   return null;
 }
 
@@ -183,7 +184,6 @@ async function uploadCover(sb, distributor, item, ctx) {
  */
 export async function refreshPlaceholderCovers(sb, opts) {
   const { distributor } = opts;
-  const progress = opts.onProgress ?? (() => {});
   const rows = [];
   for (let from = 0; ; from += 1000) {
     const page = await must(sb.from('items').select('id,sku,title,cover_url').eq('distributor', distributor).not('cover_url', 'is', null).order('id').range(from, from + 999));
@@ -197,21 +197,52 @@ export async function refreshPlaceholderCovers(sb, opts) {
     const got = await opts.fetchRemote({ url: r.cover_url }).catch(() => null);
     if (got?.bytes && PLACEHOLDER_COVERS.includes(await sha1(got.bytes))) placeholders.push(r);
   });
-  let replaced = 0;
+  const { saved, errors: failed } = await saveSourceCovers(sb, placeholders, { ...opts, cover: (sku) => ({ url: opts.coverUrl(sku) }) });
+  errors.push(...failed);
+  return { checked: rows.length, placeholders: placeholders.length, replaced: saved, stillComing: placeholders.length - saved - errors.length, errors };
+}
+
+/**
+ * Fetch each title's cover from its source (opts.cover(sku) → the item's cover, as a parser gives it) and save it on
+ * the title. A title whose cover isn't up yet is left as it is.
+ * @returns { saved, errors }
+ */
+async function saveSourceCovers(sb, rows, opts) {
+  const progress = opts.onProgress ?? (() => {});
+  const errors = [];
+  let saved = 0;
   let done = 0;
-  await pool(placeholders, 6, async (r) => {
+  await pool(rows, 6, async (r) => {
     try {
-      const uploaded = await uploadCover(sb, distributor, { sku: r.sku, title: r.title, cover: { url: opts.coverUrl(r.sku) } }, opts);
+      const uploaded = await uploadCover(sb, opts.distributor, { sku: r.sku, title: r.title, cover: opts.cover(r.sku) }, opts);
       if (uploaded) {
         await must(sb.from('items').update({ cover_url: uploaded.url, cover_thumb_url: uploaded.thumbUrl ?? null }).eq('id', r.id));
-        replaced++;
+        saved++;
       }
     } catch (err) {
       errors.push(`${r.title} (${r.sku}): ${err.message}`);
     }
-    progress(`Covers ${++done} of ${placeholders.length}`);
+    progress(`Covers ${++done} of ${rows.length}`);
   });
-  return { checked: rows.length, placeholders: placeholders.length, replaced, stillComing: placeholders.length - replaced - errors.length, errors };
+  return { saved, errors };
+}
+
+/**
+ * Give every title from a distributor that has no cover the one its source has now, whatever its dates (the daily
+ * imports only fetch covers for titles in the sheets they read). Shops copy the covers on their next catalog-sync.
+ * @param opts { distributor, cover(sku) → the title's cover at the source ({ url, preferUrl }), fetchRemote, makeThumb,
+ *               putMedia, onProgress }
+ * @returns { missing, filled, stillMissing, errors }
+ */
+export async function fillMissingCovers(sb, opts) {
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const page = await must(sb.from('items').select('id,sku,title').eq('distributor', opts.distributor).is('cover_url', null).order('id').range(from, from + 999));
+    rows.push(...page);
+    if (page.length < 1000) break;
+  }
+  const { saved, errors } = await saveSourceCovers(sb, rows, opts);
+  return { missing: rows.length, filled: saved, stillMissing: rows.length - saved - errors.length, errors };
 }
 
 const titleName = (t) => [t.title, t.issue_number && `#${t.issue_number}`, t.variant].filter(Boolean).join(' ');

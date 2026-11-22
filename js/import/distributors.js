@@ -404,6 +404,8 @@ export function applyExclusions(parsed, rules) {
 }
 
 const LUNAR_HIRES = 'https://media.lunardistribution.com/images/covers/hires/';
+/** A Lunar title's cover: the hi-res picture on Lunar's site, else the one embedded in the sheet (by its code). */
+export const lunarCover = (sku) => ({ url: `${LUNAR_HIRES}${encodeURIComponent(sku)}.jpg`, preferUrl: true, embedded: sku });
 
 function parseLunar(header, body) {
   const { c, renamed, missing } = columns(header, {
@@ -446,7 +448,7 @@ function parseLunar(header, body) {
       mature: t.mature || ratingKeys.some(flag) || (ratingKeys.length ? false : undefined),
       description: cell(r, 'description', htmlToText),
       // Lunar's hi-res cover by product code; the small picture in the sheet is the fallback.
-      cover: { url: `${LUNAR_HIRES}${encodeURIComponent(sku)}.jpg`, preferUrl: true, embedded: sku },
+      cover: lunarCover(sku),
     });
   }
   return { items, skipped, columnsRenamed: renamed, columnsMissing: missing };

@@ -16,9 +16,11 @@
 //
 //   node tools/lunar-auto-import.mjs              # import
 //   node tools/lunar-auto-import.mjs --dry-run    # download and count what would be added or refreshed, change nothing
+//   node tools/lunar-auto-import.mjs --fill-covers   # only give every Lunar title with no cover the one on Lunar's
+//                                                    # site now, whatever its dates, no sheets
 
 import { fileURLToPath } from 'node:url';
-import { readWorkbook, parseSheet } from '../js/import/distributors.js';
+import { readWorkbook, parseSheet, lunarCover } from '../js/import/distributors.js';
 import { leftOutRows, leftOutEmail } from '../js/import/left-out.js';
 import { catalogShop, catalogClient, catalogToday, exclusions, download, r2PutMedia, logRun, saveLeftOut, emailLeftOut } from './catalog-job.mjs';
 
@@ -51,6 +53,13 @@ export const sheetUrl = ({ kind, date }) => {
 /** "FOC Nov 9" / "Release Nov 4", for the log. */
 export const sheetName = ({ kind, date }) =>
   `${kind === 'foc' ? 'FOC' : 'Release'} ${new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`;
+
+/** The line for Import → Recent Runs after --fill-covers. */
+export function fillSummary(r) {
+  const parts = [`${r.filled} of ${r.missing} titles without a cover got one`, `${r.stillMissing} still have none on Lunar's site`];
+  if (r.errors.length) parts.push(`${r.errors.length} failed`);
+  return `Lunar cover fill: ${parts.join(', ')}`;
+}
 
 /** The line for Import → Recent Runs. */
 export function summary(results) {
@@ -85,6 +94,22 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       type: 'image/jpeg',
     });
     const putMedia = dryRun ? null : r2PutMedia(shop);
+    const fetchRemote = async ({ url }) => {
+      const got = await download(url);
+      return got && shrink(got.bytes, 1000, 86);
+    };
+    const makeThumb = (bytes) => shrink(bytes, 560, 65);
+
+    if (process.argv.includes('--fill-covers')) {
+      const { fillMissingCovers } = await import('../js/import/apply.js');
+      // No sheet here, so a title only gets Lunar's hi-res picture.
+      const result = await fillMissingCovers(sb, { distributor: 'lunar', cover: (sku) => ({ ...lunarCover(sku), embedded: null }), fetchRemote, makeThumb, putMedia });
+      const message = fillSummary(result);
+      console.log(`✓ ${message}`);
+      result.errors.slice(0, 20).forEach((e) => console.log(`  cover: ${e}`));
+      await logRun(sb, { job: 'lunar_import', title: 'Lunar cover fill', ok: true, message, detail: { ...result, errors: result.errors.slice(0, 50) } });
+      process.exit(0);
+    }
 
     const results = [];
     // Import → Left Out: every sheet's skipped titles and duplicates, in sheet order (leftOutRows keeps each SKU once).
@@ -125,11 +150,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
           images: book.images,
           imagesByRow: book.imagesByRow,
           today,
-          fetchRemote: async ({ url }) => {
-            const got = await download(url);
-            return got && shrink(got.bytes, 1000, 86);
-          },
-          makeThumb: (bytes) => shrink(bytes, 560, 65),
+          fetchRemote,
+          makeThumb,
           putMedia,
           onProgress: () => {},
         });
