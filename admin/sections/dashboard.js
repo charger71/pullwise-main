@@ -205,13 +205,13 @@ async function renderLatest(box, loc = null, stale = () => false) {
         const lines = o.reservations ?? [];
         const copies = lines.reduce((n, l) => n + l.quantity, 0);
         const byStatus = Object.entries(lines.reduce((m, l) => ((m[l.status] = (m[l.status] ?? 0) + 1), m), {}));
-        return `<tr>
+        return `<tr class="is-clickable" data-row-open>
           <td class="card-title"><strong>${esc(o.name)}</strong></td>
           <td class="nowrap" data-sort="${o.id}">#${o.id}</td>
           <td class="nowrap" data-sort="${esc(o.created_at)}">${fmtDateTime(o.created_at)}</td>
           <td class="center card-label" data-sort="${lines.length}">${lines.length}${copies !== lines.length ? `<span class="card__meta"> (${copies} copies)</span>` : ''}</td>
           <td class="card-wide">${byStatus.map(([s, n]) => `<span class="pill pill--${s}">${n > 1 || byStatus.length > 1 ? `${n} ` : ''}${LINE_STATUS_SHORT[s]}</span>`).join(' ')}</td>
-          <td class="nowrap card-action">${o.customer_id ? `<a class="btn btn--ghost btn--small" href="#customers" data-customer="${o.customer_id}" aria-label="View customer ${esc(o.name)}">View<span class="dash-latest__more" aria-hidden="true"> customer</span></a>` : `<a class="btn btn--ghost btn--small" href="#reservations" data-guest="${o.id}" aria-label="View order ${o.id}">View<span class="dash-latest__more" aria-hidden="true"> order</span></a>`}</td>
+          <td class="nowrap card-action">${o.customer_id ? `<a class="btn btn--ghost btn--small" href="#customers" data-customer="${o.customer_id}" data-row-target aria-label="View customer ${esc(o.name)}">View<span class="dash-latest__more" aria-hidden="true"> customer</span></a>` : `<a class="btn btn--ghost btn--small" href="#reservations" data-guest="${o.id}" data-row-target aria-label="View order ${o.id}">View<span class="dash-latest__more" aria-hidden="true"> order</span></a>`}</td>
         </tr>`;
       })
       .join('')}</tbody>

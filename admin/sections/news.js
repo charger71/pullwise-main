@@ -67,11 +67,11 @@ async function load(el) {
     ? `<table class="admin-table cards"><thead><tr><th scope="col" data-sort="text">Post</th><th scope="col" data-sort="text" data-first="desc">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>${data
         .map((p) => {
           const state = !p.published_at ? '<span class="pill pill--sold_out">Draft</span>' : p.published_at > now ? `<span class="pill pill--backorder">Scheduled ${fmtDateTime(p.published_at)}</span>` : `<span class="pill pill--available">Published ${fmtDateTime(p.published_at)}</span>`;
-          return `<tr>
+          return `<tr class="is-clickable" data-row-open>
             <td class="card-title"><strong>${esc(p.title)}</strong>
             </td>
             <td class="card-wide" data-sort="${p.published_at ?? ''}">${state}</td>
-            <td class="nowrap card-foot"><button class="btn btn--ghost btn--small" type="button" data-edit="${p.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(p.title)}</span></button> ${p.published_at && p.published_at <= now ? `<a class="btn btn--ghost btn--small" href="..${postHref(p.slug)}" target="_blank" rel="noopener">View ↗</a>` : ''}</td>
+            <td class="nowrap card-foot"><button class="btn btn--ghost btn--small" type="button" data-edit="${p.id}" data-row-target>${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(p.title)}</span></button> ${p.published_at && p.published_at <= now ? `<a class="btn btn--ghost btn--small" href="..${postHref(p.slug)}" target="_blank" rel="noopener">View ↗</a>` : ''}</td>
             </tr>`;
         })
         .join('')}</tbody></table>`

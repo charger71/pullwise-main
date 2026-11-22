@@ -240,13 +240,13 @@ function setupLog(sb, el) {
   const statusCell = (r) => (r.status === 'failed' ? '<span class="pill pill--failed">Failed</span>' : 'Sent');
   const emailRow = (r, { member = false } = {}) => {
     byId.set(r.id, r);
-    return `<tr class="${member ? 'email-log__member' : ''}${r.status === 'failed' ? ' is-overdue' : ''}">
+    return `<tr class="is-clickable${member ? ' email-log__member' : ''}${r.status === 'failed' ? ' is-overdue' : ''}" data-row-open>
       <td class="nowrap card__meta">${member ? '' : esc(fmtDateTime(r.created_at))}</td>
       <td>${member ? '' : esc(kindLabel(r.kind))}</td>
       <td class="email-log__to card-title">${esc(r.to_email)}</td>
       <td class="email-log__subject card-line">${esc(r.subject)}</td>
       <td class="card-key">${statusCell(r)}</td>
-      <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-log-view="${r.id}">View</button></td>
+      <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-log-view="${r.id}" data-row-target>View</button></td>
     </tr>`;
   };
   const groupRow = (g) => `<tr class="email-log__group" data-run="${esc(g.run_id)}">
@@ -257,13 +257,13 @@ function setupLog(sb, el) {
       <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-log-run="${esc(g.run_id)}" aria-expanded="false">Show</button></td>
     </tr>`;
   // An entry with no run is one email: show it like any other row, and fetch its text when View is clicked.
-  const singleRow = (g) => `<tr${g.failed ? ' class="is-overdue"' : ''}>
+  const singleRow = (g) => `<tr class="is-clickable${g.failed ? ' is-overdue' : ''}" data-row-open>
       <td class="nowrap card__meta">${esc(fmtDateTime(g.created_at))}</td>
       <td>${esc(kindLabel(g.kind))}</td>
       <td class="email-log__to card-title">${esc(g.to_email)}</td>
       <td class="email-log__subject card-line">${esc(g.subject)}</td>
       <td class="card-key">${g.failed ? '<span class="pill pill--failed">Failed</span>' : 'Sent'}</td>
-      <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-log-view="${g.first_id}">View</button></td>
+      <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-log-view="${g.first_id}" data-row-target>View</button></td>
     </tr>`;
   const table = (body) => `<div class="admin-table-wrap"><table class="admin-table email-log__table cards">
       <thead><tr><th scope="col">When</th><th scope="col">Type</th><th scope="col">To</th><th scope="col">Subject</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">View</span></th></tr></thead>

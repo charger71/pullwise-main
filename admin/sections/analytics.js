@@ -391,8 +391,8 @@ async function renderDrift(box) {
   setupPager(box, rows.length, (start, end) => {
     $('tbody', box).innerHTML = rows
       .slice(start, end)
-      .map((c) => `<tr${c.past_window ? ' class="is-overdue"' : ''}>
-        <td class="card-title"><a href="#customers" data-customer="${c.id}"><strong>${esc(c.name || c.email || '(no name)')}</strong></a></td>
+      .map((c) => `<tr class="is-clickable${c.past_window ? ' is-overdue' : ''}" data-row-open>
+        <td class="card-title"><a href="#customers" data-customer="${c.id}" data-row-target><strong>${esc(c.name || c.email || '(no name)')}</strong></a></td>
         <td class="nowrap">${esc(formatPhone(c.phone))}</td>
         <td class="card-action">${c.email ? `<button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(c.email)}" aria-label="Email ${esc(c.name || c.email)}" data-email-to="${esc(c.email)}" data-email-name="${esc(c.first_name || c.name || '')}" data-email-customer="${c.id}">Email</button>` : ''}</td>
         <td class="nowrap card-label">${c.last_pickup ? fmtDate(dayKey(c.last_pickup), { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'}</td>

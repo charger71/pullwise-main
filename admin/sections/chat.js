@@ -132,12 +132,12 @@ async function loadList(mine) {
           .map((c) => {
             const m = last.get(c.id);
             const text = m ? `${m.from_staff ? 'You: ' : ''}${m.body}` : '';
-            return `<tr>
+            return `<tr class="is-clickable" data-row-open>
               <td class="card-title"><strong>${esc(c.name)}</strong>${c.email || c.customer_id ? `<br><span class="card__meta">${[c.customer_id ? 'Customer' : '', esc(c.email ?? '')].filter(Boolean).join(' · ')}</span>` : ''}</td>
               <td class="card-wide">${esc(text.length > SNIPPET ? `${text.slice(0, SNIPPET)}…` : text)}</td>
               <td class="card-key">${esc(fmtDateTime(c.last_message_at))}</td>
               <td class="card-key">${c.unread_staff > 0 ? `<span class="pill pill--new">${c.unread_staff} new</span>` : c.status === 'closed' ? '<span class="pill pill--off">Closed</span>' : '<span class="pill pill--done">Answered</span>'}</td>
-              <td class="card-foot"><a class="btn btn--ghost btn--small" href="${adminHash('chat', c.id)}">Open<span class="visually-hidden"> chat with ${esc(c.name)}</span></a></td>
+              <td class="card-foot"><a class="btn btn--ghost btn--small" href="${adminHash('chat', c.id)}" data-row-target>Open<span class="visually-hidden"> chat with ${esc(c.name)}</span></a></td>
             </tr>`;
           })
           .join('')}</tbody></table></div>`

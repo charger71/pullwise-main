@@ -298,10 +298,10 @@ function mountArtists(el, sb, isOwner) {
       : '';
     box.innerHTML = data.length
       ? `<div class="admin-table-wrap"><table class="admin-table cards"><thead><tr><th scope="col" >Name</th><th scope="col" class="center">Credits</th><th scope="col" class="center">Covers</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
-          <tbody>${rows.map((r) => `<tr${r.blocked ? ' class="is-overdue"' : ''}><td class="card-title"><strong>${esc(r.name)}</strong></td><td class="center card-key card-label">${count(r, 'credits')}</td><td class="center card-key card-label">${count(r, 'covers')}</td>
+          <tbody>${rows.map((r) => `<tr class="is-clickable${r.blocked ? ' is-overdue' : ''}" data-row-open><td class="card-title"><strong>${esc(r.name)}</strong></td><td class="center card-key card-label">${count(r, 'credits')}</td><td class="center card-key card-label">${count(r, 'covers')}</td>
             <td>${r.blocked ? 'Blocked' : r.source === 'staff' ? 'Added by staff' : 'Credited'}</td>
             <td class="nowrap card-foot"><span class="cluster gap-6">
-              <button class="btn btn--ghost btn--small" type="button" data-edit="${esc(r.key)}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(r.name)}</span></button>
+              <button class="btn btn--ghost btn--small" type="button" data-edit="${esc(r.key)}" data-row-target>${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(r.name)}</span></button>
               ${r.blocked
                 ? `<button class="icon-btn icon-btn--add" type="button" data-block="${esc(r.key)}" data-to="no" aria-label="Unblock ${esc(r.name)}" title="Unblock">${solidIcon('add')}</button>`
                 : `<button class="icon-btn icon-btn--remove" type="button" data-block="${esc(r.key)}" data-to="yes" aria-label="Block ${esc(r.name)}" title="Block this name">${solidIcon('remove')}</button>`}

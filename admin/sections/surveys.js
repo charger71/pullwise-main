@@ -114,7 +114,7 @@ async function load(el) {
     };
     box.innerHTML = rows.length
       ? `<div class="admin-table-wrap"><table class="admin-table cards"><thead><tr><th scope="col">Survey</th><th scope="col">Status</th><th scope="col">Answers</th><th scope="col">QR code</th><th scope="col">QR scans</th><th scope="col">Share</th><th scope="col">Preview</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>${rows
-          .map((s) => `<tr>
+          .map((s) => `<tr class="is-clickable" data-row-open>
             <td class="card-title"><strong>${esc(s.title)}</strong><br><span class="card__meta">${s.questions.filter((q) => q.type !== 'section').length} question${s.questions.filter((q) => q.type !== 'section').length === 1 ? '' : 's'}</span>
             </td>
             <td class="card-key">${s.is_open ? 'Open' : 'Closed'}</td>
@@ -122,7 +122,7 @@ async function load(el) {
             </td>
             <td class="card-foot"><a class="icon-btn" href="../survey.html?s=${encodeURIComponent(s.slug)}&amp;preview=1" target="_blank" rel="noopener" aria-label="Preview ${esc(s.title)}" title="Preview (opens in a new tab)">${solidIcon('view')}</a>
             </td>
-            <td class="nowrap card-foot"><button class="btn btn--ghost btn--small" type="button" data-results="${s.id}">Results<span class="visually-hidden"> for ${esc(s.title)}</span></button> <button class="btn btn--ghost btn--small" type="button" data-edit="${s.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(s.title)}</span></button>
+            <td class="nowrap card-foot"><button class="btn btn--ghost btn--small" type="button" data-results="${s.id}">Results<span class="visually-hidden"> for ${esc(s.title)}</span></button> <button class="btn btn--ghost btn--small" type="button" data-edit="${s.id}" data-row-target>${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(s.title)}</span></button>
             </td>
             </tr>`)
           .join('')}</tbody></table></div>`
