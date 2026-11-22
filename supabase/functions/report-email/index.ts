@@ -5,7 +5,9 @@
 // POST JSON { to: string[], subject, html, text, attachments?: [{ filename, content (base64) }], kind, sent_by }
 // Only callers holding this project's service key may send (the Actions read it with SUPABASE_ACCESS_TOKEN, as the
 // nightly backup does): it is checked here, so the function is deployed without Supabase's JWT check
-// (supabase/config.toml). Secrets: RESEND_API_KEY (Resend, with the sending domain verified), REPORT_FROM (optional).
+// (supabase/config.toml). The key the Actions read isn't always the one this function is given (a project with
+// Supabase's newer API keys has both kinds), so a key that isn't this function's own is accepted when it can make an
+// admin-only call to this project (allowed()). Secrets: RESEND_API_KEY (Resend, with the sending domain verified), REPORT_FROM (optional).
 // Every shop's project gets the function with the deploy; only the catalog's is called.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -26,10 +28,29 @@ function same(a: string, b: string) {
   return diff === 0;
 }
 
+const trusted = new Set<string>();
+
+/**
+ * Does the caller hold a key with full access to this project? Its own service key, or any other secret key that can
+ * list the project's users (an admin-only call: anon and publishable keys, and signed-in users, can't). The key comes
+ * as a Bearer token, or in the apikey header (how supabase-js sends Supabase's newer, non-JWT secret keys).
+ */
+async function allowed(req: Request) {
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '') || (req.headers.get('apikey') ?? '');
+  if (!token) return false;
+  if (same(token, SERVICE_KEY) || trusted.has(token)) return true;
+  const headers: Record<string, string> = { apikey: token };
+  if (token.startsWith('eyJ')) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/admin/users?page=1&per_page=1`, { headers }).catch(() => null);
+  await res?.body?.cancel();
+  if (!res?.ok) return false;
+  trusted.add(token);
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json(405, { error: 'POST only' });
-  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
-  if (!token || !same(token, SERVICE_KEY)) return json(401, { error: 'Not allowed' });
+  if (!(await allowed(req))) return json(401, { error: 'Not allowed' });
 
   let body: { to?: unknown; subject?: unknown; html?: unknown; text?: unknown; attachments?: unknown; kind?: unknown; sent_by?: unknown };
   try {
