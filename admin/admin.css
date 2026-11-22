@@ -35,9 +35,13 @@
 .admin-login { max-width: 420px; margin: var(--sp-40) auto; }
 .admin-login h1 { font-size: var(--fs-xl); }
 
-.admin-tabs { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-bottom: var(--sp-20); border-bottom: 3px solid var(--brand-primary); }
+/* One row of tabs at every width: it scrolls sideways instead of wrapping onto a second line. overflow-y: hidden:
+   overflow-x alone makes the row scroll up and down too, by the 3px the chosen tab reaches over the line. */
+.admin-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; gap: var(--sp-4); margin-bottom: var(--sp-20); border-bottom: 3px solid var(--brand-primary); }
+.admin-tabs::-webkit-scrollbar { display: none; }
+.admin-tabs .admin-tab { flex: none; white-space: nowrap; }
 .admin-tab {
-  font: 700 var(--fs-base) var(--font-body); padding: var(--sp-10) var(--sp-20); min-height: var(--tap); cursor: pointer;
+  font: 700 var(--fs-ui) var(--font-body); padding: var(--sp-8) var(--sp-12); min-height: var(--tap); cursor: pointer;
   background: var(--tab-bg); border: 1px solid var(--field-line); border-bottom: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   color: var(--muted);
 }
@@ -49,7 +53,7 @@
 .admin-nav__badge[hidden] { display: none; }
 /* position: relative keeps the hidden phone label inside its tab; anchored outside the scrolling tab row, Safari
    repainted only part of a tab when it was chosen, leaving it half red. */
-.admin-tab { position: relative; display: inline-flex; align-items: center; gap: var(--sp-8); }
+.admin-tab { position: relative; display: inline-flex; align-items: center; gap: var(--sp-6); }
 .admin-tab__icon { flex: none; }
 /* Phones: the icon alone (the label stays for screen readers and as a tooltip). */
 @media (max-width: 699px) {
@@ -577,7 +581,6 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .cust-standing__cadence { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-sm); }
 .cust-standing__cadence select { width: auto; }
 /* Customers → Unclaimed: phone and email stacked in one cell. */
-.cust-unclaimed__contact { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
 .cust-icon { display: inline-flex; }
 .cust-icon.is-alert { color: var(--alert-icon); }
 .cust-legend { list-style: none; margin: 0 0 var(--sp-8); padding: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sp-4) var(--sp-16); font-size: var(--fs-xs); color: var(--muted); }
@@ -1242,11 +1245,6 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
   .cust-more { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 0 var(--sp-14); }
   .cust-more__body .btn { width: 100%; }
   .cust-more__body .cust-export-opt { min-height: var(--tap); font-size: var(--fs-base); }
-  /* One row of tabs that scrolls sideways instead of wrapping onto a second line. overflow-y: hidden: overflow-x
-     alone makes the row scroll up and down too, by the 3px the chosen tab reaches over the line. */
-  .admin-tabs { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
-  .admin-tabs::-webkit-scrollbar { display: none; }
-  .admin-tabs .admin-tab { flex: none; white-space: nowrap; }
   .admin-hint-fold .cust-legend { justify-content: flex-start; padding-bottom: var(--sp-8); }
   .admin-pager > span { white-space: nowrap; }
   /* A customer is a card: name and Email on the first line, phone, the counts, then the status icons and Fix. */

@@ -41,6 +41,15 @@ document.addEventListener('click', (e) => {
   openEmailDialog({ to: a.dataset.emailTo, name: a.dataset.emailName, customerId: a.dataset.emailCustomer });
 }, true);
 
+// A list row marked data-row-open opens its item from anywhere on the row: a click on the row (not on one of its own
+// links, buttons or fields, and not while selecting text) clicks the row's [data-row-target], its View / Edit / Open.
+document.addEventListener('click', (e) => {
+  const row = e.target.closest('tr[data-row-open]');
+  if (!row || e.defaultPrevented || e.target.closest('a, button, input, select, textarea, label, summary')) return;
+  if (getSelection()?.toString()) return;
+  row.querySelector('[data-row-target]')?.click();
+});
+
 window.addEventListener('beforeunload', (e) => {
   if (current?.module.hasUnsavedChanges?.()) e.preventDefault();
 });

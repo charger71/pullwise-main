@@ -117,11 +117,11 @@ async function load(el) {
   if (error) return (box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
   box.innerHTML = data.length
     ? `<table class="admin-table cards"><thead><tr><th scope="col" data-sort="text">When</th><th scope="col" data-sort="text">Event</th><th scope="col" data-sort="text">Type</th><th scope="col"><span class="visually-hidden">Edit</span></th></tr></thead><tbody>${data
-        .map((e) => `<tr>
+        .map((e) => `<tr class="is-clickable" data-row-open>
           <td class="nowrap" data-sort="${esc(e.starts_at)}">${fmtEventWhen(e)}</td>
           <td class="card-title"><strong>${esc(e.title)}</strong>${e.cancelled_at ? ' <span class="pill pill--cancelled">Cancelled</span>' : ''}${e.series_id ? ' <span class="pill pill--info">Repeats</span>' : ''}${placeOf(e) ? `<br><span class="card__meta">${esc(placeOf(e))}</span>` : ''}</td>
           <td>${TYPES[e.event_type] ?? e.event_type}</td>
-          <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-edit="${e.id}">${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(e.title)}</span></button>
+          <td class="card-action"><button class="btn btn--ghost btn--small" type="button" data-edit="${e.id}" data-row-target>${solidIcon('edit', 16)} Edit<span class="visually-hidden"> ${esc(e.title)}</span></button>
           </td>
           </tr>`)
         .join('')}</tbody></table>`

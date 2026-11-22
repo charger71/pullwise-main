@@ -227,7 +227,7 @@ function renderList(el) {
         <button class="btn btn--add" type="button" data-new>${solidIcon('add', 18)} New customer</button>
       </div>
     </div>
-    ${hintFold(`Customers who made an account on the site, and ones you add here. Open one to edit their pull list while they're in the store or on the phone.`)}
+    ${hintFold(TAB_HINTS[state.show] ?? TAB_HINTS[''])}
     <div class="admin-tabs cust-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-show="">All Customers</button>
       <button type="button" class="admin-tab" role="tab" data-show="new_week">New This Week <span class="admin-tab__badge" data-new-count hidden></span></button>
@@ -497,12 +497,18 @@ async function loadStandingLog(el, c) {
     : '<p class="empty">No changes to the account or pull list status yet.</p>';
 }
 
+/** The screen's How this works: Unclaimed and Approvals (drawn on their own) have their own; the list tabs share one. */
+const TAB_HINTS = {
+  '': `Customers who made an account on the site, and ones you add here. Open one to edit their pull list while they're in the store or on the phone.`,
+  unclaimed: 'Customers with books received and not picked up. Ages are how long the oldest book has really waited.',
+  approvals: 'Nothing here is ordered until you approve it. Customers never see this list.',
+};
+
 // ---------------------------------------------------------------------------
 // Approvals (only while Verify new accounts is on): accounts waiting, titles over the weekly limit, guest orders.
 // ---------------------------------------------------------------------------
 
 const approvalsHtml = () => `
-    <p class="admin-hint">Nothing here is ordered until you approve it. Customers never see this list.</p>
     <div data-approvals aria-busy="true"><p class="empty">Loading…</p></div>`;
 
 /** The number on the Approvals tab: everything waiting for a decision. */
@@ -513,8 +519,10 @@ async function countApprovals(el) {
   if (badge) (badge.textContent = a + t + g), (badge.hidden = !(a + t + g));
 }
 
-const contactCell = (r, customerId) =>
-  `<span class="cust-unclaimed__contact">${r.phone ? `<a href="tel:${esc(r.phone.replace(/[^\d+]/g, ''))}">${esc(formatPhone(r.phone))}</a>` : ''}${r.email ? `<button type="button" class="admin-link-button" data-email-to="${esc(r.email)}" data-email-name="${esc(r.first_name || r.name || '')}"${customerId ? ` data-email-customer="${customerId}"` : ''}>${esc(r.email)}</button>` : ''}</span>`;
+/** Phone and Email cells, as in the customer list: the number, then the small Email button. */
+const contactCells = (r, customerId) =>
+  `<td class="nowrap card-line">${esc(formatPhone(r.phone))}</td>
+          <td class="card-action">${r.email ? `<button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(r.email)}" aria-label="Email ${esc(r.name || r.email)}" data-email-to="${esc(r.email)}" data-email-name="${esc(r.first_name || r.name || '')}"${customerId ? ` data-email-customer="${customerId}"` : ''}>Email</button>` : ''}</td>`;
 const askedFor = (n, copies, cents) => (n ? `${n} ${n === 1 ? 'title' : 'titles'}${copies !== n ? ` (${copies} copies)` : ''} · ${dollars(cents)}` : 'Nothing yet');
 
 async function loadApprovals(el) {
@@ -527,10 +535,10 @@ async function loadApprovals(el) {
   box.innerHTML = `
     <section class="fold fold--compact fold--static"><div class="fold__head"><h2>New Accounts<span class="fold__note">${accounts.data.length || 'None'} waiting</span></h2></div><div class="fold__body">
       ${accounts.data.length ? `<div class="admin-table-wrap"><table class="admin-table cards">
-        <thead><tr><th scope="col">Name</th><th scope="col">Contact</th><th scope="col">Signed up</th><th scope="col">Asked for</th><th scope="col"><span class="visually-hidden">Approve</span></th></tr></thead>
-        <tbody>${accounts.data.map((r) => `<tr>
+        <thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col">Signed up</th><th scope="col">Asked for</th><th scope="col"><span class="visually-hidden">Approve</span></th></tr></thead>
+        <tbody>${accounts.data.map((r) => `<tr class="is-clickable" data-open="${r.customer_id}">
           <td class="card-title"><a href="#customers" data-open="${r.customer_id}"><strong>${esc(listName(r))}</strong></a>${r.unapproved_reason === 'staff' ? ' <span class="pill pill--warn">Unverified by staff</span>' : ''}</td>
-          <td class="card-line">${contactCell(r, r.customer_id)}</td>
+          ${contactCells(r, r.customer_id)}
           <td class="nowrap card__meta card-label" data-label="Signed up">${esc(fmtDate(r.created_at))}</td>
           <td class="card-label" data-label="Asked for">${esc(askedFor(r.open_titles, r.open_copies, r.open_cents))}</td>
           <td class="nowrap card-foot"><button class="btn btn--primary btn--small" type="button" data-approve-account="${r.customer_id}">Approve</button></td></tr>`).join('')}</tbody>
@@ -539,7 +547,7 @@ async function loadApprovals(el) {
     <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Titles Over the Weekly Limit<span class="fold__note">${cap ? `${cap} per cutoff week before a first pickup` : 'No weekly limit set'}</span></h2></div><div class="fold__body">
       ${lines.data.length ? `<div class="admin-table-wrap"><table class="admin-table cards">
         <thead><tr><th scope="col">Title</th><th scope="col">Customer</th><th scope="col">Cutoff</th><th scope="col" class="text-right">Price</th><th scope="col" class="text-right">Week so far</th><th scope="col"><span class="visually-hidden">Approve</span></th></tr></thead>
-        <tbody>${lines.data.map((r) => `<tr>
+        <tbody>${lines.data.map((r) => `<tr class="is-clickable" data-open="${r.customer_id}">
           <td class="card-title"><strong>${esc(r.title)}</strong>${r.quantity > 1 ? `<span class="card__meta"> × ${r.quantity}</span>` : ''}</td>
           <td class="card-line"><a href="#customers" data-open="${r.customer_id}">${esc(r.customer_name ?? '')}</a></td>
           <td class="nowrap card-label" data-label="Cutoff">${esc(fmtDate(r.foc_date, { weekday: 'short', month: 'short', day: 'numeric' }))}</td>
@@ -550,23 +558,24 @@ async function loadApprovals(el) {
     </div></section>
     <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Guest Orders<span class="fold__note">Orders from people without an account that don’t match an approved customer</span></h2></div><div class="fold__body">
       ${guests.data.length ? `<div class="admin-table-wrap"><table class="admin-table cards">
-        <thead><tr><th scope="col">Name</th><th scope="col">Contact</th><th scope="col">Placed</th><th scope="col">Asked for</th><th scope="col"><span class="visually-hidden">Approve</span></th></tr></thead>
+        <thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col">Placed</th><th scope="col">Asked for</th><th scope="col"><span class="visually-hidden">Approve</span></th></tr></thead>
         <tbody>${guests.data.map((r) => `<tr>
           <td class="card-title"><strong>${esc(r.name)}</strong><span class="card__meta"> · Order #${r.order_id}</span></td>
-          <td class="card-line">${contactCell(r)}</td>
+          ${contactCells(r)}
           <td class="nowrap card__meta card-label" data-label="Placed">${esc(fmtDate(r.created_at))}</td>
           <td class="card-label" data-label="Asked for">${esc(askedFor(r.open_titles, r.open_copies, r.open_cents))}</td>
           <td class="nowrap card-foot"><button class="btn btn--primary btn--small" type="button" data-approve-guest="${r.order_id}">Approve</button></td></tr>`).join('')}</tbody>
       </table></div>` : '<p class="empty">No guest orders waiting.</p>'}
     </div></section>`;
   box.onclick = async (e) => {
-    const open = e.target.closest('[data-open]');
+    if (e.target.closest('[data-email-to]')) return; // the email button opens the compose box
+    const btn = e.target.closest('[data-approve-account], [data-approve-line], [data-approve-guest]');
+    const open = !btn && e.target.closest('[data-open]');
     if (open) {
       e.preventDefault();
       state.customerId = Number(open.dataset.open);
       return renderCustomer(el);
     }
-    const btn = e.target.closest('[data-approve-account], [data-approve-line], [data-approve-guest]');
     if (!btn) return;
     btn.disabled = true;
     const { error: err } = btn.dataset.approveAccount
@@ -585,33 +594,32 @@ async function loadApprovals(el) {
 }
 
 const unclaimedHtml = () => `
-    <p class="admin-hint">Customers with books received and not picked up. Ages are how long the oldest book has really waited.</p>
     <p class="results-count" role="status" data-count></p>
     <div class="admin-table-wrap"><table class="admin-table cust-unclaimed cards">
-      <thead><tr><th scope="col" data-sort>Name</th><th scope="col">Contact</th><th scope="col" class="center" data-sort="num" data-first="desc">Books</th><th scope="col" class="text-right" data-sort="num" data-first="desc">Value</th><th scope="col" data-sort="num" data-first="desc">Oldest</th><th scope="col" data-sort="num" data-first="desc">Last pickup</th><th scope="col">Status</th>${trust.pickup_pause_enabled ? '<th scope="col">Reminder &amp; pause</th>' : ''}</tr></thead>
-      <tbody data-rows><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+      <thead><tr><th scope="col" data-sort>Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col" class="center" data-sort="num" data-first="desc">Books</th><th scope="col" class="text-right" data-sort="num" data-first="desc">Value</th><th scope="col" data-sort="num" data-first="desc">Oldest</th><th scope="col" data-sort="num" data-first="desc">Last pickup</th><th scope="col">Status</th>${trust.pickup_pause_enabled ? '<th scope="col">Reminder &amp; pause</th>' : ''}</tr></thead>
+      <tbody data-rows><tr><td colspan="${trust.pickup_pause_enabled ? 9 : 8}" class="empty">Loading…</td></tr></tbody>
     </table></div>`;
 
 async function loadUnclaimed(el) {
   const body = $('[data-rows]', el);
   const { data, error } = await sb.rpc('staff_pickup_summary', { p_ids: null });
-  if (error) return void (body.innerHTML = `<tr><td colspan="7" class="form-error">${esc(friendlyError(error))}</td></tr>`);
+  if (error) return void (body.innerHTML = `<tr><td colspan="${trust.pickup_pause_enabled ? 9 : 8}" class="form-error">${esc(friendlyError(error))}</td></tr>`);
   const rows = [...data].sort((a, b) => b.oldest_age_days - a.oldest_age_days || b.unclaimed_cents - a.unclaimed_cents);
   const total = rows.reduce((n, r) => n + Number(r.unclaimed_cents), 0);
   $('[data-count]', el).textContent = rows.length ? `${rows.length} ${rows.length === 1 ? 'customer' : 'customers'} · ${dollars(total)} waiting` : '';
   body.innerHTML = rows.length
     ? rows.map((r) => `<tr class="is-clickable" data-open="${r.customer_id}">
           <td class="card-title" data-sort="${esc(listName(r))}"><a href="#customers" data-open="${r.customer_id}"><strong>${esc(listName(r))}</strong></a></td>
-          <td class="card-line">${contactCell(r, r.customer_id)}</td>
+          ${contactCells(r, r.customer_id)}
           <td class="center card-key card-label" data-label="Books" data-sort="${r.unclaimed_count}">${r.unclaimed_count}${r.unclaimed_copies !== r.unclaimed_count ? `<span class="card__meta"> (${r.unclaimed_copies} copies)</span>` : ''}</td>
           <td class="text-right nowrap card-label" data-label="Value" data-sort="${r.unclaimed_cents}">${dollars(r.unclaimed_cents)}</td>
           <td class="nowrap card-label" data-label="Oldest" data-sort="${r.oldest_age_days}">${esc(ageLabel(r.oldest_age_days))}<span class="card__meta"> · since ${esc(fmtDate(r.oldest_received_on))}</span></td>
           <td class="nowrap card__meta card-label" data-label="Last pickup" data-sort="${r.last_pickup_at ? Date.parse(r.last_pickup_at) : ''}">${r.last_pickup_at ? esc(fmtDate(r.last_pickup_at)) : 'Never'}</td>
           <td class="card-wide"><span class="cust-standing__pills">${standingPills(r)}</span></td>${trust.pickup_pause_enabled ? `<td class="card__meta card-label" data-label="Reminder & pause">${esc(r.pickup_cadence === 'exempt' ? 'Exempt' : ladderText(r) || '–')}</td>` : ''}</tr>`).join('')
-    : `<tr><td colspan="${trust.pickup_pause_enabled ? 8 : 7}" class="empty">Nothing is waiting for pickup. Every received book has been picked up.</td></tr>`;
+    : `<tr><td colspan="${trust.pickup_pause_enabled ? 9 : 8}" class="empty">Nothing is waiting for pickup. Every received book has been picked up.</td></tr>`;
   if (rows.length) sortableTable($('table', el), { sort: '4', dir: 'desc' });
   body.addEventListener('click', (e) => {
-    if (e.target.closest('[data-email-to], a[href^="tel:"]')) return;
+    if (e.target.closest('[data-email-to]')) return;
     const row = e.target.closest('[data-open]');
     if (!row) return;
     e.preventDefault();

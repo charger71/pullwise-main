@@ -462,7 +462,7 @@ setHtml(quill, saved); … getHtml(quill)</pre>
                 <button type="button" class="admin-tab" role="tab" aria-selected="false">Closed</button>
               </div>
             </div>
-            <p class="admin-hint mt-8">Up to 899px the tabs stay on one row that scrolls sideways, never up and down; under 700px each tab shows its icon only.</p>
+            <p class="admin-hint mt-8">Tabs are compact (<code>--fs-ui</code> labels, 8px × 12px padding, 4px apart) so a screen’s tabs fit on one row; at every width the row never wraps onto a second line: when it is wider than the screen it scrolls sideways, never up and down. Under 700px each tab shows its icon only.</p>
           </div>
           <div class="sg-item" data-code>
             <h3>Menu item with a count badge</h3>
@@ -527,6 +527,7 @@ setHtml(quill, saved); … getHtml(quill)</pre>
             <li>Customer columns always run <strong>Name, Phone, Email</strong>, then the rest of the columns.</li>
             <li>Phone numbers use <code>formatPhone()</code> from <code>lib.js</code>. Emails are the small <code>Email</code> button, not raw addresses.</li>
             <li>Sortable columns put <code>data-sort</code> on the <code>&lt;th&gt;</code>; <code>sortableTable()</code> from <code>lib.js</code> adds the buttons and arrows.</li>
+              <li>A row that opens something opens it from anywhere on the row: give the <code>&lt;tr&gt;</code> <code>class="is-clickable" data-row-open</code> and its View / Edit / Open control <code>data-row-target</code>; <code>admin.js</code> passes a click on the row (not on its own links, buttons or fields) to that control. Customer rows open the customer.</li>
             <li>Use <code>.center</code> for numeric columns and <code>.nowrap</code> for dates, phones and IDs.</li>
             <li>Every other row is striped. Row states: <code>tr.is-overdue</code> (pink, for overdue, failed or blocked), <code>tr.is-hidden</code> (muted text, faded pictures), <code>tr.is-merge</code> / <code>tr.is-keep</code> (Series merge), and <code>tr.is-open</code> on an open order (blue; <code>aria-expanded</code> goes on its View button, not the row).</li>
             <li>Row colours paint the <code>&lt;tr&gt;</code>, never its cells, and live in one block of <code>admin.css</code> in priority order (stripe, hover, states, open). Add a new state there; no <code>!important</code>.</li>
