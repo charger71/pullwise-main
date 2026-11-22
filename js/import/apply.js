@@ -62,10 +62,12 @@ async function existingBySku(sb, distributor, skus) {
  * already belongs to another title (e.g. a Penguin Random House sheet listing a
  * graphic novel that came in on a Lunar sheet) are left out as `duplicates`: the
  * database allows each UPC once, and the same book shouldn't be listed twice.
- * Whichever listing was imported first stays. A title already stored whose sheet row now gives a UPC another title
+ * Whichever listing was imported first stays, except that Lunar takes over DC titles PRH listed first (takesOver):
+ * those come back in `takeovers`, to be switched to Lunar's listing on the same row.
+ * A title already stored whose sheet row now gives a UPC another title
  * holds (a mistake in the sheet, seen on Lunar) keeps its stored UPC and refreshes everything else: it comes back
  * without `upc` in `known`, and is listed in `upcClashes` for someone to check.
- * @returns {Promise<{ fresh: object[], known: object[], duplicates: object[], upcClashes: object[], existing: Map }>}
+ * @returns {Promise<{ fresh: object[], known: object[], duplicates: object[], takeovers: object[], upcClashes: object[], existing: Map }>}
  */
 export async function planImport(sb, { distributor, items }) {
   const existing = await existingBySku(sb, distributor, items.map((i) => i.sku));
@@ -75,16 +77,25 @@ export async function planImport(sb, { distributor, items }) {
   for (const field of ['upc', 'isbn']) {
     const values = [...new Set([...unseen, ...(field === 'upc' ? moved : [])].map((i) => i[field]).filter(Boolean))];
     for (const batch of chunks(values, 200)) {
-      const rows = await must(sb.from('items').select(`id,${field},title,issue_number,variant`).in(field, batch));
+      const rows = await must(sb.from('items').select(`id,${field},title,issue_number,variant,distributor,publisher`).in(field, batch));
       rows.forEach((r) => taken.set(`${field}:${r[field]}`, r));
     }
   }
   const fresh = [];
   const duplicates = [];
+  const takeovers = [];
   for (const i of unseen) {
     const keys = ['upc', 'isbn'].filter((f) => i[f]).map((f) => `${f}:${i[f]}`);
-    const clash = keys.find((k) => taken.has(k));
-    if (clash) duplicates.push({ ...i, existingTitle: taken.get(clash) });
+    const holders = keys.map((k) => taken.get(k)).filter(Boolean);
+    const target = holders.find((h) => takesOver(distributor, i, h));
+    const holder = target ?? holders[0];
+    if (target) {
+      // The sheet's UPC stays out when a third title holds it (the database allows each UPC once).
+      const upcHolder = i.upc && taken.get(`upc:${i.upc}`);
+      const { upc, ...rest } = i;
+      takeovers.push({ ...(upcHolder && upcHolder.id !== holder.id ? rest : i), existingTitle: holder });
+      keys.forEach((k) => taken.set(k, i)); // a second row with the same UPC or ISBN in this sheet is a duplicate
+    } else if (holder) duplicates.push({ ...i, existingTitle: holder });
     else {
       fresh.push(i);
       keys.forEach((k) => taken.set(k, i)); // a second row with the same UPC or ISBN in this sheet
@@ -102,7 +113,18 @@ export async function planImport(sb, { distributor, items }) {
     const { upc, ...rest } = i;
     return rest;
   });
-  return { existing, fresh, known, duplicates, upcClashes };
+  return { existing, fresh, known, duplicates, takeovers, upcClashes };
+}
+
+/**
+ * Does a sheet's title replace the listing already stored under another distributor? DC's books are ordered through
+ * Lunar, so Lunar takes over a DC title PRH listed first (PRH often lists DC trades before Lunar's sheets do): the same
+ * row becomes Lunar's, keeping its id, so shops' copies, pull lists and orders stay linked. Every other title stays
+ * with whichever listing came first.
+ */
+export function takesOver(distributor, item, holder) {
+  const dc = (p) => /^DC\b/i.test(p ?? '');
+  return distributor === 'lunar' && holder?.distributor === 'prh' && (dc(holder.publisher) || dc(item.publisher));
 }
 
 // PRH's "Cover Coming Soon" pictures (SHA-1 of the bytes), served at a title's cover address until the real one
@@ -265,7 +287,8 @@ export function duplicateTitle(d) {
  * @param opts      { images, imagesByRow, fetchRemote, makeThumb, putMedia, today, onSale, onProgress }
  *                  makeThumb(bytes, type, item) → { bytes, type } | null makes the small card copy of a cover;
  *                  putMedia(sb, path, bytes, opts) → url stores a picture (default: media-store.js)
- * @returns summary { added, updated, skipped, duplicates, duplicateTitles (duplicateTitle), upcClashes (lines), arrived, covers, coversMissing, coverErrors }
+ * @returns summary { added, updated, skipped, duplicates, duplicateTitles (duplicateTitle), switched, switchedTitles (lines),
+ *                    upcClashes (lines), arrived, covers, coversMissing, coverErrors }
  */
 export async function applyImport(sb, parsed, opts) {
   const { distributor, skipped } = parsed;
@@ -274,8 +297,9 @@ export async function applyImport(sb, parsed, opts) {
   const first = await planImport(sb, { distributor, items });
   const categories = new Map((await must(sb.from('categories').select('id,slug'))).map((c) => [c.slug, c.id]));
 
-  // Covers: for new titles and for known titles still missing one (or showing a placeholder).
-  const needCover = [...first.fresh, ...first.known].filter((i) => !hasCover(first.existing.get(i.sku)));
+  // Covers: for new titles and for known titles still missing one (or showing a placeholder), and the new
+  // distributor's picture for titles it takes over (they keep the old one if it has none).
+  const needCover = [...first.fresh, ...first.known.filter((i) => !hasCover(first.existing.get(i.sku))), ...first.takeovers];
   const coverUrls = new Map();
   const thumbUrls = new Map();
   const coverErrors = [];
@@ -295,7 +319,7 @@ export async function applyImport(sb, parsed, opts) {
 
   // Plan again right before writing: fetching covers takes a while, and titles saved in the meantime (another
   // import in another tab, or by hand) are updated rather than inserted a second time.
-  const { existing, fresh, known, duplicates, upcClashes } = await planImport(sb, { distributor, items });
+  const { existing, fresh, known, duplicates, takeovers, upcClashes } = await planImport(sb, { distributor, items });
   // A title that gained a cover in the meantime keeps it.
   for (const i of known) if (hasCover(existing.get(i.sku))) (coverUrls.delete(i.sku), thumbUrls.delete(i.sku));
 
@@ -334,16 +358,25 @@ export async function applyImport(sb, parsed, opts) {
     for (const batch of chunks(rows, 100)) await must(sb.from('items').upsert(batch, { onConflict: 'distributor,sku' }));
   }
 
+  // Titles taken over from another distributor: the same row, now this distributor's code and details.
+  for (const i of takeovers) {
+    const cover = coverUrls.has(i.sku) ? { cover_url: coverUrls.get(i.sku), cover_thumb_url: thumbUrls.get(i.sku) ?? null } : {};
+    await must(sb.from('items').update({ ...synced(i), distributor, sku: i.sku, ...cover }).eq('id', i.existingTitle.id));
+  }
+
   return {
     added: fresh.length,
     updated: known.length,
     skipped: skipped.length,
     duplicates: duplicates.length,
     duplicateTitles: duplicates.map(duplicateTitle),
+    switched: takeovers.length,
+    switchedTitles: takeovers.map((i) => `${i.sku} ${titleName(i)} (was ${i.existingTitle.distributor.toUpperCase()})`),
     upcClashes: upcClashes.map(upcClashLine),
     arrived: newRows.filter((r) => r.status !== 'pre_order').length,
     covers: coverUrls.size,
-    coversMissing: Math.max(0, needCover.length - coverUrls.size),
+    // (A title taken over without a new picture keeps the one it had.)
+    coversMissing: needCover.filter((i) => !i.existingTitle && !coverUrls.has(i.sku)).length,
     coverErrors,
   };
 }
