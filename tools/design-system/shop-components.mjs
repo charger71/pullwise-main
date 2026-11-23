@@ -263,7 +263,7 @@ ${card({ status: 'just_arrived', icon: '★', label: 'Just Arrived', title: 'Mon
 The catalog in list view: one title per row, for scanning a long list. The visitor picks it with the List switch in the list toolbar (ShopFilters) on Pre-Orders, New Arrivals and Search; the choice is remembered on the device per page.
 
 - \`.grid.grid--list\`: the same \`.card\` markup as ShopTitleCard, one per row, with a 1px top edge and a 3px red rule down the left instead of across the top.
-- Cover: 76px wide (96px from 800px), centred top to bottom in the row. The cover badges are hidden; Top 10 and Staff Pick show as small labels beside the status badge instead (\`.list-tag\`: Top 10 in \`shop-brand-primary\` with \`shop-on-primary\` text, Staff Pick in \`shop-gold\` with \`shop-on-accent\` text).
+- Cover: 76px wide (96px from 800px), 12px in from the red rule (\`--sp-12\`), centred top to bottom in the row. The cover badges are hidden; Top 10 and Staff Pick show as small labels beside the status badge instead (\`.list-tag\`: Top 10 in \`shop-brand-primary\` with \`shop-on-primary\` text, Staff Pick in \`shop-gold\` with \`shop-on-accent\` text).
 - Text (\`.card__info\`) fills the middle in the card's usual order. The buttons (\`.card__actions\`: Add to pull list, Add all covers, then the Follow link) sit in a 220px column on the right, full width and stacked, centred in the row. Under 600px they drop below the text at their natural width.
 - Consumer provides: the title records. Rendered by \`itemCard()\` in js/components.js; the switch is \`listToolbar()\` in js/list-view.js.`,
     html: page('ShopTitleList', `

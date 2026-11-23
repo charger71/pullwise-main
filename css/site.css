@@ -783,7 +783,7 @@ address { font-style: normal; margin-bottom: 1em; }
 /* A card's text (.card__info) and its buttons (.card__actions) are wrappers only on a grid card, so the body still
    stacks them with its own gap; a list row puts the buttons at the right (under the text on phones). */
 .card__info, .card__actions { display: contents; }
-.grid--list .card { display: grid; grid-template-columns: 76px minmax(0, 1fr); border-top-width: 1px; border-left: 3px solid var(--red); }
+.grid--list .card { display: grid; grid-template-columns: 76px minmax(0, 1fr); border-top-width: 1px; border-left: 3px solid var(--red); padding-left: var(--sp-12); }
 .grid--list .card__media { align-self: center; }
 .grid--list .card__body { padding: var(--sp-10) var(--sp-12); gap: var(--sp-8); }
 .grid--list .card__info { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
