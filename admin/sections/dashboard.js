@@ -261,7 +261,15 @@ async function renderAttention(box, loc = null, stale = () => false) {
   const eventSignups = scoped
     ? sb.from('event_signups').select('id, events!inner(location_id)', { count: 'exact', head: true }).eq('events.location_id', loc)
     : sb.from('event_signups').select('id', { count: 'exact', head: true });
-  const [guestMatches, overdue, failedEmails, signups, noEmail, noCover, noCategory, hidden, noPrice, newResponses, newEventSignups] = await Promise.all([
+  // Approvals (Customers → Approvals) exist only while Verify new accounts is on: accounts, titles over the weekly limit, guest orders.
+  const approvals = () =>
+    sb.from('trust_settings').select('verification_enabled').eq('id', 1).maybeSingle().then(({ data }) =>
+      data?.verification_enabled
+        ? Promise.all(['staff_waiting_accounts', 'staff_over_cap_lines', 'staff_waiting_guest_orders'].map((n) => sb.rpc(n).then(({ data: d }) => d?.length ?? 0, () => 0))).then((ns) => ns.reduce((a, b) => a + b, 0))
+        : 0,
+    () => 0);
+  const [approvalsWaiting, guestMatches, overdue, failedEmails, signups, noEmail, noCover, noCategory, hidden, noPrice, newResponses, newEventSignups] = await Promise.all([
+    wide(approvals),
     wide(() => findGuestMatches(sb).then((m) => m.length)),
     count(scoped ? overdueQuery.eq('location_id', loc) : overdueQuery),
     wide(() => count(sb.from('email_log').select('id', { count: 'exact', head: true }).eq('status', 'failed').gte('created_at', weekAgo))),
@@ -289,6 +297,7 @@ async function renderAttention(box, loc = null, stale = () => false) {
   const visible = { visibility: 'visible' };
   const rows = [
     backupRow,
+    scoped ? '' : row(approvalsWaiting, `${approvalsWaiting === 1 ? 'customer approval is' : 'customer approvals are'} waiting`, { page: 'customers', key: 'admin-customers-show', filter: 'approvals' }),
     row(overdue, `${overdue === 1 ? 'title is' : 'titles are'} past the pickup window`, { page: 'reservations', key: 'admin-reservations-status', filter: 'overdue' }),
     scoped ? '' : row(failedEmails, `${failedEmails === 1 ? 'email' : 'emails'} failed to send in the last 7 days`, { page: 'emails', key: 'admin-emails-failed', filter: '1' }),
     scoped ? '' : row(guestMatches, `guest ${guestMatches === 1 ? 'order matches' : 'orders match'} an existing customer`, { page: 'customers', key: 'admin-customers-show', filter: 'link_guests' }),
