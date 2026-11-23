@@ -16,22 +16,33 @@ ${body.trim()}
 const ph = '<div class="cover cover--placeholder" aria-hidden="true">Image coming soon</div>';
 const badge = (s, icon, label) => `<span class="badge badge--${s}"><span aria-hidden="true">${icon}</span> ${label}</span>`;
 
-const card = ({ status, icon, label, title, variant, meta, chips, pick, top, foc, soon, foot = true, on = false }) => `<article class="card">
+const listTags = (top, pick) => `${top ? '<span class="list-tag list-tag--top" title="One of our 10 most reserved titles">Top 10</span>' : ''}${pick ? '<span class="list-tag list-tag--pick"><span aria-hidden="true">★</span> Staff Pick</span>' : ''}`;
+const viewToggle = (list) => `<div class="view-toggle" role="group" aria-label="Show titles as"><button class="btn btn--small btn--ghost" type="button" aria-pressed="${!list}" aria-label="Grid" title="Grid"><svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></button><button class="btn btn--small btn--ghost" type="button" aria-pressed="${list}" aria-label="List" title="List"><svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button></div>`;
+const toolbar = (count, list) => `<div class="list-toolbar"><p class="results-count" role="status">${count}</p><div class="list-toolbar__controls"><label class="visually-hidden" for="sort">Sort titles</label><select id="sort" class="list-toolbar__sort"><option>Order cutoff (soonest)</option><option>Title A–Z</option></select>${viewToggle(list)}</div></div>`;
+
+// Mirrors itemCard() in js/components.js: .card__info holds the text, .card__actions the buttons (under the text in a
+// grid, at the right of a list row).
+const card = ({ status, icon, label, title, variant, meta, chips, pick, top, foc, soon, foot = true, on = false, covers = false, follow = false }) => {
+  const actions = foot ? `<div class="card__foot">${on ? '<button class="btn btn--ghost" aria-pressed="true"><span aria-hidden="true">✓</span> On your pull list</button>' : '<button class="btn btn--primary" aria-pressed="false">Add to pull list</button>'}${covers ? '<button class="btn btn--ghost" type="button">Add all covers</button>' : ''}</div>${follow ? '<button class="follow-open" type="button">+ Follow<span class="follow-open__more"> series / artist</span></button>' : ''}` : '';
+  return `<article class="card">
   <div class="card__media${top ? ' has-top-badge' : ''}">
     ${ph}
     ${top ? '<span class="top-badge" title="One of our 10 most reserved titles"><span class="top-badge__top">Top</span><span class="top-badge__num" aria-hidden="true">10</span><span class="visually-hidden"> 10 most reserved</span></span>' : ''}
     ${pick ? '<span class="pick-badge"><span aria-hidden="true">★</span> Staff Pick</span>' : ''}
   </div>
   <div class="card__body">
-    <div>${badge(status, icon, label)}</div>
-    ${chips ? `<ul class="chips" aria-label="Collector notes">${chips.map((c) => `<li>${c}</li>`).join('')}</ul>` : ''}
-    <h3 class="card__title"><button class="card__title-open" type="button">${title}<span class="visually-hidden"> (details)</span></button></h3>
-    ${variant ? `<p class="card__variant">${variant}</p>` : ''}
-    <p class="card__meta">${meta}</p>
-    ${foc ? `<p class="foc${soon ? ' foc--soon' : ''}"><span aria-hidden="true">⏱</span> ${foc}</p>` : ''}
-    ${foot ? `<div class="card__foot">${on ? '<button class="btn btn--ghost" aria-pressed="true"><span aria-hidden="true">✓</span> On your pull list</button>' : '<button class="btn btn--primary" aria-pressed="false">Add to pull list</button>'}</div>` : ''}
+    <div class="card__info">
+      <div class="card__badges">${badge(status, icon, label)}${listTags(top, pick)}</div>
+      ${chips ? `<ul class="chips" aria-label="Collector notes">${chips.map((c) => `<li>${c}</li>`).join('')}</ul>` : ''}
+      <h3 class="card__title"><button class="card__title-open" type="button">${title}<span class="visually-hidden"> (details)</span></button></h3>
+      ${variant ? `<p class="card__variant">${variant}</p>` : ''}
+      <p class="card__meta">${meta}</p>
+      ${foc ? `<p class="foc${soon ? ' foc--soon' : ''}"><span aria-hidden="true">⏱</span> ${foc}</p>` : ''}
+    </div>
+    ${actions ? `<div class="card__actions">${actions}</div>` : ''}
   </div>
 </article>`;
+};
 
 export const SHOP = [
   {
@@ -214,7 +225,7 @@ The filter bar above a catalog grid: a search box and select or multi-select fil
 
 - \`.filters\` is a \`surface\` box with a \`line\` edge and \`shop-radius\`. On phones it is two columns with search on its own row; from 800px every filter shares one row and search is 1.6× wider.
 - Filter labels are .85rem. Under the bar, the list toolbar (\`.list-toolbar\`, js/list-view.js): the count (\`.results-count\`, \`role="status"\`, muted) on the left; on the right a sort select (\`.list-toolbar__sort\`, 44px tall: the page's usual order first, then Title A–Z / Z–A, Release date, Price both ways, Publisher; held in the address as \`?sort=\`) and the Grid / List switch (\`.view-toggle\`, as on the Calendar; remembered on the device per page). Used on Pre-Orders, New Arrivals and Search.
-- List view (\`.grid--list\`): one title per row, a 76px cover (96px from 800px) at the left with a 3px red rule beside it, the card body to its right. The cover badges move beside the status badge as small labels (\`.list-tag\`: Top 10 in \`shop-brand-primary\` with \`shop-on-primary\` text, Staff Pick in \`shop-gold\` with \`shop-on-accent\` text).
+- List view (\`.grid--list\`): one title per row with the buttons on the right; see ShopTitleList.
 - Consumer provides: the filters, the sort choices and the count text ("48 titles").`,
     html: page('ShopFilters', `
 <form class="filters" role="search" onsubmit="return false">
@@ -223,10 +234,10 @@ The filter bar above a catalog grid: a search box and select or multi-select fil
   <div class="field"><label for="fmt">Format</label><select id="fmt"><option>All</option><option>Comic</option><option>Trade</option></select></div>
   <div class="field"><label for="month">Out</label><select id="month"><option>Any month</option><option>November</option></select></div>
 </form>
-<div class="list-toolbar"><p class="results-count" role="status">48 titles</p><div class="list-toolbar__controls"><label class="visually-hidden" for="sort">Sort titles</label><select id="sort" class="list-toolbar__sort"><option>Order cutoff (soonest)</option><option>Title A–Z</option></select><div class="view-toggle" role="group" aria-label="Show titles as"><button class="btn btn--small btn--ghost" type="button" aria-pressed="true" aria-label="Grid" title="Grid"><svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></button><button class="btn btn--small btn--ghost" type="button" aria-pressed="false" aria-label="List" title="List"><svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button></div></div></div>`),
+${toolbar('48 titles', false)}`),
   },
   {
-    name: 'ShopTitleCard', group: G('Catalog'), height: 630, width: 960,
+    name: 'ShopTitleCard', group: G('Catalog'), height: 643, width: 960,
     readme: `# ShopTitleCard
 
 A title in the catalog grid: cover, status, collector notes, title, meta, the order cutoff and the pull-list button.
@@ -243,6 +254,24 @@ ${card({ status: 'pre_order', icon: '◷', label: 'Pre-Order', title: 'Absolute 
 ${card({ status: 'pre_order', icon: '◷', label: 'Pre-Order', title: 'Saga #71', meta: 'Image Comics · Out Nov 11 · $3.99', foc: 'Add by tomorrow night <span class="card__meta">(Sat, Oct 24)</span>', soon: true, on: true })}
 ${card({ status: 'just_arrived', icon: '★', label: 'Just Arrived', title: 'Monstress #60', meta: 'Image Comics · $3.99', chips: ['Final Issue'], foot: false })}
 <article class="card"><div class="card__media">${ph}<span class="card__banner" aria-hidden="true">Series</span></div><div class="card__body"><h3 class="card__title">Transformers</h3><p class="card__meta">Series · 24 issues listed</p><button class="follow-open" type="button">+ Follow<span class="follow-open__more"> this series</span></button></div></article>
+</div>`),
+  },
+  {
+    name: 'ShopTitleList', group: G('Catalog'), height: 590, width: 960,
+    readme: `# ShopTitleList
+
+The catalog in list view: one title per row, for scanning a long list. The visitor picks it with the List switch in the list toolbar (ShopFilters) on Pre-Orders, New Arrivals and Search; the choice is remembered on the device per page.
+
+- \`.grid.grid--list\`: the same \`.card\` markup as ShopTitleCard, one per row, with a 1px top edge and a 3px red rule down the left instead of across the top.
+- Cover: 76px wide (96px from 800px), centred top to bottom in the row. The cover badges are hidden; Top 10 and Staff Pick show as small labels beside the status badge instead (\`.list-tag\`: Top 10 in \`shop-brand-primary\` with \`shop-on-primary\` text, Staff Pick in \`shop-gold\` with \`shop-on-accent\` text).
+- Text (\`.card__info\`) fills the middle in the card's usual order. The buttons (\`.card__actions\`: Add to pull list, Add all covers, then the Follow link) sit in a 220px column on the right, full width and stacked, centred in the row. Under 600px they drop below the text at their natural width.
+- Consumer provides: the title records. Rendered by \`itemCard()\` in js/components.js; the switch is \`listToolbar()\` in js/list-view.js.`,
+    html: page('ShopTitleList', `
+${toolbar('48 titles', true)}
+<div class="grid grid--list">
+${card({ status: 'pre_order', icon: '◷', label: 'Pre-Order', title: 'Absolute Batman #12', variant: 'Cover B Jock', meta: 'DC Comics · Out Nov 4 · $4.99', chips: ['Key Issue'], top: true, pick: true, foc: 'Add by Sat, Oct 31', covers: true, follow: true })}
+${card({ status: 'pre_order', icon: '◷', label: 'Pre-Order', title: 'Saga #71', meta: 'Image Comics · Out Nov 11 · $3.99', foc: 'Add by tomorrow night <span class="card__meta">(Sat, Oct 24)</span>', soon: true, on: true, follow: true })}
+${card({ status: 'just_arrived', icon: '★', label: 'Just Arrived', title: 'Monstress #60', meta: 'Image Comics · $3.99', chips: ['Final Issue'], foot: false })}
 </div>`),
   },
   {
