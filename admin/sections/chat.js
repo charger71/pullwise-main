@@ -9,14 +9,24 @@ import { setupStaffPush } from '../staff-push.js';
 const BACKUP_REFRESH = 20000;
 const SNIPPET = 90;
 let sb;
-let root; // the element this screen draws into (replaced by the next screen, which is how we know to stop)
+let root; // the #section every admin screen draws into: shared, so it stays on the page after this screen is left
+let shown; // what this screen last put there; once that's off the page the screen has gone (stop, write nothing)
 let run = 0; // bumped each time the list or a chat is drawn, so a late answer for an old screen is ignored
 let channel;
 let timer;
 let listTab = 'open'; // open | closed
 let me = null; // the signed-in staff member's email, saved with each reply
 
-export const hasUnsavedChanges = () => !!(root?.isConnected && $('[name="reply"]', root)?.value.trim());
+export const hasUnsavedChanges = () => !!(shown?.isConnected && $('[name="reply"]', root)?.value.trim());
+
+/** Whether `mine` is still the chat screen on the page (not an older draw of it, and not left for another screen). */
+const onScreen = (mine) => mine === run && !!shown?.isConnected;
+
+/** Put `html` on the page as this screen, remembering it so onScreen can tell when another screen replaces it. */
+function draw(html) {
+  root.innerHTML = html;
+  shown = root.firstElementChild;
+}
 
 /** Stop listening for the screen that is going away. */
 function stop() {
@@ -27,7 +37,7 @@ function stop() {
 
 /** Call `refresh` whenever a chat changes, and every so often as a backup. Stops itself once the screen has gone. */
 function listen(mine, refresh) {
-  const live = () => mine === run && root.isConnected;
+  const live = () => onScreen(mine);
   const again = () => (live() ? refresh() : stop());
   channel = sb
     .channel(`admin-chat-${mine}`)
@@ -41,6 +51,7 @@ export async function mount(el, ctx) {
   stop();
   sb = ctx.sb;
   root = el;
+  draw('<p class="admin-hint loading">Loading…</p>');
   me ??= (await sb.auth.getUser()).data.user?.email ?? null;
   return ctx.arg ? showChat(Number(ctx.arg)) : showList();
 }
@@ -50,8 +61,9 @@ export async function mount(el, ctx) {
 async function showList() {
   const mine = ++run;
   const settings = await must(sb.from('settings').select('chat_enabled').eq('id', 1).maybeSingle());
+  if (!onScreen(mine)) return; // left while the settings loaded
   const on = !!settings?.chat_enabled;
-  root.innerHTML = `
+  draw(`
     <div class="admin-title-row"><h1>Chat</h1>${switchHtml(chatLabel(on), { checked: on, attrs: 'data-chat-switch' })}</div>
     ${hintFold('Visitors start a chat from the button in the corner of every public page. This screen shows new messages as they arrive, so leave it open while you want to be reachable; if you are on another screen, a message pops up in the corner and the Chat menu item shows how many chats are waiting. Turn on chat notifications (the line under the switch) to get a notification on this phone or computer when a visitor writes, even with the admin closed; each staff member turns them on for each of their own devices. Reply here, close a chat when you are done, and delete the ones you no longer need (chats keep the visitor’s name and, if they gave it, their email). A visitor who writes again reopens a closed chat. A customer who is signed in (on the website or in the app) chats on their account: the chat says Customer and links to their account, and your replies reach their phone as an app notification if they turned those on. Use the switch at the top to turn chat on or off for visitors. The owner can remove the chat feature altogether in Shop Settings → Online.')}
     <div class="admin-tabs" role="tablist">
@@ -61,7 +73,7 @@ async function showList() {
     <p class="admin-hint" data-switch-hint></p>
     <p class="admin-hint" data-chat-notify></p>
     <p class="admin-status" role="status" data-state></p>
-    <div data-list></div>`;
+    <div data-list></div>`);
   $$('[data-status]', root).forEach((b) =>
     b.addEventListener('click', () => {
       listTab = b.dataset.status;
@@ -101,7 +113,7 @@ function wireSwitch(mine, on) {
       show(want);
       toast(want ? 'Chat is on. Visitors can message you now.' : 'Chat is off. Visitors no longer see the chat button.');
     } catch (err) {
-      if (mine === run && root.isConnected) show(!want);
+      if (onScreen(mine)) show(!want);
       toast(`Not saved: ${friendlyError(err)}`, 'error');
     } finally {
       box.disabled = false;
@@ -113,14 +125,14 @@ async function loadList(mine) {
   const box = $('[data-list]', root);
   try {
     const all = await must(sb.from('chat_conversations').select('id,name,email,status,unread_staff,last_message_at,customer_id').order('last_message_at', { ascending: false }).limit(200));
-    if (mine !== run) return;
+    if (!onScreen(mine)) return;
     const rows = all.filter((c) => c.status === listTab);
     const last = new Map(); // the newest message of each chat, for the preview
     if (rows.length) {
       const recent = await must(sb.from('chat_messages').select('conversation_id,from_staff,body').in('conversation_id', rows.map((c) => c.id)).order('id', { ascending: false }).limit(400));
       recent.forEach((m) => last.has(m.conversation_id) || last.set(m.conversation_id, m));
     }
-    if (mine !== run) return;
+    if (!onScreen(mine)) return;
     $$('[data-status]', root).forEach((b) => b.setAttribute('aria-selected', b.dataset.status === listTab));
     const unread = all.filter((c) => c.status === 'open').reduce((n, c) => n + (c.unread_staff > 0 ? 1 : 0), 0);
     const badge = $('[data-unread]', root);
@@ -143,7 +155,7 @@ async function loadList(mine) {
           .join('')}</tbody></table></div>`
       : `<p class="empty">${listTab === 'open' ? 'No open chats. New ones show up here the moment a visitor writes.' : 'No closed chats.'}</p>`;
   } catch (err) {
-    if (mine === run) setStatus($('[data-state]', root), `Couldn’t load chats: ${friendlyError(err)}`, 'error');
+    if (onScreen(mine)) setStatus($('[data-state]', root), `Couldn’t load chats: ${friendlyError(err)}`, 'error');
   }
 }
 
@@ -152,12 +164,13 @@ async function loadList(mine) {
 async function showChat(id) {
   const mine = ++run;
   const chat = await must(sb.from('chat_conversations').select('id,name,email,status,created_at,customer_id').eq('id', id).maybeSingle());
+  if (!onScreen(mine)) return; // left while the chat loaded
   if (!chat) {
-    root.innerHTML = `<p><a class="btn btn--ghost btn--small" href="${adminHash('chat')}">← Back to chats</a></p><p class="empty">That chat is gone. A teammate may have deleted it.</p>`;
+    draw(`<p><a class="btn btn--ghost btn--small" href="${adminHash('chat')}">← Back to chats</a></p><p class="empty">That chat is gone. A teammate may have deleted it.</p>`);
     return;
   }
   const replyId = uid('chat-reply');
-  root.innerHTML = `
+  draw(`
     <p><a class="btn btn--ghost btn--small" href="${adminHash('chat')}">← Back to chats</a></p>
     <div class="admin-title-row">
       <h1>${esc(chat.name)}</h1>
@@ -172,7 +185,7 @@ async function showChat(id) {
       <div class="field"><label for="${replyId}">Reply</label><textarea id="${replyId}" name="reply" rows="2" maxlength="1000" required></textarea></div>
       <button class="btn btn--primary" type="submit">Send</button>
     </form>
-    <p class="admin-status" role="status" data-state></p>`;
+    <p class="admin-status" role="status" data-state></p>`);
   const state = $('[data-state]', root);
   const toggle = $('[data-toggle]', root);
   const paintStatus = () => {
@@ -239,7 +252,7 @@ async function showChat(id) {
 async function loadChat(mine, id) {
   try {
     const messages = await must(sb.from('chat_messages').select('id,from_staff,body,sent_by,created_at').eq('conversation_id', id).order('id'));
-    if (mine !== run) return;
+    if (!onScreen(mine)) return;
     const log = $('[data-log]', root);
     const nearEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
     log.innerHTML = messages.length
@@ -250,6 +263,6 @@ async function loadChat(mine, id) {
     // Opening a chat reads it: clear the "new" count (only when there is something to clear, so it isn't written every refresh).
     await sb.from('chat_conversations').update({ unread_staff: 0 }).eq('id', id).gt('unread_staff', 0);
   } catch (err) {
-    if (mine === run) setStatus($('[data-state]', root), `Couldn’t load messages: ${friendlyError(err)}`, 'error');
+    if (onScreen(mine)) setStatus($('[data-state]', root), `Couldn’t load messages: ${friendlyError(err)}`, 'error');
   }
 }
