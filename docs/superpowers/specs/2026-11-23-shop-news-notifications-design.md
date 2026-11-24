@@ -88,7 +88,8 @@ whose customer has `push_news` on. (The notification onboarding design's "all fo
   `push_news`, and records the row with `test = true`.
 - **Delivery (my call, from scale):** a shop has hundreds of devices, not tens of thousands, but the send must never
   go out twice or look finished when it isn't. So the function inserts the row with `status = 'sending'`, replies
-  straight away with the row, and finishes the send in the background (`EdgeRuntime.waitUntil`). It then sets
+  straight away with the row, and finishes the send in the background (`EdgeRuntime.waitUntil`), 20 devices at a time
+  so a large shop finishes well inside the time limit (other notices still send one by one). It then sets
   `status = 'sent'` with the counts, or `'failed'` with the error. A repeated `request_id` returns the existing row
   instead of an error, so a retry after a timeout shows the same send and never sends again. The history shows
   "Sending…" until it's done (the screen polls that row every few seconds while it's open).

@@ -14,7 +14,7 @@
 //   POST  Authorization: Bearer <staff>  { "mode": "news", title, body, url, test, request_id }   shop news staff wrote
 //           (Admin → Notifications): to every device of customers with shop news on, or with `test` only to the
 //           sender's own app devices. Recorded in news_pushes and answered at once ({ push: row }); the sending
-//           finishes in the background. The same request_id again answers that row and sends nothing. A test with
+//           finishes in the background, 20 devices at a time (NEWS_AT_ONCE). The same request_id again answers that row and sends nothing. A test with
 //           no device of the sender's answers { devices: 0 } and records nothing.
 //
 // Secrets (supabase secrets set …): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (`node tools/vapid-keys.mjs` makes a pair; the
@@ -25,7 +25,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
-import { arrivalMessage, newTitlesMessage, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, testMessage, staffChatMessage, staffTestMessage, chatReplyMessage, checkNews, newsMessage, notificationIcon, subscriptionGone, shopToday, addDays, focsChangingOn, pickupDue } from './messages.js';
+import { arrivalMessage, newTitlesMessage, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, testMessage, staffChatMessage, staffTestMessage, chatReplyMessage, checkNews, newsMessage, NEWS_AT_ONCE, eachAtOnce, notificationIcon, subscriptionGone, shopToday, addDays, focsChangingOn, pickupDue } from './messages.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
@@ -214,7 +214,7 @@ async function sendNews(body: Record<string, unknown>, staff: { user_id: string;
   const deliver = async () => {
     try {
       const shop = await loadShop();
-      const result = await sendTo(devices, { ...newsMessage(row), icon: notificationIcon(shop) }, CUSTOMER_TABLE, 60 * 60 * 24, 'normal');
+      const result = await sendTo(devices, { ...newsMessage(row), icon: notificationIcon(shop) }, CUSTOMER_TABLE, 60 * 60 * 24, 'normal', NEWS_AT_ONCE);
       await admin.from('news_pushes').update({ status: 'sent', sent: result.sent, failed: result.failed, finished_at: new Date().toISOString() }).eq('id', row.id);
     } catch (err) {
       console.error(`news push ${row.id} failed:`, err);
@@ -228,13 +228,14 @@ async function sendNews(body: Record<string, unknown>, staff: { user_id: string;
 /**
  * One notification to each device. A device the push service says is gone is forgotten. Resolves how many got it,
  * how many failed, and whether any device is still worth trying again (so the caller knows whether to mark it sent).
+ * `atOnce`: how many devices at the same time (shop news, which goes to every device, sends NEWS_AT_ONCE); 1 is one by one.
  */
-async function sendTo(devices: Device[], message: Record<string, unknown>, table = CUSTOMER_TABLE, ttl = 60 * 60 * 12, urgency = 'normal') {
+async function sendTo(devices: Device[], message: Record<string, unknown>, table = CUSTOMER_TABLE, ttl = 60 * 60 * 12, urgency = 'normal', atOnce = 1) {
   let sent = 0;
   let failed = 0;
   let retry = false;
   const payload = JSON.stringify(message);
-  for (const d of devices) {
+  await eachAtOnce(devices, atOnce, async (d: Device) => {
     try {
       await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload, { TTL: ttl, urgency });
       sent++;
@@ -249,7 +250,7 @@ async function sendTo(devices: Device[], message: Record<string, unknown>, table
         console.error(`push to device ${d.id} failed:`, status ?? '', err instanceof Error ? err.message : err);
       }
     }
-  }
+  });
   return { sent, failed, retry };
 }
 

@@ -208,6 +208,21 @@ export function checkNews({ title = '', body = '', url = '' } = {}) {
   return null;
 }
 
+/**
+ * How many devices shop news sends to at the same time. It goes to every device, and one by one a few thousand would
+ * outlast the function's time limit; 20 at once is still far below what the push services accept from one sender.
+ */
+export const NEWS_AT_ONCE = 20;
+
+/** Run `fn` on every item, never more than `limit` at the same time (1 is a plain loop, in order). */
+export async function eachAtOnce(items, limit, fn) {
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) await fn(items[next++]);
+  };
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, limit), items.length) }, worker));
+}
+
 /** The notification for one send (`id` from news_pushes): its own tag, so two sends don't replace each other. */
 export const newsMessage = ({ id, title, body, url }) => ({
   title: String(title).trim(),

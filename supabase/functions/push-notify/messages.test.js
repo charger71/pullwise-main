@@ -1,6 +1,6 @@
 // node supabase/functions/push-notify/messages.test.js
 import assert from 'node:assert/strict';
-import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone, addDays, shopToday, dayLabel, lastChangeDay, focsChangingOn, pickupDue, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, staffChatMessage, staffTestMessage, chatReplyMessage, charCount, validNewsUrl, checkNews, newsMessage } from './messages.js';
+import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone, addDays, shopToday, dayLabel, lastChangeDay, focsChangingOn, pickupDue, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, staffChatMessage, staffTestMessage, chatReplyMessage, charCount, validNewsUrl, checkNews, newsMessage, eachAtOnce, NEWS_AT_ONCE } from './messages.js';
 
 const line = (title, issue, id) => ({ item: { id, title, issue_number: issue } });
 
@@ -152,3 +152,29 @@ assert.equal(checkNews({ title: 'x', body: 'y' }), null, 'no link: opens the app
 assert.deepEqual(newsMessage({ id: 7, title: ' Sale ', body: ' Fri–Sun ', url: '/app#shop' }), { title: 'Sale', body: 'Fri–Sun', url: '/app#shop', tag: 'news-7' });
 assert.equal(newsMessage({ id: 1, title: 'x', body: 'y', url: '' }).url, '/app');
 console.log('shop news message tests passed');
+
+// Shop news goes to every device at once, so it sends a batch at a time (eachAtOnce); everything else, one by one
+{
+  let running = 0;
+  let most = 0;
+  const done = [];
+  await eachAtOnce([1, 2, 3, 4, 5, 6, 7], 3, async (n) => {
+    running++;
+    most = Math.max(most, running);
+    await new Promise((r) => setTimeout(r, n % 3)); // finishing out of order
+    done.push(n);
+    running--;
+  });
+  assert.deepEqual(done.sort(), [1, 2, 3, 4, 5, 6, 7], 'every device, once');
+  assert.equal(most, 3, 'never more than 3 at a time');
+  const order = [];
+  await eachAtOnce(['a', 'b', 'c'], 1, async (x) => {
+    order.push(`${x}+`);
+    await null;
+    order.push(`${x}-`);
+  });
+  assert.deepEqual(order, ['a+', 'a-', 'b+', 'b-', 'c+', 'c-'], 'one at a time is the old loop');
+  await eachAtOnce([], 5, async () => assert.fail('nothing to send'));
+  assert.ok(NEWS_AT_ONCE > 1 && NEWS_AT_ONCE <= 50);
+  console.log('batch sending tests passed');
+}
