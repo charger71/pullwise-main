@@ -83,6 +83,7 @@
           <li><a href="#containers">Panels &amp; folds</a></li>
           <li><a href="#messages">Messages</a></li>
           <li><a href="#chat">Chat</a></li>
+          <li><a href="#push">Shop news</a></li>
           <li><a href="#dashboard">Dashboard</a></li>
           <li><a href="#dialogs">Dialogs</a></li>
           <li><a href="#help">Help</a></li>
@@ -915,6 +916,31 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
               </form>
             </div>
             <p class="admin-hint mt-8">The visitor’s messages sit on the left in the surface color; staff replies sit on the right in the selected tint. The Chat screen has an <a href="#forms">on/off switch</a> beside its title that turns chat on or off for visitors, lists chats in a <a href="#tables">card-list table</a> with a <code>pill--new</code> count of unread messages, and shows new messages live. The owner can remove the whole feature, and this screen with it, in Shop Settings → Online. A customer’s <strong>Messages</strong> tab shows their chats (started while signed in, or with the same email) in an <code>aside.cust-chat</code> beside the emails sent to them, using the same <code>chat-msg</code> bubbles; under 900px it sits below.</p>
+          </div>
+        </section>
+
+        <!-- ===================================================== -->
+        <section class="sg-section" id="push">
+          <h2>Shop news notifications</h2>
+          <div class="sg-item" data-code>
+            <h3>The send form with its notice preview</h3>
+            <div class="sg-demo">
+              <form class="admin-form push-compose" novalidate>
+                <div class="push-compose__fields">
+                  <div class="field"><label for="sg-push-title">Title</label><input id="sg-push-title" value="Galaxy Comics"><p class="field__hint">13 / 60</p></div>
+                  <div class="field"><label for="sg-push-body">Message</label><textarea id="sg-push-body" rows="3">20% off all trades this weekend, in store and in the app.</textarea><p class="field__hint">57 / 180</p></div>
+                  <div class="field"><label for="sg-push-opens">Tapping it opens</label><select id="sg-push-opens"><option>The app</option><option>My List</option><option>Hot</option><option>Shop</option><option>A page on our website</option></select></div>
+                </div>
+                <div class="push-compose__side">
+                  <p class="push-preview__label" id="sg-push-preview">How it looks</p>
+                  <div class="push-preview" aria-labelledby="sg-push-preview"><span class="push-preview__icon" aria-hidden="true"></span><div class="push-preview__text"><strong>Galaxy Comics</strong><span>20% off all trades this weekend, in store and in the app.</span></div></div>
+                </div>
+                <p class="admin-hint"><strong>Reaches 143 devices</strong> · Last sent 12 days ago by Dana</p>
+                <div class="field field--check"><input id="sg-push-test" type="checkbox"><label for="sg-push-test">Test send: only to my own devices</label></div>
+                <div class="admin-actions"><button class="btn btn--primary" type="button">Send</button></div>
+              </form>
+            </div>
+            <p class="admin-hint mt-8">Admin → Notifications (shops with the app only). <code>form.push-compose</code> puts the fields (<code>push-compose__fields</code>) beside a 320px preview (<code>push-compose__side</code>); every other child spans both columns, and under 900px the preview sits under the fields. <code>.push-preview</code> is a phone-style notice: the shop icon (<code>push-preview__icon</code>, an <code>img</code> or an empty square), then the title in bold and the message (<code>push-preview__text</code>), updating as staff type. The don’t-send-too-often note above the form is a <a href="#messages"><code>notice</code></a>; a real send asks first in a <a href="#containers">dialog</a> that adds a <code>cust-warn</code> line when the shop sent one less than 3 days ago. Sends are listed under the form in a <a href="#tables">card-list table</a>, test sends marked <code>pill--info</code>.</p>
           </div>
         </section>
 

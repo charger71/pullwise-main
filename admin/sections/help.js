@@ -8,7 +8,7 @@ import { GROUPS, TOPICS, CAPTURED } from '../help/topics.js';
 import { render, plain, MEDIA } from '../help/markdown.js';
 
 const SCREEN_NAMES = {
-  dashboard: 'Dashboard', analytics: 'Analytics', reservations: 'Ordering', customers: 'Customers', chat: 'Chat', titles: 'Titles',
+  dashboard: 'Dashboard', analytics: 'Analytics', reservations: 'Ordering', customers: 'Customers', chat: 'Chat', notifications: 'Notifications', titles: 'Titles',
   series: 'Series', emails: 'Emails', pages: 'Pages', news: 'News', events: 'Events', media: 'Media', faq: 'FAQ', qr: 'QR Codes',
   surveys: 'Surveys', import: 'Import', settings: 'Shop Settings', locations: 'Locations', staff: 'Staff', backup: 'Backup',
 };

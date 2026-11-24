@@ -27,6 +27,7 @@ export const TOPICS = [
   { id: 'series', group: 'pull', title: 'Series and creators', summary: 'Merge series named two ways, set covers, and manage the series customers can follow.', screens: ['series'], video: null },
   { id: 'emails', group: 'pull', title: 'Customer emails', summary: 'The weekly pull list email, “your books are in”, previews and tests.', screens: ['emails'], video: 'emails' },
   { id: 'chat', group: 'pull', title: 'Live chat', summary: 'Turning chat on and off, answering visitors, and tidying old chats.', screens: ['chat'], video: null },
+  { id: 'notifications', group: 'pull', title: 'Notifications to app users', summary: 'Tell everyone with the app about a sale, a big release or a closure, and test it on your own phone first.', screens: ['notifications'], video: null },
 
   { id: 'news-events', group: 'web', title: 'News posts and events', summary: 'Write a post, add an event to the calendar, and see who signed up.', screens: ['news', 'events'], video: 'news-events' },
   { id: 'pages', group: 'web', title: 'Pages, menu and FAQ', summary: 'Change a page’s words, add a page, reorder the menu and edit the FAQ.', screens: ['pages', 'faq'], video: null },
