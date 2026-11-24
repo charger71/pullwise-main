@@ -21,11 +21,12 @@ let run = 0; // bumped on each mount, so a late answer or timer for an old scree
 let rows = []; // news_pushes shown, newest first
 let limit = PAGE;
 let reach = 0;
-let requestId = '';
+let requestId = ''; // one per message: a retry of the same message is the same send, never a second one
 let timer;
+let shown; // what this screen put on the page; every screen draws into the same #section, so leaving takes it off
 
 const chars = (s) => Array.from(s).length;
-const live = (mine) => mine === run && root.isConnected;
+const live = (mine) => mine === run && !!shown?.isConnected;
 
 export async function mount(el, ctx) {
   clearTimeout(timer);
@@ -34,6 +35,8 @@ export async function mount(el, ctx) {
   const mine = ++run;
   limit = PAGE;
   requestId = crypto.randomUUID();
+  root.innerHTML = '<p class="admin-hint loading">Loading…</p>';
+  shown = root.firstElementChild;
   const shop = (await must(sb.from('settings').select('shop_name,favicon_url,logo_url').eq('id', 1).maybeSingle())) ?? {};
   if (!live(mine)) return;
   const u = uid('np');
@@ -51,7 +54,7 @@ export async function mount(el, ctx) {
           ${APP_TARGETS.map((t) => `<option value="${esc(t.value)}">${esc(t.label)}</option>`).join('')}
           <option value="${SITE}">A page on our website</option></select></div>
         <div class="field" data-site hidden><label for="${u}-page">Page</label><input id="${u}-page" name="page" maxlength="400" autocomplete="off" placeholder="/news/big-sale" aria-describedby="${u}-page-hint">
-          <p class="field__hint" id="${u}-page-hint">A page on your own site, like /news/big-sale, or its full address. It opens in the browser, outside the app.</p></div>
+          <p class="field__hint" id="${u}-page-hint">A page on your own site, like /news/big-sale, or its full address. It opens like any page of your website, outside the app’s tabs.</p></div>
       </div>
       <div class="push-compose__side">
         <p class="push-preview__label" id="${u}-preview">How it looks</p>
@@ -69,7 +72,12 @@ export async function mount(el, ctx) {
     <div data-history><p class="admin-hint loading">Loading…</p></div>`;
 
   const form = $('form', root);
-  const update = () => preview(form);
+  shown = form;
+  const update = (e) => {
+    // A changed message is a new send: a retry after a lost answer must not repeat the earlier one (a test, say).
+    if (e) requestId = crypto.randomUUID();
+    preview(form);
+  };
   form.addEventListener('input', update);
   form.addEventListener('change', update);
   form.addEventListener('submit', (e) => {
@@ -176,7 +184,8 @@ async function send(form, mine) {
       setStatus(status, testResultText(devices), devices ? 'ok' : 'error');
     } else {
       setStatus(status, '');
-      toast(`Sending to ${data.push.devices} device${data.push.devices === 1 ? '' : 's'}.`);
+      const devices = data.push?.devices ?? 0;
+      toast(`Sending to ${devices} device${devices === 1 ? '' : 's'}.`);
       form.elements.body.value = '';
       form.elements.test.checked = false;
     }

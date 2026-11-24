@@ -6,7 +6,7 @@ Send a notification to the phones of everyone who uses your pull list app with n
 
 1. Open **Notifications** in the menu.
 2. Write a short **Title** (up to 60 characters) and **Message** (up to 180). The preview shows how it looks on a phone.
-3. Pick what **tapping it opens**: the app, one of its tabs (My List, Hot, Shop), or a page on your website, like a news post about the sale. A website page opens in the browser, outside the app.
+3. Pick what **tapping it opens**: the app, one of its tabs (My List, Hot, Shop), or a page on your website, like a news post about the sale. A website page opens like any page of your site, outside the app’s tabs.
 4. Tick **Test send** and press **Send test** to try it on your own phone first.
 5. Untick it and press **Send**. You're asked once more, with how many devices it will reach.
 
