@@ -86,7 +86,12 @@ export const NEWS_EMOJI = [
   ['🦹', 'supervillain'], ['🧙', 'wizard'], ['🐉', 'dragon'], ['👾', 'space invader'], ['🤖', 'robot'], ['🎮', 'video game'],
   ['🎲', 'die'], ['🃏', 'joker card'], ['📅', 'calendar'], ['⏰', 'alarm clock'], ['🚪', 'door'], ['🔒', 'locked'],
   ['👀', 'eyes'], ['👋', 'waving hand'], ['🙌', 'raised hands'], ['😱', 'screaming face'], ['💖', 'sparkling heart'], ['🍕', 'pizza'],
-  ['🎃', 'jack-o-lantern'], ['🎄', 'christmas tree'], ['⛄', 'snowman'], ['🎆', 'fireworks'], ['🍀', 'four leaf clover'], ['🌈', 'rainbow'],
+  // Holidays, through the year
+  ['🎆', 'fireworks'], ['🍾', 'bottle with popping cork'], ['🥂', 'clinking glasses'], ['🎊', 'confetti ball'], ['🧧', 'red envelope'],
+  ['💘', 'heart with arrow'], ['🌹', 'rose'], ['🍀', 'four leaf clover'], ['💚', 'green heart'], ['🌸', 'cherry blossom'],
+  ['🐰', 'rabbit face'], ['🐣', 'hatching chick'], ['🎓', 'graduation cap'], ['🌞', 'sun with face'], ['🌈', 'rainbow'],
+  ['🎃', 'jack-o-lantern'], ['👻', 'ghost'], ['🦇', 'bat'], ['🍬', 'candy'], ['🍂', 'fallen leaf'], ['🦃', 'turkey'],
+  ['🥧', 'pie'], ['🕎', 'menorah'], ['🎄', 'christmas tree'], ['🎅', 'santa claus'], ['🔔', 'bell'], ['⛄', 'snowman'],
 ].map(([emoji, name]) => ({ emoji, name }));
 
 /** `text` put into `value` at the cursor (replacing a selection; at the end with no cursor), and where the cursor goes. */

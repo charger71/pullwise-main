@@ -20,5 +20,5 @@ Send a notification to the phones of everyone who uses your pull list app with n
 
 Every notification buzzes a customer's phone. Too many and they turn shop news off, or turn off notifications altogether, and then they miss "your books are ready" too. Once or twice a month is plenty. The screen shows when the shop last sent one, and warns you if it was in the last few days.
 
-> **Tip:** the list under the form shows every notification the shop has sent, who sent it and how many devices got it.
+> **Tip:** the **Sent** tab shows every notification the shop has sent, who sent it and how many devices got it.
 `;

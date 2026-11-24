@@ -66,6 +66,10 @@ for (const { emoji, name } of NEWS_EMOJI) {
   assert.ok(name && /^[a-z]/.test(name), `${emoji} has a name for screen readers`);
 }
 assert.equal(new Set(NEWS_EMOJI.map((e) => e.emoji)).size, NEWS_EMOJI.length, 'no emoji twice');
+// Holidays through the year, for sale and closure notices
+for (const e of ['💘', '🌹', '💚', '🐰', '🐣', '🎓', '🌞', '🦇', '👻', '🍂', '🦃', '🥧', '🕎', '🎅', '🔔', '🍾', '🥂', '🎊']) {
+  assert.ok(NEWS_EMOJI.some((x) => x.emoji === e), `${e} is in the picker`);
+}
 assert.deepEqual(insertText('Big sale', 3, 3, '🎉'), { value: 'Big🎉 sale', caret: 5 }, 'at the cursor; caret after it (🎉 is 2 code units)');
 assert.deepEqual(insertText('Big sale', 0, 3, '🔥'), { value: '🔥 sale', caret: 2 }, 'replaces the selection');
 assert.deepEqual(insertText('', 0, 0, '⭐'), { value: '⭐', caret: 1 });
