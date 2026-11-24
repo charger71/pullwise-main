@@ -6,7 +6,7 @@
 import { parseAdminHash, adminHash } from './route.js';
 import { decorateTabs, tabKeys } from './tab-icons.js';
 import { DEMO, getSettings } from '../js/data.js';
-import { LOCATIONS_ENABLED } from '../js/config.js';
+import { LOCATIONS_ENABLED, APP_ENABLED } from '../js/config.js';
 import { $, $$, db, esc, openEmailDialog, friendlyError } from './lib.js';
 import { sizedImage } from '../js/util.js';
 import { setShopTimeZone } from '../js/dates.js';
@@ -18,7 +18,7 @@ import { startSurveyAlerts, refreshSurveyAlerts, newSurveyResponses } from './su
 import { startEventAlerts, refreshEventAlerts, newEventSignups } from './event-alerts.js';
 import { listenForOpenRequests } from './staff-push.js';
 
-const SECTIONS = ['dashboard', 'analytics', 'titles', 'reservations', 'customers', 'chat', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'staff', 'help'];
+const SECTIONS = ['dashboard', 'analytics', 'titles', 'reservations', 'customers', 'chat', 'notifications', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'staff', 'help'];
 // Screens only owners open (the menu item is hidden and the address redirects to the Dashboard).
 // Owner-only screens: the whole Utilities group except Staff, which every staff member opens for My Account (from the
 // header's My account button, since staff don't see the Utilities group).
@@ -190,6 +190,7 @@ async function showApp() {
   });
   $$('.admin-nav [data-owner-only]').forEach((group) => (group.hidden = !isOwner)); // Utilities
   if (!LOCATIONS_ENABLED) $('.admin-nav a[href="#locations"]')?.closest('li')?.setAttribute('hidden', ''); // "locations": true in shops.json
+  if (!APP_ENABLED) $('.admin-nav a[href="#notifications"]')?.closest('li')?.setAttribute('hidden', ''); // "app": true in shops.json
   // Live chat can be switched off for the whole shop (Shop Settings); then its screen is gone. A shop that hasn't got the
   // column yet (an update still rolling out) keeps the screen.
   const showChat = (on) => {
@@ -243,7 +244,7 @@ let routeRun = 0; // the latest route() call: a slower, earlier one must not dra
 async function route() {
   if (location.hash === '#restore') history.replaceState(null, '', '#backup'); // Restore is now part of Backup
   let { name, arg } = parseAdminHash(location.hash, SECTIONS);
-  if ((OWNER_ONLY.includes(name) && !isOwner) || (name === 'chat' && !chatAvailable) || (name === 'locations' && !LOCATIONS_ENABLED)) {
+  if ((OWNER_ONLY.includes(name) && !isOwner) || (name === 'chat' && !chatAvailable) || (name === 'locations' && !LOCATIONS_ENABLED) || (name === 'notifications' && !APP_ENABLED)) {
     name = 'dashboard';
     arg = '';
     history.replaceState(null, '', '#dashboard');

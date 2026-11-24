@@ -26,9 +26,15 @@ const TABLE_ROWS = {
     { id: 2, job: 'restore', ok: false, message: 'owner@example.com: replace — customers FAILED (violates foreign key)', created_at: '2026-10-02T15:00:00Z' },
     { id: 1, job: 'backup', ok: true, message: 'owner@example.com: 1,234 rows in 20 tables (1.5 MB)', created_at: '2026-10-01T15:00:00Z' },
   ],
+  // Notifications → Sent
+  news_pushes: [
+    { id: 2, title: 'Test Shop', body: 'Testing on my phone', url: '/app', test: true, sent_by_name: 'Test Owner', status: 'sent', error: null, devices: 1, sent: 1, failed: 0, created_at: '2026-11-02T15:00:00Z' },
+    { id: 1, title: '20% off trades', body: 'This weekend only.', url: '/news/sale', test: false, sent_by_name: 'Test Owner', status: 'sent', error: null, devices: 143, sent: 141, failed: 2, created_at: '2026-11-01T15:00:00Z' },
+  ],
 };
 const RPC_DATA = {
   is_owner: true,
+  push_news_reach: 143,
   staff_list: [OWNER],
   staff_health: { jobs: [{ name: 'flip-item-statuses', schedule: '0 * * * *', active: true, last_start: new Date().toISOString(), last_status: 'succeeded', last_message: '1 row', failed_7d: 0 }], arrival_waiting: 0, http_errors_24h: 0 },
   backup_meta: { tables: [], migration: '1' },

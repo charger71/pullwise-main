@@ -11,6 +11,11 @@
 //   POST  x-cron-secret  { "mode": "chat-reply", "conversation_id" }   staff answered a chat a signed-in customer
 //           started: tell that customer's devices (public.chat_reply_push asks, at most once a minute for a chat)
 //   POST  Authorization: Bearer <staff>  { "mode": "staff-test" }   a test notice to the signed-in staff member's devices
+//   POST  Authorization: Bearer <staff>  { "mode": "news", title, body, url, test, request_id }   shop news staff wrote
+//           (Admin → Notifications): to every device of customers with shop news on, or with `test` only to the
+//           sender's own app devices. Recorded in news_pushes and answered at once ({ push: row }); the sending
+//           finishes in the background, 20 devices at a time (NEWS_AT_ONCE). The same request_id again answers that row and sends nothing. A test with
+//           no device of the sender's answers { devices: 0 } and records nothing.
 //
 // Secrets (supabase secrets set …): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (`node tools/vapid-keys.mjs` makes a pair; the
 // same pair can serve every shop), VAPID_SUBJECT (mailto: or https: address push services can reach the sender at);
@@ -20,7 +25,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
-import { arrivalMessage, newTitlesMessage, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, testMessage, staffChatMessage, staffTestMessage, chatReplyMessage, notificationIcon, subscriptionGone, shopToday, addDays, focsChangingOn, pickupDue } from './messages.js';
+import { arrivalMessage, newTitlesMessage, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, testMessage, staffChatMessage, staffTestMessage, chatReplyMessage, checkNews, newsMessage, NEWS_AT_ONCE, eachAtOnce, notificationIcon, subscriptionGone, shopToday, addDays, focsChangingOn, pickupDue } from './messages.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
@@ -56,11 +61,16 @@ Deno.serve(async (req) => {
   const secret = Deno.env.get('CRON_SECRET');
   try {
     if (cron && secret && same(cron, secret)) return json(200, body.mode === 'chat' ? await sendChat(Number(body.conversation_id)) : body.mode === 'chat-reply' ? await sendChatReply(Number(body.conversation_id)) : await sendAll());
-    if (body.mode !== 'test' && body.mode !== 'staff-test') return json(400, { error: 'Unknown mode.' });
+    if (body.mode !== 'test' && body.mode !== 'staff-test' && body.mode !== 'news') return json(400, { error: 'Unknown mode.' });
     const auth = req.headers.get('authorization');
     if (!auth) return json(401, { error: 'Please sign in.' });
     const caller = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
     const user = (await caller.auth.getUser()).data.user;
+    if (body.mode === 'news') {
+      const { data: staff } = user ? await caller.from('staff').select('user_id,name').eq('user_id', user.id).maybeSingle() : { data: null };
+      if (!staff) return json(401, { error: 'Please sign in with your staff account.' });
+      return await sendNews(body, staff as { user_id: string; name: string });
+    }
     if (body.mode === 'staff-test') {
       // A staff member testing their own devices (the staff table is readable only by staff).
       const { data: staff } = user ? await caller.from('staff').select('user_id').eq('user_id', user.id).maybeSingle() : { data: null };
@@ -151,16 +161,81 @@ async function subscriptionsOf(ids: number[] | null): Promise<Device[]> {
   }
 }
 
+/** Every device of a customer with shop news on (customers.push_news). Paged like subscriptionsOf. */
+async function newsDevices(): Promise<Device[]> {
+  const rows: Device[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await admin.from('push_subscriptions').select('id,customer_id,endpoint,p256dh,auth,customers!inner(push_news)')
+      .eq('customers.push_news', true).order('id').range(offset, offset + 999);
+    if (error) throw error;
+    rows.push(...data.map(({ customers: _c, ...d }) => d as Device));
+    if (data.length < 1000) return rows;
+  }
+}
+
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NEWS_COLUMNS = 'id,request_id,title,body,url,test,sent_by_name,status,error,devices,sent,failed,created_at,finished_at';
+
+/** Shop news a staff member wrote: record it, answer at once, and finish sending in the background. */
+async function sendNews(body: Record<string, unknown>, staff: { user_id: string; name: string }) {
+  const title = String(body.title ?? '').trim();
+  const text = String(body.body ?? '').trim();
+  const url = String(body.url ?? '').trim() || '/app';
+  const test = body.test === true;
+  const requestId = String(body.request_id ?? '');
+  const problem = checkNews({ title, body: text, url });
+  if (problem) return json(400, { error: problem });
+  if (!UUID.test(requestId)) return json(400, { error: 'Reload the screen and try again.' });
+
+  // Sent already (a double click, or a retry after a slow answer): the same send, never a second one.
+  const existing = async () => (await admin.from('news_pushes').select(NEWS_COLUMNS).eq('request_id', requestId).maybeSingle()).data;
+  const before = await existing();
+  if (before) return json(200, { push: before });
+
+  let devices: Device[];
+  if (test) {
+    const { data: me, error } = await admin.from('customers').select('id').eq('user_id', staff.user_id).maybeSingle();
+    if (error) throw error;
+    devices = me ? await subscriptionsOf([me.id]) : [];
+    if (!devices.length) return json(200, { devices: 0 });
+  } else {
+    devices = await newsDevices();
+  }
+
+  const { data: row, error } = await admin.from('news_pushes').insert({
+    request_id: requestId, title, body: text, url, test, sent_by: staff.user_id, sent_by_name: staff.name, devices: devices.length,
+  }).select(NEWS_COLUMNS).single();
+  if (error) {
+    if (error.code === '23505') return json(200, { push: await existing() }); // the same request, a moment earlier
+    throw error;
+  }
+
+  const deliver = async () => {
+    try {
+      const shop = await loadShop();
+      const result = await sendTo(devices, { ...newsMessage(row), icon: notificationIcon(shop) }, CUSTOMER_TABLE, 60 * 60 * 24, 'normal', NEWS_AT_ONCE);
+      await admin.from('news_pushes').update({ status: 'sent', sent: result.sent, failed: result.failed, finished_at: new Date().toISOString() }).eq('id', row.id);
+    } catch (err) {
+      console.error(`news push ${row.id} failed:`, err);
+      await admin.from('news_pushes').update({ status: 'failed', error: (err instanceof Error ? err.message : String(err)).slice(0, 500), finished_at: new Date().toISOString() }).eq('id', row.id);
+    }
+  };
+  EdgeRuntime.waitUntil(deliver());
+  return json(200, { push: row });
+}
+
 /**
  * One notification to each device. A device the push service says is gone is forgotten. Resolves how many got it,
  * how many failed, and whether any device is still worth trying again (so the caller knows whether to mark it sent).
+ * `atOnce`: how many devices at the same time (shop news, which goes to every device, sends NEWS_AT_ONCE); 1 is one by one.
  */
-async function sendTo(devices: Device[], message: Record<string, unknown>, table = CUSTOMER_TABLE, ttl = 60 * 60 * 12, urgency = 'normal') {
+async function sendTo(devices: Device[], message: Record<string, unknown>, table = CUSTOMER_TABLE, ttl = 60 * 60 * 12, urgency = 'normal', atOnce = 1) {
   let sent = 0;
   let failed = 0;
   let retry = false;
   const payload = JSON.stringify(message);
-  for (const d of devices) {
+  await eachAtOnce(devices, atOnce, async (d: Device) => {
     try {
       await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload, { TTL: ttl, urgency });
       sent++;
@@ -175,7 +250,7 @@ async function sendTo(devices: Device[], message: Record<string, unknown>, table
         console.error(`push to device ${d.id} failed:`, status ?? '', err instanceof Error ? err.message : err);
       }
     }
-  }
+  });
   return { sent, failed, retry };
 }
 

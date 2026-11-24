@@ -83,4 +83,17 @@ for (const [name, fetchImpl, ok] of [
   assert.equal(sw.calls.length, 0);
 }
 
+// A notice only ever opens the shop's own site: a link to anywhere else (a backslash path the URL parser reads as
+// another host) opens the app instead.
+for (const url of ['/\\evil.test/x', 'https://evil.test/', '//evil.test/x']) {
+  const sw = load({});
+  await sw.fire('notificationclick', { notification: { data: { url }, close: () => {} } });
+  assert.deepEqual(sw.opened, ['https://shop.example/app'], url);
+}
+{
+  const sw = load({});
+  await sw.fire('notificationclick', { notification: { data: { url: '/news/big-sale' }, close: () => {} } });
+  assert.deepEqual(sw.opened, ['https://shop.example/news/big-sale'], 'a page on the shop’s own site opens');
+}
+
 console.log('app service worker tests passed');

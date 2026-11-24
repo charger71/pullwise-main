@@ -1502,6 +1502,19 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .chat-compose .field { flex: 1; min-width: 0; margin: 0; }
 .admin-title-row .switch { margin-left: auto; }
 
+/* Notifications: the shop news form with a phone-style preview of the notice beside it (below it on phones). */
+.push-compose { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 0 var(--sp-24); margin-bottom: var(--sp-32); }
+.push-compose > :not(.push-compose__fields, .push-compose__side) { grid-column: 1 / -1; }
+.push-compose__side { padding-top: var(--sp-24); }
+.push-preview__label { margin: 0 0 var(--sp-6); font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
+.push-preview { display: flex; align-items: flex-start; gap: var(--sp-10); padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.push-preview__icon { flex: none; width: 40px; height: 40px; border-radius: var(--radius); background: var(--neutral-bg); object-fit: contain; }
+.push-preview__text { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+@media (max-width: 899px) {
+  .push-compose { grid-template-columns: minmax(0, 1fr); }
+  .push-compose__side { padding-top: 0; margin-bottom: var(--sp-12); }
+}
+
 /* Events > Calendar: one month. A grid on desktop (an event is a chip you can drag to another day); on phones just the days that have events, one under another. */
 .admin-cal__nav { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); margin-bottom: var(--sp-12); }
 .admin-cal__title { font-size: var(--fs-title); margin: 0; text-align: center; }

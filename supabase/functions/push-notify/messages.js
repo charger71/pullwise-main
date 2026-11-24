@@ -181,6 +181,56 @@ export const staffTestMessage = (shopName = '') => ({
   tag: 'staff-test',
 });
 
+// ---- Shop news: staff write these themselves (admin/sections/notifications.js; the screen checks the same limits) ---
+
+export const NEWS_TITLE_MAX = 60;
+export const NEWS_BODY_MAX = 180;
+export const NEWS_URL_MAX = 300;
+
+/** Characters as a person counts them: an emoji is one. */
+export const charCount = (s = '') => Array.from(String(s)).length;
+
+/**
+ * A link on the shop's own site: a path from its root, never another site (`//host`, a full URL, or a backslash,
+ * which URL parsers read as `/`, so `/\host` is another site). No spaces or control characters.
+ */
+export const validNewsUrl = (url = '') => /^\/(?!\/)/.test(url) && url.length <= NEWS_URL_MAX && !/[\s\\\x00-\x1f\x7f]/.test(url);
+
+/** Why this message can't be sent (a sentence for staff), or null when it's fine. No link opens the app. */
+export function checkNews({ title = '', body = '', url = '' } = {}) {
+  const t = String(title).trim();
+  const b = String(body).trim();
+  if (!t) return 'Write a title.';
+  if (charCount(t) > NEWS_TITLE_MAX) return `Keep the title to ${NEWS_TITLE_MAX} characters.`;
+  if (!b) return 'Write a message.';
+  if (charCount(b) > NEWS_BODY_MAX) return `Keep the message to ${NEWS_BODY_MAX} characters.`;
+  if (!validNewsUrl(url || '/app')) return 'The link must be a page on your own site.';
+  return null;
+}
+
+/**
+ * How many devices shop news sends to at the same time. It goes to every device, and one by one a few thousand would
+ * outlast the function's time limit; 20 at once is still far below what the push services accept from one sender.
+ */
+export const NEWS_AT_ONCE = 20;
+
+/** Run `fn` on every item, never more than `limit` at the same time (1 is a plain loop, in order). */
+export async function eachAtOnce(items, limit, fn) {
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) await fn(items[next++]);
+  };
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, limit), items.length) }, worker));
+}
+
+/** The notification for one send (`id` from news_pushes): its own tag, so two sends don't replace each other. */
+export const newsMessage = ({ id, title, body, url }) => ({
+  title: String(title).trim(),
+  body: String(body).trim(),
+  url: url || '/app',
+  tag: `news-${id}`,
+});
+
 /**
  * The app icon for notifications: the shop's tab icon (or logo) at 192px, squared by Supabase's image service, as in
  * the app's manifest (worker/shop-page.js appManifest). Only pictures in the shop's own storage are resized.

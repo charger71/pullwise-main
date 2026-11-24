@@ -30,6 +30,7 @@ const KINDS = [
   { key: 'push_new_titles', label: 'When a series or artist I follow adds a title to my list' },
   { key: 'push_chat', label: 'When the shop replies to a chat I started' },
   { key: 'push_reminders', label: 'Reminders: books still waiting for pickup, and the day before my list closes for an order' },
+  { key: 'push_news', label: 'News from the shop: sales, new releases and closures' },
 ];
 
 /**

@@ -4,11 +4,15 @@
 // so a topic whose media hasn't been captured yet shows its words without broken pictures.
 
 import { $, $$, esc, hintFold, debounce } from '../lib.js';
-import { GROUPS, TOPICS, CAPTURED } from '../help/topics.js';
+import { APP_ENABLED } from '../../js/config.js';
+import { GROUPS, TOPICS as ALL_TOPICS, CAPTURED } from '../help/topics.js';
 import { render, plain, MEDIA } from '../help/markdown.js';
 
+// The Notifications screen is only in shops with the app ("app": true in shops.json), so its guide is too.
+const TOPICS = ALL_TOPICS.filter((t) => APP_ENABLED || !t.screens.includes('notifications'));
+
 const SCREEN_NAMES = {
-  dashboard: 'Dashboard', analytics: 'Analytics', reservations: 'Ordering', customers: 'Customers', chat: 'Chat', titles: 'Titles',
+  dashboard: 'Dashboard', analytics: 'Analytics', reservations: 'Ordering', customers: 'Customers', chat: 'Chat', notifications: 'Notifications', titles: 'Titles',
   series: 'Series', emails: 'Emails', pages: 'Pages', news: 'News', events: 'Events', media: 'Media', faq: 'FAQ', qr: 'QR Codes',
   surveys: 'Surveys', import: 'Import', settings: 'Shop Settings', locations: 'Locations', staff: 'Staff', backup: 'Backup',
 };

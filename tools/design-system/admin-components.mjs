@@ -323,6 +323,21 @@ One live chat with a visitor, and the box to answer it. Built by admin/sections/
 ${demo('A chat with its reply box')}`),
   },
   {
+    name: 'AdminPushCompose', group: G('Data'), height: 564, width: 960,
+    readme: `# AdminPushCompose
+
+The shop news form: staff write a notification and send it to every app user with "News from the shop" on. Built by admin/sections/notifications.js (Admin → Notifications, shops with the app only); push-notify (mode \`news\`) sends it.
+
+- **Layout** (\`form.push-compose\`): the fields (\`.push-compose__fields\`) beside a 320px preview (\`.push-compose__side\`). Every other child spans both columns. Under 900px the preview sits under the fields.
+- **Preview** (\`.push-preview\`): a phone-style notice on \`admin-surface\` with \`admin-shadow\`: the shop icon (\`.push-preview__icon\`), then the title in bold and the message (\`.push-preview__text\`), updating as staff type.
+- **Fields**: Title (60 characters, prefilled with the shop name) and Message (180), each with a live count that turns \`.form-error\` past the limit. "Tapping it opens" picks the app, one of its tabs, or a page on the shop's own site.
+- **Restraint**: a \`notice\` above the form asks staff to send only sales, big releases and closures, about once or twice a month. Above the button, "Reaches N devices · Last sent 3 days ago by Sam". A real send asks first (AdminDialog) and adds a \`cust-warn\` line when the shop sent one less than 3 days ago.
+- **Test send**: a \`field--check\` that sends only to the sender's own app devices, with no dialog.
+- Sends are listed under the form in an \`AdminTable\` card list, test sends marked with a \`.pill--info\`.
+- Consumer provides: the shop name and icon, the device count, the past sends and the send handler.`,
+    html: page('AdminPushCompose', demo('The send form with its notice preview')),
+  },
+  {
     name: 'AdminPill', group: G('Status'), height: 112, width: 960,
     readme: `# AdminPill
 
