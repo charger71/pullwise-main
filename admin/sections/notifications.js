@@ -1,9 +1,9 @@
 // Notifications: staff write shop news (a sale, a big new release, a closure) and send it to every app user who has
 // "News from the shop" on. The push-notify Edge Function (mode `news`) checks it, records it in news_pushes and sends
-// it in the background; a test send goes only to the sender's own app devices. Below the form, the shop's sends so far.
+// it in the background; a test send goes only to the sender's own app devices. The Sent tab lists the shop's sends so far.
 // Only shops with the app have this screen (APP_ENABLED; admin.js hides the menu item).
 
-import { $, esc, must, toast, setStatus, fmtDateTime, friendlyError, hintFold, uid, openDialog } from '../lib.js';
+import { $, esc, must, toast, setStatus, fmtDateTime, friendlyError, hintFold, uid, openDialog, setupTabs } from '../lib.js';
 import { APP_TARGETS, toNewsPath, lastSentText, recentWarning, reachText, testResultText, rowSummary, stillSending, NEWS_EMOJI, insertText } from '../news-push.js';
 
 const TITLE_MAX = 60; // as supabase/functions/push-notify/messages.js
@@ -42,7 +42,12 @@ export async function mount(el, ctx) {
   const u = uid('np');
   root.innerHTML = `
     <h1>Notifications</h1>
-    ${hintFold('Send a notification to the phones of everyone who uses your pull list app with notifications on: a sale, a big new release, a closure or a change of hours. Write a short title and message, pick where a tap opens (the app, one of its tabs, or a page on your website), and tick <strong>Test send</strong> to try it on your own phone first. A test only reaches you if you are signed in to the app with this same account and turned its notifications on. A real send goes out straight away, to every customer with <strong>News from the shop</strong> on (customers turn it off in the app under Account → Notifications, and keep their pickup alerts). iPhones only get notifications from the app added to the Home Screen. Below the form is every notification the shop has sent, with who sent it and how many devices got it.')}
+    ${hintFold('Send a notification to the phones of everyone who uses your pull list app with notifications on: a sale, a big new release, a closure or a change of hours. Write a short title and message, pick where a tap opens (the app, one of its tabs, or a page on your website), and tick <strong>Test send</strong> to try it on your own phone first. A test only reaches you if you are signed in to the app with this same account and turned its notifications on. A real send goes out straight away, to every customer with <strong>News from the shop</strong> on (customers turn it off in the app under Account → Notifications, and keep their pickup alerts). iPhones only get notifications from the app added to the Home Screen. The <strong>Sent</strong> tab lists every notification the shop has sent, with who sent it and how many devices got it.')}
+    <div class="admin-tabs" role="tablist">
+      <button type="button" class="admin-tab" role="tab" data-tab="send">Send</button>
+      <button type="button" class="admin-tab" role="tab" data-tab="sent" data-icon="history">Sent</button>
+    </div>
+    <div data-tabpane="send">
     <p class="notice">${esc(NOTE)}</p>
     <form class="admin-form push-compose" novalidate>
       <div class="push-compose__fields">
@@ -68,11 +73,14 @@ export async function mount(el, ctx) {
       <p class="admin-status" role="status" data-state></p>
       <div class="admin-actions"><button class="btn btn--primary" type="submit" data-send>Send</button></div>
     </form>
-    <h2>Sent</h2>
-    <div data-history><p class="admin-hint loading">Loading…</p></div>`;
+    </div>
+    <div data-tabpane="sent">
+    <div data-history><p class="admin-hint loading">Loading…</p></div>
+    </div>`;
 
   const form = $('form', root);
   shown = form;
+  setupTabs(root, 'admin-notifications-tab', 'send');
   const update = (e) => {
     // A changed message is a new send: a retry after a lost answer must not repeat the earlier one (a test, say).
     if (e) requestId = crypto.randomUUID();

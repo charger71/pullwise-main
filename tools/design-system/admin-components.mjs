@@ -333,7 +333,7 @@ The shop news form: staff write a notification and send it to every app user wit
 - **Fields**: Title (60 characters, prefilled with the shop name) and Message (180), each with a live count that turns \`.form-error\` past the limit and an **Emoji** picker beside it (\`.push-compose__under\`): a small ghost button opening \`.emoji-pick__panel\`, a grid of 44px \`.emoji-pick__item\` buttons, each one character with a name for screen readers; a pick goes in at the cursor. Escape or a click elsewhere closes it. "Tapping it opens" picks the app, one of its tabs, or a page on the shop's own site.
 - **Restraint**: a \`notice\` above the form asks staff to send only sales, big releases and closures, about once or twice a month. Above the button, "Reaches N devices · Last sent 3 days ago by Sam". A real send asks first (AdminDialog) and adds a \`cust-warn\` line when the shop sent one less than 3 days ago.
 - **Test send**: a \`field--check\` that sends only to the sender's own app devices, with no dialog.
-- Sends are listed under the form in an \`AdminTable\` card list, test sends marked with a \`.pill--info\`.
+- The screen has two tabs: **Send** (the form) and **Sent**, an \`AdminTable\` card list of the sends, test sends marked with a \`.pill--info\`.
 - Consumer provides: the shop name and icon, the device count, the past sends and the send handler.`,
     html: page('AdminPushCompose', demo('The send form with its notice preview')),
   },
