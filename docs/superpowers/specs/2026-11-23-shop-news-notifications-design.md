@@ -80,7 +80,7 @@ whose customer has `push_news` on. (The notification onboarding design's "all fo
 - It checks the caller is staff (the same check as `staff-test`).
 - It validates the lengths and the link (a relative path that starts with `/` and not `//`; app tabs are `/app`,
   `/app#list`, `/app#hot`, `/app#shop`).
-- It records the send in a new `push_news` table, then sends to every subscribed device of customers with `push_news`
+- It records the send in a new `news_pushes` table, then sends to every subscribed device of customers with `push_news`
   on, with `tag: 'news-<id>'`, a TTL of 24 hours and normal urgency.
 - `request_id` (a UUID the screen makes when the form opens, renewed after each send) is unique in the table, so a
   repeated request never sends again (see Delivery).
@@ -94,7 +94,7 @@ whose customer has `push_news` on. (The notification onboarding design's "all fo
   "Sending…" until it's done (the screen polls that row every few seconds while it's open).
 - The send runs immediately. It is not held to the automatic notices' sending hours, because staff choose the moment.
 
-**Table `push_news`.** Columns: `id`, `request_id uuid unique`, `title`, `body`, `url`, `sent_by uuid` (the staff
+**Table `news_pushes`.** Columns: `id`, `request_id uuid unique`, `title`, `body`, `url`, `sent_by uuid` (the staff
 user), `sent_by_name` (copied from `staff.name` at send time), `test boolean`, `status` (`sending`/`sent`/`failed`),
 `error`, `created_at`, `finished_at`, `devices`, `sent`, `failed`. Row level security: staff can
 read it. Only the Edge Function (service role) writes it.
@@ -108,7 +108,7 @@ read it. Only the Edge Function (service role) writes it.
 - Message text in `messages.js` (a `newsMessage({ title, body, url })` helper with tests), and the migration's file
   name and date.
 - How many history rows to show (suggest 20, with "Show more").
-- Whether the analytics screen should also show the `push_news` opt-out count (optional, skip if it adds weight).
+- Whether the analytics screen should also show the `push_news` opt-out count of `customers.push_news` (optional, skip if it adds weight).
 - After the admin stylesheets or style guide change, rebuild and republish the design system
   (`tools/design-system/README.md`).
 - Add the new screen to the admin Help and to `ADMIN-ONBOARDING.md` if that lists screens.
