@@ -10,7 +10,7 @@ import { itemCard, enableReservations } from '../components.js';
 import { loadFilters, filterControl, setupMulti, publisherFilter, categoryOptions, focFilter } from '../catalog.js';
 import { formatPhone, LOGO_WIDTH, prefersReducedMotion as reducedMotion, chatOn } from '../util.js';
 import { setShopColors, setupAppearance } from '../app-theme.js';
-import { kept, keep, isInstalled as installed, isIPhone as iPhone, buzzOnCross } from '../app-device.js';
+import { kept, keep, isInstalled as installed, isIPhone as iPhone, isAndroid, buzzOnCross } from '../app-device.js';
 
 const VIEWS = ['list', 'hot', 'shop', 'me'];
 
@@ -658,17 +658,45 @@ import('../../admin/update-check.js')
 const DISMISSED = 'pc-app-install-dismissed';
 const dismissed = () => kept(DISMISSED) === 1; // kept as "1" (the JSON for 1) since before kept() existed
 
-function offerInstall(shopName, prompt = null) {
+// The step-by-step guide for adding the app on a phone (js/vendor/add-to-homescreen): pictures of the browser's own
+// buttons for Safari, Chrome, Edge and in-app browsers on iPhone and Android. Loaded only when asked for.
+const GUIDE = new URL('../vendor/add-to-homescreen/', import.meta.url);
+let guide = null;
+function loadGuide() {
+  guide ??= new Promise((resolve, reject) => {
+    const css = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: new URL('add-to-homescreen.min.css', GUIDE).href });
+    const js = Object.assign(document.createElement('script'), { src: new URL('add-to-homescreen_en.min.js', GUIDE).href });
+    js.onload = () => (window.AddToHomeScreen ? resolve(window.AddToHomeScreen) : reject(new Error('add-to-homescreen')));
+    js.onerror = reject;
+    document.head.append(css, js);
+  }).catch((err) => {
+    guide = null; // try again next tap (offline the first time, say)
+    throw err;
+  });
+  return guide;
+}
+async function showInstallGuide(settings) {
+  const AddToHomeScreen = await loadGuide();
+  const icon = $('link[rel="apple-touch-icon"]')?.href || settings.app_icon_url || settings.logo_url || 'icons/shortcut-list.png';
+  AddToHomeScreen({
+    appName: settings.shop_name?.trim() || document.title,
+    appIconUrl: icon,
+    assetUrl: new URL('img/', GUIDE).href,
+    displayOptions: { showMobile: true, showDesktop: false },
+  }).show('en');
+}
+
+function offerInstall(settings, prompt = null) {
   const box = $('[data-install]');
-  if (installed() || dismissed() || (!prompt && !iPhone())) return void (box.hidden = true);
-  const name = esc(shopName || 'this app');
+  if (installed() || dismissed() || (!prompt && !iPhone() && !isAndroid())) return void (box.hidden = true);
+  const name = esc(settings.shop_name || 'this app');
   box.innerHTML = `
-    <p class="app-install__text"><strong>Add ${name} to your Home Screen</strong> for one-tap access to your pull list.
-      ${prompt ? '' : 'Tap the <strong>Share</strong> button, then <strong>Add to Home Screen</strong>.'}</p>
-    ${prompt ? '<button class="btn btn--primary" type="button" data-install-go>Install</button>' : ''}
+    <p class="app-install__text"><strong>Add ${name} to your Home Screen</strong> for one-tap access to your pull list.</p>
+    <button class="btn btn--primary" type="button" data-install-go>${prompt ? 'Install' : 'Show me how'}</button>
     <button class="app-install__close" type="button" data-install-close aria-label="Not now">✕</button>`;
   box.hidden = false;
-  $('[data-install-go]', box)?.addEventListener('click', async () => {
+  $('[data-install-go]', box).addEventListener('click', async () => {
+    if (!prompt) return showInstallGuide(settings).catch((err) => console.error('Install guide', err));
     prompt.prompt();
     await prompt.userChoice.catch(() => null);
     box.hidden = true;
@@ -679,12 +707,13 @@ function offerInstall(shopName, prompt = null) {
   });
 }
 
-// Chrome and Edge hand over their install prompt for a button of our own; Safari has none, so it gets directions.
+// Chrome and Edge hand over their install prompt for a button of our own (one tap); everywhere else on a phone
+// (Safari, Chrome on an iPhone, in-app browsers, Android browsers that haven't offered it) gets the guide.
 let installPrompt = null;
 addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   installPrompt = e;
-  getSettings().then((s) => offerInstall(s.shop_name, installPrompt), () => offerInstall('', installPrompt));
+  getSettings().then((s) => offerInstall(s, installPrompt), () => offerInstall({}, installPrompt));
 });
 addEventListener('appinstalled', () => ($('[data-install]').hidden = true));
 
@@ -693,4 +722,4 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { sc
 // The account page signs in and draws the views; it runs initPage, which paints the shop's brand.
 await import('./account.js').catch((err) => console.error(err)); // an outage message is already on the page
 renderShop();
-getSettings().then((s) => (setShopColors(s.colors), offerInstall(s.shop_name, installPrompt)), () => {});
+getSettings().then((s) => (setShopColors(s.colors), offerInstall(s, installPrompt)), () => {});

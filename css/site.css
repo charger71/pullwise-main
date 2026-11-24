@@ -1630,6 +1630,9 @@ body[data-page="app"]:not(:has([aria-busy="true"]))::before, body[data-page="app
 .account-saved-list .account-line__controls, .account-saved-list .account-move, .account-saved-list .form-error { display: none; }
 .app-install__close { flex: none; width: var(--tap); height: var(--tap); border: 0; background: none; color: var(--muted); font-size: var(--fs-lede); cursor: pointer; }
 .app-install__close:hover { color: var(--ink); }
+/* "Show me how" opens the step-by-step Add to Home Screen guide (js/vendor/add-to-homescreen, its own stylesheet); its
+   bouncing arrows and modal bounce stand still under reduced motion. */
+@media (prefers-reduced-motion: reduce) { .adhs-container * { animation: none !important; } }
 /* Asking for notifications (js/app-push-prompts.js): a card at the top of My List, and one that slides up over the tab
    bar after an add or a follow. */
 .push-banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-12); margin: 0 0 var(--sp-16); padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius); }
