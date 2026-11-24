@@ -279,6 +279,9 @@ Staff chat notifications use the same function, keys and Vault secrets: when a v
 asks `push-notify` to tell every staff device that turned them on (admin → Chat, at most once every 5 minutes for each
 chat). Without the VAPID secrets the Chat screen offers in-tab desktop alerts instead.
 
+Shop news (admin → Notifications, shops with the app) uses the same function and keys: staff write a notice and it goes
+out at once to every app user with "News from the shop" on, outside the sending hours. Nothing more to set up.
+
 Then give the database the email function's address and the same `CRON_SECRET` (SQL editor):
 
 ```sql

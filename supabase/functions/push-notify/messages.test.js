@@ -1,6 +1,6 @@
 // node supabase/functions/push-notify/messages.test.js
 import assert from 'node:assert/strict';
-import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone, addDays, shopToday, dayLabel, lastChangeDay, focsChangingOn, pickupDue, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, staffChatMessage, staffTestMessage, chatReplyMessage } from './messages.js';
+import { itemTitle, nameList, arrivalMessage, newTitlesMessage, testMessage, notificationIcon, subscriptionGone, addDays, shopToday, dayLabel, lastChangeDay, focsChangingOn, pickupDue, pickupReminderMessage, cutoffMessage, inStockMessage, IN_STOCK, staffChatMessage, staffTestMessage, chatReplyMessage, charCount, validNewsUrl, checkNews, newsMessage } from './messages.js';
 
 const line = (title, issue, id) => ({ item: { id, title, issue_number: issue } });
 
@@ -131,3 +131,22 @@ assert.equal(reply.tag, 'chat-reply');
 assert.equal(chatReplyMessage({ body: 'x'.repeat(300) }).body.length, 140);
 assert.equal(chatReplyMessage({}).title, 'The shop replied');
 console.log('chat reply message tests passed');
+
+// Shop news: written by staff (Admin → Notifications), checked here and on the screen
+assert.equal(charCount('🎉 Sale'), 6);
+assert.equal(validNewsUrl('/app#hot'), true);
+assert.equal(validNewsUrl('/news/big-sale?x=1'), true);
+assert.equal(validNewsUrl('//evil.test/x'), false);
+assert.equal(validNewsUrl('https://evil.test/'), false);
+assert.equal(validNewsUrl('/' + 'a'.repeat(300)), false);
+assert.equal(checkNews({ title: 'Sale', body: 'This weekend', url: '/app' }), null);
+assert.match(checkNews({ title: '', body: 'x', url: '/app' }), /title/i);
+assert.match(checkNews({ title: 'x', body: ' ', url: '/app' }), /message/i);
+assert.match(checkNews({ title: 'x'.repeat(61), body: 'y', url: '/app' }), /60/);
+assert.match(checkNews({ title: 'x', body: '🎉'.repeat(181), url: '/app' }), /180/);
+assert.equal(checkNews({ title: 'x', body: '🎉'.repeat(180), url: '/app' }), null);
+assert.match(checkNews({ title: 'x', body: 'y', url: 'https://evil.test' }), /link/i);
+assert.equal(checkNews({ title: 'x', body: 'y' }), null, 'no link: opens the app');
+assert.deepEqual(newsMessage({ id: 7, title: ' Sale ', body: ' Fri–Sun ', url: '/app#shop' }), { title: 'Sale', body: 'Fri–Sun', url: '/app#shop', tag: 'news-7' });
+assert.equal(newsMessage({ id: 1, title: 'x', body: 'y', url: '' }).url, '/app');
+console.log('shop news message tests passed');
