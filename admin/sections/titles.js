@@ -577,6 +577,8 @@ async function edit(listEl, id) {
         <div class="field field--full"><label for="e-creators">Creators</label><input id="e-creators" name="creators" autocapitalize="words" value="${esc(item.creators)}"></div>
         <div class="field"><label for="e-upc">UPC</label><input id="e-upc" name="upc" inputmode="numeric" value="${esc(item.upc)}"></div>
         <div class="field"><label for="e-isbn">ISBN</label><input id="e-isbn" name="isbn" value="${esc(item.isbn)}"></div>
+        <div class="field"><label for="e-sku">SKU</label><input id="e-sku" name="sku" autocapitalize="characters" spellcheck="false" value="${esc(item.sku)}"></div>
+        <p class="field__hint span-2">The distributor’s code for this title. Imports and the master catalog match titles by SKU, so if you change it, the next import adds a new title instead of updating this one.</p>
         ${IS_CATALOG ? `<div class="field span-2">
           <div class="admin-actions"><button class="btn btn--ghost btn--small" type="button" data-prh>Fill in from PRH</button><span class="admin-status" role="status" data-prh-status></span></div>
           <p class="field__hint">Looks the ISBN (or UPC) up at Penguin Random House and fills in the fields that are blank, and the cover if there isn’t one. Nothing you’ve typed is replaced.</p>
@@ -620,7 +622,7 @@ async function edit(listEl, id) {
       title: text('title'), issue_number: text('issue_number'), variant: text('variant'), publisher: text('publisher'),
       status: f.get('status'), category_id: f.get('category_id') ? Number(f.get('category_id')) : null,
       retail_price: f.get('retail_price') ? Number(f.get('retail_price')) : null, shop_price: f.get('shop_price') ? Number(f.get('shop_price')) : null, foc_date: f.get('foc_date') || null, release_date: f.get('release_date') || null,
-      creators: text('creators'), upc: text('upc'), isbn: text('isbn'), description: text('description'),
+      creators: text('creators'), upc: text('upc'), isbn: text('isbn'), sku: text('sku'), description: text('description'),
       badges: f.getAll('badges'), staff_pick: f.has('staff_pick'), featured: f.has('featured'), hidden: f.has('hidden'), mature: f.has('mature'), cover_url: cover.get(), cover_thumb_url: cover.getThumb(),
     };
     if (!row.title) return setStatus(status, 'Please enter a title.', 'error');
