@@ -87,7 +87,9 @@ self.addEventListener('notificationclick', (event) => {
     event.waitUntil(skipTitle(event.notification));
     return;
   }
-  const target = new URL(event.notification.data?.url || '/app', location.origin).href;
+  // Only ever the shop's own site: anything else (a full address, or `/\host`, which reads as another host) opens the app.
+  const asked = new URL(event.notification.data?.url || '/app', location.origin);
+  const target = (asked.origin === location.origin ? asked : new URL('/app', location.origin)).href;
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((open) => {
       const app = open.find((c) => new URL(c.url).pathname.startsWith('/app'));

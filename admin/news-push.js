@@ -18,6 +18,7 @@ const OWN_SITE = 'Use a page on your own site, like /news/big-sale.';
 export function toNewsPath(input, host) {
   const v = String(input ?? '').trim();
   if (!v) return { path: '/app' };
+  if (/[\\\x00-\x1f\x7f]/.test(v)) return { error: OWN_SITE }; // a browser reads \ as /, so /\host is another site
   let path;
   if (/^[a-z][a-z0-9+.-]*:/i.test(v) || v.startsWith('//')) {
     let url;
@@ -73,8 +74,16 @@ export const testResultText = (devices) =>
     ? `Test sent to your ${devicesText(devices)}.`
     : 'You have no devices with the app’s notifications on. Sign in to the app with this account and turn notifications on, then try again.';
 
+// A send still "sending" after this long was stopped by the server's time limit before it could say how it went.
+const STUCK_AFTER = 10 * 60000;
+const stuck = (row, now) => row.status === 'sending' && now - new Date(row.created_at) > STUCK_AFTER;
+
+/** Whether any row is still going out, so the screen should look again shortly. */
+export const stillSending = (rows, now = new Date()) => rows.some((r) => r.status === 'sending' && !stuck(r, now));
+
 /** One history row's outcome. */
-export function rowSummary(row) {
+export function rowSummary(row, now = new Date()) {
+  if (stuck(row, now)) return `Didn’t finish: may have reached only some of ${devicesText(row.devices ?? 0)}`;
   if (row.status === 'sending') return 'Sending…';
   if (row.status === 'failed') return `Failed: ${row.error ?? 'unknown error'}`;
   return devicesText(row.devices ?? 0) + (row.failed > 0 ? ` · ${row.failed} failed` : '');

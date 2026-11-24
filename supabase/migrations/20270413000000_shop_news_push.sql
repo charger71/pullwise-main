@@ -15,7 +15,7 @@ create table public.news_pushes (
   request_id   uuid   not null unique,
   title        text   not null check (length(title) between 1 and 120),
   body         text   not null check (length(body) between 1 and 400),
-  url          text   not null default '/app' check (url ~ '^/([^/]|$)' and length(url) <= 300),
+  url          text   not null default '/app' check (url ~ '^/([^/]|$)' and url !~ '[\\[:cntrl:][:space:]]' and length(url) <= 300), -- the shop's own site only (\ reads as /)
   test         boolean not null default false,
   sent_by      uuid   references auth.users (id) on delete set null,
   sent_by_name text   check (length(sent_by_name) <= 200),

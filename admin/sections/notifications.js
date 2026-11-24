@@ -4,7 +4,7 @@
 // Only shops with the app have this screen (APP_ENABLED; admin.js hides the menu item).
 
 import { $, esc, must, toast, setStatus, fmtDateTime, friendlyError, hintFold, uid, openDialog } from '../lib.js';
-import { APP_TARGETS, toNewsPath, lastSentText, recentWarning, reachText, testResultText, rowSummary } from '../news-push.js';
+import { APP_TARGETS, toNewsPath, lastSentText, recentWarning, reachText, testResultText, rowSummary, stillSending } from '../news-push.js';
 
 const TITLE_MAX = 60; // as supabase/functions/push-notify/messages.js
 const BODY_MAX = 180;
@@ -116,7 +116,7 @@ async function refresh(mine) {
   $('[data-reach]', form).innerHTML = `<strong>${esc(reachText(reach))}</strong> · ${esc(lastSentText(rows))}`;
   preview(form);
   showHistory(list.data.length > limit);
-  if (rows.some((r) => r.status === 'sending')) timer = setTimeout(() => live(mine) && refresh(mine), POLL);
+  if (stillSending(rows)) timer = setTimeout(() => live(mine) && refresh(mine), POLL);
 }
 
 function showHistory(more) {

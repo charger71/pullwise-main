@@ -1,6 +1,6 @@
 // Run: node admin/news-push.test.js
 import assert from 'node:assert/strict';
-import { APP_TARGETS, toNewsPath, lastReal, daysAgo, lastSentText, recentWarning, reachText, testResultText, rowSummary } from './news-push.js';
+import { APP_TARGETS, toNewsPath, lastReal, daysAgo, lastSentText, recentWarning, reachText, testResultText, rowSummary, stillSending } from './news-push.js';
 
 // Where a tap opens: a page on the shop's own site, or a tab in the app
 const host = 'derbycomics.pullwise.shop';
@@ -12,6 +12,8 @@ assert.deepEqual(toNewsPath('https://derbycomics.pullwise.shop/series/saga?x=1#a
 assert.match(toNewsPath('https://evil.test/x', host).error, /your own site/i);
 assert.match(toNewsPath('//evil.test/x', host).error, /your own site/i);
 assert.match(toNewsPath('/' + 'a'.repeat(300), host).error, /too long/i);
+assert.match(toNewsPath('\\\\evil.test', host).error, /your own site/i, 'a backslash path is another site to the browser');
+assert.match(toNewsPath('/\\evil.test/x', host).error, /your own site/i);
 
 // How often the shop has sent: tests and failed sends don't count
 const now = new Date(2026, 10, 23, 15);
@@ -43,7 +45,16 @@ assert.equal(reachText(143), 'Reaches 143 devices');
 assert.match(testResultText(0), /Sign in to the app with this account/);
 assert.equal(testResultText(1), 'Test sent to your 1 device.');
 assert.equal(testResultText(2), 'Test sent to your 2 devices.');
-assert.equal(rowSummary({ status: 'sending' }), 'Sending…');
+assert.equal(rowSummary({ status: 'sending', created_at: new Date(now - 60000).toISOString() }, now), 'Sending…');
+
+// A send the server never finished (stopped past its time limit) doesn't say "Sending…" for ever
+const stuck = { status: 'sending', test: false, created_at: new Date(now - 11 * 60000).toISOString(), devices: 900 };
+const going = { status: 'sending', test: false, created_at: new Date(now - 60000).toISOString(), devices: 900 };
+assert.equal(rowSummary(stuck, now), 'Didn’t finish: may have reached only some of 900 devices');
+assert.equal(stillSending([stuck], now), false, 'no more polling for a send that stopped');
+assert.equal(stillSending([going, stuck], now), true);
+assert.equal(stillSending([{ ...going, status: 'sent' }], now), false);
+assert.equal(lastReal([stuck]), stuck, 'it probably reached phones, so it still counts as the last send');
 assert.equal(rowSummary({ status: 'failed', error: 'boom' }), 'Failed: boom');
 assert.equal(rowSummary({ status: 'sent', devices: 143, failed: 2 }), '143 devices · 2 failed');
 assert.equal(rowSummary({ status: 'sent', devices: 1, failed: 0 }), '1 device');

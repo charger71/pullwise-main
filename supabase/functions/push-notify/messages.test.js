@@ -139,6 +139,8 @@ assert.equal(validNewsUrl('/news/big-sale?x=1'), true);
 assert.equal(validNewsUrl('//evil.test/x'), false);
 assert.equal(validNewsUrl('https://evil.test/'), false);
 assert.equal(validNewsUrl('/' + 'a'.repeat(300)), false);
+assert.equal(validNewsUrl('/\\evil.test/x'), false, 'a backslash reads as / to a URL parser: another site');
+assert.equal(validNewsUrl('/news\u0001x'), false, 'no control characters');
 assert.equal(checkNews({ title: 'Sale', body: 'This weekend', url: '/app' }), null);
 assert.match(checkNews({ title: '', body: 'x', url: '/app' }), /title/i);
 assert.match(checkNews({ title: 'x', body: ' ', url: '/app' }), /message/i);

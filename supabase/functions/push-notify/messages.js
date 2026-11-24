@@ -190,8 +190,11 @@ export const NEWS_URL_MAX = 300;
 /** Characters as a person counts them: an emoji is one. */
 export const charCount = (s = '') => Array.from(String(s)).length;
 
-/** A link on the shop's own site: a path from its root, never another site (`//host` or a full URL). */
-export const validNewsUrl = (url = '') => /^\/(?!\/)/.test(url) && url.length <= NEWS_URL_MAX && !/\s/.test(url);
+/**
+ * A link on the shop's own site: a path from its root, never another site (`//host`, a full URL, or a backslash,
+ * which URL parsers read as `/`, so `/\host` is another site). No spaces or control characters.
+ */
+export const validNewsUrl = (url = '') => /^\/(?!\/)/.test(url) && url.length <= NEWS_URL_MAX && !/[\s\\\x00-\x1f\x7f]/.test(url);
 
 /** Why this message can't be sent (a sentence for staff), or null when it's fine. No link opens the app. */
 export function checkNews({ title = '', body = '', url = '' } = {}) {
