@@ -1,6 +1,6 @@
 // Run: node admin/news-push.test.js
 import assert from 'node:assert/strict';
-import { APP_TARGETS, toNewsPath, lastReal, daysAgo, lastSentText, recentWarning, reachText, testResultText, rowSummary, stillSending } from './news-push.js';
+import { APP_TARGETS, toNewsPath, lastReal, daysAgo, lastSentText, recentWarning, reachText, testResultText, rowSummary, stillSending, NEWS_EMOJI, insertText } from './news-push.js';
 
 // Where a tap opens: a page on the shop's own site, or a tab in the app
 const host = 'derbycomics.pullwise.shop';
@@ -58,5 +58,17 @@ assert.equal(lastReal([stuck]), stuck, 'it probably reached phones, so it still 
 assert.equal(rowSummary({ status: 'failed', error: 'boom' }), 'Failed: boom');
 assert.equal(rowSummary({ status: 'sent', devices: 143, failed: 2 }), '143 devices · 2 failed');
 assert.equal(rowSummary({ status: 'sent', devices: 1, failed: 0 }), '1 device');
+
+// The emoji picker on Title and Message: each emoji counts as one character, as the 60 / 180 counts show it
+assert.ok(NEWS_EMOJI.length >= 24);
+for (const { emoji, name } of NEWS_EMOJI) {
+  assert.equal(Array.from(emoji).length, 1, `${name} (${emoji}) is one character`);
+  assert.ok(name && /^[a-z]/.test(name), `${emoji} has a name for screen readers`);
+}
+assert.equal(new Set(NEWS_EMOJI.map((e) => e.emoji)).size, NEWS_EMOJI.length, 'no emoji twice');
+assert.deepEqual(insertText('Big sale', 3, 3, '🎉'), { value: 'Big🎉 sale', caret: 5 }, 'at the cursor; caret after it (🎉 is 2 code units)');
+assert.deepEqual(insertText('Big sale', 0, 3, '🔥'), { value: '🔥 sale', caret: 2 }, 'replaces the selection');
+assert.deepEqual(insertText('', 0, 0, '⭐'), { value: '⭐', caret: 1 });
+assert.deepEqual(insertText('Sale', null, null, '🎉'), { value: 'Sale🎉', caret: 6 }, 'no cursor yet: at the end');
 
 console.log('news push tests passed');

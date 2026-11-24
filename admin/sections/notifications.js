@@ -4,7 +4,7 @@
 // Only shops with the app have this screen (APP_ENABLED; admin.js hides the menu item).
 
 import { $, esc, must, toast, setStatus, fmtDateTime, friendlyError, hintFold, uid, openDialog } from '../lib.js';
-import { APP_TARGETS, toNewsPath, lastSentText, recentWarning, reachText, testResultText, rowSummary, stillSending } from '../news-push.js';
+import { APP_TARGETS, toNewsPath, lastSentText, recentWarning, reachText, testResultText, rowSummary, stillSending, NEWS_EMOJI, insertText } from '../news-push.js';
 
 const TITLE_MAX = 60; // as supabase/functions/push-notify/messages.js
 const BODY_MAX = 180;
@@ -47,9 +47,9 @@ export async function mount(el, ctx) {
     <form class="admin-form push-compose" novalidate>
       <div class="push-compose__fields">
         <div class="field"><label for="${u}-title">Title</label><input id="${u}-title" name="title" maxlength="${TITLE_MAX * 2}" autocomplete="off" value="${esc((shop.shop_name ?? '').trim())}" aria-describedby="${u}-title-count">
-          <p class="field__hint" id="${u}-title-count" data-count="title"></p></div>
+          ${underField(u, 'title', 'the title')}</div>
         <div class="field"><label for="${u}-body">Message</label><textarea id="${u}-body" name="body" rows="3" maxlength="${BODY_MAX * 2}" aria-describedby="${u}-body-count"></textarea>
-          <p class="field__hint" id="${u}-body-count" data-count="body"></p></div>
+          ${underField(u, 'body', 'the message')}</div>
         <div class="field"><label for="${u}-opens">Tapping it opens</label><select id="${u}-opens" name="opens">
           ${APP_TARGETS.map((t) => `<option value="${esc(t.value)}">${esc(t.label)}</option>`).join('')}
           <option value="${SITE}">A page on our website</option></select></div>
@@ -84,8 +84,71 @@ export async function mount(el, ctx) {
     e.preventDefault();
     send(form, mine);
   });
+  emojiPickers(form);
   update();
   await refresh(mine);
+}
+
+/** Under Title and Message: the character count, and the emoji picker for that field. */
+function underField(u, name, what) {
+  const panel = `${u}-${name}-emoji`;
+  return `<div class="push-compose__under">
+          <p class="field__hint" id="${u}-${name}-count" data-count="${name}"></p>
+          <div class="emoji-pick">
+            <button class="btn btn--ghost btn--small" type="button" aria-expanded="false" aria-controls="${panel}" data-emoji-for="${name}"><span aria-hidden="true">🙂</span> Emoji</button>
+            <div class="emoji-pick__panel" id="${panel}" role="group" aria-label="Add an emoji to ${what}" hidden>
+              ${NEWS_EMOJI.map((e) => `<button class="emoji-pick__item" type="button" data-emoji="${e.emoji}" aria-label="${esc(e.name)}" title="${esc(e.name)}">${e.emoji}</button>`).join('')}
+            </div>
+          </div>
+        </div>`;
+}
+
+/**
+ * The emoji buttons open their panel (one at a time); picking one puts it in the field at the cursor and closes the
+ * panel. Escape or a click elsewhere closes it, Escape returning to its button.
+ */
+function emojiPickers(form) {
+  const close = (btn, focus = false) => {
+    btn.setAttribute('aria-expanded', 'false');
+    $(`#${btn.getAttribute('aria-controls')}`, form).hidden = true;
+    if (focus) btn.focus();
+  };
+  const openBtn = () => $('[data-emoji-for][aria-expanded="true"]', form);
+  form.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-emoji-for]');
+    if (btn) {
+      const was = btn.getAttribute('aria-expanded') === 'true';
+      if (openBtn()) close(openBtn());
+      if (!was) {
+        btn.setAttribute('aria-expanded', 'true');
+        const panel = $(`#${btn.getAttribute('aria-controls')}`, form);
+        panel.hidden = false;
+        $('.emoji-pick__item', panel).focus();
+      }
+      return;
+    }
+    const item = e.target.closest('[data-emoji]');
+    if (!item) return;
+    const owner = item.closest('.emoji-pick').querySelector('[data-emoji-for]');
+    const field = form.elements[owner.dataset.emojiFor];
+    const { value, caret } = insertText(field.value, field.selectionStart, field.selectionEnd, item.dataset.emoji);
+    close(owner);
+    field.value = value;
+    field.focus();
+    field.setSelectionRange(caret, caret);
+    field.dispatchEvent(new Event('input', { bubbles: true })); // counts, preview and a new send id
+  });
+  form.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && openBtn()) {
+      e.preventDefault();
+      close(openBtn(), true);
+    }
+  });
+  const outside = (e) => {
+    if (!form.isConnected) return document.removeEventListener('click', outside);
+    if (openBtn() && !e.target.closest('.emoji-pick')) close(openBtn());
+  };
+  document.addEventListener('click', outside);
 }
 
 /** The shop's tab icon (or logo), as the notification shows it. */

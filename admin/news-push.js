@@ -74,6 +74,28 @@ export const testResultText = (devices) =>
     ? `Test sent to your ${devicesText(devices)}.`
     : 'You have no devices with the app’s notifications on. Sign in to the app with this account and turn notifications on, then try again.';
 
+/**
+ * The emoji picker beside Title and Message: the ones a shop's news calls for (a sale, a release, a holiday, a
+ * closure). Each is a single character with no variation selector, so it counts as one toward the 60 / 180 limits and
+ * shows as a picture on every phone. `name` is what a screen reader says.
+ */
+export const NEWS_EMOJI = [
+  ['🎉', 'party popper'], ['🥳', 'party face'], ['🔥', 'fire'], ['⭐', 'star'], ['✨', 'sparkles'], ['💥', 'boom'],
+  ['⚡', 'lightning'], ['🏆', 'trophy'], ['💰', 'money bag'], ['💸', 'money with wings'], ['🛒', 'shopping cart'], ['🎁', 'gift'],
+  ['📦', 'package'], ['🆕', 'new'], ['📚', 'books'], ['📖', 'open book'], ['🔖', 'bookmark'], ['🦸', 'superhero'],
+  ['🦹', 'supervillain'], ['🧙', 'wizard'], ['🐉', 'dragon'], ['👾', 'space invader'], ['🤖', 'robot'], ['🎮', 'video game'],
+  ['🎲', 'die'], ['🃏', 'joker card'], ['📅', 'calendar'], ['⏰', 'alarm clock'], ['🚪', 'door'], ['🔒', 'locked'],
+  ['👀', 'eyes'], ['👋', 'waving hand'], ['🙌', 'raised hands'], ['😱', 'screaming face'], ['💖', 'sparkling heart'], ['🍕', 'pizza'],
+  ['🎃', 'jack-o-lantern'], ['🎄', 'christmas tree'], ['⛄', 'snowman'], ['🎆', 'fireworks'], ['🍀', 'four leaf clover'], ['🌈', 'rainbow'],
+].map(([emoji, name]) => ({ emoji, name }));
+
+/** `text` put into `value` at the cursor (replacing a selection; at the end with no cursor), and where the cursor goes. */
+export function insertText(value, start, end, text) {
+  const from = start ?? value.length;
+  const to = end ?? from;
+  return { value: value.slice(0, from) + text + value.slice(to), caret: from + text.length };
+}
+
 // A send still "sending" after this long was stopped by the server's time limit before it could say how it went.
 const STUCK_AFTER = 10 * 60000;
 const stuck = (row, now) => row.status === 'sending' && now - new Date(row.created_at) > STUCK_AFTER;

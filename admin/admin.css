@@ -1510,6 +1510,15 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .push-preview { display: flex; align-items: flex-start; gap: var(--sp-10); padding: var(--sp-12); background: var(--surface); border: var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 .push-preview__icon { flex: none; width: 40px; height: 40px; border-radius: var(--radius); background: var(--neutral-bg); object-fit: contain; }
 .push-preview__text { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.push-compose__under { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); margin-top: var(--sp-4); }
+.push-compose__under .field__hint { margin: 0; }
+/* Emoji picker: a small ghost button that opens a grid of emoji under it (like the account menu); a pick goes in at the cursor. */
+.emoji-pick { position: relative; flex: none; }
+.emoji-pick__panel { position: absolute; top: calc(100% + var(--sp-4)); right: 0; z-index: var(--z-float); display: grid; grid-template-columns: repeat(auto-fill, var(--tap)); width: min(calc(7 * var(--tap) + 2 * var(--sp-6)), calc(100vw - var(--sp-32))); padding: var(--sp-6); background: var(--surface); border: var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); }
+.emoji-pick__panel[hidden] { display: none; }
+.emoji-pick__item { display: grid; place-items: center; width: var(--tap); height: var(--tap); padding: 0; border: 0; border-radius: var(--radius-sm); background: none; font-size: var(--fs-xl); line-height: 1; cursor: pointer; }
+.emoji-pick__item:hover { background: var(--head-bg); }
+.emoji-pick__item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 @media (max-width: 899px) {
   .push-compose { grid-template-columns: minmax(0, 1fr); }
   .push-compose__side { padding-top: 0; margin-bottom: var(--sp-12); }
