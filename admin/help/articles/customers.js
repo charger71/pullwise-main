@@ -29,7 +29,7 @@ Open a customer to see their page. The **Pull List** tab shows everything they'v
 
 - **Profile**: name, email, phone, address, and whether they get the weekly and "books are in" emails. **Notes** are private to staff.
 - **Messages**: emails sent to them. Click any customer's email address to write to them.
-- **Changes**: every change to their pull list and follows, newest first: what staff changed (with their name), what the customer changed themselves on the site or in the app (**Customer**), and what the shop did on its own, such as a cutoff move (**Automatic**). **Show older changes** loads the rest.
+- **Changes**: every change to their pull list and follows, newest first: what staff changed (their name, then **(staff)**), what the customer changed themselves on the site or in the app (the customer's name, then **(customer)**), and what the shop did on its own, such as a cutoff move (**Automatic**). A change by someone no longer on the staff list shows **Former staff**. **Show older changes** loads the rest.
 
 ![Customer → Profile](customer-profile)
 

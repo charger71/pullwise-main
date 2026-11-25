@@ -1207,9 +1207,13 @@ async function loadLog(el, c, more = false) {
       return void (box.innerHTML = '<p class="empty">No changes yet.</p>');
     }
     if (!more || !logStaff) logStaff = new Map((await must(sb.from('staff').select('user_id,name'))).map((s) => [s.user_id, s.name]));
+    // staff_user defaults to whoever was signed in, so a customer's own re-order records the customer's login there:
+    // only a login on the staff list is staff. One that has left the staff list is shown as "Former staff".
+    const customer = `${c.name || c.email || 'Customer'} (customer)`;
     const who = (r) =>
-      r.staff_user ? logStaff.get(r.staff_user) ?? 'Staff'
-      : r.by_customer || r.action === 'account deleted' ? 'Customer'
+      logStaff.has(r.staff_user) ? `${logStaff.get(r.staff_user)} (staff)`
+      : r.by_customer || r.action === 'account deleted' || (r.staff_user && r.staff_user === c.user_id) ? customer
+      : r.staff_user ? 'Former staff'
       : 'Automatic'; // no one signed in: a nightly sweep or a cutoff move
     const items = rows.map((r) => `<li><span class="job-log__when">${fmtDateTime(r.created_at)}</span><span>${esc(who(r))}</span><span class="job-log__msg">${esc(r.action)}: ${esc(r.detail ?? '')}</span></li>`).join('');
     if (!more) {
