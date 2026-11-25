@@ -2,7 +2,7 @@
 // changes in the list (status, staff pick, hidden), a read-only info view (click
 // the name), a full edit form, and who ordered each title.
 
-import { $, $$, esc, must, toast, isPhone, openDialog, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold, fetchAll, fmtDateTime, formatPhone, itemName, withCustomers, downloadCsv, listLocations, toListTop } from '../lib.js';
+import { $, $$, esc, must, toast, isPhone, openDialog, debounce, customerFilter, fmtDate, STATUS_LABELS, setStatus, sortableTable, titleFilter, solidIcon, friendlyError, hintFold, fetchAll, fmtDateTime, formatPhone, itemName, withCustomers, downloadCsv, listLocations, toListTop } from '../lib.js';
 import { imageField, uploadImage } from '../images.js';
 import { price } from '../../js/util.js';
 import { LINE_STATUS, ITEM_BADGES } from '../../js/labels.js';
@@ -426,7 +426,7 @@ async function whoOrdered(itemId, { onLeave = () => true } = {}) {
   const body = $('.dialog__body', d);
   try {
     const [item, lines, locations] = await Promise.all([
-      must(sb.from('items').select('title,issue_number,variant,publisher,foc_date,release_date').eq('id', itemId).single()),
+      must(sb.from('items').select('id,title,issue_number,variant,publisher,foc_date,release_date,status,hidden').eq('id', itemId).single()),
       fetchAll(() => sb.from('reservations').select('id,quantity,status,created_at,location_id,order:reservation_orders(id,name,phone,email,customer_id,customer:customers(id,name,first_name,last_name,phone,email))').eq('item_id', itemId).order('id')),
       listLocations(sb),
     ]);
@@ -459,12 +459,14 @@ async function whoOrdered(itemId, { onLeave = () => true } = {}) {
     const email = (l) => (l.order?.email ? `<button type="button" class="btn btn--ghost btn--small cust-email" title="Write an email to ${esc(l.order.email)}" aria-label="Email ${esc(l.order.name || l.order.email)}" data-email-to="${esc(l.order.email)}" data-email-name="${esc(l.first || l.order.name || '')}"${l.order.customer_id ? ` data-email-customer="${l.order.customer_id}"` : ''}>Email</button>` : '');
     body.innerHTML = `
       <p><strong>${esc(itemName(item))}</strong>${item.publisher ? ` · ${esc(item.publisher)}` : ''}${dates ? `<br><span class="card__meta">${dates}</span>` : ''}</p>
+      ${IS_CATALOG ? '' : `<div class="admin-actions"><button class="btn btn--add btn--small" type="button" data-add-to-list>${solidIcon('add', 16)} Add to a pull list</button></div>`}
       <p class="results-count">${live.length} ${live.length === 1 ? 'order' : 'orders'} · ${live.reduce((n, l) => n + l.quantity, 0)} copies${counts.size ? ` <span class="card__meta">(${[...counts].map(([st, n]) => `${n} ${esc((LINE_STATUS[st] ?? st).toLowerCase())}`).join(', ')})</span>` : ''}</p>
       ${lines.length ? `<div class="admin-table-wrap"><table class="admin-table cards">
         <thead><tr><th scope="col" class="col-cust-name">Name</th><th scope="col">Phone</th><th scope="col">Email</th><th scope="col" class="center">Qty</th><th scope="col">Status</th><th scope="col">Placed</th>${place.size ? '<th scope="col">Location</th>' : ''}</tr></thead>
         <tbody>${lines.map((l) => `<tr${rank(l) ? ' class="is-hidden"' : ''}><td class="card-title">${name(l)}</td><td class="nowrap">${esc(formatPhone(l.order?.phone ?? ''))}</td><td class="card-action">${email(l)}</td><td class="center card-key card-label">${l.quantity}</td><td class="card-key"><span class="pill pill--${esc(l.status)}">${esc(LINE_STATUS[l.status] ?? l.status)}</span></td><td class="card__meta nowrap">${fmtDateTime(l.created_at)}</td>${place.size ? `<td>${esc(place.get(l.location_id) ?? '')}</td>` : ''}</tr>`).join('')}</tbody>
       </table></div>` : '<p class="empty">Nobody has ordered this title.</p>'}`;
     body.addEventListener('click', (e) => {
+      if (e.target.closest('[data-add-to-list]')) return addToPullList(item, { onAdded: () => (d.close(), whoOrdered(itemId, { onLeave })) });
       const link = e.target.closest('[data-customer], [data-guest]');
       if (!link) return;
       if (!onLeave()) return e.preventDefault();
@@ -479,6 +481,62 @@ async function whoOrdered(itemId, { onLeave = () => true } = {}) {
   } catch (err) {
     body.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
   }
+}
+
+/** Put this title on a customer's pull list, from Title Info or Who Ordered: find the customer (name, phone, email or
+ *  #pickup code), choose the copies, Add. A pre-order or Coming Soon title goes on their list as the Customers screen
+ *  adds it (staff_pull_list_add); a title that's out goes on as a re-order for them, as Ordering → Re-order does
+ *  (staff_reorder). The dialog stays open for the next customer; onAdded runs when it closes after any adds. */
+function addToPullList(item, { onAdded = () => {} } = {}) {
+  const preorder = ['pre_order', 'coming_soon'].includes(item.status);
+  if (item.hidden && preorder) return void openDialog('Add to a Pull List', `<p><strong>${esc(itemName(item))}</strong></p>
+    <p class="admin-hint">This title is hidden from customers, so it can’t go on a pull list until it’s shown again (Edit → untick Hidden from customers).</p>`);
+  const how = item.status === 'pre_order' ? 'It goes on their pull list and is ordered with the rest at the order cutoff.'
+    : item.status === 'coming_soon' ? 'The order cutoff has passed: it goes on their pull list, but check the copies are in the distributor order.'
+    : 'This title is already out, so it goes on their pull list as a re-order (Ordering → Re-order).';
+  const d = openDialog('Add to a Pull List', `
+    <p><strong>${esc(itemName(item))}</strong></p>
+    <p class="admin-hint">${how}</p>
+    <div class="field field--search"><label for="atl-q">Customer</label><input id="atl-q" type="search" placeholder="Name, phone, email or #pickup code" autocomplete="off"></div>
+    <div data-atl-results></div>`);
+  const results = $('[data-atl-results]', d);
+  let added = 0;
+  d.addEventListener('close', () => added && onAdded());
+  const search = async (text) => {
+    const q = text.trim();
+    const code = q.match(/^#\s*(\d{1,9})$/)?.[1];
+    const match = code ? null : customerFilter(q, { words: true });
+    if (q.length < 2 || (!code && !match)) return void (results.innerHTML = '');
+    const base = sb.from('customer_list').select('id,name,email,phone');
+    const { data, error } = await (code ? base.eq('id', Number(code)) : base.or(match).order('name')).limit(8);
+    if (error) return void (results.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
+    results.innerHTML = data.length
+      ? `<ul class="cust-results">${data.map((c) => `<li>
+          <span><strong>${esc(c.name || c.email || 'No name')}</strong><br><span class="card__meta">${esc([`#${c.id}`, c.phone && formatPhone(c.phone), c.email].filter(Boolean).join(' · '))}</span></span>
+          <span class="cust-results__act">
+            <label class="visually-hidden" for="atl-qty-${c.id}">Copies</label><input id="atl-qty-${c.id}" class="cust-qty" type="number" min="1" max="100" value="1">
+            <button class="btn btn--add btn--small" type="button" data-atl-add="${c.id}" aria-label="Add to ${esc(c.name || c.email || 'this customer')}'s pull list">${solidIcon('add', 16)} Add</button>
+          </span></li>`).join('')}</ul>`
+      : '<p class="empty">No customers match.</p>';
+  };
+  $('#atl-q', d).addEventListener('input', debounce((e) => search(e.target.value), 300));
+  results.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-atl-add]');
+    if (!btn) return;
+    const customer = Number(btn.dataset.atlAdd);
+    const who = btn.closest('li').querySelector('strong').textContent;
+    const qty = Math.min(Math.max(Math.round(Number($(`#atl-qty-${customer}`, results).value)) || 1, 1), 100);
+    btn.disabled = true;
+    const { data, error } = preorder
+      ? await sb.rpc('staff_pull_list_add', { p_customer: customer, p_item_id: item.id, p_quantity: qty, p_all_covers: false })
+      : await sb.rpc('staff_reorder', { p_item_id: item.id, p_quantity: qty, p_customer: customer, p_location: null });
+    if (error) return (btn.disabled = false), toast(friendlyError(error), 'error');
+    if (preorder && !data?.added) return (btn.disabled = false), toast(`Already on ${who}'s pull list`, 'error');
+    added++;
+    btn.replaceWith(Object.assign(document.createElement('span'), { className: 'card__meta', textContent: '✓ Added' }));
+    toast(`${itemName(item)} × ${qty} added to ${who}'s pull list${preorder ? '' : ' as a re-order'}`);
+  });
+  $('#atl-q', d).focus();
 }
 
 // After an edit or delete, the Titles list (when Title Info was opened from it) shows the change.
@@ -547,8 +605,10 @@ async function titleInfo(listEl, id) {
       <div class="admin-actions sticky-actions">
         <button class="btn btn--primary" type="button" data-edit-title>${solidIcon('edit', 16)} Edit</button>
         <button class="btn btn--ghost" type="button" data-who-ordered>${solidIcon('person', 16)} Who ordered</button>
+        ${IS_CATALOG ? '' : `<button class="btn btn--add" type="button" data-add-to-list>${solidIcon('add', 16)} Add to a pull list</button>`}
       </div>`;
     $('[data-edit-title]', d).addEventListener('click', () => (d.close(), edit(listEl, id)));
+    $('[data-add-to-list]', d)?.addEventListener('click', () => addToPullList(item, { onAdded: () => (d.close(), titleInfo(listEl, id)) }));
     $$('[data-who-ordered]', d).forEach((b) => b.addEventListener('click', () => whoOrdered(id, { onLeave: () => (d.close(), true) })));
   } catch (err) {
     body.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;

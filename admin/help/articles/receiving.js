@@ -20,7 +20,7 @@ Customers' copies become **Ready**, and the hold window starts today (its length
 
 ## Hand books over
 
-When a customer collects, mark their titles **picked up**: open them on [Customers](#help/customers), or use **Scan pickup code** there to find them from the code on their phone.
+When a customer collects, mark their titles **picked up**: open them on [Customers](#help/customers), or use **Scan pickup code** there to find them from the code on their phone. A scan opens their pull list and lists what's ready, with one button to mark it all picked up.
 
 ## Re-order
 

@@ -54,6 +54,15 @@ function openList(section, key, value) {
 
 const openCustomer = (id) => (location.hash = `#customers/${id}`);
 
+/** The customer number in "#1042", or in a pickup code's link typed by a handheld QR scanner (…/admin/#customers/1042/pickup). */
+const pickupCode = (q) => q.match(/^#\s*(\d{1,9})$/)?.[1] ?? q.match(/#customers\/(\d{1,9})(?:\/pickup)?$/)?.[1] ?? null;
+
+/** A pickup code opens the customer as a scan does: their Pull List, and what's Ready with a button to mark it picked up. */
+function openPickup(id) {
+  const hash = `#customers/${id}/pickup`;
+  location.hash === hash ? window.dispatchEvent(new HashChangeEvent('hashchange')) : (location.hash = hash);
+}
+
 async function openTitle(id) {
   const { showTitleInfo } = await import('./sections/titles.js');
   showTitleInfo({ sb, isOwner }, id);
@@ -68,9 +77,10 @@ function render(q, customers, titles) {
   };
   const group = (label, rows) => `<li class="admin-search__group" role="presentation"><span class="admin-search__label" aria-hidden="true">${label}</span><ul role="group" aria-label="${label}">${rows}</ul></li>`;
   const quoted = `“${esc(q)}”`;
+  const code = pickupCode(q);
   const customerRows = customers.map((c) =>
-    row(`<span class="admin-search__main">${esc(c.name || c.email || 'No name')}</span><span class="admin-search__meta">${esc([c.email, c.phone && formatPhone(c.phone)].filter(Boolean).join(' · '))}</span>`, () => openCustomer(c.id)),
-  ).join('') + (customers.length ? row(`<span class="admin-search__more">All customers matching ${quoted}</span>`, () => openList('customers', 'admin-customers-q', q)) : '');
+    row(`<span class="admin-search__main">${esc(c.name || c.email || 'No name')}</span><span class="admin-search__meta">${esc([code && `Pickup code #${c.id}`, c.email, c.phone && formatPhone(c.phone)].filter(Boolean).join(' · '))}</span>`, () => (code ? openPickup(c.id) : openCustomer(c.id))),
+  ).join('') + (customers.length && !code ? row(`<span class="admin-search__more">All customers matching ${quoted}</span>`, () => openList('customers', 'admin-customers-q', q)) : '');
   const titleRows = titles.map((t) =>
     row(`${t.cover_url ? `<img class="thumb thumb--sm" src="${esc(t.cover_url)}" alt="" loading="lazy">` : '<span class="thumb thumb--sm admin-search__nocover" aria-hidden="true"></span>'}<span class="admin-search__text"><span class="admin-search__main">${esc(itemName(t))}</span><span class="admin-search__meta">${esc(t.publisher || '')}</span></span>`, () => openTitle(t.id)),
   ).join('') + (titles.length ? row(`<span class="admin-search__more">All titles matching ${quoted}</span>`, () => openList('titles', 'admin-titles-filter', JSON.stringify({ q }))) : '');
@@ -94,8 +104,8 @@ async function search() {
     $('#admin-search-status').textContent = '';
     return setOpen(false);
   }
-  // "#123" is a customer's pickup code (their number), as in the Customers search box.
-  const code = q.match(/^#\s*(\d{1,9})$/)?.[1];
+  // "#123" is a customer's pickup code (their number), as in the Customers search box; a scanned code's link works too.
+  const code = pickupCode(q);
   const people = code ? '' : customerFilter(q, { words: true });
   const items = code ? '' : titleFilter(q, { codes: true });
   const [c, t] = await Promise.all([
@@ -118,10 +128,12 @@ function choose(i) {
 let timer;
 export function setupHeaderSearch() {
   const q = input();
-  // Phones have room for one word in the box (the label still names both).
+  // Phones have room for one word in the box, tablets for a short line (the label still names both).
   const narrow = window.matchMedia('(max-width: 599px)');
-  const fitPlaceholder = () => (q.placeholder = narrow.matches ? 'Search' : 'Search customers and titles…');
+  const medium = window.matchMedia('(max-width: 899px)');
+  const fitPlaceholder = () => (q.placeholder = narrow.matches ? 'Search' : medium.matches ? 'Search or #pickup code…' : 'Search customers, titles or #pickup code…');
   narrow.addEventListener('change', fitPlaceholder);
+  medium.addEventListener('change', fitPlaceholder);
   fitPlaceholder();
   q.addEventListener('input', () => (clearTimeout(timer), (timer = setTimeout(search, 250))));
   q.addEventListener('focus', () => options.length && q.value.trim().length >= 2 && setOpen(true));
@@ -134,6 +146,16 @@ export function setupHeaderSearch() {
       setActive((active + step + options.length + (active < 0 && step < 0 ? 1 : 0)) % options.length);
     } else if (e.key === 'Enter') {
       e.preventDefault();
+      // A pickup code opens straight away: a handheld scanner types the link and presses Enter before any results show.
+      const code = active < 0 && pickupCode(q.value.trim());
+      if (code) {
+        clearTimeout(timer);
+        run++;
+        q.value = '';
+        setOpen(false);
+        q.blur();
+        return openPickup(code);
+      }
       if (active >= 0) choose(active);
       else if (options.length) choose(0);
     } else if (e.key === 'Escape') {
