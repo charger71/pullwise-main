@@ -5,6 +5,10 @@
 // box is open (and every half minute while it is closed, to light the dot on the button).
 // A customer who is signed in starts the chat on their account (chat_start links it), so staff see who they are and
 // the shop's replies reach the customer's phone as an app notification (supabase/functions/push-notify, chat-reply).
+// Staff can also start a chat with a customer (Admin → Customers → Messages → Chat). That chat lives on the customer's
+// account, so a signed-in customer's browser asks chat_mine for their newest open chat (on load, and with each check
+// while the box is closed) and switches to it, lighting the dot. The same check carries a chat across their devices.
+// While the box is open it reports the newest shop message it has shown (chat_mark_seen), so staff see "Seen".
 // In the shop's app the button sits above the tab bar, and a notification's ?chat=1 opens the chat.
 
 import { supabase, DEMO } from './data.js';
@@ -48,6 +52,7 @@ export function initChat(settings, { findAgain = 'Find it again in the page foot
   let status = 'open';
   let isOpen = false;
   let timer;
+  let reported = 0; // the newest shop message chat_mark_seen has been told about (it ignores anything older)
 
   document.body.insertAdjacentHTML('beforeend', `
     <button class="btn btn--primary chat-launch" id="chat-launch" type="button" aria-controls="chat" aria-expanded="false" aria-label="${LAUNCH_LABEL}" title="${LAUNCH_LABEL}"><svg class="chat-launch__icon" viewBox="0 0 307 246" aria-hidden="true" focusable="false"><path d="M47.5 179.4A153.4 103.8 0 1 1 100.2 201.4L27 246L20 244zM88.3 103.9a14.5 14.5 0 1 0 29 0a14.5 14.5 0 1 0-29 0zM138.3 103.9a14.5 14.5 0 1 0 29 0a14.5 14.5 0 1 0-29 0zM188.3 103.9a14.5 14.5 0 1 0 29 0a14.5 14.5 0 1 0-29 0z"/></svg><span class="chat-launch__dot" hidden></span></button>
@@ -71,7 +76,38 @@ export function initChat(settings, { findAgain = 'Find it again in the page foot
     launch.title = show ? LAUNCH_LABEL_NEW : LAUNCH_LABEL;
   };
 
+  /**
+   * Signed in: switch to the newest open chat on the customer's account when it isn't the one this browser has (the
+   * shop started it, or it was started on another device). Shows the button again, since the shop is waiting on them.
+   * Returns whether it switched. Quiet on failure, like refresh.
+   */
+  async function adopt() {
+    const sb = await supabase();
+    const { data: auth } = await sb.auth.getSession();
+    if (!auth?.session) return false;
+    const { data, error } = await sb.rpc('chat_mine');
+    if (error || !data?.token || data.token === token) return false;
+    token = data.token;
+    messages = [];
+    seen = 0;
+    reported = 0;
+    hidden = false;
+    writeSaved({ token, seen, hidden });
+    if (!isOpen) launch.hidden = false;
+    return true;
+  }
+
   const newestShop = () => messages.filter((m) => m.from_staff).reduce((max, m) => Math.max(max, m.id), 0);
+
+  /** With the box open, tell the shop how far the visitor has read, so staff see "Seen". Tries again next time on failure. */
+  async function markSeen() {
+    const last = newestShop();
+    if (!token || !last || last <= reported) return;
+    reported = last;
+    const sb = await supabase();
+    const { error } = await sb.rpc('chat_mark_seen', { p_token: token, p_message: last });
+    if (error) reported = 0;
+  }
 
   function renderStart() {
     const me = profile(); // signed in: the chat goes on their account, and the form starts with their details
@@ -125,6 +161,7 @@ export function initChat(settings, { findAgain = 'Find it again in the page foot
 
   /** Fetch the chat and redraw if anything changed. Quiet on failure: the next check tries again. */
   async function refresh() {
+    if ((!isOpen || !token) && (await adopt()) && isOpen) renderThread();
     if (!token) return;
     const sb = await supabase();
     const { data, error } = await sb.rpc('chat_fetch', { p_token: token });
@@ -145,6 +182,7 @@ export function initChat(settings, { findAgain = 'Find it again in the page foot
     if (isOpen) {
       seen = newestShop();
       writeSaved({ token, seen });
+      markSeen();
       if (changed) paintLog();
     } else {
       setDot(newestShop() > seen);
@@ -153,7 +191,7 @@ export function initChat(settings, { findAgain = 'Find it again in the page foot
 
   function schedule() {
     clearTimeout(timer);
-    if (!token) return;
+    // With no chat yet, keep checking only for a signed-in customer (adopt asks nothing of a visitor).
     timer = setTimeout(async () => {
       if (!document.hidden) await refresh();
       schedule();
@@ -224,6 +262,7 @@ export function initChat(settings, { findAgain = 'Find it again in the page foot
       if (token) {
         seen = newestShop();
         writeSaved({ token, seen });
+        markSeen();
         setDot(false);
       }
     } else {
@@ -256,8 +295,9 @@ export function initChat(settings, { findAgain = 'Find it again in the page foot
     params.delete('chat');
     history.replaceState(history.state, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`);
     setOpen(true);
-  } else if (token) {
-    // A visitor who chatted before sees the dot if the shop has answered since they last looked.
+  } else {
+    // A visitor who chatted before sees the dot if the shop has answered since they last looked; a signed-in customer
+    // also sees a chat the shop started with them.
     refresh().then(schedule);
   }
 }

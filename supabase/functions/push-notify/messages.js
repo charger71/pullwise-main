@@ -162,11 +162,13 @@ export function staffChatMessage({ id, name, body, unread = 1 }) {
 }
 
 /** The shop answered a customer's chat (one they started signed in). Tapping opens the app with the chat open. */
-export function chatReplyMessage({ shopName = '', body = '' }) {
+export function chatReplyMessage({ shopName = '', body = '', started = false }) {
   const shop = String(shopName).trim();
   const text = String(body ?? '').replace(/\s+/g, ' ').trim();
+  // `started`: the shop began this chat (Admin → Customers), so there is nothing yet to reply to.
+  const verb = started ? 'sent you a message' : 'replied';
   return {
-    title: shop ? `${shop} replied` : 'The shop replied',
+    title: shop ? `${shop} ${verb}` : `The shop ${verb}`,
     body: text.length > CHAT_SNIPPET ? `${text.slice(0, CHAT_SNIPPET - 1)}…` : text,
     url: '/app?chat=1',
     tag: 'chat-reply', // one notice for the chat at a time

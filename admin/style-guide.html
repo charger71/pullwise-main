@@ -918,14 +918,14 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
             <div class="sg-demo">
               <div class="chat-thread" role="log" aria-label="Messages with Jane Smith" tabindex="0">
                 <div class="chat-msg"><p>Hi! Is the new Absolute Batman in yet?</p><span class="chat-msg__meta">Visitor · Nov 4, 9:12 AM</span></div>
-                <div class="chat-msg chat-msg--staff"><p>It comes in Wednesday. Want us to add it to your pull list?</p><span class="chat-msg__meta">don@example.com · Nov 4, 9:14 AM</span></div>
+                <div class="chat-msg chat-msg--staff"><p>It comes in Wednesday. Want us to add it to your pull list?</p><span class="chat-msg__meta">don@example.com · Nov 4, 9:14 AM · <span class="chat-msg__seen">Seen Nov 4, 9:15 AM</span></span></div>
               </div>
               <form class="chat-compose">
                 <div class="field"><label for="sg-chat-reply">Reply</label><textarea id="sg-chat-reply" rows="2"></textarea></div>
                 <button class="btn btn--primary" type="submit">Send</button>
               </form>
             </div>
-            <p class="admin-hint mt-8">The visitor’s messages sit on the left in the surface color; staff replies sit on the right in the selected tint. The Chat screen has an <a href="#forms">on/off switch</a> beside its title that turns chat on or off for visitors, lists chats in a <a href="#tables">card-list table</a> with a <code>pill--new</code> count of unread messages, and shows new messages live. The owner can remove the whole feature, and this screen with it, in Shop Settings → Online. A customer’s <strong>Messages</strong> tab shows their chats (started while signed in, or with the same email) in an <code>aside.cust-chat</code> beside the emails sent to them, using the same <code>chat-msg</code> bubbles; under 900px it sits below.</p>
+            <p class="admin-hint mt-8">The visitor’s messages sit on the left in the surface color; staff replies sit on the right in the selected tint. The Chat screen has an <a href="#forms">on/off switch</a> beside its title that turns chat on or off for visitors, lists chats in a <a href="#tables">card-list table</a> with a <code>pill--new</code> count of unread messages (else <code>pill--info</code> Answered, or <code>pill--done</code> Seen once the visitor has read the reply), and shows new messages live. The owner can remove the whole feature, and this screen with it, in Shop Settings → Online. A customer’s <strong>Messages</strong> tab shows their chats (started while signed in, or with the same email) in an <code>aside.cust-chat</code> beside the emails sent to them, using the same <code>chat-msg</code> bubbles. The newest staff message the visitor has read ends its meta line with <code>chat-msg__seen</code> (“Seen” and the time); under 900px it sits below. Above the chats, a <code>chat-compose</code> form in <code>.cust-chat__start</code> lets staff send the customer a chat message (it adds to their open chat or starts one on their account); when the customer has no online account or chat is off, an <code>admin-hint</code> says why instead.</p>
           </div>
         </section>
 
