@@ -108,6 +108,13 @@ export async function mount(el, ctx) {
       sessionStorage.removeItem('admin-customers-show');
       state = { ...state, q: '', show, offset: 0, customerId: null };
     }
+    // The header's search box (search.js) hands over its search for "All customers matching …".
+    const q = sessionStorage.getItem('admin-customers-q');
+    if (q) {
+      handedOff = true;
+      sessionStorage.removeItem('admin-customers-q');
+      state = { ...state, q, show: '', offset: 0, customerId: null };
+    }
     const wanted = sessionStorage.getItem('admin-open-customer');
     if (wanted) {
       sessionStorage.removeItem('admin-open-customer');

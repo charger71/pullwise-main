@@ -17,6 +17,7 @@ import { startChatAlerts, stopChatAlerts, unreadChats } from './chat-alerts.js';
 import { startSurveyAlerts, refreshSurveyAlerts, newSurveyResponses } from './survey-alerts.js';
 import { startEventAlerts, refreshEventAlerts, newEventSignups } from './event-alerts.js';
 import { listenForOpenRequests } from './staff-push.js';
+import { setupHeaderSearch, startHeaderSearch } from './search.js';
 
 const SECTIONS = ['dashboard', 'analytics', 'titles', 'reservations', 'customers', 'chat', 'notifications', 'series', 'import', 'events', 'news', 'media', 'pages', 'faq', 'qr', 'emails', 'surveys', 'settings', 'locations', 'backup', 'staff', 'help'];
 // Screens only owners open (the menu item is hidden and the address redirects to the Dashboard).
@@ -157,6 +158,7 @@ function lockOut(message) {
   if ($('#app').hidden) return;
   $('#app').hidden = true;
   $('#admin-user').hidden = true;
+  $('#admin-search').hidden = true;
   $('#admin-notice').hidden = true;
   $('#login').hidden = false;
   $('#login-error').textContent = message;
@@ -179,6 +181,7 @@ async function showApp() {
     $('#login').hidden = true;
     $('#app').hidden = false;
     $('#admin-user').hidden = false;
+    $('#admin-search').hidden = false;
     $('#admin-notice').hidden = !$('#admin-notice').textContent;
     return;
   }
@@ -212,6 +215,7 @@ async function showApp() {
   $('#login').hidden = true;
   $('#app').hidden = false;
   $('#admin-user').hidden = false;
+  startHeaderSearch({ sb, isOwner }); // the header's search box (search.js)
   showAccount(user);
   syncTheme(user);
   const showNotice = (text) => {
@@ -329,6 +333,7 @@ function setAccountOpen(open) {
   $('#account-btn').setAttribute('aria-expanded', String(open));
   $('#account-menu').hidden = !open;
 }
+setupHeaderSearch();
 $('#account-btn').addEventListener('click', () => setAccountOpen($('#account-btn').getAttribute('aria-expanded') !== 'true'));
 $('#my-account').addEventListener('click', () => setAccountOpen(false));
 document.addEventListener('click', (e) => !e.target.closest('.account-menu') && setAccountOpen(false));
