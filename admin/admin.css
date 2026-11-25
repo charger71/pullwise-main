@@ -666,6 +666,7 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .cust-lines__toggle[aria-expanded='false'] .cust-lines__chev { transform: rotate(-90deg); }
 .cust-lines__body.is-folded > tr:not(.cust-lines__group) { display: none; }
 .cust-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6) var(--sp-8); margin: 0 0 var(--sp-12); }
+.cust-pickup { justify-content: flex-end; margin: 0 0 var(--sp-16); } /* Mark all ready titles picked up: right, with room above the list */
 /* Pull list discount: subtotal / discount / estimated total under the list, and the tier line above the follows. */
 .cust-totals { display: grid; grid-template-columns: 1fr auto; justify-content: end; gap: var(--sp-2) var(--sp-24); margin: var(--sp-12) 0 var(--sp-4); max-width: 22rem; margin-left: auto; font-size: var(--fs-sm); }
 .cust-totals dt, .cust-totals dd { margin: 0; }

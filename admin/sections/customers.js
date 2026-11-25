@@ -932,7 +932,7 @@ async function loadOrders(el, c, { offerPickup = false } = {}) {
       ${unlinked.length ? `<p class="notice cust-link">${unlinked.length} earlier guest ${unlinked.length === 1 ? 'order matches' : 'orders match'} this customer’s phone or email but ${unlinked.length === 1 ? 'isn’t' : 'aren’t'} linked yet.
         <button class="btn btn--primary btn--small" type="button" data-link>Link ${unlinked.length === 1 ? 'it' : 'them'}</button></p>` : ''}
       ${shown.length ? summaryChips(shown, disc) : ''}
-      ${readyIds.length ? `<div class="admin-actions"><button class="btn btn--green btn--small" type="button" data-pickup-all>Mark ${readyIds.length === 1 ? 'the ready title' : `all ${readyIds.length} ready titles`} picked up</button></div>` : ''}
+      ${readyIds.length ? `<div class="admin-actions cust-pickup"><button class="btn btn--green btn--small" type="button" data-pickup-all>Mark ${readyIds.length === 1 ? 'the ready title' : `all ${readyIds.length} ready titles`} picked up</button></div>` : ''}
       ${shown.length ? `<div class="admin-table-wrap"><table class="admin-table cust-lines">
         <thead><tr><th scope="col">Title</th><th scope="col" class="cl-out">Out</th><th scope="col" class="cl-qty">Qty</th><th scope="col" class="cl-status">Status</th><th scope="col" class="cl-by">Added by</th><th scope="col" class="cl-rm"><span class="visually-hidden">Remove</span></th></tr></thead>
         ${groupedRows(shown, c, staffNames)}</table></div>${discountTotals(shown, disc)}` : '<p class="empty">Nothing on this customer’s pull list yet.</p>'}`;
