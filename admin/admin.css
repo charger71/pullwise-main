@@ -629,6 +629,8 @@ td.dash-top__n { text-align: center; font: var(--fs-sub) var(--font-display); }
 .cust-main > .cust-pane--split { grid-template-columns: minmax(0, 1fr); align-items: start; }
 .cust-msgs__main { display: grid; gap: var(--sp-16); min-width: 0; }
 .cust-chat { min-width: 0; }
+.cust-chat__start:not(:empty) { margin-bottom: var(--sp-16); }
+.cust-chat__start .field__hint { margin: var(--sp-4) 0 0; }
 .cust-chat__conv + .cust-chat__conv { margin-top: var(--sp-8); }
 .cust-chat__conv .card__meta { margin: var(--sp-8) 0 0; }
 .cust-chat .admin-pager { margin-top: var(--sp-12); }
@@ -1525,6 +1527,7 @@ p > .admin-link-button { padding-block: var(--sp-4); margin-block: calc(-1 * var
 .chat-msg p { margin: 0; white-space: pre-wrap; }
 .chat-msg--staff { align-self: flex-end; background: var(--select-bg-light); }
 .chat-msg__meta { display: block; margin-top: var(--sp-4); font-size: var(--fs-2xs); color: var(--muted); }
+.chat-msg__seen { font-weight: 600; }
 .chat-compose { display: flex; align-items: flex-end; gap: var(--sp-8); }
 .chat-compose .field { flex: 1; min-width: 0; margin: 0; }
 .admin-title-row .switch { margin-left: auto; }

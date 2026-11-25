@@ -9,7 +9,7 @@
 //   POST  x-cron-secret  { "mode": "chat", "conversation_id" }   a visitor wrote in live chat: tell every staff device
 //           that turned chat notifications on (public.chat_message_push asks, at most every 5 minutes for a chat)
 //   POST  x-cron-secret  { "mode": "chat-reply", "conversation_id" }   staff answered a chat a signed-in customer
-//           started: tell that customer's devices (public.chat_reply_push asks, at most once a minute for a chat)
+//           started, or started one with them from Admin → Customers: tell that customer's devices (public.chat_reply_push asks, at most once a minute for a chat)
 //   POST  Authorization: Bearer <staff>  { "mode": "staff-test" }   a test notice to the signed-in staff member's devices
 //   POST  Authorization: Bearer <staff>  { "mode": "news", title, body, url, test, request_id }   shop news staff wrote
 //           (Admin → Notifications): to every device of customers with shop news on, or with `test` only to the
@@ -119,15 +119,16 @@ async function sendChatReply(id: number) {
   const { data: chat, error } = await admin.from('chat_conversations').select('id,customer_id').eq('id', id).maybeSingle();
   if (error) throw error;
   if (!chat?.customer_id) return { chat: id, sent: 0, skipped: true };
-  const [{ data: who }, { data: last }] = await Promise.all([
+  const [{ data: who }, { data: last }, { count: fromCustomer }] = await Promise.all([
     admin.from('customers').select('push_chat').eq('id', chat.customer_id).maybeSingle(),
     admin.from('chat_messages').select('body').eq('conversation_id', id).eq('from_staff', true).order('id', { ascending: false }).limit(1).maybeSingle(),
+    admin.from('chat_messages').select('id', { count: 'exact', head: true }).eq('conversation_id', id).eq('from_staff', false),
   ]);
   if (!who?.push_chat || !last) return { chat: id, sent: 0, skipped: true };
   const devices = await subscriptionsOf([chat.customer_id]);
   if (!devices.length) return { chat: id, devices: 0, sent: 0 };
   const shop = await loadShop();
-  const result = await sendTo(devices, { ...chatReplyMessage({ shopName: shop.shop_name, body: last.body }), icon: notificationIcon(shop) }, CUSTOMER_TABLE, 60 * 60 * 12, 'high');
+  const result = await sendTo(devices, { ...chatReplyMessage({ shopName: shop.shop_name, body: last.body, started: !fromCustomer }), icon: notificationIcon(shop) }, CUSTOMER_TABLE, 60 * 60 * 12, 'high');
   return { chat: id, devices: devices.length, ...result };
 }
 

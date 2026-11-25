@@ -130,6 +130,7 @@ assert.equal(reply.url, '/app?chat=1', 'opens the app with the chat open');
 assert.equal(reply.tag, 'chat-reply');
 assert.equal(chatReplyMessage({ body: 'x'.repeat(300) }).body.length, 140);
 assert.equal(chatReplyMessage({}).title, 'The shop replied');
+assert.equal(chatReplyMessage({ shopName: 'Area71 Comics', body: 'Hi', started: true }).title, 'Area71 Comics sent you a message');
 console.log('chat reply message tests passed');
 
 // Shop news: written by staff (Admin → Notifications), checked here and on the screen

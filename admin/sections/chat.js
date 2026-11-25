@@ -1,4 +1,5 @@
-// Chat: read and answer the live chat visitors start on the public pages. The switch at the top of the list turns the
+// Chat: read and answer the live chat visitors start on the public pages (staff can also start one with a customer
+// from their page in Customers, see customers.js mountChatStart). The switch at the top of the list turns the
 // chat button on and off for visitors; the owner can remove the whole feature in Shop Settings → Online. The list and an open chat update as messages arrive (Supabase Realtime), with a slow refresh
 // as a backup in case the live connection drops.
 
@@ -65,7 +66,7 @@ async function showList() {
   const on = !!settings?.chat_enabled;
   draw(`
     <div class="admin-title-row"><h1>Chat</h1>${switchHtml(chatLabel(on), { checked: on, attrs: 'data-chat-switch' })}</div>
-    ${hintFold('Visitors start a chat from the button in the corner of every public page. This screen shows new messages as they arrive, so leave it open while you want to be reachable; if you are on another screen, a message pops up in the corner and the Chat menu item shows how many chats are waiting. Turn on chat notifications (the line under the switch) to get a notification on this phone or computer when a visitor writes, even with the admin closed; each staff member turns them on for each of their own devices. Reply here, close a chat when you are done, and delete the ones you no longer need (chats keep the visitor’s name and, if they gave it, their email). A visitor who writes again reopens a closed chat. A customer who is signed in (on the website or in the app) chats on their account: the chat says Customer and links to their account, and your replies reach their phone as an app notification if they turned those on. Use the switch at the top to turn chat on or off for visitors. The owner can remove the chat feature altogether in Shop Settings → Online.')}
+    ${hintFold('Visitors start a chat from the button in the corner of every public page. This screen shows new messages as they arrive, so leave it open while you want to be reachable; if you are on another screen, a message pops up in the corner and the Chat menu item shows how many chats are waiting. Turn on chat notifications (the line under the switch) to get a notification on this phone or computer when a visitor writes, even with the admin closed; each staff member turns them on for each of their own devices. Reply here; once the visitor has read your reply, it says Seen with the time (and the list shows Seen instead of Answered). Close a chat when you are done, and delete the ones you no longer need (chats keep the visitor’s name and, if they gave it, their email). A visitor who writes again reopens a closed chat. A customer who is signed in (on the website or in the app) chats on their account: the chat says Customer and links to their account, and your replies reach their phone as an app notification if they turned those on. To start a chat with a customer yourself, open them in Customers and use Send a chat message on their Messages tab; they need an online account, and see it in the chat box when they sign in. Use the switch at the top to turn chat on or off for visitors. The owner can remove the chat feature altogether in Shop Settings → Online.')}
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab" role="tab" data-status="open">Open <span class="admin-tab__badge" data-unread hidden></span></button>
       <button type="button" class="admin-tab" role="tab" data-status="closed">Closed</button>
@@ -124,12 +125,12 @@ function wireSwitch(mine, on) {
 async function loadList(mine) {
   const box = $('[data-list]', root);
   try {
-    const all = await must(sb.from('chat_conversations').select('id,name,email,status,unread_staff,last_message_at,customer_id').order('last_message_at', { ascending: false }).limit(200));
+    const all = await must(sb.from('chat_conversations').select('id,name,email,status,unread_staff,last_message_at,customer_id,visitor_seen_id').order('last_message_at', { ascending: false }).limit(200));
     if (!onScreen(mine)) return;
     const rows = all.filter((c) => c.status === listTab);
     const last = new Map(); // the newest message of each chat, for the preview
     if (rows.length) {
-      const recent = await must(sb.from('chat_messages').select('conversation_id,from_staff,body').in('conversation_id', rows.map((c) => c.id)).order('id', { ascending: false }).limit(400));
+      const recent = await must(sb.from('chat_messages').select('id,conversation_id,from_staff,body').in('conversation_id', rows.map((c) => c.id)).order('id', { ascending: false }).limit(400));
       recent.forEach((m) => last.has(m.conversation_id) || last.set(m.conversation_id, m));
     }
     if (!onScreen(mine)) return;
@@ -148,7 +149,7 @@ async function loadList(mine) {
               <td class="card-title"><strong>${esc(c.name)}</strong>${c.email || c.customer_id ? `<br><span class="card__meta">${[c.customer_id ? 'Customer' : '', esc(c.email ?? '')].filter(Boolean).join(' · ')}</span>` : ''}</td>
               <td class="card-wide">${esc(text.length > SNIPPET ? `${text.slice(0, SNIPPET)}…` : text)}</td>
               <td class="card-key">${esc(fmtDateTime(c.last_message_at))}</td>
-              <td class="card-key">${c.unread_staff > 0 ? `<span class="pill pill--new">${c.unread_staff} new</span>` : c.status === 'closed' ? '<span class="pill pill--off">Closed</span>' : '<span class="pill pill--done">Answered</span>'}</td>
+              <td class="card-key">${c.unread_staff > 0 ? `<span class="pill pill--new">${c.unread_staff} new</span>` : c.status === 'closed' ? '<span class="pill pill--off">Closed</span>' : m?.from_staff && c.visitor_seen_id >= m.id ? '<span class="pill pill--done">Seen</span>' : '<span class="pill pill--info">Answered</span>'}</td>
               <td class="card-foot"><a class="btn btn--ghost btn--small" href="${adminHash('chat', c.id)}" data-row-target>Open<span class="visually-hidden"> chat with ${esc(c.name)}</span></a></td>
             </tr>`;
           })
@@ -158,6 +159,17 @@ async function loadList(mine) {
     if (onScreen(mine)) setStatus($('[data-state]', root), `Couldn’t load chats: ${friendlyError(err)}`, 'error');
   }
 }
+
+// ---- Seen ----------------------------------------------------------------------------------------------------------
+// The visitor's chat box reports the newest shop message it has shown (chat_mark_seen). One "Seen" goes on the newest
+// staff message up to there; staff messages after it are still waiting to be read.
+
+/** The id of the staff message that carries "Seen", or 0. */
+export const seenMessageId = (messages, chat) =>
+  messages.reduce((id, m) => (m.from_staff && m.id <= (chat?.visitor_seen_id ?? 0) ? m.id : id), 0);
+
+/** " · Seen <time>" for the message that carries it (see seenMessageId), else nothing. */
+export const seenTag = (m, seenId, chat) => (m.id === seenId && seenId ? ` · <span class="chat-msg__seen">Seen ${esc(fmtDateTime(chat.visitor_seen_at))}</span>` : '');
 
 // ---- One chat -------------------------------------------------------------------------------------------------------
 
@@ -251,12 +263,16 @@ async function showChat(id) {
 
 async function loadChat(mine, id) {
   try {
-    const messages = await must(sb.from('chat_messages').select('id,from_staff,body,sent_by,created_at').eq('conversation_id', id).order('id'));
+    const [messages, seenBy] = await Promise.all([
+      must(sb.from('chat_messages').select('id,from_staff,body,sent_by,created_at').eq('conversation_id', id).order('id')),
+      must(sb.from('chat_conversations').select('visitor_seen_id,visitor_seen_at').eq('id', id).maybeSingle()),
+    ]);
     if (!onScreen(mine)) return;
+    const seenId = seenMessageId(messages, seenBy);
     const log = $('[data-log]', root);
     const nearEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
     log.innerHTML = messages.length
-      ? messages.map((m) => `<div class="chat-msg${m.from_staff ? ' chat-msg--staff' : ''}"><p>${esc(m.body)}</p><span class="chat-msg__meta">${m.from_staff ? esc(m.sent_by || 'Staff') : 'Visitor'} · ${esc(fmtDateTime(m.created_at))}</span></div>`).join('')
+      ? messages.map((m) => `<div class="chat-msg${m.from_staff ? ' chat-msg--staff' : ''}"><p>${esc(m.body)}</p><span class="chat-msg__meta">${m.from_staff ? esc(m.sent_by || 'Staff') : 'Visitor'} · ${esc(fmtDateTime(m.created_at))}${seenTag(m, seenId, seenBy)}</span></div>`).join('')
       : '<p class="empty">No messages.</p>';
     if (nearEnd || !log.dataset.drawn) log.scrollTop = log.scrollHeight;
     log.dataset.drawn = '1';

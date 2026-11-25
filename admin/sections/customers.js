@@ -6,11 +6,12 @@
 // and shown under "Recent changes".
 // The Unclaimed tab and the pickup indicator (account state, pause, books waiting) read staff_pickup_summary().
 
-import { $, $$, esc, uid, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
+import { $, $$, esc, uid, must, toast, setStatus, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { todayIn, stampIn, holdUntil as holdDate, cutoffPassed } from '../../js/dates.js';
 import { seriesFollowFacts, alsoText, NEVER_ADDED, followKindText, followName } from '../../js/series-follow.js';
 import { adminHash } from '../route.js';
+import { seenMessageId, seenTag } from './chat.js';
 import { followedSeries, discountFor, tiersFrom, totals } from '../../js/discount.js';
 import { dollars, ageLabel, ACCOUNT_STATE, CADENCE_OPTIONS, standingChange, standingActions } from '../trust.js';
 
@@ -785,7 +786,7 @@ async function renderCustomer(el) {
         <aside class="cust-chat" aria-labelledby="cu-chat">
         <section class="fold fold--compact fold--static">
           <div class="fold__head"><h2 id="cu-chat">Chat</h2><span class="card__meta cust-profile__sum" data-chat-sum></span></div>
-          <div class="fold__body" data-chats aria-busy="true"></div>
+          <div class="fold__body"><div class="cust-chat__start" data-chat-start></div><div data-chats aria-busy="true"></div></div>
         </section>
         </aside>
         </div>
@@ -869,6 +870,7 @@ async function renderCustomer(el) {
   loadNotes(el, c);
   loadMessages(el, c);
   loadChats(el, c);
+  mountChatStart(el, c);
   $('[data-search]', el).addEventListener('input', debounce((e) => searchTitles(el, c, e.target.value), 300));
   $('[data-search]', el).addEventListener('submit', (e) => e.preventDefault());
   $('[data-results]', el).addEventListener('click', (e) => addFromResult(el, c, e));
@@ -1191,6 +1193,45 @@ async function addFromResult(el, c, e) {
   loadLog(el, c);
 }
 
+/**
+ * Staff start a chat with the customer (or add to their open one) right from their page: chat_staff_start puts it on
+ * their account, and the customer sees it in the chat box when signed in (and as an app notification). Only for a
+ * customer with an online account, and only while chat is on; otherwise a line says why.
+ */
+async function mountChatStart(el, c) {
+  const box = $('[data-chat-start]', el);
+  const { data: s } = await sb.from('settings').select('chat_enabled,chat_available').eq('id', 1).maybeSingle();
+  if (!box.isConnected || s?.chat_available === false) return box.remove();
+  if (!c.user_id) return void (box.innerHTML = '<p class="admin-hint">This customer has no online account yet, so they can’t chat. Email them instead.</p>');
+  if (!s?.chat_enabled) return void (box.innerHTML = `<p class="admin-hint">Chat is off, so this customer couldn’t see a message. <a href="${adminHash('chat')}">Turn chat on</a> to message them.</p>`);
+  const id = uid('cu-chat-msg');
+  box.innerHTML = `
+    <form class="chat-compose" novalidate>
+      <div class="field"><label for="${id}">Send a chat message</label><textarea id="${id}" name="body" rows="2" maxlength="1000" required aria-describedby="${id}-hint"></textarea></div>
+      <button class="btn btn--primary" type="submit">Send</button>
+    </form>
+    <p class="field__hint" id="${id}-hint">Adds to their open chat, or starts a new one. They see it in the chat box when signed in, and as a notification if they use the app.</p>
+    <p class="admin-status" role="status" data-chat-start-state></p>`;
+  const form = $('form', box);
+  const text = $('textarea', form);
+  const state = $('[data-chat-start-state]', box);
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = text.value.trim();
+    if (!body) return text.focus();
+    const send = $('[type="submit"]', form);
+    send.disabled = true;
+    const { data: chatId, error } = await sb.rpc('chat_staff_start', { p_customer: c.id, p_body: body });
+    send.disabled = false;
+    if (error) return void setStatus(state, `Not sent: ${friendlyError(error)}`, 'error');
+    text.value = '';
+    setStatus(state, '');
+    toast(`Chat message sent to ${c.first_name || 'the customer'}`, 'ok', { href: adminHash('chat', chatId), text: 'Open chat' });
+    loadChats(el, c);
+  });
+  text.addEventListener('keydown', (e) => (e.ctrlKey || e.metaKey) && e.key === 'Enter' && (e.preventDefault(), form.requestSubmit()));
+}
+
 const CHAT_PAGE = 5;
 /** Chats this customer had on the site or in the app (started while signed in to their account, or with their email address), newest first, a page at a time; each one folds. */
 async function loadChats(el, c, offset = 0) {
@@ -1199,7 +1240,7 @@ async function loadChats(el, c, offset = 0) {
   box.setAttribute('aria-busy', 'true');
   try {
     const filter = anyOf(`customer_id.eq.${Number(c.id)}`, emailMatch('email', c.email));
-    const { data: chats, count, error } = await sb.from('chat_conversations').select('id,status,created_at', { count: 'exact' }).or(filter).order('last_message_at', { ascending: false }).range(offset, offset + CHAT_PAGE - 1);
+    const { data: chats, count, error } = await sb.from('chat_conversations').select('id,status,created_at,visitor_seen_id,visitor_seen_at', { count: 'exact' }).or(filter).order('last_message_at', { ascending: false }).range(offset, offset + CHAT_PAGE - 1);
     if (error) throw error;
     const msgs = chats.length ? await must(sb.from('chat_messages').select('id,conversation_id,from_staff,body,sent_by,created_at').in('conversation_id', chats.map((x) => x.id)).order('id').limit(1000)) : [];
     sum.textContent = count ? `${count} chat${count === 1 ? '' : 's'}` : '';
@@ -1208,11 +1249,11 @@ async function loadChats(el, c, offset = 0) {
       ? `${chats.map((chat, i) => `<details class="fold fold--compact cust-chat__conv"${i === 0 ? ' open' : ''}>
           <summary class="fold__head"><h3>${esc(fmtDate(chat.created_at))}<span class="fold__note">${chat.status === 'closed' ? 'Closed' : 'Open'} · ${thread(chat).length} message${thread(chat).length === 1 ? '' : 's'}</span></h3></summary>
           <div class="fold__body">
-            <div class="chat-thread cust-chat__thread">${thread(chat).map((m) => `<div class="chat-msg${m.from_staff ? ' chat-msg--staff' : ''}"><p>${esc(m.body)}</p><span class="chat-msg__meta">${m.from_staff ? esc(m.sent_by || 'Staff') : esc(c.first_name || 'Customer')} · ${esc(fmtDateTime(m.created_at))}</span></div>`).join('')}</div>
+            <div class="chat-thread cust-chat__thread">${((list, seenId) => list.map((m) => `<div class="chat-msg${m.from_staff ? ' chat-msg--staff' : ''}"><p>${esc(m.body)}</p><span class="chat-msg__meta">${m.from_staff ? esc(m.sent_by || 'Staff') : esc(c.first_name || 'Customer')} · ${esc(fmtDateTime(m.created_at))}${seenTag(m, seenId, chat)}</span></div>`).join(''))(thread(chat), seenMessageId(thread(chat), chat))}</div>
             <p class="card__meta"><a href="${adminHash('chat', chat.id)}">Open this chat</a></p>
           </div></details>`).join('')}
         ${count > CHAT_PAGE ? `<div class="admin-pager"><button class="btn btn--ghost btn--small" type="button" data-chat-prev${offset === 0 ? ' disabled' : ''}>← Newer</button><span>${offset + 1}–${Math.min(offset + CHAT_PAGE, count)} of ${count}</span><button class="btn btn--ghost btn--small" type="button" data-chat-next${offset + CHAT_PAGE >= count ? ' disabled' : ''}>Older →</button></div>` : ''}`
-      : '<p class="empty">No chats from this customer. Chats started while signed in, or with their email address, show here.</p>';
+      : '<p class="empty">No chats with this customer yet. Chats they start while signed in, or with their email address, and chats you start here, show here.</p>';
     $('[data-chat-prev]', box)?.addEventListener('click', () => loadChats(el, c, Math.max(0, offset - CHAT_PAGE)));
     $('[data-chat-next]', box)?.addEventListener('click', () => loadChats(el, c, offset + CHAT_PAGE));
   } catch (err) {
