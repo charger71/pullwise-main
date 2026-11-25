@@ -62,7 +62,7 @@ const prhCoverUrl = (sku) => `https://images.penguinrandomhouse.com/cover/${enco
 
 /** The line for Import → Recent Runs after --refresh-covers. */
 export function refreshSummary(r) {
-  const parts = [`${r.placeholders} of ${r.checked} covers were "Cover Coming Soon"`, `${r.replaced} replaced`, `${r.stillComing} still coming`];
+  const parts = [`${r.placeholders} of ${r.checked} covers were "Cover Coming Soon"`, `${r.replaced} replaced`, `${r.stillComing} still coming${r.cleared ? ' (now shown without a cover)' : ''}`];
   if (r.errors.length) parts.push(`${r.errors.length} failed`);
   return `PRH cover refresh: ${parts.join(', ')}`;
 }
