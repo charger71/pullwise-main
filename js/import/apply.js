@@ -138,6 +138,9 @@ export function isPlaceholderCover(url) {
   return !!hash && PLACEHOLDER_COVERS.some((h) => h.startsWith(hash));
 }
 
+/** What a title without a cover stores: the storefront and admin then show the usual "no cover". */
+const NO_COVER = { cover_url: null, cover_thumb_url: null };
+
 /** Does this stored row have a real cover (not none, not a placeholder)? */
 const hasCover = (row) => !!row?.cover_url && !isPlaceholderCover(row.cover_url);
 
@@ -199,10 +202,11 @@ async function uploadCover(sb, distributor, item, ctx) {
 /**
  * Swap PRH "Cover Coming Soon" covers for the real ones, whatever the title's on-sale date (the daily import only
  * sees the next 13 weeks). Finds them by the hash in the file name, and by downloading the few covers saved before
- * names carried one. A title whose real cover still isn't up keeps its placeholder; it's counted as still coming.
+ * names carried one. A title whose real cover still isn't up loses the placeholder (it shows the usual "no cover"
+ * until the daily import finds the real one); it's counted as still coming.
  * @param opts { distributor, coverUrl(sku) → address of the title's cover at the source, fetchRemote, makeThumb,
  *               putMedia, onProgress }
- * @returns { checked, placeholders, replaced, stillComing, errors }
+ * @returns { checked, placeholders, replaced, stillComing, cleared, errors }
  */
 export async function refreshPlaceholderCovers(sb, opts) {
   const { distributor } = opts;
@@ -219,9 +223,13 @@ export async function refreshPlaceholderCovers(sb, opts) {
     const got = await opts.fetchRemote({ url: r.cover_url }).catch(() => null);
     if (got?.bytes && PLACEHOLDER_COVERS.includes(await sha1(got.bytes))) placeholders.push(r);
   });
-  const { saved, errors: failed } = await saveSourceCovers(sb, placeholders, { ...opts, cover: (sku) => ({ url: opts.coverUrl(sku) }) });
+  const { saved, savedIds, errors: failed } = await saveSourceCovers(sb, placeholders, { ...opts, cover: (sku) => ({ url: opts.coverUrl(sku) }) });
   errors.push(...failed);
-  return { checked: rows.length, placeholders: placeholders.length, replaced: saved, stillComing: placeholders.length - saved - errors.length, errors };
+  const waiting = placeholders.filter((r) => !savedIds.has(r.id));
+  for (const batch of chunks(waiting.map((r) => r.id), 100)) {
+    await must(sb.from('items').update(NO_COVER).in('id', batch));
+  }
+  return { checked: rows.length, placeholders: placeholders.length, replaced: saved, stillComing: placeholders.length - saved - errors.length, cleared: waiting.length, errors };
 }
 
 /**
@@ -232,21 +240,21 @@ export async function refreshPlaceholderCovers(sb, opts) {
 async function saveSourceCovers(sb, rows, opts) {
   const progress = opts.onProgress ?? (() => {});
   const errors = [];
-  let saved = 0;
+  const savedIds = new Set();
   let done = 0;
   await pool(rows, 6, async (r) => {
     try {
       const uploaded = await uploadCover(sb, opts.distributor, { sku: r.sku, title: r.title, cover: opts.cover(r.sku) }, opts);
       if (uploaded) {
         await must(sb.from('items').update({ cover_url: uploaded.url, cover_thumb_url: uploaded.thumbUrl ?? null }).eq('id', r.id));
-        saved++;
+        savedIds.add(r.id);
       }
     } catch (err) {
       errors.push(`${r.title} (${r.sku}): ${err.message}`);
     }
     progress(`Covers ${++done} of ${rows.length}`);
   });
-  return { saved, errors };
+  return { saved: savedIds.size, savedIds, errors };
 }
 
 /**
@@ -348,10 +356,13 @@ export async function applyImport(sb, parsed, opts) {
   // found). Every row in one bulk upsert must have the same columns — PostgREST
   // sets a column missing from some rows to NULL, which would wipe stored values —
   // so group rows by their exact column set first.
+  // A stored "Cover Coming Soon" whose real cover still isn't up is cleared, so the title shows the usual "no cover".
+  const coverFor = (i) => coverUrls.has(i.sku) ? { cover_url: coverUrls.get(i.sku), cover_thumb_url: thumbUrls.get(i.sku) ?? null }
+    : isPlaceholderCover(existing.get(i.sku)?.cover_url) ? NO_COVER : null;
   const coverOnly = known.filter((i) => i.coverOnly);
   const groups = new Map();
   for (const i of known.filter((k) => !k.coverOnly)) {
-    const row = { ...synced(i), distributor, sku: i.sku, ...(coverUrls.has(i.sku) ? { cover_url: coverUrls.get(i.sku), cover_thumb_url: thumbUrls.get(i.sku) ?? null } : {}) };
+    const row = { ...synced(i), distributor, sku: i.sku, ...coverFor(i) };
     const key = Object.keys(row).sort().join(',');
     groups.set(key, [...(groups.get(key) ?? []), row]);
   }
@@ -361,8 +372,8 @@ export async function applyImport(sb, parsed, opts) {
   // Titles stored exactly as the sheet lists them, only missing a cover: saved again only when one turned up, and
   // then just the picture, so shops don't copy every cover-less title again each day.
   for (const i of coverOnly) {
-    if (!coverUrls.has(i.sku)) continue;
-    await must(sb.from('items').update({ cover_url: coverUrls.get(i.sku), cover_thumb_url: thumbUrls.get(i.sku) ?? null }).eq('id', existing.get(i.sku).id));
+    const cover = coverFor(i);
+    if (cover) await must(sb.from('items').update(cover).eq('id', existing.get(i.sku).id));
   }
 
   // Titles taken over from another distributor: the same row, now this distributor's code and details.

@@ -78,14 +78,23 @@ assert.equal(prhResult.covers, 1);
 assert.match(prhSb.upserts[0].cover_url, /covers\/prh\/CAP19B-[0-9a-f]{10}\.jpg$/);
 assert.equal(isPlaceholderCover(prhSb.upserts[0].cover_url), false);
 
-// Still the placeholder: nothing saved, the stored row is left as it is, and it's counted as without a cover yet.
+// Still the placeholder: it isn't uploaded, the stored one is cleared (the title shows the usual "no cover"), and
+// it's counted as without a cover yet.
 stores.length = 0;
 prhSb = fakeClient(prhStored());
 prhResult = await applyImport(prhSb, prhSheet('CAP19B'), { today: '2026-11-21', fetchRemote: async () => ({ bytes: comingSoon, type: 'image/jpeg' }), putMedia: putMediaFake });
 assert.equal(prhResult.covers, 0);
 assert.equal(prhResult.coversMissing, 1);
 assert.equal(stores.length, 0, 'the placeholder isn\'t uploaded');
-assert.equal('cover_url' in prhSb.upserts[0], false);
+assert.equal(prhSb.upserts[0].cover_url, null);
+assert.equal(prhSb.upserts[0].cover_thumb_url, null);
+
+// The same when the title's details haven't changed (the daily run's coverOnly titles): only the cover is cleared.
+prhSb = fakeClient(prhStored());
+prhResult = await applyImport(prhSb, { ...prhSheet('CAP19B'), items: prhSheet('CAP19B').items.map((i) => ({ ...i, coverOnly: true })) },
+  { today: '2026-11-21', fetchRemote: async () => ({ bytes: comingSoon, type: 'image/jpeg' }), putMedia: putMediaFake });
+assert.equal(prhSb.upserts.length, 0);
+assert.deepEqual(prhSb.updates, [{ id: 9, cover_url: null, cover_thumb_url: null }]);
 
 // A new title whose only picture is the placeholder is added without a cover.
 prhSb = fakeClient([]);
@@ -141,7 +150,10 @@ assert.equal(prhSb.inserts[0].cover_url, null);
         };
         return q;
       },
-      update: (patch) => ({ eq: async (_k, id) => (updates.push({ id, ...patch }), { data: null, error: null }) }),
+      update: (patch) => ({
+        eq: async (_k, id) => (updates.push({ id, ...patch }), { data: null, error: null }),
+        in: async (_k, ids) => (ids.forEach((id) => updates.push({ id, ...patch })), { data: null, error: null }),
+      }),
     }),
   };
   const fetched = [];
@@ -152,9 +164,10 @@ assert.equal(prhSb.inserts[0].cover_url, null);
     return { bytes: realCover, type: 'image/jpeg' };
   };
   const r = await refreshPlaceholderCovers(sb, { distributor: 'prh', coverUrl: (sku) => `https://prh.test/cover/${sku}`, fetchRemote, putMedia: putMediaFake });
-  assert.deepEqual({ ...r, errors: r.errors.length }, { checked: 5, placeholders: 3, replaced: 2, stillComing: 1, errors: 0 });
-  assert.deepEqual(updates.map((u) => u.id).sort(), [1, 2]);
-  assert.ok(updates.every((u) => /covers\/prh\/\w+-[0-9a-f]{10}\.jpg$/.test(u.cover_url)));
+  assert.deepEqual({ ...r, errors: r.errors.length }, { checked: 5, placeholders: 3, replaced: 2, stillComing: 1, cleared: 1, errors: 0 });
+  assert.deepEqual(updates.map((u) => u.id).sort(), [1, 2, 3]);
+  assert.ok(updates.filter((u) => u.id !== 3).every((u) => /covers\/prh\/\w+-[0-9a-f]{10}\.jpg$/.test(u.cover_url)));
+  assert.deepEqual(updates.find((u) => u.id === 3), { id: 3, cover_url: null, cover_thumb_url: null }, 'still coming: the placeholder is cleared');
   assert.ok(!fetched.includes('https://prh.test/cover/FINE'), 'titles with a real cover are left alone');
 }
 
