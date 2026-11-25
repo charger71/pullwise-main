@@ -2,6 +2,7 @@
 // ordering, from series_follow_preview() in the database, with its cover and dates, and the other open issues that
 // come in with it. Each side draws its own markup from these facts.
 import { localDate, lastReserveDay } from './dates.js';
+import { nameFromKey } from './follow-link.js';
 
 const day = (iso) => localDate(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
@@ -30,3 +31,15 @@ export function seriesFollowFacts(preview, { label = 'this series', allCovers = 
 export const alsoText = (f) => [f.also.join(', '), f.alsoMore && `${f.alsoMore} more`].filter(Boolean).join(' and ');
 
 export const NEVER_ADDED = 'Facsimiles and later printings are never added.';
+
+const ROLE_LABEL = { cover: 'Cover artist', creator: 'Writer / artist' };
+
+/** What a follow adds, for the Following lists (storefront, app, Admin → Customers): "Series · main cover", "Cover artist · X-Men only". */
+export function followKindText(f) {
+  if (f.kind === 'series') return f.all_covers ? 'Series · every cover' : 'Series · main cover';
+  if (f.in_series) return `Cover artist · ${f.in_series_label || nameFromKey(f.in_series)} only`;
+  return ROLE_LABEL[f.role] ?? '';
+}
+
+/** A follow's name in messages: "Peach Momoko on X-Men" for a cover artist followed on one series. */
+export const followName = (f) => (f.in_series ? `${f.label} on ${f.in_series_label || nameFromKey(f.in_series)}` : f.label);

@@ -9,7 +9,7 @@
 import { $, $$, esc, uid, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
 import { LINE_STATUS, LINE_STATUS_SHORT } from '../../js/labels.js';
 import { todayIn, stampIn, holdUntil as holdDate, cutoffPassed } from '../../js/dates.js';
-import { seriesFollowFacts, alsoText, NEVER_ADDED } from '../../js/series-follow.js';
+import { seriesFollowFacts, alsoText, NEVER_ADDED, followKindText, followName } from '../../js/series-follow.js';
 import { adminHash } from '../route.js';
 import { followedSeries, discountFor, tiersFrom, totals } from '../../js/discount.js';
 import { dollars, ageLabel, ACCOUNT_STATE, CADENCE_OPTIONS, standingChange, standingActions } from '../trust.js';
@@ -1314,6 +1314,47 @@ async function confirmSeriesFollow(sb, c, key, allCovers) {
   });
 }
 
+// A cover artist on one series ("Peach Momoko on X-Men"): every cover they draw for the series picked here, nothing
+// else of theirs. `done` reloads the customer's follows, orders and log after a follow.
+function followArtistInSeries(c, name, done) {
+  const d = openDialog(`Follow ${name} on one series`, `
+    <p class="admin-hint">Every cover ${esc(name)} draws for the series you pick goes on ${c.first_name ? `${esc(c.first_name)}’s` : 'their'} pull list, variants included (not incentives). Nothing else of theirs is added.</p>
+    <form class="cust-search" role="search" data-fas-form>
+      <label class="visually-hidden" for="fas-q">Series name</label>
+      <input id="fas-q" type="search" placeholder="Search series" autocomplete="off">
+    </form>
+    <div data-fas-results></div>`);
+  const input = $('#fas-q', d);
+  const box = $('[data-fas-results]', d);
+  let last = '';
+  const search = async () => {
+    const q = input.value.trim();
+    last = q;
+    if (q.length < 2) return void (box.innerHTML = '');
+    const { data, error } = await sb.rpc('search_series', { p_q: q });
+    if (last !== q) return; // a newer search is already running
+    if (error) return void (box.innerHTML = `<p class="form-error">${esc(friendlyError(error))}</p>`);
+    box.innerHTML = data.length
+      ? `<ul class="cust-results">${data.map((r) => `<li><span><strong>${esc(r.label)}</strong> <span class="card__meta">${r.issues ? `${r.issues} ${r.issues === 1 ? 'issue' : 'issues'}` : 'no issues yet'}</span></span>
+          <span class="cust-results__act"><button class="btn btn--add btn--small" type="button" data-fas="${esc(r.key)}" data-label="${esc(r.label)}">${solidIcon('follow', 16)} Follow<span class="visually-hidden"> ${esc(name)} on ${esc(r.label)}</span></button></span></li>`).join('')}</ul>`
+      : '<p class="empty">No series match.</p>';
+  };
+  $('[data-fas-form]', d).addEventListener('input', debounce(search, 300));
+  $('[data-fas-form]', d).addEventListener('submit', (e) => (e.preventDefault(), search()));
+  box.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-fas]');
+    if (!btn) return;
+    btn.disabled = true;
+    const { data, error } = await sb.rpc('staff_follow_artist_in_series', { p_customer: c.id, p_name: name, p_series: btn.dataset.fas });
+    if (error) return void ((btn.disabled = false), toast(friendlyError(error), 'error'));
+    await log(c.id, null, 'followed', `${name} (cover artist) on ${btn.dataset.label}`);
+    toast(`Following ${name} on ${btn.dataset.label}. ${data.added} open ${data.added === 1 ? 'title' : 'titles'} added to the pull list.`);
+    d.close();
+    done();
+  });
+  input.focus();
+}
+
 function setupFollows(el, c) {
   const list = $('[data-follows]', el);
   const results = $('[data-follow-results]', el);
@@ -1321,16 +1362,16 @@ function setupFollows(el, c) {
 
   const load = async () => {
     try {
-      const subs = await must(sb.from('subscriptions').select('id,kind,key,label,role,quantity,all_covers').eq('customer_id', c.id).order('label'));
+      const subs = await must(sb.from('subscriptions').select('id,kind,key,label,role,quantity,all_covers,in_series,in_series_label').eq('customer_id', c.id).order('label'));
       const d = discountInfo(subs);
       const discLine = !d.on
         ? '<p class="admin-hint">The pull list discount is switched off in Shop Settings.</p>'
         : `<p class="cust-disc"><strong>${d.pct ? `${d.pct}% pull list discount` : 'No discount yet'}</strong> · ${d.series} series ${d.series === 1 ? 'counts' : 'count'} (artist follows don’t)${d.next ? ` · ${d.next.more} more series ${d.next.more === 1 ? 'reaches' : 'reach'} ${d.next.pct}%` : ' · top tier'}</p>`;
       list.innerHTML = discLine + (subs.length
         ? `<ul class="job-log cust-follows">${subs
-            .map((f) => `<li><span><strong>${esc(f.label)}</strong> <span class="card__meta">${f.kind === 'series' ? (f.all_covers ? 'Series · every cover' : 'Series · main cover') : ROLE_LABEL[f.role]} · ${f.quantity} ${f.quantity === 1 ? 'copy' : 'copies'} of each</span></span>
+            .map((f) => `<li><span><strong>${esc(f.label)}</strong> <span class="card__meta">${esc(followKindText(f))} · ${f.quantity} ${f.quantity === 1 ? 'copy' : 'copies'} of each</span></span>
               <span class="cust-follows__act">${f.kind === 'series' ? `<label><input type="checkbox" data-fall="${f.id}" data-label="${esc(f.label)}"${f.all_covers ? ' checked' : ''}> All covers<span class="visually-hidden"> of ${esc(f.label)}</span></label>` : ''}
-              <button class="btn btn--danger btn--small" type="button" data-unfollow="${f.id}" data-label="${esc(f.label)}" aria-label="Unfollow ${esc(f.label)}">${solidIcon('unfollow', 16)} Unfollow</button></span></li>`)
+              <button class="btn btn--danger btn--small" type="button" data-unfollow="${f.id}" data-label="${esc(followName(f))}" aria-label="Unfollow ${esc(followName(f))}">${solidIcon('unfollow', 16)} Unfollow</button></span></li>`)
             .join('')}</ul>`
         : '<p class="empty">Not following anything.</p>');
       const fc = $('[data-follow-count]', el);
@@ -1400,7 +1441,8 @@ function setupFollows(el, c) {
     const artistRows = artists.data.map((r) => `<li><span><strong>${esc(r.name)}</strong> <span class="card__meta">${r.covers} covers${r.issues ? ` · ${r.issues} books` : ' (named in cover text)'}</span></span>
         <span class="cust-results__act">
           <button class="btn btn--add btn--small" type="button" data-fa="${esc(r.name)}" data-role="cover" title="Every cover they draw, on any series">${solidIcon('follow', 16)} Follow their covers</button>
-          ${r.issues ? `<button class="btn btn--add btn--small" type="button" data-fa="${esc(r.name)}" data-role="creator" title="The main cover of each issue they write or draw">${solidIcon('follow', 16)} Follow their books</button>` : ''}</span></li>`);
+          ${r.issues ? `<button class="btn btn--add btn--small" type="button" data-fa="${esc(r.name)}" data-role="creator" title="The main cover of each issue they write or draw">${solidIcon('follow', 16)} Follow their books</button>` : ''}
+          <button class="btn btn--ghost btn--small" type="button" data-fa-series="${esc(r.name)}" title="Every cover they draw for one series you pick">Covers on one series…</button></span></li>`);
     results.innerHTML = seriesRows.length || artistRows.length
       ? `${seriesRows.length ? `<h3 class="cust-results__head">Series</h3><ul class="cust-results">${seriesRows.join('')}</ul>` : ''}
          ${artistRows.length ? `<h3 class="cust-results__head">Artists &amp; writers</h3><ul class="cust-results">${artistRows.join('')}</ul>` : ''}`
@@ -1410,6 +1452,8 @@ function setupFollows(el, c) {
   form.addEventListener('submit', (e) => (e.preventDefault(), search()));
 
   results.addEventListener('click', async (e) => {
+    const pick = e.target.closest('[data-fa-series]');
+    if (pick) return void followArtistInSeries(c, pick.dataset.faSeries, () => (load(), loadOrders(el, c), loadLog(el, c)));
     const btn = e.target.closest('[data-fs], [data-fa]');
     if (!btn) return;
     btn.disabled = true;

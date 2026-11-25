@@ -12,6 +12,7 @@ import { whenIn as whenLabel } from '../dates.js';
 import { thumbOf, thumbFallback, artistMeta, btnIcon } from '../util.js';
 import * as pull from '../customer.js';
 import { confirmSeriesFollow } from '../follow-confirm.js';
+import { followKindText, followName } from '../series-follow.js';
 import { FOLLOW_PARAM, followKeyIn, nameFromKey, keepPending, peekPending, takePending } from '../follow-link.js';
 import * as guest from '../reservation-list.js';
 import { followedSeries, discountFor, totals, tiersFrom } from '../discount.js';
@@ -898,7 +899,6 @@ async function moveGuestList() {
 // Following
 // ---------------------------------------------------------------------------
 
-const ROLE_LABEL = { cover: 'Cover artist', creator: 'Writer / artist' };
 let followAbort = null; // the listeners on the app's header search, from the last sign-in
 
 /** "3 series · 1 artist", for the app's Following fold. */
@@ -932,12 +932,12 @@ async function setupFollowing(sb, customerId, seenBefore) {
       ? `<ul class="follow-subs">${subs
           .map(
             (f) => `<li>
-              <span class="follow-item">${f.cover ? `<img class="follow-thumb" src="${esc(f.cover)}" alt="Cover of ${esc(f.label)}" loading="lazy">` : ''}<span><strong>${esc(f.label)}</strong><br><span class="card__meta">${f.kind === 'series' ? (f.all_covers ? 'Series · every cover' : 'Series · main cover') : ROLE_LABEL[f.role]}</span></span></span>
+              <span class="follow-item">${f.cover ? `<img class="follow-thumb" src="${esc(f.cover)}" alt="Cover of ${esc(f.label)}" loading="lazy">` : ''}<span><strong>${esc(f.label)}</strong><br><span class="card__meta">${esc(followKindText(f))}</span></span></span>
               <span class="list-line__controls">
                 ${f.kind === 'series' ? `<label class="follow-allcovers"><input type="checkbox" data-fall="${f.id}"${f.all_covers ? ' checked' : ''}> All covers<span class="visually-hidden"> of ${esc(f.label)}</span></label>` : ''}
-                <label class="visually-hidden" for="fq-${f.id}">Copies of each new issue of ${esc(f.label)}</label>
+                <label class="visually-hidden" for="fq-${f.id}">Copies of each new issue of ${esc(followName(f))}</label>
                 <input class="list-line__qty" id="fq-${f.id}" type="number" inputmode="numeric" min="1" max="${maxCopies}" value="${f.quantity}" data-fqty="${f.id}">
-                <button class="list-line__remove" type="button" data-unfollow="${f.id}">Unfollow<span class="visually-hidden"> ${esc(f.label)}</span></button>
+                <button class="list-line__remove" type="button" data-unfollow="${f.id}">Unfollow<span class="visually-hidden"> ${esc(followName(f))}</span></button>
               </span></li>`,
           )
           .join('')}</ul>`
@@ -1002,7 +1002,7 @@ async function setupFollowing(sb, customerId, seenBefore) {
     try {
       const removed = await pull.unfollowWithWarning(sub);
       if (removed == null) return;
-      note(`Unfollowed ${sub.label}.${removed ? ` ${removed} ${removed === 1 ? 'title was' : 'titles were'} removed from your pull list.` : ''}`);
+      note(`Unfollowed ${followName(sub)}.${removed ? ` ${removed} ${removed === 1 ? 'title was' : 'titles were'} removed from your pull list.` : ''}`);
       loadOrders(sb, customerId, seenBefore);
     } catch (err) {
       noteError(err);

@@ -321,7 +321,7 @@ async function allRows(query) {
 export async function pullListRows(sb) {
   const customers = await allRows(() => sb.from('customers').select('id,first_name,last_name,name,email,phone').order('id'));
   const lines = await allRows(() => sb.from('reservations').select('id,quantity,status,created_at,item:items(title,issue_number,variant,publisher,release_date),order:reservation_orders!inner(customer_id)').in('status', IN_PLAY).order('id'));
-  const follows = await allRows(() => sb.from('subscriptions').select('id,customer_id,kind,label,role,quantity,created_at').order('id'));
+  const follows = await allRows(() => sb.from('subscriptions').select('id,customer_id,kind,label,role,quantity,in_series_label,created_at').order('id'));
   const byCustomer = new Map(customers.map((c) => [c.id, []]));
   for (const l of lines) {
     const mine = byCustomer.get(l.order?.customer_id);
@@ -329,7 +329,7 @@ export async function pullListRows(sb) {
   }
   for (const f of follows) {
     const mine = byCustomer.get(f.customer_id);
-    if (mine) mine.push([f.kind === 'series' ? 'Follows series' : `Follows ${f.role === 'cover' ? 'cover artist' : 'creator'}`, f.label ?? '', '', '', '', f.quantity, '', '', (f.created_at ?? '').slice(0, 10)]);
+    if (mine) mine.push([f.kind === 'series' ? 'Follows series' : `Follows ${f.role === 'cover' ? 'cover artist' : 'creator'}`, f.in_series_label ? `${f.label ?? ''} on ${f.in_series_label}` : f.label ?? '', '', '', '', f.quantity, '', '', (f.created_at ?? '').slice(0, 10)]);
   }
   return customers
     .sort((a, b) => `${a.last_name ?? ''} ${a.first_name ?? ''}`.localeCompare(`${b.last_name ?? ''} ${b.first_name ?? ''}`, undefined, { sensitivity: 'base' }))
