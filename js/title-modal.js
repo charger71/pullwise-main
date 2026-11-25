@@ -31,9 +31,11 @@ const alertHtml = (item) => {
 };
 // A signed-in customer can ask the shop to order a copy (a re-order) of a trade or omnibus at any time outside the
 // pre-order window: they stay in print. Comics go out of print, so re-ordering one is staff only (Ordering → Re-order).
+// Anything ordered after the pre-order depends on what the publisher still has, and every message about it says so.
 const REORDER_SLUGS = ['trades', 'omnibuses'];
 let reorderCats = null; // category id → slug for those, once loaded
 const UPCOMING = ['pre_order', 'coming_soon']; // not out yet
+const AVAILABILITY = 'Anything ordered after the pre-order depends on the publisher’s availability, so we can’t promise a copy.';
 const canReorder = (item) => Boolean(reorderCats?.get(item.category_id)) && item.status !== 'pre_order';
 const reorderHtml = (item) => {
   const action = !pull.isSignedIn()
@@ -42,7 +44,7 @@ const reorderHtml = (item) => {
       ? `<span class="btn btn--ghost" aria-disabled="true"><span aria-hidden="true">✓</span> On your pull list</span>`
       : `<button class="btn btn--primary" type="button" data-reorder>Order a copy<span class="visually-hidden"> of ${esc(itemTitle(item))}</span></button>`;
   return `<div class="title-modal__alert">
-      <p class="notice">${item.status === 'coming_soon' ? 'Missed the pre-order? We can still order a copy' : 'Not on the shelf, or want one kept for you? We can order a copy'}: it goes on your pull list and we’ll let you know when it’s in.</p>
+      <p class="notice">${item.status === 'coming_soon' ? 'Missed the pre-order? We can still order a copy' : 'Not on the shelf, or want one kept for you? We can order a copy'}: it goes on your pull list and we’ll let you know when it’s in. ${AVAILABILITY}</p>
       <div class="card__foot">${action}</div>
       <p class="card__meta" role="status" data-reorder-msg></p>
     </div>`;
@@ -87,7 +89,7 @@ function details(item) {
     ${UPCOMING.includes(item.status) ? focLabel(item) : ''}
     ${open ? `<div class="card__foot">${reserveButton(item)}${variantsButton(item)}</div>${followButton(item)}` : ''}
     ${alertHtml(item)}
-    ${canReorder(item) ? reorderHtml(item) : !UPCOMING.includes(item.status) ? '<p class="notice">In-store titles can’t be held or reserved: first to pay gets it. Want a guaranteed copy of something upcoming? <a href="pre-orders.html">Pre-order it</a>.</p>' : ''}
+    ${canReorder(item) ? reorderHtml(item) : item.status === 'coming_soon' ? `<p class="notice">Missed the pre-order? Ask us and we’ll try to order a copy for you. ${AVAILABILITY}</p>` : !UPCOMING.includes(item.status) ? '<p class="notice">In-store titles can’t be held or reserved: first to pay gets it. Want a guaranteed copy of something upcoming? <a href="pre-orders.html">Pre-order it</a>.</p>' : ''}
     ${item.description ? `<div class="title-modal__desc">${paragraphs(item.description)}</div>` : ''}
     ${people.length ? `<ul class="chips" aria-label="Creators">${people.map((p) => `<li>${esc(p.name)}</li>`).join('')}</ul>` : ''}
     ${item.isbn ? `<p class="card__meta">ISBN ${esc(item.isbn)}</p>` : ''}
@@ -102,7 +104,7 @@ async function orderCopy(btn) {
     haptic('done');
     if (current !== item) return;
     render();
-    $('[data-reorder-msg]', dialog).textContent = `We’ll order ${itemTitle(item)} for you. It’s on your pull list, and we’ll let you know when it’s in.`;
+    $('[data-reorder-msg]', dialog).textContent = `We’ll order ${itemTitle(item)} for you. It’s on your pull list, and we’ll let you know when it’s in, or if the publisher can’t supply it.`;
   } catch (err) {
     btn.disabled = false;
     $('[data-reorder-msg]', dialog).textContent = err.message;
