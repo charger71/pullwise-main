@@ -9,6 +9,7 @@ import * as list from './reservation-list.js';
 import * as pull from './customer.js';
 import { confirmSeriesFollow } from './follow-confirm.js';
 import { followHref, seriesHref, nameFromKey } from './follow-link.js';
+import { followName } from './series-follow.js';
 import { nudge } from './push-nudge.js';
 import { haptic } from './app-device.js';
 
@@ -89,6 +90,12 @@ function followBody(item) {
     .filter((a) => !credited.some((p) => p.key === pull.personKey(a.name)))
     .map((a) => ({ key: pull.personKey(a.name), name: a.name, onCover: true, coverOnly: true }));
   const people = [...extra, ...credited].slice(0, 8);
+  // A cover artist on a series title can also be followed on just this series ("Peach Momoko on X-Men").
+  const inSeries = (p) => {
+    if (!p.onCover || !item.series_key || !item.issue_number) return '';
+    const on = !!pull.findSubscription('artist', p.key, 'cover', item.series_key);
+    return toggleBtn(on, `data-follow-artist="${esc(p.name)}" data-role="cover" data-in-series="${esc(item.series_key)}" data-label="${esc(`${p.name} on ${item.title}`)}"`, `Covers on ${item.title} only`, 'Every cover they draw for this series');
+  };
   if (people.length) {
     parts.push(`<section class="follow-group"><h3>People on this book</h3>${people
       .map((p) => {
@@ -98,6 +105,7 @@ function followBody(item) {
           <div class="follow-choices">
             ${toggleBtn(cover, `data-follow-artist="${esc(p.name)}" data-role="cover" data-label="${esc(p.name)}"`, 'Cover artist', 'Every cover they draw')}
             ${p.coverOnly ? '' : toggleBtn(creator, `data-follow-artist="${esc(p.name)}" data-role="creator" data-label="${esc(p.name)}"`, 'Writer / artist', 'One cover of each issue they work on')}
+            ${inSeries(p)}
           </div></div>`;
       })
       .join('')}</section>`);
@@ -145,7 +153,7 @@ function renderFollowBody() {
   body.innerHTML = followBody(followItem);
   // Keep keyboard focus on the same choice after the list redraws.
   if (focused) {
-    const sel = focused.dataset.followSeries ? `[data-follow-series="${CSS.escape(focused.dataset.followSeries)}"][data-covers="${focused.dataset.covers}"]` : `[data-follow-artist="${CSS.escape(focused.dataset.followArtist)}"][data-role="${focused.dataset.role}"]`;
+    const sel = focused.dataset.followSeries ? `[data-follow-series="${CSS.escape(focused.dataset.followSeries)}"][data-covers="${focused.dataset.covers}"]` : `[data-follow-artist="${CSS.escape(focused.dataset.followArtist)}"][data-role="${focused.dataset.role}"]${focused.dataset.inSeries ? `[data-in-series="${CSS.escape(focused.dataset.inSeries)}"]` : ':not([data-in-series])'}`;
     $(sel, body)?.focus();
   }
 }
@@ -386,7 +394,8 @@ async function toggleFollow(btn, say) {
     const series = btn.dataset.followSeries;
     const name = btn.dataset.followArtist;
     const label = btn.dataset.label ?? name ?? 'this series';
-    const sub = series ? pull.findSubscription('series', series) : pull.findSubscription('artist', pull.personKey(name), btn.dataset.role);
+    const inSeries = btn.dataset.inSeries ?? null; // a cover artist on just this series
+    const sub = series ? pull.findSubscription('series', series) : pull.findSubscription('artist', pull.personKey(name), btn.dataset.role, inSeries);
     const allCovers = btn.dataset.covers === 'all';
     if (sub && series && !!sub.all_covers !== allCovers) {
       // Following already, the other way: switch between the main cover and all covers.
@@ -397,10 +406,12 @@ async function toggleFollow(btn, say) {
     } else if (sub) {
       const removed = await pull.unfollowWithWarning(sub);
       if (removed == null) return;
-      say(`Stopped following ${sub.label}.${removed ? ` ${removed} ${removed === 1 ? 'title was' : 'titles were'} removed from your pull list.` : ''}`);
+      say(`Stopped following ${followName(sub)}.${removed ? ` ${removed} ${removed === 1 ? 'title was' : 'titles were'} removed from your pull list.` : ''}`);
     } else {
       if (series && !(await confirmSeriesFollow(series, { label, allCovers }))) return;
-      const { added } = series ? await pull.followSeries(series, 1, allCovers) : await pull.followArtist(name, btn.dataset.role);
+      const { added } = series
+        ? await pull.followSeries(series, 1, allCovers)
+        : inSeries ? await pull.followArtistInSeries(name, inSeries) : await pull.followArtist(name, btn.dataset.role);
       nudge({ kind: 'follow', label });
       say(`Following ${label}${series && allCovers ? ' (all covers)' : ''}. ${added ? `${added} open ${added === 1 ? 'title was' : 'titles were'} added to your pull list.` : 'New issues will be added to your pull list automatically.'}`);
     }

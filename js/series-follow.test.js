@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { seriesFollowFacts, alsoText } from './series-follow.js';
+import { seriesFollowFacts, alsoText, followKindText, followName } from './series-follow.js';
 
 // Next open issue with its cover and cutoff: FOC Monday 2026-11-23 → order by Saturday 2026-11-21.
 const preview = {
@@ -36,5 +36,17 @@ const failed = seriesFollowFacts(null, { label: 'SPAWN' });
 assert.equal(failed.name, 'SPAWN');
 assert.equal(failed.loaded, false);
 assert.equal(failed.next, null);
+
+
+// What each follow adds, and its name in messages: a cover artist on one series names the series.
+assert.equal(followKindText({ kind: 'series', all_covers: false }), 'Series · main cover');
+assert.equal(followKindText({ kind: 'series', all_covers: true }), 'Series · every cover');
+assert.equal(followKindText({ kind: 'artist', role: 'creator' }), 'Writer / artist');
+assert.equal(followKindText({ kind: 'artist', role: 'cover' }), 'Cover artist');
+const momoko = { kind: 'artist', role: 'cover', label: 'Peach Momoko', in_series: 'x men 2024', in_series_label: 'X-MEN' };
+assert.equal(followKindText(momoko), 'Cover artist · X-MEN only');
+assert.equal(followName(momoko), 'Peach Momoko on X-MEN');
+assert.equal(followName({ ...momoko, in_series_label: null }), 'Peach Momoko on X Men 2024');
+assert.equal(followName({ kind: 'artist', role: 'cover', label: 'Peach Momoko' }), 'Peach Momoko');
 
 console.log('series-follow: ok');

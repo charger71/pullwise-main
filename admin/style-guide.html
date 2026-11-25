@@ -1048,6 +1048,18 @@ cards--slim   a narrow action (an icon button)       card-expand   a row that ho
                 </div>
               </div>
             </div>
+            <h3>Follow a cover artist on one series</h3>
+            <p>Customers → Follows: each artist in the search results has a <code>btn--ghost btn--small</code> <strong>Covers on one series…</strong> after its Follow buttons. It opens <strong>Follow &lt;name&gt; on one series</strong>: an <code>admin-hint</code> saying what goes on the list, a series search (<code>.cust-search</code>) and <code>cust-results</code> rows with a <code>btn--add</code> <strong>Follow</strong>. Following closes the dialog. In the Follows list the row keeps the artist's name and its <code>card__meta</code> reads “Cover artist · X-Men only” (<code>followKindText</code> in <code>js/series-follow.js</code>, shared with the shop's Following list). The shop offers the same follow in a title's Follow dialog, as “Covers on &lt;series&gt; only” under a person who drew that cover.</p>
+            <div class="sg-demo">
+              <div class="sg-dialog">
+                <div class="dialog__head"><h2>Follow Peach Momoko on one series</h2><button class="dialog__close" type="button" aria-label="Close">×</button></div>
+                <div class="dialog__body">
+                  <p class="admin-hint">Every cover Peach Momoko draws for the series you pick goes on Dana’s pull list, variants included (not incentives). Nothing else of theirs is added.</p>
+                  <form class="cust-search" role="search"><label class="visually-hidden" for="sg-fas-q">Series name</label><input id="sg-fas-q" type="search" placeholder="Search series" value="x-men"></form>
+                  <ul class="cust-results"><li><span><strong>X-MEN</strong> <span class="card__meta">24 issues</span></span><span class="cust-results__act"><button class="btn btn--add btn--small" type="button">Follow</button></span></li></ul>
+                </div>
+              </div>
+            </div>
             <h3>Confirm with a preview: Follow a series</h3>
             <p>Customers → Follows → <strong>Follow</strong> on a series asks first, showing what goes on the customer’s pull list straight away: a <code>.follow-preview__lead</code> label, then <code>.follow-preview</code> with the next issue open for ordering (<code>.thumb</code> cover, or <code>thumb--none</code>), its <code>.follow-preview__title</code>, which covers, and an <code>info-list</code> with Order by, FOC and the other open issues (Also added). With no issue open, or if the preview can’t load, an <code>empty</code> box says so instead. A hint says facsimiles and later printings are never added, and <code>admin-actions</code> end it with Follow first and Cancel. The shop and the app show the same facts in their own dialog (<code>js/follow-confirm.js</code>); the facts come from <code>js/series-follow.js</code>.</p>
             <div class="sg-demo">

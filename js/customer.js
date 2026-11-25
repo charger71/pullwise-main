@@ -6,6 +6,7 @@
 import { DEMO, supabase, recentSearchId, creditSearch } from './data.js';
 import { nameKey } from './util.js';
 import { friendlyError } from './errors.js';
+import { followName } from './series-follow.js';
 
 // "Not ordered" lines are left out: they don't count toward the list, and adding the title again reopens the line.
 const ACTIVE = ['open', 'ordered', 'reordered', 'arrived'];
@@ -31,7 +32,9 @@ export const isNewAuto = (line, since = seenAt) =>
   new Date(line.created_at) > (since ? new Date(since) : new Date(Date.now() - NEW_DAYS * 864e5));
 export const newCount = () => (viewing ? 0 : [...lines.values()].filter((l) => isNewAuto(l)).length);
 export const getSubscriptions = () => subs;
-export const findSubscription = (kind, key, role = null) => subs.find((s) => s.kind === kind && s.key === key && (s.role ?? null) === role);
+/** inSeries: a cover-artist follow on one series (its series key); null (the default) finds the follow on every series. */
+export const findSubscription = (kind, key, role = null, inSeries = null) =>
+  subs.find((s) => s.kind === kind && s.key === key && (s.role ?? null) === role && (s.in_series ?? null) === inSeries);
 
 /** Same normalising as person_key() in the database. */
 export const personKey = nameKey;
@@ -161,7 +164,7 @@ export async function refresh(sb) {
       .eq('order.customer_id', id)
       .in('status', ACTIVE),
     sb.from('pull_list_seen').select('seen_at').eq('customer_id', id).maybeSingle(),
-    sb.from('subscriptions').select('id,kind,key,label,role,quantity,all_covers').eq('customer_id', id).order('label'),
+    sb.from('subscriptions').select('id,kind,key,label,role,quantity,all_covers,in_series,in_series_label').eq('customer_id', id).order('label'),
   ]);
   if (list.error) throw customerError(list.error);
   if (followed.error) throw customerError(followed.error);
@@ -316,6 +319,15 @@ export async function followArtist(name, role = 'cover', quantity = 1) {
   return data;
 }
 
+/** Every cover this artist draws on one series (series key), and nothing else of theirs. Resolves { id, added }. */
+export async function followArtistInSeries(name, series, quantity = 1) {
+  const sb = await supabase();
+  const { data, error } = await sb.rpc('follow_artist_in_series', { p_name: name, p_series: series, p_quantity: quantity });
+  if (error) fail(error);
+  await softRefresh(sb);
+  return data;
+}
+
 /** Whether the customer asked to hear when this title is in (stock_alerts; the app's title details). */
 export async function hasStockAlert(itemId) {
   if (!customer?.id) return false;
@@ -358,9 +370,10 @@ export async function unfollowPreview(id) {
  */
 export async function unfollowWithWarning(sub) {
   const n = await unfollowPreview(sub.id);
+  const name = followName(sub);
   const msg = n
-    ? `Unfollow ${sub.label}?\n\n${n} ${n === 1 ? 'title' : 'titles'} it added to your pull list that ${n === 1 ? 'hasn’t' : 'haven’t'} been ordered yet will be removed. Titles already ordered stay on your list.`
-    : `Unfollow ${sub.label}?\n\nNew issues will stop being added. Titles already ordered stay on your list.`;
+    ? `Unfollow ${name}?\n\n${n} ${n === 1 ? 'title' : 'titles'} it added to your pull list that ${n === 1 ? 'hasn’t' : 'haven’t'} been ordered yet will be removed. Titles already ordered stay on your list.`
+    : `Unfollow ${name}?\n\nNew issues will stop being added. Titles already ordered stay on your list.`;
   if (!confirm(msg)) return null;
   return unfollow(sub.id);
 }
