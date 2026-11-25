@@ -193,7 +193,7 @@ from public.reservation_orders o where o.id = r.order_id and r.created_at < o.cr
 update public.reservations set updated_at = least(greatest(updated_at, created_at), now());
 
 
--- 4d. Re-orders (Titles > a released trade or omnibus > Order a copy, and the Re-order tab): customers ask for a copy
+-- 4d. Re-orders (Titles > a trade or omnibus > Order a copy, and the Re-order tab): customers ask for a copy
 -- of a title whose cutoff is long past; staff order it the next day and it arrives 3-4 days later. Only the demo's
 -- own (source 'manual', @example.com) lines move; re-orders staff entered by hand are left alone.
 create temp table ro_pick on commit drop as

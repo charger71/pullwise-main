@@ -243,7 +243,7 @@ function undo(itemId, before) {
   notify();
 }
 
-/** Order a copy of a released trade or omnibus (a re-order: the shop orders it from the distributor). */
+/** Order a copy of a trade or omnibus (a re-order: the shop orders it from the distributor). */
 export async function reorder(itemId, quantity = 1) {
   const sb = await supabase();
   const { data: id, error } = await sb.rpc('pull_list_reorder', { p_item_id: itemId, p_quantity: quantity });

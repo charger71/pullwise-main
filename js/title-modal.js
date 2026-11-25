@@ -29,16 +29,12 @@ const alertHtml = (item) => {
       <p class="card__meta" role="status" data-stock-alert-msg>${alertOn && pushOff() ? 'Turn on notifications on the Account tab to get it.' : ''}</p>
     </div>`;
 };
-// A signed-in customer can ask the shop to order a copy (a re-order): of a trade or omnibus once it's out (they stay in
-// print), or of a comic, trade or omnibus that's Coming Soon (past the pre-order cutoff, when most re-orders happen).
-const REORDER_SLUGS = ['comics', 'trades', 'omnibuses'];
+// A signed-in customer can ask the shop to order a copy (a re-order) of a trade or omnibus at any time outside the
+// pre-order window: they stay in print. Comics go out of print, so re-ordering one is staff only (Ordering → Re-order).
+const REORDER_SLUGS = ['trades', 'omnibuses'];
 let reorderCats = null; // category id → slug for those, once loaded
 const UPCOMING = ['pre_order', 'coming_soon']; // not out yet
-const canReorder = (item) => {
-  const slug = reorderCats?.get(item.category_id);
-  if (!slug || item.status === 'pre_order') return false;
-  return item.status === 'coming_soon' || (slug !== 'comics' && !(item.release_date > shopToday()));
-};
+const canReorder = (item) => Boolean(reorderCats?.get(item.category_id)) && item.status !== 'pre_order';
 const reorderHtml = (item) => {
   const action = !pull.isSignedIn()
     ? `<a class="btn btn--primary" href="account.html">Sign in to order a copy</a>`

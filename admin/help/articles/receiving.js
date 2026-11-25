@@ -26,6 +26,8 @@ When a customer collects, mark their titles **picked up**: open them on [Custome
 
 **Re-order** is for ordering a title after its cutoff: trades and omnibuses stay in print, and Coming Soon titles (past their cutoff, not out yet) are where most re-orders happen.
 
+Customers can order a copy of a trade or omnibus themselves, any time after its pre-order window, from the title's details on the site or in the app. Comics go out of print, so re-ordering one is staff only: when a customer asks, add it here for them.
+
 ![Ordering → Re-order](reorder)
 
 1. Search the catalog and pick the title.
