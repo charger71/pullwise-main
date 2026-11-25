@@ -25,6 +25,7 @@ Click a title to see everything about it. From there you can:
 - change its **status** or **category**, or fix the **cover** or **price**;
 - mark it a **Staff Pick** (shown on your homepage);
 - **Hide** it from the website. Regular staff can hide a title; only owners can delete one.
+- see **Who ordered** it, and **Add to a pull list** for a customer who asks for it: find them by name, phone, email or #pickup code, choose the copies and press **Add**. A pre-order goes on their pull list as usual; a title that's already out goes on as a re-order (see [Re-order](#help/receiving)).
 
 > **Tip:** a title's name anywhere in the admin is a link: click it to open the same details without leaving the screen.
 `;

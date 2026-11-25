@@ -19,6 +19,7 @@ Open a customer to see their page. The **Pull List** tab shows everything they'v
 ![A customer's pull list](customer-pull-list)
 
 - **Change a title:** set the quantity or status on its line (for example, mark it picked up).
+- **Pick up everything Ready:** the green **Mark all ready titles picked up** button above the list marks every Ready title picked up at once. Scanning the customer's pickup code, or typing it into the search box at the top (for example **#1042**, then Enter), opens their pull list and shows what's ready with the same button.
 - **Add a title:** search in **Add to Pull List**. Staff can add titles past the customer cutoff.
 - **Follows:** new issues of a followed series are added to the list by themselves. Add or remove follows here.
 - **Export PDF** prints the list, for example to put in their bag.

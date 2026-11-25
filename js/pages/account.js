@@ -474,7 +474,7 @@ let pickupName = ''; // "Smith, Jane": shops file held books by last name, so it
 const pickupCard = (customerId) => `
     <div class="app-pickup">
       ${pickupName ? `<p class="app-pickup__name">${esc(pickupName)}</p>` : ''}
-      <button class="app-pickup__qr" type="button" data-pickup-qr="${esc(`${SITE_URL.replace(/\/$/, '')}/admin/#customers/${customerId}`)}" aria-label="Show the pickup code full screen"></button>
+      <button class="app-pickup__qr" type="button" data-pickup-qr="${esc(`${SITE_URL.replace(/\/$/, '')}/admin/#customers/${customerId}/pickup`)}" aria-label="Show the pickup code full screen"></button>
       <div>
         <p class="app-pickup__label">Pickup code</p>
         <p class="app-pickup__code">#${customerId}</p>

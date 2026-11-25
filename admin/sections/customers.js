@@ -21,7 +21,7 @@ let sb;
 let isOwner = false; // only owners can delete a customer
 let settings;
 let trust = { verification_enabled: false, unproven_weekly_cap_cents: null, pickup_pause_enabled: false }; // trust_settings: the Approvals tab shows only while verification is on
-let state = { q: '', location: '', show: '', sort: 'name', dir: 'asc', offset: 0, customerId: null, showCancelled: false };
+let state = { q: '', location: '', show: '', sort: 'name', dir: 'asc', offset: 0, customerId: null, showCancelled: false, scanned: false }; // scanned: the next customer opened came from a pickup code (see readyDialog)
 
 // What the Pull List panel is showing right now, so its Export button matches the screen.
 let shownLines = [];
@@ -132,25 +132,28 @@ export async function mount(el, ctx) {
   }
   if (['no_email', 'link_guests'].includes(state.show)) state.show = 'to_fix'; // the two old tabs, from a link or a remembered choice
   if (state.show === 'approvals' && !trust.verification_enabled) state.show = ''; // verification switched off: no approval queue
-  // A customer's pickup code in the app (js/pages/account.js) is a link to #customers/<id>: scanning it opens them.
-  if (/^\d+$/.test(ctx.arg ?? '')) {
-    state.customerId = Number(ctx.arg);
+  // A customer's pickup code in the app (js/pages/account.js) is a link to #customers/<id>/pickup: scanning it with a
+  // phone's camera opens them and offers their Ready titles. Plain #customers/<id> (header search, older app codes) only opens them.
+  const link = (ctx.arg ?? '').match(/^(\d+)(\/pickup)?$/);
+  if (link) {
+    state.customerId = Number(link[1]);
+    state.scanned = !!link[2];
     history.replaceState(null, '', '#customers');
   }
   state.customerId ? renderCustomer(el) : renderList(el);
 }
 
 // ---------------------------------------------------------------------------
-// Scan pickup code: the QR code a customer shows in the app (js/pages/account.js) is a link to #customers/<id>.
+// Scan pickup code: the QR code a customer shows in the app (js/pages/account.js) is a link to #customers/<id>/pickup.
 // The browser's own QR reader where it has one (Chrome, Android), else jsQR (Safari, iPad).
 // ---------------------------------------------------------------------------
 
 const JSQR = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 const canScan = () => !!navigator.mediaDevices?.getUserMedia;
 
-/** The customer a scanned code names: an app pickup link, or a bare "#1042". */
+/** The customer a scanned code names: an app pickup link (with or without /pickup), or a bare "#1042". */
 export const customerFromCode = (text) => {
-  const m = String(text ?? '').trim().match(/(?:#customers\/|^#?)(\d{1,9})$/);
+  const m = String(text ?? '').trim().match(/(?:#customers\/|^#?)(\d{1,9})(?:\/pickup)?$/);
   return m ? Number(m[1]) : null;
 };
 
@@ -200,6 +203,7 @@ async function scanPickupCode(el) {
       if (!id) return void (timer = setTimeout(look, 250));
       d.close();
       state.customerId = id;
+      state.scanned = true;
       renderCustomer(el);
     };
     look();
@@ -669,6 +673,8 @@ async function loadNotes(el, c) {
 
 async function renderCustomer(el) {
   const isNew = state.customerId === 'new';
+  const scanned = state.scanned; // read once: only this opening offers the Ready titles, whatever happens next
+  state.scanned = false;
   const customer = isNew ? null : await must(sb.from('customers').select('*').eq('id', state.customerId).maybeSingle());
   if (!isNew && !customer) {
     toast('That customer no longer exists.', 'error');
@@ -804,7 +810,7 @@ async function renderCustomer(el) {
   };
   let tab = 'pull';
   try {
-    tab = sessionStorage.getItem('admin-customer-tab') || tab;
+    if (!scanned) tab = sessionStorage.getItem('admin-customer-tab') || tab; // a scan is a pickup: Pull List
   } catch {
     /* start on Pull List */
   }
@@ -872,7 +878,7 @@ async function renderCustomer(el) {
     loadOrders(el, c);
   });
   if (c.email) mountEmailForm($('[data-compose]', el), { to: c.email, name: c.first_name || c.name, customerId: c.id });
-  loadOrders(el, c);
+  loadOrders(el, c, { offerPickup: scanned });
   loadLog(el, c);
   loadStanding(el, c);
   loadStandingLog(el, c);
@@ -888,7 +894,7 @@ async function log(customerId, reservationId, action, detail) {
 // Pull list: lines, edits, unlinked guest orders
 // ---------------------------------------------------------------------------
 
-async function loadOrders(el, c) {
+async function loadOrders(el, c, { offerPickup = false } = {}) {
   const box = $('[data-orders]', el);
   box.setAttribute('aria-busy', 'true');
   try {
@@ -921,19 +927,24 @@ async function loadOrders(el, c) {
     shownLines = shown;
     const countEl = $('[data-list-count]', el);
     if (countEl) countEl.textContent = `${shown.length} ${shown.length === 1 ? 'title' : 'titles'}`;
+    const readyIds = lines.filter((l) => l.status === 'arrived').map((l) => l.id);
     box.innerHTML = `
       ${unlinked.length ? `<p class="notice cust-link">${unlinked.length} earlier guest ${unlinked.length === 1 ? 'order matches' : 'orders match'} this customer’s phone or email but ${unlinked.length === 1 ? 'isn’t' : 'aren’t'} linked yet.
         <button class="btn btn--primary btn--small" type="button" data-link>Link ${unlinked.length === 1 ? 'it' : 'them'}</button></p>` : ''}
       ${shown.length ? summaryChips(shown, disc) : ''}
+      ${readyIds.length ? `<div class="admin-actions"><button class="btn btn--green btn--small" type="button" data-pickup-all>Mark ${readyIds.length === 1 ? 'the ready title' : `all ${readyIds.length} ready titles`} picked up</button></div>` : ''}
       ${shown.length ? `<div class="admin-table-wrap"><table class="admin-table cust-lines">
         <thead><tr><th scope="col">Title</th><th scope="col" class="cl-out">Out</th><th scope="col" class="cl-qty">Qty</th><th scope="col" class="cl-status">Status</th><th scope="col" class="cl-by">Added by</th><th scope="col" class="cl-rm"><span class="visually-hidden">Remove</span></th></tr></thead>
         ${groupedRows(shown, c, staffNames)}</table></div>${discountTotals(shown, disc)}` : '<p class="empty">Nothing on this customer’s pull list yet.</p>'}`;
+    if (offerPickup && readyIds.length) readyDialog(el, c, lines.filter((l) => l.status === 'arrived'));
     box.onchange = (e) => editLine(el, c, lines, e);
     box.onclick = async (e) => {
       const fold = e.target.closest('[data-fold-group]');
       if (fold) return toggleGroup(fold);
       const rm = e.target.closest('[data-remove]');
       if (rm) return editLine(el, c, lines, { target: rm, remove: true });
+      const pickup = e.target.closest('[data-pickup-all]');
+      if (pickup) return pickUpReady(el, c, readyIds, pickup);
       const cap = e.target.closest('[data-approve-cap]');
       if (cap) {
         cap.disabled = true;
@@ -1091,6 +1102,39 @@ async function editLine(el, c, lines, e) {
   }
   loadOrders(el, c);
   loadLog(el, c);
+}
+
+/** Mark every Ready title picked up at once, as Orders' "Mark all arrived titles picked up" does: through
+ *  staff_set_line_status, so each line goes in the customer's Changes, and a line someone changed meanwhile is left alone. */
+async function pickUpReady(el, c, ids, btn) {
+  btn.disabled = true;
+  try {
+    const n = await must(sb.rpc('staff_set_line_status', { p_ids: ids, p_status: 'picked_up', p_from: ['arrived'] }));
+    const skipped = ids.length - n;
+    if (!n) toast(`Nothing changed: ${ids.length === 1 ? 'that title' : 'those titles'} changed meanwhile.`, 'error');
+    else toast(`${n === 1 ? 'Title' : `${n} titles`} marked picked up${skipped ? ` (${skipped} changed meanwhile and left alone)` : ''}`);
+  } catch (err) {
+    btn.disabled = false;
+    toast(`Not saved: ${friendlyError(err)}`, 'error');
+    return false;
+  }
+  loadOrders(el, c);
+  loadLog(el, c);
+  return true;
+}
+
+/** After a pickup code is scanned (in Scan pickup code, or the phone's camera opening #customers/<id>/pickup): what's Ready,
+ *  with the same green button as the Pull List, so the counter can hand the books over in one tap. */
+function readyDialog(el, c, ready) {
+  const copies = ready.reduce((sum, l) => sum + l.quantity, 0);
+  const d = openDialog(`Ready for pickup: ${c.name || c.email || 'Customer'}`, `
+    <p>${ready.length} ${ready.length === 1 ? 'title' : 'titles'} (${copies} ${copies === 1 ? 'copy' : 'copies'}) waiting:</p>
+    <ul>${ready.map((l) => `<li>${esc(l.item ? itemName(l.item) : `Title #${l.item_id}`)}${l.quantity > 1 ? ` × ${l.quantity}` : ''}</li>`).join('')}</ul>
+    <div class="admin-actions"><button class="btn btn--green" type="button" data-go>Mark ${ready.length === 1 ? 'it' : `all ${ready.length}`} picked up</button><button class="btn btn--ghost" type="button" data-cancel>Not now</button></div>`);
+  $('[data-cancel]', d).addEventListener('click', () => d.close());
+  $('[data-go]', d).addEventListener('click', async (e) => {
+    if (await pickUpReady(el, c, ready.map((l) => l.id), e.currentTarget)) d.close();
+  });
 }
 
 /** Guest orders not yet linked to anyone that match this customer's phone or email. */
