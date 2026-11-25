@@ -2,7 +2,8 @@
 // profile (including the shipping address for phone-pay customers) and their pull list.
 // Quantity and status changes are plain updates (staff have full access to reservations);
 // adding titles goes through staff_pull_list_add(), which can also add past the cutoff.
-// Every change is recorded in pull_list_log and shown under "Recent changes".
+// Every change is recorded in pull_list_log (staff changes by this screen, the customer's own by database triggers)
+// and shown under "Recent changes".
 // The Unclaimed tab and the pickup indicator (account state, pause, books waiting) read staff_pickup_summary().
 
 import { $, $$, esc, uid, must, toast, isPhone, hintFold, fmtDate, fmtDateTime, itemName, downloadCsv, sortableTable, debounce, customerFilter, titleFilter, formatPhone, solidIcon, findGuestMatches, friendlyError, fromError, anyOf, emailMatch, digitsMatch, loadSentMessages, mountEmailForm, addLocationFilter, openDialog, loadScript, toListTop } from '../lib.js';
@@ -1187,22 +1188,37 @@ async function loadMessages(el, c) {
   await loadSentMessages(sb, box, sum, { customerId: c.id, email: c.email });
 }
 
-async function loadLog(el, c) {
+// Every change to the customer's pull list and follows: staff's, the customer's own (logged by the database when they
+// change their list on the site or in the app) and automatic ones (sweeps, cutoff moves). Newest first, a page at a
+// time, with Show older changes for the rest.
+const LOG_PAGE = 25;
+let logStaff = null; // staff names by user id, read once per screen
+
+async function loadLog(el, c, more = false) {
   const box = $('[data-log]', el);
   const sum = $('[data-log-sum]', el);
+  if (!box) return;
   try {
-    const SHOW = 5;
-    const rows = await must(sb.from('pull_list_log').select('action,detail,staff_user,created_at').eq('customer_id', c.id).order('created_at', { ascending: false }).limit(SHOW));
-    if (!rows.length) {
-      if (sum) sum.textContent = 'No staff changes yet';
-      return void (box.innerHTML = '<p class="empty">No staff changes yet.</p>');
+    const have = more ? box.querySelectorAll('.job-log li').length : 0;
+    // `*` rather than a column list: by_customer arrives with a migration, and the screen must work either side of it.
+    const rows = await must(sb.from('pull_list_log').select('*').eq('customer_id', c.id).order('created_at', { ascending: false }).order('id', { ascending: false }).range(have, have + LOG_PAGE - 1));
+    if (!more && !rows.length) {
+      if (sum) sum.textContent = 'No changes yet';
+      return void (box.innerHTML = '<p class="empty">No changes yet.</p>');
     }
-    const staff = new Map((await must(sb.from('staff').select('user_id,name'))).map((s) => [s.user_id, s.name]));
-    const who = (r) => (r.staff_user ? staff.get(r.staff_user) ?? 'Staff' : 'Customer'); // no staff login: the customer did it (deleting their account)
-    if (sum) sum.textContent = `Latest ${fmtDateTime(rows[0].created_at)} by ${who(rows[0])}`;
-    box.innerHTML = `<ul class="job-log">${rows
-      .map((r) => `<li><span class="job-log__when">${fmtDateTime(r.created_at)}</span><span>${esc(who(r))}</span><span class="job-log__msg">${esc(r.action)}: ${esc(r.detail ?? '')}</span></li>`)
-      .join('')}</ul>${rows.length === SHOW ? `<p class="cust-log__more">Showing the latest ${SHOW}.</p>` : ''}`;
+    if (!more || !logStaff) logStaff = new Map((await must(sb.from('staff').select('user_id,name'))).map((s) => [s.user_id, s.name]));
+    const who = (r) =>
+      r.staff_user ? logStaff.get(r.staff_user) ?? 'Staff'
+      : r.by_customer || r.action === 'account deleted' ? 'Customer'
+      : 'Automatic'; // no one signed in: a nightly sweep or a cutoff move
+    const items = rows.map((r) => `<li><span class="job-log__when">${fmtDateTime(r.created_at)}</span><span>${esc(who(r))}</span><span class="job-log__msg">${esc(r.action)}: ${esc(r.detail ?? '')}</span></li>`).join('');
+    if (!more) {
+      if (sum) sum.textContent = `Latest ${fmtDateTime(rows[0].created_at)} by ${who(rows[0])}`;
+      box.innerHTML = `<ul class="job-log">${items}</ul><p class="cust-log__more" data-log-more></p>`;
+    } else $('.job-log', box).insertAdjacentHTML('beforeend', items);
+    const wrap = $('[data-log-more]', box);
+    wrap.innerHTML = rows.length === LOG_PAGE ? '<button class="btn btn--ghost btn--small" type="button">Show older changes</button>' : '';
+    $('button', wrap)?.addEventListener('click', (e) => ((e.currentTarget.disabled = true), loadLog(el, c, true)));
   } catch (err) {
     box.innerHTML = `<p class="form-error">${esc(friendlyError(err))}</p>`;
   }
