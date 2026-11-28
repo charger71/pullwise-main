@@ -1,6 +1,6 @@
 // node js/layouts.test.js
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { LAYOUTS, layoutOf, heroCovers, heroView, HERO_COVERS } from './layouts.js';
 
 // A shop's picks: saved settings, else (before settings load) what the Worker stamped on <body>, else today's look.
@@ -45,6 +45,11 @@ const css = readFileSync(new URL('../css/site.css', import.meta.url), 'utf8');
 const selector = (area, id) => (area === 'hero' ? `.hero--${id}` : `[data-${area}="${id}"]`);
 for (const area of Object.keys(LAYOUTS)) {
   for (const o of LAYOUTS[area].slice(1)) assert.ok(css.includes(selector(area, o.id)), `css/site.css has no rule for ${area} "${o.id}" (${selector(area, o.id)})`);
+}
+
+// Every option has its picture for the admin picker (Shop Settings → Layout).
+for (const [area, opts] of Object.entries(LAYOUTS)) {
+  for (const o of opts) assert.ok(existsSync(new URL(`../admin/layouts/${area}-${o.id}.svg`, import.meta.url)), `admin/layouts/${area}-${o.id}.svg is missing`);
 }
 
 console.log('layouts ok');

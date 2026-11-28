@@ -292,6 +292,17 @@
             </div>
           </div>
           <div class="sg-item" data-code>
+            <h3>Picture cards</h3>
+            <p>One question whose answers are looks, picked by radio button, each answer a card with a small picture, its name and one line of hint: a <code>fieldset.choice-cards</code> with the question as its <code>legend</code>, a <code>choice-cards__grid</code>, and one <code>label.choice-card</code> per answer wrapping a visually hidden radio, an <code>img</code> (decorative, <code>alt=""</code>), <code>choice-card__name</code> and <code>choice-card__hint</code>. The picked card gets the selection fill and edge; keyboard focus rings the whole card. An answer that can't be picked yet is <code>disabled</code> (dimmed) with its reason as the hint. It waits for Save like the rest of a settings form. Shop Settings → Logo, Colors &amp; Fonts → Layout uses it (pictures in <code>admin/layouts/</code>). For answers that are whole lines of text, use <code>choice-list</code>.</p>
+            <div class="sg-demo">
+              <fieldset class="choice-cards"><legend>Footer</legend><div class="choice-cards__grid">
+                <label class="choice-card"><input type="radio" name="sg-cards" checked><img src="layouts/footer-full.svg" alt="" width="120" height="80"><span class="choice-card__name">Full</span><span class="choice-card__hint">Address, hours, social links and page links in three columns.</span></label>
+                <label class="choice-card"><input type="radio" name="sg-cards"><img src="layouts/footer-simple.svg" alt="" width="120" height="80"><span class="choice-card__name">Simple</span><span class="choice-card__hint">Logo, one line of links, and your address with today’s hours.</span></label>
+                <label class="choice-card"><input type="radio" name="sg-cards" disabled><img src="layouts/footer-signup.svg" alt="" width="120" height="80"><span class="choice-card__name">Sign-up first</span><span class="choice-card__hint">Add a newsletter sign-up first (Emails → Weekly Email Signup).</span></label>
+              </div></fieldset>
+            </div>
+          </div>
+          <div class="sg-item" data-code>
             <h3>Fill-in button under the fields it reads</h3>
             <p>A ghost small button that fills blank fields from somewhere else (Edit Title's “Fill in from PRH”, master catalog only), on a full row right after the fields it reads, with its status beside it and a hint saying what it changes. It never replaces what's typed, and the form still needs Save.</p>
             <div class="sg-demo">
