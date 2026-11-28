@@ -7,6 +7,8 @@
 // worker/shop-page.js (hero), its CSS under [data-<area>="<id>"] in css/site.css, a thumbnail at
 // admin/layouts/<area>-<id>.svg, and its entry in the design system. js/layouts.test.js checks the CSS and thumbnail.
 
+import { sizedImage, heroHeadlineHtml, HERO_WIDTH } from './util.js';
+
 export const LAYOUTS = {
   header: [
     { id: 'classic', label: 'Classic', hint: 'Announcement and search strip, logo on the left, menu on the right.' },
@@ -42,8 +44,41 @@ export function layoutOf(settings, stamped = {}) {
   return Object.fromEntries(Object.keys(LAYOUTS).map((area) => [area, known(area, from[area]) ? from[area] : LAYOUTS[area][0].id]));
 }
 
-/** New This Week split for the covers hero: its covers, and what the shelf below shows so no cover repeats. */
+/**
+ * New This Week split for the covers hero: its covers, and what the shelf below shows, so no title shows twice.
+ * The list is built from overlapping queries (js/pages/home.js), so a title listed again is dropped first.
+ */
 export function heroCovers(fresh, heroId) {
-  if (heroId !== 'covers') return { covers: [], shelf: fresh };
-  return { covers: fresh.slice(0, HERO_COVERS), shelf: fresh.slice(HERO_COVERS) };
+  const seen = new Set();
+  const unique = fresh.filter((i) => !seen.has(i.id) && seen.add(i.id));
+  if (heroId !== 'covers') return { covers: [], shelf: unique };
+  return { covers: unique.slice(0, HERO_COVERS), shelf: unique.slice(HERO_COVERS) };
+}
+
+const https = (url) => (typeof url === 'string' && /^https:\/\//.test(url) ? url : null);
+
+/**
+ * The home page banner in the shop's chosen hero: the site Worker draws it into index.html for the first paint and
+ * js/pages/home.js re-applies it from live settings. `layout` is the hero actually drawn: Split without a photo is
+ * the Banner. Both carry the photo as --hero-image (`style`): behind the text for the Banner, beside it in
+ * .hero__photo for Split (`photo`). The covers hero reserves `coverSlots` covers for
+ * home.js to fill and defaults its headline; Slim has no tagline and one button. `stamped` as in layoutOf.
+ */
+export function heroView(settings, stamped = {}) {
+  const picked = layoutOf(settings, stamped).hero;
+  const url = https(settings.hero_image_url);
+  const layout = picked === 'split' && !url ? 'banner' : picked;
+  const sized = url ? sizedImage(url, HERO_WIDTH) : null;
+  const photo = (layout === 'banner' || layout === 'split') && sized;
+  const headline = layout === 'covers' && !settings.hero_headline ? { ...settings, hero_headline: `New this Wednesday at *${settings.shop_name ?? ''}*` } : settings;
+  return {
+    className: layout === 'banner' ? (photo ? 'hero hero--photo' : 'hero') : `hero hero--${layout}`,
+    style: photo ? `--hero-image: url("${sized}")` : null,
+    headlineHtml: heroHeadlineHtml(headline),
+    tagline: layout === 'slim' ? '' : (settings.tagline ?? '').trim(),
+    layout,
+    photo: layout === 'split',
+    coverSlots: layout === 'covers' ? HERO_COVERS : 0,
+    secondButton: layout !== 'slim',
+  };
 }

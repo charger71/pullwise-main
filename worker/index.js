@@ -348,7 +348,7 @@ function rewrite(res, file, { settings, pages }, shop, customSlug = null, series
       })
       .on('h1#hero-title', { element(el) { el.setInnerContent(h.headlineHtml, { html: true }); } })
       .on('p[data-setting="tagline"]', { element(el) { el.setInnerContent(h.tagline); } });
-    if (h.photoHtml) rw = rw.on('div.hero__photo', { element(el) { el.replace(h.photoHtml, { html: true }); } });
+    if (h.photo) rw = rw.on('div.hero__photo', { element(el) { el.removeAttribute('hidden'); } });
     if (h.coverSlots) {
       rw = rw.on('div.hero__covers', {
         element(el) {

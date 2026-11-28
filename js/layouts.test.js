@@ -1,7 +1,7 @@
 // node js/layouts.test.js
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { LAYOUTS, layoutOf, heroCovers, HERO_COVERS } from './layouts.js';
+import { LAYOUTS, layoutOf, heroCovers, heroView, HERO_COVERS } from './layouts.js';
 
 // A shop's picks: saved settings, else (before settings load) what the Worker stamped on <body>, else today's look.
 assert.deepEqual(layoutOf({}), { header: 'classic', hero: 'banner', footer: 'full' });
@@ -18,6 +18,16 @@ assert.deepEqual(heroCovers(items, 'covers').covers.map((i) => i.id), [0, 1, 2, 
 assert.deepEqual(heroCovers(items, 'covers').shelf.map((i) => i.id), [6, 7]);
 assert.deepEqual(heroCovers(items, 'banner'), { covers: [], shelf: items });
 assert.deepEqual(heroCovers([], 'covers'), { covers: [], shelf: [] });
+// New This Week is built from overlapping queries: a title listed twice shows once, in the hero or the shelf.
+const dup = [8, 11, 8, 9, 16, 14, 15, 11, 13, 10, 8, 12].map((id) => ({ id }));
+assert.deepEqual(heroCovers(dup, 'covers').covers.map((i) => i.id), [8, 11, 9, 16, 14, 15]);
+assert.deepEqual(heroCovers(dup, 'covers').shelf.map((i) => i.id), [13, 10, 12]);
+assert.deepEqual(heroCovers(dup, 'banner').shelf.map((i) => i.id), [8, 11, 9, 16, 14, 15, 13, 10, 12]);
+
+// The hero as drawn (the Worker's first paint and js/pages/home.js share it): stamped picks count before settings load.
+assert.equal(heroView({ shop_name: 'X' }, { hero: 'slim' }).layout, 'slim');
+assert.equal(heroView({ layout: {} }, { hero: 'slim' }).layout, 'banner');
+assert.equal(heroView({ layout: { hero: 'covers' } }).secondButton, true);
 
 // The registry: ids unique, first entry is today's look, every option has a label and hint.
 assert.deepEqual(Object.keys(LAYOUTS), ['header', 'hero', 'footer']);
@@ -29,10 +39,12 @@ assert.deepEqual(LAYOUTS.header.map((o) => o.id), ['classic', 'centered', 'bold'
 assert.deepEqual(LAYOUTS.hero.map((o) => o.id), ['banner', 'split', 'covers', 'slim']);
 assert.deepEqual(LAYOUTS.footer.map((o) => o.id), ['full', 'simple', 'signup']);
 
-// Every option other than the default has its look in css/site.css, keyed off the <body> attribute.
+// Every option other than the default has its look in css/site.css: headers and footers keyed off the <body>
+// attribute, heroes off the hero's own class (the hero drawn can differ from the pick: Split without a photo).
 const css = readFileSync(new URL('../css/site.css', import.meta.url), 'utf8');
-for (const area of ['header']) {
-  for (const o of LAYOUTS[area].slice(1)) assert.ok(css.includes(`[data-${area}="${o.id}"]`), `css/site.css has no rule for ${area} "${o.id}"`);
+const selector = (area, id) => (area === 'hero' ? `.hero--${id}` : `[data-${area}="${id}"]`);
+for (const area of ['header', 'hero']) {
+  for (const o of LAYOUTS[area].slice(1)) assert.ok(css.includes(selector(area, o.id)), `css/site.css has no rule for ${area} "${o.id}" (${selector(area, o.id)})`);
 }
 
 console.log('layouts ok');

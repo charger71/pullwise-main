@@ -1,4 +1,4 @@
-import { initPage, $, esc, heroHeadlineHtml, sizedImage, HERO_WIDTH, hoursList, addressLines, mapsHref, telHref, mapEmbed, locationAs, eventPlace, fmtDate, eventTimes, addDays, openFocFrom, EVENT_TYPES } from '../site.js';
+import { initPage, $, esc, itemTitle, cover, hoursList, addressLines, mapsHref, telHref, mapEmbed, locationAs, eventPlace, fmtDate, eventTimes, addDays, openFocFrom, EVENT_TYPES } from '../site.js';
 import { todayIn } from '../dates.js';
 import { formatPhone } from '../util.js';
 import { postHref } from '../optional-pages.js';
@@ -6,17 +6,32 @@ import { getItems, getEvents, getCategories, getPosts, getSettings } from '../da
 import { renderGrid, enableReservations } from '../components.js';
 import * as pull from '../customer.js';
 import { readCache, writeCache, sameData } from '../cache.js';
+import { heroView, heroCovers } from '../layouts.js';
 
-// Banner headline and photo from settings (the site Worker writes the same into index.html so the banner
-// paints before any script runs; this keeps it right if staff have changed it since).
-function paintHero(s) {
-  $('#hero-title').innerHTML = heroHeadlineHtml(s);
-  // Optional banner photo (Shop settings); without one the banner keeps its accent color.
+// The banner in the shop's chosen hero (js/layouts.js heroView: the same one the site Worker wrote into index.html so
+// it paints before any script runs; this keeps it right if staff have changed it since). The covers hero shows the
+// first of New This Week once they're loaded (`heroItems`, null until then); with none at all it shows as the Banner.
+// The tagline and second button stay in the page for the Slim hero, which hides them in css/site.css.
+let heroSettings = null;
+let heroItems = null;
+function paintHero(s = heroSettings) {
+  if (!s) return;
+  heroSettings = s;
+  let v = heroView(s, document.body.dataset);
+  if (v.layout === 'covers' && heroItems && !heroItems.length) v = heroView({ ...s, layout: { ...s.layout, hero: 'banner' } });
   const hero = $('.hero');
-  const photo = /^https:\/\//.test(s.hero_image_url ?? '');
-  hero.classList.toggle('hero--photo', photo);
-  if (photo) hero.style.setProperty('--hero-image', `url(${JSON.stringify(sizedImage(s.hero_image_url, HERO_WIDTH))})`);
-  else hero.style.removeProperty('--hero-image');
+  hero.className = v.className;
+  if (v.style) hero.setAttribute('style', v.style);
+  else hero.removeAttribute('style');
+  $('#hero-title').innerHTML = v.headlineHtml;
+  $('.hero__photo').hidden = !v.photo;
+  const row = $('.hero__covers');
+  row.hidden = v.layout !== 'covers';
+  if (v.layout !== 'covers') return;
+  if (heroItems) {
+    // Covers open the title's details, like every cover on the site (js/title-modal.js listens for data-title-open).
+    row.innerHTML = heroItems.map((i) => `<button class="hero__cover" type="button" data-title-open="${i.id}" aria-label="${esc(itemTitle(i))} (details)">${cover(i)}</button>`).join('');
+  } else if (!row.children.length) row.innerHTML = '<span class="hero__cover hero__cover--slot"></span>'.repeat(v.coverSlots);
 }
 
 // Each shelf shows up to 12 titles: two rows of six on desktop.
@@ -127,7 +142,12 @@ function renderHome({ focSoon, fresh, picks, events, news, shelves }, st = {}) {
   byId.clear();
   for (const i of [...focSoon, ...fresh, ...picks, ...shelves.flatMap((x) => x.items)]) byId.set(i.id, i);
   drawGrid($('#foc-soon'), focSoon, { reservable: true }, 'No cutoffs in the next two weeks.');
-  drawGrid($('#new-releases'), fresh, {}, 'New books land every Wednesday — check back soon.');
+  // The covers hero takes the first of New This Week; the shelf starts after them, so no cover shows twice.
+  const { covers, shelf } = heroCovers(fresh, document.body.dataset.hero);
+  heroItems = covers;
+  paintHero();
+  $('#new-releases').closest('section').hidden = covers.length > 0 && !shelf.length;
+  drawGrid($('#new-releases'), shelf, {}, 'New books land every Wednesday — check back soon.');
   $('#staff-picks-section').hidden = !picks.length;
   if (picks.length) drawGrid($('#staff-picks'), picks, { reservable: true });
   for (const { id, categoryId, hasInStore, hasPreorders, items } of shelves) {

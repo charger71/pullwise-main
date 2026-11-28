@@ -102,7 +102,7 @@ assert.equal((many.match(/event\.html\?id=/g) ?? []).length, 500, 'at most 500 e
 assert.equal(robotsTxt(shops[0], 'User-agent: *\nDisallow: /admin/\n'), 'User-agent: *\nDisallow: /admin/\n\nSitemap: https://a-comics.com/sitemap.xml\n');
 
 // Home banner
-assert.deepEqual(hero({ shop_name: 'Shop', tagline: ' Hi ' }), { className: 'hero', style: null, headlineHtml: 'Shop', tagline: 'Hi', layout: 'banner', photoHtml: null, coverSlots: 0, secondButton: true });
+assert.deepEqual(hero({ shop_name: 'Shop', tagline: ' Hi ' }), { className: 'hero', style: null, headlineHtml: 'Shop', tagline: 'Hi', layout: 'banner', photo: false, coverSlots: 0, secondButton: true });
 const h = hero({ hero_headline: 'Comics. *Toys.* <b>', hero_image_url: `${MEDIA}/hero.jpg` });
 assert.equal(h.className, 'hero hero--photo');
 assert.match(h.style, /^--hero-image: url\("https:\/\/aaa\.supabase\.co\/storage\/v1\/render\/image\/public\/media\/hero\.jpg\?width=1400/);
@@ -116,9 +116,9 @@ assert.equal(hero({ layout: { hero: 'split' } }).layout, 'banner', 'split withou
 const sp = hero({ layout: { hero: 'split' }, hero_image_url: `${MEDIA}/hero.jpg` });
 assert.equal(sp.layout, 'split');
 assert.equal(sp.className, 'hero hero--split');
-assert.equal(sp.style, null, 'the photo sits beside the text, not behind it');
-assert.match(sp.photoHtml, /^<div class="hero__photo" style="--hero-image: url\(&quot;https:\/\/aaa\.supabase\.co\//);
-assert.equal(hero({ layout: { hero: 'split' }, hero_image_url: 'javascript:alert(1)' }).photoHtml, null);
+assert.match(sp.style, /^--hero-image: url\("https:\/\/aaa\.supabase\.co\//, 'the photo is a variable for .hero__photo beside the text');
+assert.equal(sp.photo, true);
+assert.equal(hero({ layout: { hero: 'split' }, hero_image_url: 'javascript:alert(1)' }).photo, false, 'only https photos; falls back to the banner');
 const cv = hero({ layout: { hero: 'covers' }, shop_name: 'Derby', hero_image_url: `${MEDIA}/hero.jpg` });
 assert.equal(cv.coverSlots, 6);
 assert.equal(cv.className, 'hero hero--covers');

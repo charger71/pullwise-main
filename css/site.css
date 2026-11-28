@@ -584,6 +584,33 @@ address { font-style: normal; margin-bottom: 1em; }
 @media (min-width: 800px) { .hero, .hero.hero--photo { padding-block: var(--sp-96); } }
 .hero p { font-size: var(--fs-lede); max-width: 620px; color: var(--cream); }
 .hero__actions { display: flex; flex-wrap: wrap; gap: var(--sp-12); margin-top: var(--sp-20); }
+/* Hero layouts (Shop Settings → Layout; js/layouts.js heroView draws the class). Banner is the rules above. */
+/* Split: the headline on the left half, the banner photo filling the right half (under the text on phones). */
+.hero__photo { min-height: 220px; background: var(--hero-image) center / cover no-repeat, var(--surface); }
+@media (min-width: 800px) {
+  .hero--split { position: relative; }
+  .hero--split > .container > * { max-width: calc(50% - var(--sp-32)); }
+  .hero--split .hero__photo { position: absolute; inset-block: 0; right: 0; width: 50%; min-height: 0; }
+}
+@media (max-width: 799px) {
+  .hero.hero--split { padding-bottom: 0; }
+  .hero--split .hero__photo { margin-top: var(--sp-32); }
+}
+/* This week's covers: a row of covers between the headline and the button; each opens the title's details. */
+.hero.hero--covers h1 { font-size: calc(clamp(28px, 4vw, 48px) * var(--display-scale)); }
+.hero__covers { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-12); max-width: 520px; margin-top: var(--sp-24); }
+@media (min-width: 600px) { .hero__covers { grid-template-columns: repeat(6, 1fr); max-width: 760px; } }
+.hero__covers[hidden] { display: none; }
+.hero__cover { display: block; min-height: 0; padding: 0; border: 0; background: none; cursor: pointer; border-radius: var(--radius-sm); }
+.hero__cover .cover { display: block; border-radius: var(--radius-sm); }
+.hero__cover--slot { aspect-ratio: 6.625 / 10.25; background: var(--raised); cursor: default; }
+/* Slim: one line and one button, so the shop's own top block and the shelves come first. */
+.hero.hero--slim { padding-block: var(--sp-24); }
+.hero--slim > .container { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-12) var(--sp-24); }
+.hero.hero--slim h1 { margin: 0; font-size: var(--fs-title); }
+.hero--slim [data-setting="tagline"], .hero--slim .btn--ghost { display: none; }
+.hero--slim .hero__actions { margin-top: 0; }
+@media (min-width: 800px) { .hero.hero--slim { padding-block: var(--sp-32); } }
 /* ---------- Cards / grids ---------- */
 .grid { display: grid; gap: var(--sp-16); grid-template-columns: repeat(2, 1fr); }
 /* A grid still waiting for its titles shows one pulsing block roughly a screen tall, so the content below

@@ -4,7 +4,7 @@
 import { esc, sizedImage, heroHeadlineHtml, HERO_WIDTH, LOGO_WIDTH } from '../js/util.js';
 import { themeCss, fontPreloads } from '../js/theme-vars.js';
 import { offHrefs, postHref } from '../js/optional-pages.js';
-import { layoutOf, HERO_COVERS } from '../js/layouts.js';
+import { layoutOf, heroView } from '../js/layouts.js';
 
 /** The shop whose domain this is, or null (then the site runs on the static js/config.js: demo mode). */
 export function findShop(shops, hostname) {
@@ -373,27 +373,5 @@ export const robotsTxt = (shop, staticText) => `${staticText.trimEnd()}\n\nSitem
 export const bodyLayoutAttrs = (settings) =>
   Object.fromEntries(Object.entries(layoutOf(settings)).map(([area, id]) => [`data-${area}`, id]));
 
-/**
- * The home page banner in the shop's chosen hero, so it paints with the first frame (js/pages/home.js re-applies
- * live settings on load, with the same rules). `layout` is the hero actually drawn: Split without a photo is the
- * Banner. Split puts the photo beside the text (`photoHtml`); the covers hero reserves `coverSlots` empty covers for
- * home.js to fill; Slim has no tagline and one button.
- */
-export function hero(settings) {
-  const picked = layoutOf(settings).hero;
-  const url = https(settings.hero_image_url);
-  const layout = picked === 'split' && !url ? 'banner' : picked;
-  const sized = url ? sizedImage(url, HERO_WIDTH) : null;
-  const behind = layout === 'banner' && sized;
-  const headline = layout === 'covers' && !settings.hero_headline ? { ...settings, hero_headline: `New this Wednesday at *${settings.shop_name ?? ''}*` } : settings;
-  return {
-    className: layout === 'banner' ? (behind ? 'hero hero--photo' : 'hero') : `hero hero--${layout}`,
-    style: behind ? `--hero-image: url("${sized}")` : null,
-    headlineHtml: heroHeadlineHtml(headline),
-    tagline: layout === 'slim' ? '' : (settings.tagline ?? '').trim(),
-    layout,
-    photoHtml: layout === 'split' ? `<div class="hero__photo" style="${esc(`--hero-image: url("${sized}")`)}"></div>` : null,
-    coverSlots: layout === 'covers' ? HERO_COVERS : 0,
-    secondButton: layout !== 'slim',
-  };
-}
+/** The home page banner in the shop's chosen hero, so it paints with the first frame (js/layouts.js heroView; js/pages/home.js re-applies live settings on load with the same function). */
+export const hero = (settings) => heroView(settings);
