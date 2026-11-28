@@ -549,6 +549,24 @@ address { font-style: normal; margin-bottom: 1em; }
 @media (min-width: 700px) {
   .footer__grid { grid-template-columns: repeat(3, 1fr); }
 }
+/* Footer layouts (Shop Settings → Layout; js/layouts.js). Full is the rules above. */
+/* Simple: centered logo, one line of links, one line of where and when. */
+.footer__simple { display: grid; justify-items: center; gap: var(--sp-12); text-align: center; }
+.footer__brand .brand__logo { max-height: 40px; }
+.footer__links--inline { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-6) var(--sp-20); columns: auto; margin: 0; }
+.footer__links--inline li { margin: 0; }
+.footer__line { margin: 0 0 var(--sp-8); }
+[data-footer="simple"] #site-footer .socials { margin-left: 0; justify-content: center; }
+/* Sign-up first: the newsletter band leads (text left, form right on wider screens), then Visit and More. */
+.newsletter.newsletter--lead { text-align: left; }
+.newsletter.newsletter--lead .lede { margin-inline: 0; }
+@media (min-width: 800px) {
+  .newsletter--lead .container { display: grid; grid-template-columns: 1fr 1fr; align-items: center; column-gap: var(--sp-32); }
+  .newsletter--lead #newsletter-form { grid-column: 2; grid-row: 1 / span 2; justify-content: flex-end; }
+}
+@media (min-width: 700px) {
+  [data-footer="signup"] .footer__grid { grid-template-columns: repeat(2, 1fr); }
+}
 .footer__location { margin: 0 0 var(--sp-12); }
 .footer__sub { font-size: var(--fs-md); margin: var(--sp-12) 0 var(--sp-4); }
 .locations-grid { display: grid; gap: var(--sp-20); }

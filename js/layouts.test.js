@@ -43,7 +43,7 @@ assert.deepEqual(LAYOUTS.footer.map((o) => o.id), ['full', 'simple', 'signup']);
 // attribute, heroes off the hero's own class (the hero drawn can differ from the pick: Split without a photo).
 const css = readFileSync(new URL('../css/site.css', import.meta.url), 'utf8');
 const selector = (area, id) => (area === 'hero' ? `.hero--${id}` : `[data-${area}="${id}"]`);
-for (const area of ['header', 'hero']) {
+for (const area of Object.keys(LAYOUTS)) {
   for (const o of LAYOUTS[area].slice(1)) assert.ok(css.includes(selector(area, o.id)), `css/site.css has no rule for ${area} "${o.id}" (${selector(area, o.id)})`);
 }
 

@@ -13,7 +13,7 @@ import { readCache, writeCache, sameData } from './cache.js';
 import { esc, itemTitle, heroHeadlineHtml, sizedImage, LOGO_WIDTH, HERO_WIDTH, formatPhone, prefersReducedMotion, chatOn, price } from './util.js';
 import { ITEM_STATUS, ITEM_BADGES } from './labels.js';
 import { offHrefs, slugOfPage, orderMenu, customHref, customSlugHere } from './optional-pages.js';
-import { upcomingHolidays } from './holiday-hours.js';
+import { upcomingHolidays, todayHours } from './holiday-hours.js';
 import { layoutOf } from './layouts.js';
 import { localDate, addDays, todayIn, lastReserveDay, setShopTimeZone, shopTimeZone, shopToday, daysUntil, cutoffPassed, fmtDateIn, fmtTimeIn } from './dates.js';
 
@@ -389,6 +389,24 @@ function loadNewsletterForm(embed) {
   watcher.observe(host);
 }
 
+/** One line of where and when: address, phone and today's hours, or each location's name for a shop with several. */
+function visitLine(s) {
+  if (s.locations?.length) return s.locations.map((l) => `<a href="contact.html">${esc(l.name)}</a>`).join(' · ');
+  const addr = addressLines(s);
+  const today = todayHours(s.hours, s.holiday_hours, shopToday());
+  return [
+    addr.length ? `<a href="${esc(mapsHref(s))}">${addr.map(esc).join(', ')}</a>` : '',
+    s.phone ? `<a href="${telHref(s.phone)}">${esc(formatPhone(s.phone))}</a>` : '',
+    today ? (today.closed ? 'Closed today' : `Open today ${esc(time12(today.open))} – ${esc(time12(today.close))}`) : '',
+  ].filter(Boolean).join(' · ');
+}
+
+/**
+ * The site footer in the shop's chosen layout (js/layouts.js; css/site.css styles each from body[data-footer]):
+ * Full (address, hours, social and links in three columns), Simple (logo, one line of links, one line of where and
+ * when) or Sign-up first (the newsletter band leads, then a two-column Visit / More block; without a newsletter
+ * sign-up it is Simple). The newsletter band sits above every footer when the shop has one.
+ */
 function renderFooter(s, extraLinks = [], off = new Set()) {
   const addr = addressLines(s);
   // A shop with several locations lists each one's address, phone and hours.
@@ -397,6 +415,8 @@ function renderFooter(s, extraLinks = [], off = new Set()) {
   const footer = $('#site-footer');
   const social = socialIcons(s);
   const embed = s.newsletter_embed?.trim() ?? '';
+  const picked = layoutOf(s, document.body.dataset).footer;
+  const kind = picked === 'signup' && !embed ? 'simple' : picked;
   if (!embed) $('.newsletter')?.remove();
   else if (!$('.newsletter')) footer.insertAdjacentHTML('beforebegin', `
     <section class="newsletter" aria-labelledby="newsletter-title">
@@ -406,6 +426,37 @@ function renderFooter(s, extraLinks = [], off = new Set()) {
         <div id="newsletter-form"></div>
       </div>
     </section>`), fillContent(getSettings()).catch(() => {}); // the page's content was filled before this section existed
+  $('.newsletter')?.classList.toggle('newsletter--lead', kind === 'signup');
+  const links = orderMenu([...FOOTER_LINKS, ...(chatOn(s) ? [{ href: '#chat', label: 'Chat with us' }] : []), ...extraLinks], s.footer_order ?? []).filter((l) => !off.has(l.href)).map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('');
+  const legal = `<p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)} · ${POWERED_BY}</p>`;
+  const visit = visitLine(s);
+  if (kind === 'simple') {
+    footer.innerHTML = `
+    <div class="container footer__simple">
+      <a class="brand footer__brand" href="index.html">${brandHtml(s).replace(' fetchpriority="high"', ' loading="lazy"')}</a>
+      <ul class="footer__links footer__links--inline">${links}</ul>
+      ${visit ? `<p class="footer__line">${visit}</p>` : ''}
+      ${social}
+    </div>
+    ${legal}`;
+    return;
+  }
+  if (kind === 'signup') {
+    footer.innerHTML = `
+    <div class="container footer__grid">
+      <section>
+        <h2 class="footer__heading">Visit</h2>
+        ${visit ? `<p class="footer__line">${visit}</p>` : ''}
+        ${social}
+      </section>
+      <section>
+        <h2 class="footer__heading">More</h2>
+        <ul class="footer__links">${links}</ul>
+      </section>
+    </div>
+    ${legal}`;
+    return;
+  }
   footer.innerHTML = `
     <div class="container footer__grid">
       <section>
@@ -424,10 +475,10 @@ function renderFooter(s, extraLinks = [], off = new Set()) {
       </section>
       <section>
         <h2 class="footer__heading">More</h2>
-        <ul class="footer__links">${orderMenu([...FOOTER_LINKS, ...(chatOn(s) ? [{ href: '#chat', label: 'Chat with us' }] : []), ...extraLinks], s.footer_order ?? []).filter((l) => !off.has(l.href)).map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('')}</ul>
+        <ul class="footer__links">${links}</ul>
       </section>
     </div>
-    <p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)} · ${POWERED_BY}</p>`;
+    ${legal}`;
 }
 
 let pageTitle;
