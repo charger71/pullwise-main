@@ -491,6 +491,7 @@ input[type='checkbox'], input[type='radio'] {
 .header__bold :focus-visible { outline-color: var(--on-accent); }
 [data-header="bold"] .brand { margin-right: auto; }
 [data-header="bold"] .brand__name { color: var(--on-accent); }
+[data-header="bold"] .brand__name span { color: inherit; } /* the "&", gold on the page, would vanish on the accent */
 .header__search-toggle {
   flex: none;
   width: var(--tap);
@@ -512,7 +513,10 @@ input[type='checkbox'], input[type='radio'] {
 [data-header="bold"] .nav-toggle__icon, [data-header="bold"] .nav-toggle__icon::before, [data-header="bold"] .nav-toggle__icon::after { background: var(--ink); }
 [data-header="bold"].nav-open .nav-toggle__icon { background: transparent; }
 @media (min-width: 1100px) {
-  [data-header="bold"] .nav a, [data-header="bold"] .nav a[aria-current='page'] { color: var(--on-accent); }
+  /* The menu button comes first in the markup (keyboard order on phones); here the menu sits before search. */
+  [data-header="bold"] .nav { order: 1; }
+  [data-header="bold"] .header__search-toggle { order: 2; }
+  [data-header="bold"] .nav a, [data-header="bold"] .nav a[aria-current='page'], [data-header="bold"] .nav a:hover { color: var(--on-accent); }
   [data-header="bold"] .nav li:last-child a { background: var(--paper); color: var(--gold-text); border-radius: var(--radius-pill); padding-inline: var(--sp-16); }
 }
 /* ---------- Footer ---------- */
@@ -553,6 +557,7 @@ address { font-style: normal; margin-bottom: 1em; }
 /* Simple: centered logo, one line of links, one line of where and when. */
 .footer__simple { display: grid; justify-items: center; gap: var(--sp-12); text-align: center; }
 .footer__brand .brand__logo { max-height: 40px; }
+.footer__brand .brand__name, .footer__brand .brand__name span { color: var(--footer-text); } /* the footer has its own color */
 .footer__links--inline { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-6) var(--sp-20); columns: auto; margin: 0; }
 .footer__links--inline li { margin: 0; }
 .footer__line { margin: 0 0 var(--sp-8); }

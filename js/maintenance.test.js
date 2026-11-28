@@ -23,7 +23,7 @@ globalThis.location = { pathname: '/', search: '', hostname: 'localhost' };
 const store = new Map();
 globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
 
-const { applyMaintenance } = await import('./site.js');
+const { applyMaintenance, visitLine } = await import('./site.js');
 const count = () => body.children.filter((c) => c.id === 'maintenance').length;
 
 applyMaintenance({ maintenance_mode: false, shop_name: 'X' });
@@ -47,3 +47,9 @@ applyMaintenance({ maintenance_mode: false });
 assert.equal(count(), 0, 'removed when switched off');
 assert(!classes.has('is-maintenance') && body.children.every((c) => !c.inert), 'the page is usable again');
 console.log('maintenance tests passed');
+
+// visitLine (the Simple and Sign-up first footers): a shop with several locations lists their names, linked to the
+// Visit page only while that page is on (css/site.css hides links to an off page, which would leave bare dots).
+const twoShops = { locations: [{ name: 'Downtown' }, { name: 'Eastside & Co' }] };
+assert.equal(visitLine(twoShops), '<a href="contact.html">Downtown</a> · <a href="contact.html">Eastside &amp; Co</a>');
+assert.equal(visitLine(twoShops, new Set(['contact.html'])), 'Downtown · Eastside &amp; Co');

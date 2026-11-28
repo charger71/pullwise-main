@@ -1,7 +1,7 @@
 // node js/layouts.test.js
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { LAYOUTS, layoutOf, heroCovers, heroView, HERO_COVERS } from './layouts.js';
+import { LAYOUTS, layoutOf, heroCovers, heroView, HERO_COVERS, coversChanged } from './layouts.js';
 
 // A shop's picks: saved settings, else (before settings load) what the Worker stamped on <body>, else today's look.
 assert.deepEqual(layoutOf({}), { header: 'classic', hero: 'banner', footer: 'full' });
@@ -23,6 +23,13 @@ const dup = [8, 11, 8, 9, 16, 14, 15, 11, 13, 10, 8, 12].map((id) => ({ id }));
 assert.deepEqual(heroCovers(dup, 'covers').covers.map((i) => i.id), [8, 11, 9, 16, 14, 15]);
 assert.deepEqual(heroCovers(dup, 'covers').shelf.map((i) => i.id), [13, 10, 12]);
 assert.deepEqual(heroCovers(dup, 'banner').shelf.map((i) => i.id), [8, 11, 9, 16, 14, 15, 13, 10, 12]);
+// The shelf was split for one hero; live settings may pick another (a visitor's snapshot is days old). Only a change
+// into or out of the covers hero moves titles between the hero and the shelf, so only that redraws.
+assert.equal(coversChanged('banner', 'covers'), true, 'banner → covers: the hero needs its covers');
+assert.equal(coversChanged('covers', 'banner'), true, 'covers → banner: the shelf needs its first six back');
+assert.equal(coversChanged('banner', 'slim'), false);
+assert.equal(coversChanged('covers', 'covers'), false);
+assert.equal(coversChanged(undefined, 'covers'), true, 'nothing drawn yet counts as not covers');
 
 // The hero as drawn (the Worker's first paint and js/pages/home.js share it): stamped picks count before settings load.
 assert.equal(heroView({ shop_name: 'X' }, { hero: 'slim' }).layout, 'slim');
@@ -46,6 +53,20 @@ const selector = (area, id) => (area === 'hero' ? `.hero--${id}` : `[data-${area
 for (const area of Object.keys(LAYOUTS)) {
   for (const o of LAYOUTS[area].slice(1)) assert.ok(css.includes(selector(area, o.id)), `css/site.css has no rule for ${area} "${o.id}" (${selector(area, o.id)})`);
 }
+
+// Colors that follow their ground. The shop name's "&" (.brand__name span) is gold text, readable on the page but not
+// on the Bold bar's accent fill or a footer colored apart from the page; the bar's hover must stay readable too.
+const flat = css.replace(/\s+/g, ' ');
+assert.match(flat, /\[data-header="bold"\] \.brand__name span[^{]*\{[^}]*color: inherit/, 'Bold bar: the "&" follows the bar text');
+assert.match(flat, /\[data-header="bold"\] \.nav a:hover[^{]*\{[^}]*color: var\(--on-accent\)/, 'Bold bar: menu hover stays on-accent');
+assert.match(flat, /\.footer__brand \.brand__name[^{]*\{[^}]*color: var\(--footer-text\)/, 'Simple footer: the shop name follows the footer text');
+
+// Bold bar keyboard order: the menu button comes before the menu it opens (as in Classic and Centered); on desktop
+// CSS puts the menu back between the logo and the search button.
+const site = readFileSync(new URL('./site.js', import.meta.url), 'utf8');
+const bold = site.slice(site.indexOf('<div class="header__bold">'), site.indexOf('id="header-search"'));
+assert.ok(bold.indexOf('${menuBtn}') > 0 && bold.indexOf('${menuBtn}') < bold.indexOf('${nav}'), 'Bold bar: menu button before the menu');
+assert.match(flat, /\[data-header="bold"\] \.nav \{[^}]*order:/, 'Bold bar: desktop order puts the menu before the search button');
 
 // Every option has its picture for the admin picker (Shop Settings → Layout).
 for (const [area, opts] of Object.entries(LAYOUTS)) {

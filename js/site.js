@@ -307,9 +307,9 @@ function renderHeader(s, page, extraNav = [], off = new Set()) {
     <div class="header__bold">
       <div class="header__bar container">
         ${brand}
-        ${nav}
         <button class="header__search-toggle" type="button" aria-expanded="false" aria-controls="header-search" aria-label="Search the site">${SEARCH_ICON}</button>
         ${menuBtn}
+        ${nav}
       </div>
     </div>
     <div class="topbar header__search" id="header-search" hidden><div class="topbar__inner container">${search}</div></div>
@@ -389,9 +389,12 @@ function loadNewsletterForm(embed) {
   watcher.observe(host);
 }
 
-/** One line of where and when: address, phone and today's hours, or each location's name for a shop with several. */
-function visitLine(s) {
-  if (s.locations?.length) return s.locations.map((l) => `<a href="contact.html">${esc(l.name)}</a>`).join(' · ');
+/**
+ * One line of where and when: address, phone and today's hours, or each location's name for a shop with several,
+ * linked to the Visit page unless it's off (`off`: the off pages' hrefs).
+ */
+export function visitLine(s, off = new Set()) {
+  if (s.locations?.length) return s.locations.map((l) => (off.has('contact.html') ? esc(l.name) : `<a href="contact.html">${esc(l.name)}</a>`)).join(' · ');
   const addr = addressLines(s);
   const today = todayHours(s.hours, s.holiday_hours, shopToday());
   return [
@@ -429,7 +432,7 @@ function renderFooter(s, extraLinks = [], off = new Set()) {
   $('.newsletter')?.classList.toggle('newsletter--lead', kind === 'signup');
   const links = orderMenu([...FOOTER_LINKS, ...(chatOn(s) ? [{ href: '#chat', label: 'Chat with us' }] : []), ...extraLinks], s.footer_order ?? []).filter((l) => !off.has(l.href)).map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('');
   const legal = `<p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)} · ${POWERED_BY}</p>`;
-  const visit = visitLine(s);
+  const visit = visitLine(s, off);
   if (kind === 'simple') {
     footer.innerHTML = `
     <div class="container footer__simple">

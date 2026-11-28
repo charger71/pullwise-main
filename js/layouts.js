@@ -55,6 +55,12 @@ export function heroCovers(fresh, heroId) {
   return { covers: unique.slice(0, HERO_COVERS), shelf: unique.slice(HERO_COVERS) };
 }
 
+/**
+ * Whether New This Week must be split again: it was split for the hero `drawn` (from last visit's settings snapshot)
+ * and the hero is now `now`. Only moving into or out of the covers hero moves titles between hero and shelf.
+ */
+export const coversChanged = (drawn, now) => (drawn === 'covers') !== (now === 'covers');
+
 const https = (url) => (typeof url === 'string' && /^https:\/\//.test(url) ? url : null);
 
 /**

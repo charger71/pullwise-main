@@ -6,7 +6,7 @@ import { getItems, getEvents, getCategories, getPosts, getSettings } from '../da
 import { renderGrid, enableReservations } from '../components.js';
 import * as pull from '../customer.js';
 import { readCache, writeCache, sameData } from '../cache.js';
-import { heroView, heroCovers } from '../layouts.js';
+import { heroView, heroCovers, coversChanged } from '../layouts.js';
 
 // The banner in the shop's chosen hero (js/layouts.js heroView: the same one the site Worker wrote into index.html so
 // it paints before any script runs; this keeps it right if staff have changed it since). The covers hero shows the
@@ -14,6 +14,7 @@ import { heroView, heroCovers } from '../layouts.js';
 // The tagline and second button stay in the page for the Slim hero, which hides them in css/site.css.
 let heroSettings = null;
 let heroItems = null;
+let shelfHero; // the hero New This Week was last split for (js/layouts.js coversChanged)
 function paintHero(s = heroSettings) {
   if (!s) return;
   heroSettings = s;
@@ -143,7 +144,8 @@ function renderHome({ focSoon, fresh, picks, events, news, shelves }, st = {}) {
   for (const i of [...focSoon, ...fresh, ...picks, ...shelves.flatMap((x) => x.items)]) byId.set(i.id, i);
   drawGrid($('#foc-soon'), focSoon, { reservable: true }, 'No cutoffs in the next two weeks.');
   // The covers hero takes the first of New This Week; the shelf starts after them, so no cover shows twice.
-  const { covers, shelf } = heroCovers(fresh, document.body.dataset.hero);
+  shelfHero = document.body.dataset.hero;
+  const { covers, shelf } = heroCovers(fresh, shelfHero);
   heroItems = covers;
   paintHero();
   $('#new-releases').closest('section').hidden = covers.length > 0 && !shelf.length;
@@ -246,5 +248,6 @@ if (failed.size && cachedHome) {
   shown.shelves = home.shelves.map((x) => (keep(x.id) && cachedHome.shelves?.find((c) => c.id === x.id)) || x);
 }
 if (!failed.size) writeCache('home', home);
-// Signed-in customers get extra buttons on each card, and the snapshot was drawn before their list loaded.
-if (!cachedHome || !sameData(cachedHome, shown) || pull.isSignedIn()) renderHome(shown, s);
+// Signed-in customers get extra buttons on each card, and the snapshot was drawn before their list loaded. A hero
+// changed since last visit (into or out of covers) moves titles between the hero and New This Week.
+if (!cachedHome || !sameData(cachedHome, shown) || pull.isSignedIn() || coversChanged(shelfHero, document.body.dataset.hero)) renderHome(shown, s);
