@@ -4,6 +4,7 @@
 import { esc, sizedImage, heroHeadlineHtml, HERO_WIDTH, LOGO_WIDTH } from '../js/util.js';
 import { themeCss, fontPreloads } from '../js/theme-vars.js';
 import { offHrefs, postHref } from '../js/optional-pages.js';
+import { layoutOf, HERO_COVERS } from '../js/layouts.js';
 
 /** The shop whose domain this is, or null (then the site runs on the static js/config.js: demo mode). */
 export function findShop(shops, hostname) {
@@ -368,13 +369,31 @@ export function sitemapXml(shop, off = [], extra = {}) {
 /** /robots.txt for one shop: the static file's rules plus its own sitemap address. */
 export const robotsTxt = (shop, staticText) => `${staticText.trimEnd()}\n\nSitemap: ${siteUrl(shop)}/sitemap.xml\n`;
 
-/** The home page banner, so it paints with the first frame (js/pages/home.js re-applies live settings on load). */
+/** The shop's layout picks (js/layouts.js) as <body> attributes, so the first paint has the chosen header, hero and footer. */
+export const bodyLayoutAttrs = (settings) =>
+  Object.fromEntries(Object.entries(layoutOf(settings)).map(([area, id]) => [`data-${area}`, id]));
+
+/**
+ * The home page banner in the shop's chosen hero, so it paints with the first frame (js/pages/home.js re-applies
+ * live settings on load, with the same rules). `layout` is the hero actually drawn: Split without a photo is the
+ * Banner. Split puts the photo beside the text (`photoHtml`); the covers hero reserves `coverSlots` empty covers for
+ * home.js to fill; Slim has no tagline and one button.
+ */
 export function hero(settings) {
-  const photo = Boolean(https(settings.hero_image_url));
+  const picked = layoutOf(settings).hero;
+  const url = https(settings.hero_image_url);
+  const layout = picked === 'split' && !url ? 'banner' : picked;
+  const sized = url ? sizedImage(url, HERO_WIDTH) : null;
+  const behind = layout === 'banner' && sized;
+  const headline = layout === 'covers' && !settings.hero_headline ? { ...settings, hero_headline: `New this Wednesday at *${settings.shop_name ?? ''}*` } : settings;
   return {
-    className: photo ? 'hero hero--photo' : 'hero',
-    style: photo ? `--hero-image: url("${sizedImage(settings.hero_image_url, HERO_WIDTH)}")` : null,
-    headlineHtml: heroHeadlineHtml(settings),
-    tagline: (settings.tagline ?? '').trim(),
+    className: layout === 'banner' ? (behind ? 'hero hero--photo' : 'hero') : `hero hero--${layout}`,
+    style: behind ? `--hero-image: url("${sized}")` : null,
+    headlineHtml: heroHeadlineHtml(headline),
+    tagline: layout === 'slim' ? '' : (settings.tagline ?? '').trim(),
+    layout,
+    photoHtml: layout === 'split' ? `<div class="hero__photo" style="${esc(`--hero-image: url("${sized}")`)}"></div>` : null,
+    coverSlots: layout === 'covers' ? HERO_COVERS : 0,
+    secondButton: layout !== 'slim',
   };
 }

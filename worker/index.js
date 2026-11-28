@@ -27,7 +27,7 @@ import { unsubscribeProxy } from './unsubscribe.js';
 import { BACKUPS_PATH, backupFiles } from './backups.js';
 import { CATALOG_FEED_PATH, catalogFeed } from './catalog-feed.js';
 import { CATALOG_IMPORT_PATH, catalogImport } from './catalog-import.js';
-import { MEDIA_UPLOAD_PATH, MEDIA_SERVE_PATH, STORAGE_SERVE_PATH, EMAIL_LOGO_PATH, UNSUBSCRIBE_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, sitemapXml, robotsTxt, SITEMAP_MAX_POSTS, SITEMAP_MAX_EVENTS, siteUrl, seriesPreview, seriesPreviewTags } from './shop-page.js';
+import { MEDIA_UPLOAD_PATH, MEDIA_SERVE_PATH, STORAGE_SERVE_PATH, EMAIL_LOGO_PATH, UNSUBSCRIBE_PATH, ASSET_LINKS_PATH, assetLinks, findShop, hasApp, NO_APP_PATH, appRedirect, appManifest, appSplash, configJs, fileOf, PAGE_SLUGS, NOT_FOUND_FILE, customSlugOf, customPageSlug, postSlugOf, pageTitle, headTags, hero, bodyLayoutAttrs, sitemapXml, robotsTxt, SITEMAP_MAX_POSTS, SITEMAP_MAX_EVENTS, siteUrl, seriesPreview, seriesPreviewTags } from './shop-page.js';
 import { seriesKeyIn, seriesLink } from '../js/follow-link.js';
 import { unusedDefaultPreloads } from '../js/theme-vars.js';
 
@@ -266,7 +266,7 @@ async function shopData(shop, ctx) {
       return r.json();
     };
     const [settings, pages] = await Promise.all([
-      get('settings?select=shop_name,tagline,timezone,logo_url,email_logo_url,favicon_url,app_icon_url,app_screenshots,hero_image_url,hero_headline,colors,fonts,disabled_pages&id=eq.1'),
+      get('settings?select=shop_name,tagline,timezone,logo_url,email_logo_url,favicon_url,app_icon_url,app_screenshots,hero_image_url,hero_headline,colors,fonts,disabled_pages,layout&id=eq.1'),
       get('pages?select=slug,meta_title,meta_description,custom'),
     ]);
     const data = { settings: settings[0] ?? {}, pages: Object.fromEntries(pages.map((p) => [p.slug, p])) };
@@ -318,6 +318,12 @@ function rewrite(res, file, { settings, pages }, shop, customSlug = null, series
   const unused = new Set(unusedDefaultPreloads(settings.fonts, { storageOrigin: shop.supabaseUrl }));
   if (unused.size) rw = rw.on('link[rel="preload"][as="font"]', { element(el) { if (unused.has(el.getAttribute('href'))) el.remove(); } });
 
+  // The layout picks (js/layouts.js) on <body>: css/site.css draws the chosen header, hero and footer from them,
+  // and js/site.js uses them until the shop's settings load. The app has its own header and no footer.
+  if (file !== 'app.html') {
+    const attrs = bodyLayoutAttrs(settings);
+    rw = rw.on('body', { element(el) { for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); } });
+  }
   if (file === 'app.html') {
     const splash = appSplash(settings);
     rw = rw
@@ -342,6 +348,16 @@ function rewrite(res, file, { settings, pages }, shop, customSlug = null, series
       })
       .on('h1#hero-title', { element(el) { el.setInnerContent(h.headlineHtml, { html: true }); } })
       .on('p[data-setting="tagline"]', { element(el) { el.setInnerContent(h.tagline); } });
+    if (h.photoHtml) rw = rw.on('div.hero__photo', { element(el) { el.replace(h.photoHtml, { html: true }); } });
+    if (h.coverSlots) {
+      rw = rw.on('div.hero__covers', {
+        element(el) {
+          el.removeAttribute('hidden');
+          el.setInnerContent('<span class="hero__cover hero__cover--slot"></span>'.repeat(h.coverSlots), { html: true });
+        },
+      });
+    }
+    if (!h.secondButton) rw = rw.on('.hero__actions .btn--ghost', { element(el) { el.remove(); } });
   }
   return rw.transform(res);
 }
