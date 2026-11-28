@@ -88,6 +88,7 @@ Three font slots, each a Shop Settings choice with a Size (Small / Medium / Larg
 ## Layout
 
 - Content sits in \`.container\` (\`shop-max\` 1180px, \`shop-gutter\` 16px each side). Sections pad 32px top and bottom and are divided by a \`line\` rule; \`.section--alt\` takes \`surface\`.
+- **Shop layouts:** each shop picks a top navigation (Classic, Centered, Bold bar), a home page hero (Banner, Split, This week's covers, Slim) and a footer (Full, Simple, Sign-up first) in Shop Settings → Layout; the first of each is the default. js/layouts.js lists them; the Worker stamps the picks on \`<body>\` (\`data-header\`, \`data-hero\`, \`data-footer\`) so the first paint has them. Header and footer looks key off those attributes, heroes off \`.hero--*\` (the hero drawn can fall back to the Banner). See ShopHeaderLayouts, ShopHeroLayouts and ShopFooterLayouts. A new option is an entry in js/layouts.js, its markup, its CSS, an admin picture and its component here.
 - A page opens with \`.section__head\`: the title and its links on one line, \`shop-space-block\` (24px) under it.
 - The catalog grid is 2 → 3 (600px) → 4 (800px) → 6 (1100px) across. Info pages use \`.info-grid\` (two columns from 800px).
 - **Breakpoints:** only \`min-width: 480 / 600 / 700 / 800 / 1100px\` and \`max-width\` one under a step (\`479 / 599 / 699 / 799 / 1099px\`), in CSS and in \`matchMedia\`; css/site.test.js rejects any other width. 600 is phones, 800 two columns and four across, 1100 the full menu and six across.

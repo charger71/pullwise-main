@@ -146,6 +146,19 @@ One question with a few answers picked by radio button, each answer a whole line
     html: page('AdminChoiceList', demo('Choice list')),
   },
   {
+    name: 'AdminChoiceCards', group: G('Forms'), height: 342,
+    readme: `# AdminChoiceCards
+
+One question whose answers are looks, each a card with a small picture: Shop Settings → Logo, Colors & Fonts → Layout uses it for the website's top navigation, home page banner and footer (pictures in admin/layouts/, options from js/layouts.js).
+
+- A \`fieldset.choice-cards\` with the question as its bold \`legend\`, a \`choice-cards__grid\` (auto-fill, at least 11rem a card), and one \`label.choice-card\` per answer: \`admin-surface\` with a \`--border\` edge and \`admin-radius\`, wrapping a visually hidden radio, the picture (\`alt=""\`), \`choice-card__name\` (bold) and \`choice-card__hint\` (\`admin-fs-sm\`, muted).
+- The picked card gets \`admin-select-bg-light\` and a \`admin-select-edge\` edge; keyboard focus rings the whole card in \`admin-focus\`; arrow keys move the pick like any radio group.
+- An answer that can't be picked yet is disabled and dimmed, with its reason as the hint ("Add a newsletter sign-up first").
+- Waits for Save like the rest of the settings form. For answers that are whole lines of text, use AdminChoiceList.
+- Consumer provides: the question, each answer's picture, name and hint, and which is picked.`,
+    html: page('AdminChoiceCards', demo('Picture cards').replace(/src="layouts\/([\w-]+)\.svg"/g, (m, f) => `src="data:image/svg+xml,${encodeURIComponent(readFileSync(`${REPO}admin/layouts/${f}.svg`, 'utf8'))}"`)),
+  },
+  {
     name: 'AdminDropzone', group: G('Forms'), height: 141,
     readme: `# AdminDropzone
 

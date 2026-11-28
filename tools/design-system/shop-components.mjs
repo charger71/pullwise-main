@@ -44,6 +44,69 @@ const card = ({ status, icon, label, title, variant, meta, chips, pick, top, foc
 </article>`;
 };
 
+// Layout picks (js/layouts.js): the variants beside the Classic / Banner / Full entries above. Each preview carries the
+// <body> attribute the site Worker stamps, on a wrapper.
+const SEARCH_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>';
+const navItems = '<li><a href="#" aria-current="page">Pre-Orders</a></li><li><a href="#">New Arrivals</a></li><li><a href="#">Calendar</a></li><li><a href="#">Visit</a></li><li><a href="#">My Pull List <span class="nav-badge">3</span></a></li>';
+const strip = (id) => `<div class="topbar"><div class="topbar__inner container"><p class="topbar__notice"><strong>Announcement:</strong> Free Comic Book Day is May 2.</p><form class="topbar__search" role="search" onsubmit="return false"><label class="visually-hidden" for="q-${id}">Search the site</label><input id="q-${id}" type="search" placeholder="Search"><button class="topbar__btn" type="submit" aria-label="Search">${SEARCH_SVG}</button></form></div></div>`;
+const toggleBtn = '<button class="nav-toggle" aria-expanded="false"><span class="nav-toggle__icon" aria-hidden="true"></span><span class="visually-hidden">Menu</span></button>';
+const brandEl = '<a class="brand" href="#"><span class="brand__name">Galaxy Comics <span>&amp;</span> Games</span></a>';
+const label = (t) => `<p class="container"><strong>${t}</strong></p>`;
+const legal = '<p class="container footer__legal">© 2026 Galaxy Comics &amp; Games · Powered by Pullwise</p>';
+const footLinks = '<li><a href="#">About</a></li><li><a href="#">Gift Cards</a></li><li><a href="#">FAQ</a></li><li><a href="#">Contact</a></li>';
+const visit = '<a href="#">1208 Main Street, Springfield, OR 97477</a> · <a href="#">(541) 555-0147</a> · Open today 10 AM – 8 PM';
+
+export const SHOP_LAYOUTS = [
+  {
+    name: 'ShopHeaderLayouts', group: G('Layout'), height: 393, width: 1200,
+    readme: `# ShopHeaderLayouts
+
+The other two top navigations a shop can pick in Shop Settings → Layout (Classic is ShopHeader). The Worker stamps the pick on \`body[data-header]\`; css/site.css draws each from it, so the first paint already has it. Every layout keeps the same phone menu.
+
+- **Centered** (\`data-header="centered"\`): the announcement and search strip, then the logo centered (up to 64px tall from 1100px) and the menu on its own centered row under a \`shop-line\` rule. On phones the logo stays centered with the menu button at the side.
+- **Bold bar** (\`data-header="bold"\`): one \`.header__bold\` band in \`shop-brand-accent\` holding the logo, the menu and a search button (\`.header__search-toggle\`, 44px, \`aria-expanded\`); everything on it is \`shop-on-accent\`, and My Pull List is a \`shop-paper\` pill with \`shop-gold-text\`. Search opens as a strip under the bar (\`.header__search\`); the announcement strip sits under the bar only when there is one. The phone menu button turns \`shop-paper\` with \`shop-ink\` bars.
+- Consumer provides: the same as ShopHeader, plus the layout pick. Rendered by \`renderHeader()\` in js/site.js.`,
+    html: page('ShopHeaderLayouts', `
+${label('Centered')}
+<div data-header="centered"><header id="site-header">${strip('c')}<div class="header__bar container">${brandEl}${toggleBtn}</div><div class="header__row container"><nav class="nav" aria-label="Main"><ul>${navItems}</ul></nav></div></header></div>
+${label('Bold bar')}
+<div data-header="bold"><header id="site-header"><div class="header__bold"><div class="header__bar container">${brandEl}<nav class="nav" aria-label="Main"><ul>${navItems}</ul></nav><button class="header__search-toggle" type="button" aria-expanded="false" aria-label="Search the site">${SEARCH_SVG}</button>${toggleBtn}</div></div><div class="topbar"><div class="topbar__inner container"><p class="topbar__notice"><strong>Announcement:</strong> Free Comic Book Day is May 2.</p></div></div></header></div>`, 'pw-shop'),
+  },
+  {
+    name: 'ShopHeroLayouts', group: G('Layout'), height: 1241, width: 1000,
+    readme: `# ShopHeroLayouts
+
+The other three home page heroes a shop can pick in Shop Settings → Layout (Banner is ShopHero). js/layouts.js \`heroView()\` decides the class, for the Worker's first paint and the page alike; the hero drawn can differ from the pick (Split without a banner photo, or the covers hero in a week with no new titles, show as the Banner).
+
+- **Split** (\`.hero--split\`): the headline, intro and button on the left half; the banner photo (\`--hero-image\`) fills \`.hero__photo\` on the right half, with no text over it. On phones the photo sits under the text, 220px tall.
+- **This week's covers** (\`.hero--covers\`): the headline (default "New this Wednesday at *shop*"), then \`.hero__covers\`: six covers, three per row on phones, each a button that opens the title's details. They are the first six of New This Week, and that shelf starts after them, so no title shows twice. Until they load, empty \`.hero__cover--slot\` blocks hold the space.
+- **Slim** (\`.hero--slim\`): one line, the headline in \`shop-fs-title\` with the primary button at the right; no intro or second button, so the shop's own top block and the shelves come first.
+- Consumer provides: the same as ShopHero, plus the layout pick and, for covers, New This Week.`,
+    html: page('ShopHeroLayouts', `
+${label('Split')}
+<section class="hero hero--split" style="--hero-image: linear-gradient(135deg, #3a2c0c, #7a5a1a)"><div class="container"><h1>Your week in comics, <span>held at the counter</span></h1><p>Reserve this week's books and next month's pre-orders.</p><div class="hero__actions"><a class="btn btn--primary" href="#">Start your pull list</a><a class="btn btn--ghost" href="#">See what's new</a></div></div><div class="hero__photo"></div></section>
+${label("This week's covers")}
+<section class="hero hero--covers"><div class="container"><h1>New this Wednesday at <span>Galaxy Comics</span></h1><div class="hero__covers">${'<button class="hero__cover" type="button" aria-label="Title (details)"><span class="cover cover--placeholder">Image coming soon</span></button>'.repeat(6)}</div><div class="hero__actions"><a class="btn btn--primary" href="#">Start your pull list</a><a class="btn btn--ghost" href="#">See what's new</a></div></div></section>
+${label('Slim')}
+<section class="hero hero--slim"><div class="container"><h1>Galaxy Comics — <span>your local comic shop</span></h1><p data-setting="tagline">Comics, collectibles &amp; more</p><div class="hero__actions"><a class="btn btn--primary" href="#">Start your pull list</a><a class="btn btn--ghost" href="#">See what's new</a></div></div></section>`, 'pw-shop'),
+  },
+  {
+    name: 'ShopFooterLayouts', group: G('Layout'), height: 785, width: 1000,
+    readme: `# ShopFooterLayouts
+
+The other two footers a shop can pick in Shop Settings → Layout (Full is ShopFooter), from \`body[data-footer]\`. Both keep the copyright line with " · Powered by Pullwise".
+
+- **Simple** (\`data-footer="simple"\`, \`.footer__simple\`): centered: the logo or name, one line of the footer links (\`.footer__links--inline\`), one line of where and when (\`.footer__line\`: address · phone · "Open today …" or "Closed today", from the weekly and holiday hours; a shop with several locations lists their names, linking to Visit), then the social icons. Full hours stay on the Visit page.
+- **Sign-up first** (\`data-footer="signup"\`): the newsletter band becomes \`.newsletter--lead\` (heading and intro on the left, the sign-up form on the right from 800px), then a two-column Visit / More block. Only offered once the shop has a newsletter sign-up; without one the site draws Simple.
+- Consumer provides: the same as ShopFooter, plus the layout pick. Rendered by \`renderFooter()\` in js/site.js.`,
+    html: page('ShopFooterLayouts', `
+${label('Simple')}
+<div data-footer="simple"><footer id="site-footer"><div class="container footer__simple"><a class="brand footer__brand" href="#"><span class="brand__name">Galaxy Comics <span>&amp;</span> Games</span></a><ul class="footer__links footer__links--inline">${footLinks}</ul><p class="footer__line">${visit}</p><ul class="socials">${soc('instagram')}${soc('discord')}</ul></div>${legal}</footer></div>
+${label('Sign-up first')}
+<div data-footer="signup"><section class="newsletter newsletter--lead"><div class="container"><h2>Get the Weekly New&#8209;Release Email</h2><div class="lede"><p>Every Tuesday: what's out Wednesday and what's at FOC.</p></div><div id="newsletter-form"><button class="btn btn--primary" type="button">Sign up</button></div></div></section><footer id="site-footer"><div class="container footer__grid"><section><h2 class="footer__heading">Visit</h2><p class="footer__line">${visit}</p></section><section><h2 class="footer__heading">More</h2><ul class="footer__links">${footLinks}</ul></section></div>${legal}</footer></div>`, 'pw-shop'),
+  },
+];
+
 export const SHOP = [
   {
     name: 'ShopHeader', group: G('Layout'), height: 126, width: 1200,
@@ -56,7 +119,8 @@ The storefront's sticky header: an announcement and search bar on top, then the 
 - **Menu** (\`.nav\`): Pre-Orders, New Arrivals, We Buy, Calendar, News, Visit, My Pull List, plus any custom pages. The current page is \`shop-gold-text\` and underlined (\`aria-current="page"\`). A count badge (\`.nav-badge\`) is \`shop-red-btn\`; \`.nav-badge--new\` is \`shop-gold\` with \`shop-on-accent\` text.
 - Below 1100px the menu folds behind the gold \`.nav-toggle\` (44px) and opens as a panel under the header that scrolls if it runs past the screen.
 - A skip link (\`.skip-link\`) is always first.
-- Consumer provides: shop settings (name, logo, announcement) and the page id for \`aria-current\`. Rendered by \`renderHeader()\` in js/site.js.`,
+- **Layouts** (Shop Settings → Layout, \`body[data-header]\`): this is Classic; Centered and Bold bar are in ShopHeaderLayouts.
+- Consumer provides: shop settings (name, logo, announcement, layout) and the page id for \`aria-current\`. Rendered by \`renderHeader()\` in js/site.js.`,
     html: page('ShopHeader', `
 <header id="site-header">
   <div class="topbar">
@@ -91,7 +155,8 @@ The storefront footer: the newsletter band, then three columns (address and cont
 - **Social** (\`.socials\`): the **Social icons** asset group at 20px in 44px tap areas, plain in the footer (no circles), pulled left so the first glyph lines up with the text.
 - Links in "More" run in two columns and wrap long page titles instead of widening the page.
 - **Copyright line** (\`.footer__legal\`, \`shop-fs-xs\`, centred): the shop's copyright text (or "© year shop name"), then " · Powered by Pullwise" in the same small text. It's plain text, not a link, and the only place Pullwise appears on the site. The "Get the App" link shows only for shops with the app.
-- Consumer provides: shop settings (address, phone, email, hours, socials, copyright). Rendered by \`renderFooter()\` in js/site.js.`,
+- **Layouts** (Shop Settings → Layout, \`body[data-footer]\`): this is Full; Simple and Sign-up first are in ShopFooterLayouts.
+- Consumer provides: shop settings (address, phone, email, hours, socials, copyright, layout). Rendered by \`renderFooter()\` in js/site.js.`,
     html: page('ShopFooter', `
 <section class="newsletter"><div class="container"><h2>Get the Weekly New&#8209;Release Email</h2><div class="lede"><p>Every Tuesday: what's out Wednesday and what's at FOC.</p></div></div></section>
 <footer id="site-footer">
@@ -126,6 +191,7 @@ The home page opener: the shop's headline over a faint halftone dot screen, an i
 - Intro in \`shop-cream\`, at most 620px wide. Actions in \`.hero__actions\`: one \`btn--primary\`, one ghost.
 - With a banner photo (\`.hero--photo\`, the picture in \`--hero-image\`) a left-to-right \`shop-paper\` scrim (92% → 60%) keeps the headline readable on any picture.
 - Padding 64px, 96px from 800px wide. A single \`shop-line\` rule underneath.
+- **Layouts** (Shop Settings → Layout): this is Banner; Split, This week's covers and Slim are in ShopHeroLayouts.
 - Consumer provides: headline, intro, actions and optional photo, all from Shop Settings and page text.`,
     html: page('ShopHero', `
 <section class="hero"><div class="container">
@@ -660,3 +726,6 @@ Empty results, and the placeholders that hold a list's space while it loads.
     html: page('ShopEmpty', `<p class="empty">No titles match. Clear a filter to see more.</p>`),
   },
 ];
+
+// The layout variants sit right after the Banner hero, with the rest of the Layout group.
+SHOP.splice(SHOP.findIndex((c) => c.name === 'ShopHero') + 1, 0, ...SHOP_LAYOUTS);

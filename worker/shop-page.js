@@ -4,6 +4,7 @@
 import { esc, sizedImage, heroHeadlineHtml, HERO_WIDTH, LOGO_WIDTH } from '../js/util.js';
 import { themeCss, fontPreloads } from '../js/theme-vars.js';
 import { offHrefs, postHref } from '../js/optional-pages.js';
+import { layoutOf, heroView } from '../js/layouts.js';
 
 /** The shop whose domain this is, or null (then the site runs on the static js/config.js: demo mode). */
 export function findShop(shops, hostname) {
@@ -368,13 +369,9 @@ export function sitemapXml(shop, off = [], extra = {}) {
 /** /robots.txt for one shop: the static file's rules plus its own sitemap address. */
 export const robotsTxt = (shop, staticText) => `${staticText.trimEnd()}\n\nSitemap: ${siteUrl(shop)}/sitemap.xml\n`;
 
-/** The home page banner, so it paints with the first frame (js/pages/home.js re-applies live settings on load). */
-export function hero(settings) {
-  const photo = Boolean(https(settings.hero_image_url));
-  return {
-    className: photo ? 'hero hero--photo' : 'hero',
-    style: photo ? `--hero-image: url("${sizedImage(settings.hero_image_url, HERO_WIDTH)}")` : null,
-    headlineHtml: heroHeadlineHtml(settings),
-    tagline: (settings.tagline ?? '').trim(),
-  };
-}
+/** The shop's layout picks (js/layouts.js) as <body> attributes, so the first paint has the chosen header, hero and footer. */
+export const bodyLayoutAttrs = (settings) =>
+  Object.fromEntries(Object.entries(layoutOf(settings)).map(([area, id]) => [`data-${area}`, id]));
+
+/** The home page banner in the shop's chosen hero, so it paints with the first frame (js/layouts.js heroView; js/pages/home.js re-applies live settings on load with the same function). */
+export const hero = (settings) => heroView(settings);

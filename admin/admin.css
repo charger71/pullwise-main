@@ -368,6 +368,21 @@ textarea { padding: var(--sp-10) var(--sp-12); line-height: 1.45; }
 .choice-list__option { display: flex; align-items: center; gap: var(--sp-8); min-height: var(--tap); margin: 0; font-weight: 400; cursor: pointer; }
 .choice-list[aria-busy="true"] { opacity: .6; }
 
+/* Picture cards (Shop Settings → Layout): one question, a few looks to pick from, each a radio wrapped in a card with
+   a small picture, a name and a line of hint. The picked card gets the selection fill and edge; a card that can't be
+   picked yet is dimmed with its reason as the hint. Waits for Save like the rest of the form. */
+.choice-cards { margin: 0 0 var(--sp-16); padding: 0; border: 0; min-width: 0; }
+.choice-cards legend { padding: 0; margin-bottom: var(--sp-8); font-weight: 700; }
+.choice-cards__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--sp-12); }
+.choice-card { position: relative; display: flex; flex-direction: column; gap: var(--sp-6); margin: 0; padding: var(--sp-10); border: var(--border); border-radius: var(--radius); background: var(--surface); font-weight: 400; cursor: pointer; }
+.choice-card input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.choice-card img { display: block; width: 100%; height: auto; }
+.choice-card__name { font-weight: 700; }
+.choice-card__hint { font-size: var(--fs-sm); color: var(--muted); }
+.choice-card:has(input:checked) { background: var(--select-bg-light); border-color: var(--select-edge); box-shadow: inset 0 0 0 1px var(--select-edge); }
+.choice-card:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+.choice-card:has(input:disabled) { cursor: not-allowed; opacity: .6; }
+
 /* Pull list import review (sections/import-pull-lists.js): a fold per customer, the series search under a line */
 .pull-matched > summary { cursor: pointer; font-weight: 700; min-height: var(--tap); display: flex; align-items: center; }
 .pull-find__form { display: flex; flex-wrap: wrap; gap: var(--sp-8); align-items: center; margin-top: var(--sp-8); }

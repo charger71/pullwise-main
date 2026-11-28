@@ -11,6 +11,7 @@ import { $, $$, esc, must, toast, setStatus, settingsField, formReaders, solidIc
 import { imageField } from '../images.js';
 import { capField, trustRowFrom, settingChange, DAY_FIELDS } from '../trust.js';
 import { holidayEditor } from '../holiday-hours.js';
+import { LAYOUTS, layoutOf } from '../../js/layouts.js';
 
 const DAYS = [['Mo', 'Mon'], ['Tu', 'Tue'], ['We', 'Wed'], ['Th', 'Thu'], ['Fr', 'Fri'], ['Sa', 'Sat'], ['Su', 'Sun']];
 const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
@@ -96,6 +97,10 @@ export async function mount(el, { sb }) {
             <p class="field__hint">Links in text and focus outlines. Automatic picks a blue that reads well on the page background; pick your own to override it (make sure it is readable on the page background).</p></div></div>
         <p class="field__hint">The site is designed for a dark page background with light text. Everything else (cards, borders, muted text) is worked out from these five colors. Use the page background and text colors together: a dark background needs light text.</p>
         <div class="contrast" data-contrast aria-live="polite"></div>
+      </div></section>
+      <section class="fold fold--compact fold--static"><div class="fold__head"><h2>Layout</h2></div><div class="fold__body">
+        <p class="field__hint">How the website's top, home page banner and footer are laid out. Your logo, colors and fonts apply to every layout.</p>
+        ${layoutPicker(s)}
       </div></section>
       ${APP_ENABLED ? `<section class="fold fold--compact fold--static"><div class="fold__head"><h2>Pull List App</h2></div><div class="fold__body">
         <div data-app-icon></div>
@@ -263,6 +268,7 @@ export async function mount(el, { sb }) {
     const row = {
       shop_name: text('shop_name'), tagline: text('tagline'), hero_headline: text('hero_headline'), copyright_text: text('copyright_text'), footer_scripts: text('footer_scripts'), chat_available: f.has('chat_available'), maintenance_mode: f.has('maintenance_mode'), maintenance_message: text('maintenance_message'), chat_greeting: text('chat_greeting'), founded_year: int('founded_year', null),
       phone: text('phone'), email: text('email'), street: text('street'), city: text('city'), region: text('region'), postal_code: text('postal_code'),
+      layout: Object.fromEntries(LAYOUT_AREAS.map(([area]) => [area, f.get(`layout-${area}`) ?? layoutOf(s)[area]])),
       hours, holiday_hours: holiday.list, socials, colors, fonts: fontPicks, logo_url: logo.get(), favicon_url: favicon.get(), show_name_with_logo: f.has('show_name_with_logo'), hero_image_url: hero.get(), show_map: f.has('show_map'), map_embed_url: mapUrl, ga_measurement_id: gaId,
       max_copies_per_title: int('max_copies_per_title', 10), hold_days: int('hold_days', 30),
       timezone: f.get('timezone'),
@@ -347,6 +353,23 @@ function setupTrustPane(form) {
 
 /** The trust_settings row from the form, or a message saying what to fix. Hidden fields still send their values. */
 const readTrust = (f) => trustRowFrom((k) => f.get(k), (k) => f.has(k));
+
+const LAYOUT_AREAS = [['header', 'Top navigation'], ['hero', 'Home page banner'], ['footer', 'Footer']];
+
+/**
+ * The Layout fold: picture cards (style guide → Forms → Picture cards) for the website's top navigation, home page
+ * banner and footer, from js/layouts.js. Sign-up first can't be picked until the shop has a newsletter sign-up
+ * (Emails), unless it already is the pick.
+ */
+function layoutPicker(s) {
+  const picked = layoutOf(s);
+  const noSignup = !s.newsletter_embed?.trim();
+  return LAYOUT_AREAS.map(([area, legend]) => `
+        <fieldset class="choice-cards"><legend>${legend}</legend><div class="choice-cards__grid">${LAYOUTS[area].map((o) => {
+          const off = area === 'footer' && o.id === 'signup' && noSignup && picked.footer !== 'signup';
+          return `<label class="choice-card"><input type="radio" name="layout-${area}" value="${o.id}"${picked[area] === o.id ? ' checked' : ''}${off ? ' disabled' : ''}><img src="layouts/${area}-${o.id}.svg" alt="" width="120" height="80"><span class="choice-card__name">${esc(o.label)}</span><span class="choice-card__hint">${esc(off ? 'Add a newsletter sign-up first (Emails → Weekly Email Signup).' : o.hint)}</span></label>`;
+        }).join('')}</div></fieldset>`).join('');
+}
 
 async function refreshTrust(sb, form) {
   const [t, log] = await Promise.all([

@@ -1,6 +1,6 @@
 // node worker/shop-page.test.js
 import assert from 'node:assert/strict';
-import { assetLinks, findShop, siteUrl, hasApp, hasLocations, appRedirect, appManifest, appSplash, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt, seriesPreview, seriesPreviewTags } from './shop-page.js';
+import { bodyLayoutAttrs, assetLinks, findShop, siteUrl, hasApp, hasLocations, appRedirect, appManifest, appSplash, configJs, fileOf, pageTitle, headTags, hero, sitemapXml, robotsTxt, seriesPreview, seriesPreviewTags } from './shop-page.js';
 
 const shops = [
   { id: 'a', domains: ['a-comics.com', 'www.a-comics.com'], supabaseUrl: 'https://aaa.supabase.co', anonKey: 'key-a', gaMeasurementId: 'G-1', app: true },
@@ -102,12 +102,33 @@ assert.equal((many.match(/event\.html\?id=/g) ?? []).length, 500, 'at most 500 e
 assert.equal(robotsTxt(shops[0], 'User-agent: *\nDisallow: /admin/\n'), 'User-agent: *\nDisallow: /admin/\n\nSitemap: https://a-comics.com/sitemap.xml\n');
 
 // Home banner
-assert.deepEqual(hero({ shop_name: 'Shop', tagline: ' Hi ' }), { className: 'hero', style: null, headlineHtml: 'Shop', tagline: 'Hi' });
+assert.deepEqual(hero({ shop_name: 'Shop', tagline: ' Hi ' }), { className: 'hero', style: null, headlineHtml: 'Shop', tagline: 'Hi', layout: 'banner', photo: false, coverSlots: 0, secondButton: true });
 const h = hero({ hero_headline: 'Comics. *Toys.* <b>', hero_image_url: `${MEDIA}/hero.jpg` });
 assert.equal(h.className, 'hero hero--photo');
 assert.match(h.style, /^--hero-image: url\("https:\/\/aaa\.supabase\.co\/storage\/v1\/render\/image\/public\/media\/hero\.jpg\?width=1400/);
 assert.equal(h.headlineHtml, 'Comics. <span>Toys.</span> &lt;b&gt;');
 assert.equal(hero({ hero_image_url: 'javascript:alert(1)' }).style, null, 'only https photos');
+
+// Layout picks: stamped on <body> for every page; the hero drawn in the chosen shape
+assert.deepEqual(bodyLayoutAttrs({}), { 'data-header': 'classic', 'data-hero': 'banner', 'data-footer': 'full' });
+assert.deepEqual(bodyLayoutAttrs({ layout: { header: 'bold', hero: 'covers', footer: 'nope' } }), { 'data-header': 'bold', 'data-hero': 'covers', 'data-footer': 'full' });
+assert.equal(hero({ layout: { hero: 'split' } }).layout, 'banner', 'split without a photo → banner');
+const sp = hero({ layout: { hero: 'split' }, hero_image_url: `${MEDIA}/hero.jpg` });
+assert.equal(sp.layout, 'split');
+assert.equal(sp.className, 'hero hero--split');
+assert.match(sp.style, /^--hero-image: url\("https:\/\/aaa\.supabase\.co\//, 'the photo is a variable for .hero__photo beside the text');
+assert.equal(sp.photo, true);
+assert.equal(hero({ layout: { hero: 'split' }, hero_image_url: 'javascript:alert(1)' }).photo, false, 'only https photos; falls back to the banner');
+const cv = hero({ layout: { hero: 'covers' }, shop_name: 'Derby', hero_image_url: `${MEDIA}/hero.jpg` });
+assert.equal(cv.coverSlots, 6);
+assert.equal(cv.className, 'hero hero--covers');
+assert.equal(cv.style, null, 'covers hero has no photo');
+assert.equal(cv.headlineHtml, 'New this Wednesday at <span>Derby</span>', 'default covers headline');
+assert.equal(hero({ layout: { hero: 'covers' }, hero_headline: 'Fresh *ink*' }).headlineHtml, 'Fresh <span>ink</span>');
+const sl = hero({ layout: { hero: 'slim' }, tagline: 'Hi' });
+assert.equal(sl.className, 'hero hero--slim');
+assert.equal(sl.tagline, '');
+assert.equal(sl.secondButton, false);
 
 // The pull list app: app.<domain> forwards to /app on the shop's main domain; the manifest is the shop's own
 assert.equal(appRedirect(shops, 'app.a-comics.com'), 'https://a-comics.com/app');

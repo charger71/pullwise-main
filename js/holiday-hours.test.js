@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { validHoliday, futureHolidays, upcomingHolidays, tidyHoliday, HOLIDAY_LOOKAHEAD_DAYS } from './holiday-hours.js';
+import { validHoliday, futureHolidays, upcomingHolidays, tidyHoliday, todayHours, HOLIDAY_LOOKAHEAD_DAYS } from './holiday-hours.js';
 
 const xmas = { date: '2026-12-25', label: 'Christmas Day', closed: true };
 const eve = { date: '2026-12-24', label: 'Christmas Eve', open: '10:00', close: '15:00' };
@@ -29,4 +29,15 @@ assert.deepEqual(upcomingHolidays([xmas], '2026-11-16', 7), []);
 assert.deepEqual(tidyHoliday({ date: '2026-12-25', label: '  ', closed: true, open: '10:00', close: '15:00' }), { date: '2026-12-25', closed: true });
 assert.deepEqual(tidyHoliday({ date: '2026-12-24', label: ' Christmas Eve ', closed: false, open: '10:00', close: '15:00' }), eve);
 
+
+// Today's hours (the Simple footer): a holiday that day wins, else the weekly hours for that weekday.
+const wk = [{ days: ['We', 'Th'], open: '10:00', close: '20:00' }, { days: ['Su'], open: '12:00', close: '17:00' }];
+assert.deepEqual(todayHours(wk, [], '2026-12-02'), { open: '10:00', close: '20:00' }, 'a Wednesday');
+assert.deepEqual(todayHours(wk, [], '2026-12-06'), { open: '12:00', close: '17:00' }, 'a Sunday');
+assert.deepEqual(todayHours(wk, [], '2026-12-07'), { closed: true }, 'a Monday: not in the weekly hours');
+assert.deepEqual(todayHours(wk, [{ date: '2026-12-02', closed: true }], '2026-12-02'), { closed: true });
+assert.deepEqual(todayHours(wk, [{ date: '2026-12-02', open: '12:00', close: '16:00' }], '2026-12-02'), { open: '12:00', close: '16:00' });
+assert.deepEqual(todayHours(wk, [{ date: '2026-12-02', open: '12:00' }], '2026-12-02'), { open: '10:00', close: '20:00' }, 'a malformed holiday is ignored');
+assert.equal(todayHours([], [], '2026-12-02'), null, 'no hours at all');
+assert.equal(todayHours(undefined, undefined, '2026-12-02'), null);
 console.log('holiday-hours ok');

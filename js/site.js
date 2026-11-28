@@ -13,7 +13,8 @@ import { readCache, writeCache, sameData } from './cache.js';
 import { esc, itemTitle, heroHeadlineHtml, sizedImage, LOGO_WIDTH, HERO_WIDTH, formatPhone, prefersReducedMotion, chatOn, price } from './util.js';
 import { ITEM_STATUS, ITEM_BADGES } from './labels.js';
 import { offHrefs, slugOfPage, orderMenu, customHref, customSlugHere } from './optional-pages.js';
-import { upcomingHolidays } from './holiday-hours.js';
+import { upcomingHolidays, todayHours } from './holiday-hours.js';
+import { layoutOf } from './layouts.js';
 import { localDate, addDays, todayIn, lastReserveDay, setShopTimeZone, shopTimeZone, shopToday, daysUntil, cutoffPassed, fmtDateIn, fmtTimeIn } from './dates.js';
 
 export { esc, itemTitle, heroHeadlineHtml, sizedImage, HERO_WIDTH, localDate, addDays, lastReserveDay, price, ITEM_BADGES, shopToday, daysUntil, cutoffPassed };
@@ -270,33 +271,67 @@ function renderAppHeader(s) {
     </div>`;
 }
 
+const SEARCH_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>';
+
+/**
+ * The site header in the shop's chosen layout (js/layouts.js; css/site.css draws each from body[data-header]):
+ * Classic (announcement and search strip, logo left, menu right), Centered (the same strip, logo centered, menu on its
+ * own row) or Bold bar (one accent-colored bar with logo, menu and a search button; the announcement under it).
+ * Every layout uses the same phone menu.
+ */
 function renderHeader(s, page, extraNav = [], off = new Set()) {
-  const brand = brandHtml(s);
-  $('#site-header').innerHTML = `
-    <a class="skip-link" href="${esc(location.pathname + location.search)}#main">Skip to content</a>
-    <div class="topbar">
-      <div class="topbar__inner container">
-        ${s.announcement ? `<p class="topbar__notice"><strong>Announcement:</strong> ${linkify(s.announcement)}</p>` : '<p class="topbar__notice" hidden></p>'}
+  const { header } = layoutOf(s, document.body.dataset);
+  const brand = `<a class="brand" href="index.html">${brandHtml(s)}</a>`;
+  const notice = s.announcement ? `<p class="topbar__notice"><strong>Announcement:</strong> ${linkify(s.announcement)}</p>` : '<p class="topbar__notice" hidden></p>';
+  const search = `
         <form class="topbar__search" role="search" action="search.html">
           <label class="visually-hidden" for="site-q">Search the site</label>
           <input id="site-q" type="search" name="q" placeholder="Search" maxlength="100" autocomplete="off" required>
-          <button class="topbar__btn" type="submit" aria-label="Search"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button>
-        </form>
-      </div>
-    </div>
-    ${DEMO ? '<p class="demo-banner">Demo mode — showing sample data. Connect Supabase in <code>js/config.js</code>.</p>' : ''}
-    <div class="header__bar container">
-      <a class="brand" href="index.html">${brand}</a>
-      <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">
+          <button class="topbar__btn" type="submit" aria-label="Search">${SEARCH_ICON}</button>
+        </form>`;
+  const menuBtn = `<button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">
         <span class="nav-toggle__icon" aria-hidden="true"></span><span class="visually-hidden">Menu</span>
-      </button>
-      <nav id="site-nav" class="nav" aria-label="Main">
+      </button>`;
+  const nav = `<nav id="site-nav" class="nav" aria-label="Main">
         <ul>${[...orderMenu([...NAV.slice(0, -1), ...extraNav], s.menu_order ?? []), NAV.at(-1)].filter((n) => !off.has(n.href)).map(
           // Custom pages' titles are staff text: escaped like everything else.
           (n) => `<li><a href="${esc(n.href)}"${n.page === page ? ' aria-current="page"' : ''}>${esc(n.label)}</a></li>`,
         ).join('')}</ul>
-      </nav>
+      </nav>`;
+  const skip = `<a class="skip-link" href="${esc(location.pathname + location.search)}#main">Skip to content</a>`;
+  const demo = DEMO ? '<p class="demo-banner">Demo mode — showing sample data. Connect Supabase in <code>js/config.js</code>.</p>' : '';
+  const strip = `<div class="topbar"><div class="topbar__inner container">${notice}${search}</div></div>`;
+  $('#site-header').innerHTML =
+    header === 'bold'
+      ? `${skip}
+    <div class="header__bold">
+      <div class="header__bar container">
+        ${brand}
+        <button class="header__search-toggle" type="button" aria-expanded="false" aria-controls="header-search" aria-label="Search the site">${SEARCH_ICON}</button>
+        ${menuBtn}
+        ${nav}
+      </div>
+    </div>
+    <div class="topbar header__search" id="header-search" hidden><div class="topbar__inner container">${search}</div></div>
+    ${s.announcement ? `<div class="topbar"><div class="topbar__inner container">${notice}</div></div>` : ''}
+    ${demo}`
+      : header === 'centered'
+        ? `${skip}${strip}${demo}
+    <div class="header__bar container">${brand}${menuBtn}</div>
+    <div class="header__row container">${nav}</div>`
+        : `${skip}${strip}${demo}
+    <div class="header__bar container">
+      ${brand}
+      ${menuBtn}
+      ${nav}
     </div>`;
+  const searchToggle = $('.header__search-toggle');
+  searchToggle?.addEventListener('click', () => {
+    const open = searchToggle.getAttribute('aria-expanded') !== 'true';
+    searchToggle.setAttribute('aria-expanded', open);
+    $('#header-search').hidden = !open;
+    if (open) $('#site-q').focus();
+  });
   const toggle = $('.nav-toggle');
   // The header can be repainted (saved snapshot → fresh settings) while the menu is open.
   if (document.body.classList.contains('nav-open')) toggle.setAttribute('aria-expanded', 'true');
@@ -354,6 +389,27 @@ function loadNewsletterForm(embed) {
   watcher.observe(host);
 }
 
+/**
+ * One line of where and when: address, phone and today's hours, or each location's name for a shop with several,
+ * linked to the Visit page unless it's off (`off`: the off pages' hrefs).
+ */
+export function visitLine(s, off = new Set()) {
+  if (s.locations?.length) return s.locations.map((l) => (off.has('contact.html') ? esc(l.name) : `<a href="contact.html">${esc(l.name)}</a>`)).join(' · ');
+  const addr = addressLines(s);
+  const today = todayHours(s.hours, s.holiday_hours, shopToday());
+  return [
+    addr.length ? `<a href="${esc(mapsHref(s))}">${addr.map(esc).join(', ')}</a>` : '',
+    s.phone ? `<a href="${telHref(s.phone)}">${esc(formatPhone(s.phone))}</a>` : '',
+    today ? (today.closed ? 'Closed today' : `Open today ${esc(time12(today.open))} – ${esc(time12(today.close))}`) : '',
+  ].filter(Boolean).join(' · ');
+}
+
+/**
+ * The site footer in the shop's chosen layout (js/layouts.js; css/site.css styles each from body[data-footer]):
+ * Full (address, hours, social and links in three columns), Simple (logo, one line of links, one line of where and
+ * when) or Sign-up first (the newsletter band leads, then a two-column Visit / More block; without a newsletter
+ * sign-up it is Simple). The newsletter band sits above every footer when the shop has one.
+ */
 function renderFooter(s, extraLinks = [], off = new Set()) {
   const addr = addressLines(s);
   // A shop with several locations lists each one's address, phone and hours.
@@ -362,6 +418,8 @@ function renderFooter(s, extraLinks = [], off = new Set()) {
   const footer = $('#site-footer');
   const social = socialIcons(s);
   const embed = s.newsletter_embed?.trim() ?? '';
+  const picked = layoutOf(s, document.body.dataset).footer;
+  const kind = picked === 'signup' && !embed ? 'simple' : picked;
   if (!embed) $('.newsletter')?.remove();
   else if (!$('.newsletter')) footer.insertAdjacentHTML('beforebegin', `
     <section class="newsletter" aria-labelledby="newsletter-title">
@@ -371,6 +429,37 @@ function renderFooter(s, extraLinks = [], off = new Set()) {
         <div id="newsletter-form"></div>
       </div>
     </section>`), fillContent(getSettings()).catch(() => {}); // the page's content was filled before this section existed
+  $('.newsletter')?.classList.toggle('newsletter--lead', kind === 'signup');
+  const links = orderMenu([...FOOTER_LINKS, ...(chatOn(s) ? [{ href: '#chat', label: 'Chat with us' }] : []), ...extraLinks], s.footer_order ?? []).filter((l) => !off.has(l.href)).map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('');
+  const legal = `<p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)} · ${POWERED_BY}</p>`;
+  const visit = visitLine(s, off);
+  if (kind === 'simple') {
+    footer.innerHTML = `
+    <div class="container footer__simple">
+      <a class="brand footer__brand" href="index.html">${brandHtml(s).replace(' fetchpriority="high"', ' loading="lazy"')}</a>
+      <ul class="footer__links footer__links--inline">${links}</ul>
+      ${visit ? `<p class="footer__line">${visit}</p>` : ''}
+      ${social}
+    </div>
+    ${legal}`;
+    return;
+  }
+  if (kind === 'signup') {
+    footer.innerHTML = `
+    <div class="container footer__grid">
+      <section>
+        <h2 class="footer__heading">Visit</h2>
+        ${visit ? `<p class="footer__line">${visit}</p>` : ''}
+        ${social}
+      </section>
+      <section>
+        <h2 class="footer__heading">More</h2>
+        <ul class="footer__links">${links}</ul>
+      </section>
+    </div>
+    ${legal}`;
+    return;
+  }
   footer.innerHTML = `
     <div class="container footer__grid">
       <section>
@@ -389,10 +478,10 @@ function renderFooter(s, extraLinks = [], off = new Set()) {
       </section>
       <section>
         <h2 class="footer__heading">More</h2>
-        <ul class="footer__links">${orderMenu([...FOOTER_LINKS, ...(chatOn(s) ? [{ href: '#chat', label: 'Chat with us' }] : []), ...extraLinks], s.footer_order ?? []).filter((l) => !off.has(l.href)).map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('')}</ul>
+        <ul class="footer__links">${links}</ul>
       </section>
     </div>
-    <p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)} · ${POWERED_BY}</p>`;
+    ${legal}`;
 }
 
 let pageTitle;
@@ -707,6 +796,9 @@ export async function initPage() {
     setShopTimeZone(s.timezone);
     // The built-in fallback has no colors or fonts: leave the Worker's theme alone until the real settings arrive.
     if (s !== FALLBACK_SETTINGS) applyTheme(s);
+    // The layout picks on <body> (the Worker stamps them; the saved settings win once loaded): css/site.css and the
+    // header, hero and footer code read them from there.
+    if (!app) Object.assign(document.body.dataset, layoutOf(s, document.body.dataset));
     if (app) renderAppHeader(s);
     else {
       const pageHref = (p) => customHref(p.slug);
