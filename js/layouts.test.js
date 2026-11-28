@@ -1,5 +1,6 @@
 // node js/layouts.test.js
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { LAYOUTS, layoutOf, heroCovers, HERO_COVERS } from './layouts.js';
 
 // A shop's picks: saved settings, else (before settings load) what the Worker stamped on <body>, else today's look.
@@ -27,5 +28,11 @@ for (const area of Object.keys(LAYOUTS)) {
 assert.deepEqual(LAYOUTS.header.map((o) => o.id), ['classic', 'centered', 'bold']);
 assert.deepEqual(LAYOUTS.hero.map((o) => o.id), ['banner', 'split', 'covers', 'slim']);
 assert.deepEqual(LAYOUTS.footer.map((o) => o.id), ['full', 'simple', 'signup']);
+
+// Every option other than the default has its look in css/site.css, keyed off the <body> attribute.
+const css = readFileSync(new URL('../css/site.css', import.meta.url), 'utf8');
+for (const area of ['header']) {
+  for (const o of LAYOUTS[area].slice(1)) assert.ok(css.includes(`[data-${area}="${o.id}"]`), `css/site.css has no rule for ${area} "${o.id}"`);
+}
 
 console.log('layouts ok');

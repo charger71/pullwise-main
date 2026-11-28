@@ -14,6 +14,7 @@ import { esc, itemTitle, heroHeadlineHtml, sizedImage, LOGO_WIDTH, HERO_WIDTH, f
 import { ITEM_STATUS, ITEM_BADGES } from './labels.js';
 import { offHrefs, slugOfPage, orderMenu, customHref, customSlugHere } from './optional-pages.js';
 import { upcomingHolidays } from './holiday-hours.js';
+import { layoutOf } from './layouts.js';
 import { localDate, addDays, todayIn, lastReserveDay, setShopTimeZone, shopTimeZone, shopToday, daysUntil, cutoffPassed, fmtDateIn, fmtTimeIn } from './dates.js';
 
 export { esc, itemTitle, heroHeadlineHtml, sizedImage, HERO_WIDTH, localDate, addDays, lastReserveDay, price, ITEM_BADGES, shopToday, daysUntil, cutoffPassed };
@@ -270,33 +271,67 @@ function renderAppHeader(s) {
     </div>`;
 }
 
+const SEARCH_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>';
+
+/**
+ * The site header in the shop's chosen layout (js/layouts.js; css/site.css draws each from body[data-header]):
+ * Classic (announcement and search strip, logo left, menu right), Centered (the same strip, logo centered, menu on its
+ * own row) or Bold bar (one accent-colored bar with logo, menu and a search button; the announcement under it).
+ * Every layout uses the same phone menu.
+ */
 function renderHeader(s, page, extraNav = [], off = new Set()) {
-  const brand = brandHtml(s);
-  $('#site-header').innerHTML = `
-    <a class="skip-link" href="${esc(location.pathname + location.search)}#main">Skip to content</a>
-    <div class="topbar">
-      <div class="topbar__inner container">
-        ${s.announcement ? `<p class="topbar__notice"><strong>Announcement:</strong> ${linkify(s.announcement)}</p>` : '<p class="topbar__notice" hidden></p>'}
+  const { header } = layoutOf(s, document.body.dataset);
+  const brand = `<a class="brand" href="index.html">${brandHtml(s)}</a>`;
+  const notice = s.announcement ? `<p class="topbar__notice"><strong>Announcement:</strong> ${linkify(s.announcement)}</p>` : '<p class="topbar__notice" hidden></p>';
+  const search = `
         <form class="topbar__search" role="search" action="search.html">
           <label class="visually-hidden" for="site-q">Search the site</label>
           <input id="site-q" type="search" name="q" placeholder="Search" maxlength="100" autocomplete="off" required>
-          <button class="topbar__btn" type="submit" aria-label="Search"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button>
-        </form>
-      </div>
-    </div>
-    ${DEMO ? '<p class="demo-banner">Demo mode — showing sample data. Connect Supabase in <code>js/config.js</code>.</p>' : ''}
-    <div class="header__bar container">
-      <a class="brand" href="index.html">${brand}</a>
-      <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">
+          <button class="topbar__btn" type="submit" aria-label="Search">${SEARCH_ICON}</button>
+        </form>`;
+  const menuBtn = `<button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">
         <span class="nav-toggle__icon" aria-hidden="true"></span><span class="visually-hidden">Menu</span>
-      </button>
-      <nav id="site-nav" class="nav" aria-label="Main">
+      </button>`;
+  const nav = `<nav id="site-nav" class="nav" aria-label="Main">
         <ul>${[...orderMenu([...NAV.slice(0, -1), ...extraNav], s.menu_order ?? []), NAV.at(-1)].filter((n) => !off.has(n.href)).map(
           // Custom pages' titles are staff text: escaped like everything else.
           (n) => `<li><a href="${esc(n.href)}"${n.page === page ? ' aria-current="page"' : ''}>${esc(n.label)}</a></li>`,
         ).join('')}</ul>
-      </nav>
+      </nav>`;
+  const skip = `<a class="skip-link" href="${esc(location.pathname + location.search)}#main">Skip to content</a>`;
+  const demo = DEMO ? '<p class="demo-banner">Demo mode — showing sample data. Connect Supabase in <code>js/config.js</code>.</p>' : '';
+  const strip = `<div class="topbar"><div class="topbar__inner container">${notice}${search}</div></div>`;
+  $('#site-header').innerHTML =
+    header === 'bold'
+      ? `${skip}
+    <div class="header__bold">
+      <div class="header__bar container">
+        ${brand}
+        ${nav}
+        <button class="header__search-toggle" type="button" aria-expanded="false" aria-controls="header-search" aria-label="Search the site">${SEARCH_ICON}</button>
+        ${menuBtn}
+      </div>
+    </div>
+    <div class="topbar header__search" id="header-search" hidden><div class="topbar__inner container">${search}</div></div>
+    ${s.announcement ? `<div class="topbar"><div class="topbar__inner container">${notice}</div></div>` : ''}
+    ${demo}`
+      : header === 'centered'
+        ? `${skip}${strip}${demo}
+    <div class="header__bar container">${brand}${menuBtn}</div>
+    <div class="header__row container">${nav}</div>`
+        : `${skip}${strip}${demo}
+    <div class="header__bar container">
+      ${brand}
+      ${menuBtn}
+      ${nav}
     </div>`;
+  const searchToggle = $('.header__search-toggle');
+  searchToggle?.addEventListener('click', () => {
+    const open = searchToggle.getAttribute('aria-expanded') !== 'true';
+    searchToggle.setAttribute('aria-expanded', open);
+    $('#header-search').hidden = !open;
+    if (open) $('#site-q').focus();
+  });
   const toggle = $('.nav-toggle');
   // The header can be repainted (saved snapshot → fresh settings) while the menu is open.
   if (document.body.classList.contains('nav-open')) toggle.setAttribute('aria-expanded', 'true');
@@ -707,6 +742,9 @@ export async function initPage() {
     setShopTimeZone(s.timezone);
     // The built-in fallback has no colors or fonts: leave the Worker's theme alone until the real settings arrive.
     if (s !== FALLBACK_SETTINGS) applyTheme(s);
+    // The layout picks on <body> (the Worker stamps them; the saved settings win once loaded): css/site.css and the
+    // header, hero and footer code read them from there.
+    if (!app) Object.assign(document.body.dataset, layoutOf(s, document.body.dataset));
     if (app) renderAppHeader(s);
     else {
       const pageHref = (p) => customHref(p.slug);

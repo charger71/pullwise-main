@@ -473,6 +473,48 @@ input[type='checkbox'], input[type='radio'] {
   .nav a { padding: var(--sp-8) var(--sp-10); border: 0; min-height: var(--tap); display: inline-flex; align-items: center; border-radius: 0; }
   .nav a[aria-current='page'] { background: none; color: var(--gold-text); }
 }
+/* Header layouts (Shop Settings → Layout; js/layouts.js). The Worker stamps the pick on <body>, so the first paint
+   has it; Classic is the rules above. Every layout keeps the same phone menu. */
+/* Centered: logo in the middle, the menu on its own row under it. */
+[data-header="centered"] .header__bar { display: grid; grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap); }
+[data-header="centered"] .brand { grid-column: 2; justify-content: center; text-align: center; }
+[data-header="centered"] .nav-toggle { grid-column: 3; }
+@media (min-width: 1100px) {
+  [data-header="centered"] .header__bar { display: flex; justify-content: center; min-height: 96px; }
+  [data-header="centered"] .brand__logo { max-height: 64px; }
+  [data-header="centered"] .header__row { border-top: 1px solid var(--line); }
+  [data-header="centered"] .nav ul { justify-content: center; }
+}
+/* Bold bar: one bar in the accent color with the logo, menu and a search button; search opens under it, and the
+   announcement sits under it. Text on the bar follows the fill (--on-accent). */
+.header__bold { background: var(--brand-accent); color: var(--on-accent); }
+.header__bold :focus-visible { outline-color: var(--on-accent); }
+[data-header="bold"] .brand { margin-right: auto; }
+[data-header="bold"] .brand__name { color: var(--on-accent); }
+.header__search-toggle {
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  min-height: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: transparent;
+  color: var(--on-accent);
+}
+.header__search-toggle svg { width: 20px; height: 20px; }
+.header__search-toggle[aria-expanded='true'] { background: color-mix(in srgb, var(--on-accent) 14%, transparent); }
+.header__search .topbar__search { flex: 1 1 auto; margin: 0; }
+[data-header="bold"] .nav-toggle { background: var(--paper); }
+[data-header="bold"] .nav-toggle__icon, [data-header="bold"] .nav-toggle__icon::before, [data-header="bold"] .nav-toggle__icon::after { background: var(--ink); }
+[data-header="bold"].nav-open .nav-toggle__icon { background: transparent; }
+@media (min-width: 1100px) {
+  [data-header="bold"] .nav a, [data-header="bold"] .nav a[aria-current='page'] { color: var(--on-accent); }
+  [data-header="bold"] .nav li:last-child a { background: var(--paper); color: var(--gold-text); border-radius: var(--radius-pill); padding-inline: var(--sp-16); }
+}
 /* ---------- Footer ---------- */
 #site-footer { padding-top: var(--sp-32); background: var(--brand-footer); border-top: 1px solid var(--line); color: var(--footer-text); }
 #site-footer a { color: var(--footer-link); }
