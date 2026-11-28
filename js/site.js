@@ -33,6 +33,8 @@ const NAV = [
 /** The one mention of Pullwise a shop's customers see: the footer's last line, and the foot of the app's Account tab
  * (app.html). Everything else carries the shop's own name. */
 const POWERED_BY = 'Powered by Pullwise';
+/** The publishers' notice for the cover art, right before POWERED_BY in the footer and the app's Account foot. */
+const COVER_NOTICE = 'All cover images © &amp; ™ their respective publisher.';
 
 const FOOTER_LINKS = [
   ...(APP_ENABLED ? [{ href: 'app.html', label: 'Get the App' }] : []), // only shops with the app (shops.json)
@@ -431,7 +433,7 @@ function renderFooter(s, extraLinks = [], off = new Set()) {
     </section>`), fillContent(getSettings()).catch(() => {}); // the page's content was filled before this section existed
   $('.newsletter')?.classList.toggle('newsletter--lead', kind === 'signup');
   const links = orderMenu([...FOOTER_LINKS, ...(chatOn(s) ? [{ href: '#chat', label: 'Chat with us' }] : []), ...extraLinks], s.footer_order ?? []).filter((l) => !off.has(l.href)).map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('');
-  const legal = `<p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)} · ${POWERED_BY}</p>`;
+  const legal = `<p class="container footer__legal">${esc(s.copyright_text ? s.copyright_text.replaceAll('{year}', new Date().getFullYear()) : `© ${new Date().getFullYear()} ${s.shop_name}`)} · ${COVER_NOTICE} · ${POWERED_BY}</p>`;
   const visit = visitLine(s, off);
   if (kind === 'simple') {
     footer.innerHTML = `
